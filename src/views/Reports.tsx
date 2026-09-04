@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ArrowLeft, Download, FileBarChart } from "lucide-react";
 import { growthSeries, instruments, occupancy } from "@/data/academy";
-import { attentionQueue, reportCatalog, teachers, type ReportDef } from "@/data/records";
+import { attendanceByDay, attentionQueue, reportCatalog, teachers, type ReportDef } from "@/data/records";
 import { faNum, faPercent } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Delta, Sparkline, StatusBadge, Surface } from "@/components/ds/primitives";
-import { LoadingState } from "@/components/ds/states";
+import { DemoNote, LoadingState } from "@/components/ds/states";
 import { Meter, PageHeader, Panel, Segmented, useAsyncView } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
@@ -137,6 +137,30 @@ function ReportDetail({ r, onBack }: { r: ReportDef; onBack: () => void }) {
             </ul>
           </Panel>
         )}
+        {r.id === "rp7" && (
+          <Panel title="حضور بر حسب روز" className="lg:col-span-2" kicker="حاضر · تأخیر · غایب — از راست به چپ">
+            <div className="flex h-44 items-end gap-3">
+              {attendanceByDay.map((d, i) => {
+                const total = d.present + d.absent + d.late;
+                return (
+                  <div key={d.day} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                    <div className="flex h-36 w-full max-w-16 flex-col-reverse">
+                      <div className="w-full rounded-b-md bg-ok-500/70" style={{ height: `${(d.present / total) * 100}%`, animation: `grow-y 500ms var(--ease-phrase) ${i * 60}ms both`, transformOrigin: "bottom" }} title={`حاضر: ${faNum(d.present)}`} />
+                      <div className="w-full bg-warn-500/70" style={{ height: `${(d.late / total) * 100}%`, animation: `grow-y 500ms var(--ease-phrase) ${i * 60 + 80}ms both`, transformOrigin: "bottom" }} title={`تأخیر: ${faNum(d.late)}`} />
+                      <div className="w-full rounded-t-md bg-danger-500/60" style={{ height: `${(d.absent / total) * 100}%`, animation: `grow-y 500ms var(--ease-phrase) ${i * 60 + 160}ms both`, transformOrigin: "bottom" }} title={`غایب: ${faNum(d.absent)}`} />
+                    </div>
+                    <span className={cn("nums text-[10.5px]", d.day === "چهارشنبه" ? "font-semibold text-warn-400" : "text-ink-400")}>{d.day}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3 border-t border-white/[0.05] pt-3 text-[11px] text-ink-400">
+              <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-ok-500/70" /> حاضر</span>
+              <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-warn-500/70" /> تأخیر</span>
+              <span className="flex items-center gap-1.5"><i className="size-2 rounded-sm bg-danger-500/60" /> غایب</span>
+            </div>
+          </Panel>
+        )}
       </div>
 
       <Surface className="mt-4 flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -148,7 +172,15 @@ function ReportDetail({ r, onBack }: { r: ReportDef; onBack: () => void }) {
         </div>
         <div className="flex shrink-0 gap-2">
           <Button size="sm" variant="subtle" onClick={onBack}>بازگشت به گزارش‌ها</Button>
-          <Button size="sm" variant="primary" onClick={() => navigate({ view: r.id === "rp5" ? "finance" : r.id === "rp3" ? "teachers" : r.id === "rp4" ? "schedule" : "students" })}>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() =>
+              navigate({
+                view: r.id === "rp5" ? "finance" : r.id === "rp3" ? "teachers" : r.id === "rp4" ? "schedule" : r.id === "rp7" ? "attendance" : "students",
+              })
+            }
+          >
             رفتن به بخش عملیاتی
           </Button>
         </div>
@@ -173,6 +205,13 @@ export function ReportsView() {
         kicker="کسب‌وکار"
         title="گزارش‌ها"
         description="داشبورد می‌گوید امروز چه چیزی نیاز به توجه دارد؛ گزارش‌ها توضیح می‌دهند چرا این اتفاق می‌افتد."
+        meta={
+          <>
+            <span>پشتیبانی از ۶ ماه داده</span>
+            <span className="text-ink-500">·</span>
+            <span>به‌روز تا امروز ۰۶:۰۰</span>
+          </>
+        }
         actions={
           <Segmented
             value={period}
@@ -235,6 +274,8 @@ export function ReportsView() {
           ))}
         </ul>
       </Panel>
+
+      <DemoNote className="mt-6" text="همهٔ گزارش‌ها با دادهٔ نمایشی برای پیش‌نمایش طراحی شده‌اند؛ اتصال به دادهٔ واقعی از همین ساختار استفاده می‌کند." />
     </div>
   );
 }

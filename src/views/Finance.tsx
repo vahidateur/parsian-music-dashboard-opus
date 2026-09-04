@@ -1,15 +1,16 @@
 import { useMemo, useState } from "react";
-import { Download, Plus, Receipt, Send } from "lucide-react";
+import { CalendarClock, Download, Plus, Receipt, Send } from "lucide-react";
 import { revenueSeries } from "@/data/academy";
-import { financeKpis, invoices, payments, paymentLabel, revenueByStream, studentById, type Invoice, type PaymentStatus } from "@/data/records";
+import { financeKpis, invoices, payments, paymentLabel, revenueByStream, studentById, subscriptionStatusLabel, subscriptions, type Invoice, type PaymentStatus, type Subscription, type SubscriptionStatus } from "@/data/records";
 import { faNum, faPercent, faToman } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Delta, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
+import { DemoNote, EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const tone: Record<PaymentStatus, Tone> = { paid: "ok", due: "warn", overdue: "danger" };
+const subTone: Record<SubscriptionStatus, Tone> = { active: "ok", paused: "neutral", expiring: "warn" };
 
 /* ------------------------------------------------------------------ */
 function RevenueBars() {
@@ -36,8 +37,9 @@ function RevenueBars() {
 /* ------------------------------------------------------------------ */
 export function FinanceView() {
   const { filter, navigate, notify, openSheet } = useApp();
-  const [tab, setTab] = useState<"overview" | "invoices" | "payments">(filter === "overdue" ? "invoices" : "overview");
+  const [tab, setTab] = useState<"overview" | "invoices" | "payments" | "subscriptions">(filter === "overdue" ? "invoices" : "overview");
   const [status, setStatus] = useState<PaymentStatus | "all">(filter === "overdue" ? "overdue" : "all");
+  const [subFocus, setSubFocus] = useState<SubscriptionStatus | "all">("all");
   const [query, setQuery] = useState("");
   const state = useAsyncView([filter]);
 
@@ -103,6 +105,53 @@ export function FinanceView() {
     },
   ];
 
+  const subsList = useMemo(
+    () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
+    [subFocus],
+  );
+
+  const subColumns: Column<Subscription>[] = [
+    {
+      key: "student",
+      header: "هنرجو",
+      cell: (s) => {
+        const st = studentById(s.studentId);
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar name={st?.name ?? "—"} size="sm" ring={subTone[s.status]} />
+            <div className="min-w-0">
+              <div className="truncate font-medium text-ink-50">{st?.name}</div>
+              <div className="truncate text-[11px] text-ink-400">{s.plan}</div>
+            </div>
+          </div>
+        );
+      },
+    },
+    { key: "term", header: "دوره", cell: (s) => <span className="text-ink-300">{s.term}</span>, hideBelow: "md" },
+    { key: "amount", header: "مبلغ دوره", cell: (s) => <span className="nums font-medium text-ink-50">{faToman(s.amount)}</span> },
+    {
+      key: "next",
+      header: "تمدید بعدی",
+      cell: (s) => (
+        <span className={cn("nums text-ink-300", s.status === "expiring" && "text-warn-400")}>
+          {s.status === "paused" ? "—" : s.nextBilling}
+        </span>
+      ),
+      hideBelow: "sm",
+    },
+    {
+      key: "status",
+      header: "وضعیت",
+      align: "end",
+      cell: (s) => (
+        <span className="flex items-center justify-end gap-2">
+          {s.status === "expiring" && <CalendarClock className="size-3.5 text-warn-400" aria-hidden />}
+          <StatusBadge tone={subTone[s.status]} label={subscriptionStatusLabel[s.status]} />
+        </span>
+      ),
+    },
+  ];
+
   const overdueTotal = invoices.filter((i) => i.status === "overdue").reduce((a, b) => a + b.amount, 0);
   const dueTotal = invoices.filter((i) => i.status === "due").reduce((a, b) => a + b.amount, 0);
 
@@ -112,6 +161,13 @@ export function FinanceView() {
         kicker="کسب‌وکار"
         title="مالی"
         description="تصویر سلامت مالی آموزشگاه — درآمد، وصول و آنچه هنوز پرداخت نشده است."
+        meta={
+          <>
+            <span>به‌روز تا امروز ۰۶:۰۰</span>
+            <span className="text-ink-500">·</span>
+            <span>منبع: سامانهٔ یکپارچهٔ آوا</span>
+          </>
+        }
         actions={
           <>
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی در حال آماده‌سازی" })}>
@@ -141,6 +197,7 @@ export function FinanceView() {
           { value: "overview", label: "نمای کلی" },
           { value: "invoices", label: "فاکتورها", count: invoices.length },
           { value: "payments", label: "تراکنش‌ها", count: payments.length },
+          { value: "subscriptions", label: "اشتراک‌ها", count: subscriptions.length },
         ]}
       />
 
@@ -269,7 +326,33 @@ export function FinanceView() {
             </ul>
           </Panel>
         )}
+
+        {tab === "subscriptions" && (
+          <>
+            <StatStrip
+              stats={[
+                { label: "اشتراک فعال", value: faNum(subscriptions.filter((s) => s.status === "active").length), tone: "ok", hint: "از کل دوره‌ها" },
+                { label: "در حال اتمام", value: faNum(subscriptions.filter((s) => s.status === "expiring").length), tone: "warn", hint: "نیازمند تماس تمدید", onClick: () => setSubFocus("expiring") },
+                { label: "متوقف", value: faNum(subscriptions.filter((s) => s.status === "paused").length), tone: "neutral", hint: "قابل فعال‌سازی مجدد" },
+                { label: "درآمد ماهانهٔ اشتراک‌ها", value: faNum(subscriptions.filter((s) => s.status !== "paused").reduce((a, b) => a + b.amount, 0) / 1_000_000, { decimals: 1 }), unit: "میلیون", hint: "بر پایهٔ دوره‌های جاری" },
+              ]}
+            />
+            <div className="mt-4">
+              <Panel title="دوره‌ها و اشتراک‌ها" kicker="برنامهٔ پرداخت دوره‌ای و زمان تمدید — فقط پیش‌نمایش">
+                <DataTable
+                  rows={subsList}
+                  columns={subColumns}
+                  caption="فهرست اشتراک‌ها"
+                  onRowClick={(s) => navigate({ view: "students", id: s.studentId })}
+                  empty={<EmptyState title="اشتراکی با این وضعیت نیست" description="فیلتر وضعیت را تغییر دهید." action="نمایش همه" onAction={() => setSubFocus("all")} />}
+                />
+              </Panel>
+            </div>
+          </>
+        )}
       </div>
+
+      <DemoNote className="mt-6" text="اعداد و فاکتورهای این بخش، دادهٔ نمایشی برای پیش‌نمایش محصول هستند و قرارداد مالی واقعی نیستند." />
     </div>
   );
 }

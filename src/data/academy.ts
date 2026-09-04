@@ -140,7 +140,7 @@ export interface NavGroup {
 }
 
 export const navGroups: NavGroup[] = [
-  { id: "overview", items: [{ id: "dashboard", label: "داشبورد", hint: "امروز چه چیزی نیاز به توجه دارد" }] },
+  { id: "overview", label: "نمای کلی", items: [{ id: "dashboard", label: "داشبورد", hint: "امروز چه چیزی نیاز به توجه دارد" }] },
   {
     id: "people",
     label: "افراد",
@@ -167,12 +167,14 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    id: "communication",
+    label: "ارتباط",
+    items: [{ id: "messages", label: "پیام‌ها", badge: 5, hint: "مدرسین، هنرجویان و اولیا" }],
+  },
+  {
     id: "resources",
-    label: "ارتباط و منابع",
-    items: [
-      { id: "messages", label: "پیام‌ها", badge: 5 },
-      { id: "library", label: "کتابخانه" },
-    ],
+    label: "منابع",
+    items: [{ id: "library", label: "کتابخانه", hint: "نت، صدا و ویدیو" }],
   },
   {
     id: "system",

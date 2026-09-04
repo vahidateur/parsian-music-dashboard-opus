@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Building2, Check, Globe, Palette, Shield, SlidersHorizontal, Bell } from "lucide-react";
+import { Building2, Check, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
 import { accessRoles, rooms, settingsSections } from "@/data/records";
 import { faNum } from "@/lib/format";
+import { accentHex, accentLabels, type Accent, type Density } from "@/lib/theme";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Avatar, Field, ListRow, PageHeader, Panel, Segmented, Toggle, inputCls, useAsyncView } from "@/components/ds/patterns";
 import { LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
+
+
 
 type SectionId = (typeof settingsSections)[number]["id"];
 
@@ -20,11 +23,9 @@ const sectionIcon: Record<SectionId, typeof Building2> = {
 };
 
 export function SettingsView() {
-  const { notify } = useApp();
+  const { notify, theme, setTheme, accent, setAccent, density, setDensity, motion, setMotion } = useApp();
   const [section, setSection] = useState<SectionId>("profile");
   const [dirty, setDirty] = useState(false);
-  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
-  const [motion, setMotion] = useState(true);
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     overdue: true,
     atRisk: true,
@@ -159,50 +160,150 @@ export function SettingsView() {
 
           {section === "appearance" && (
             <>
-              <Panel title="تم و تراکم" kicker="ظاهر سامانه برای همهٔ کاربران این دستگاه">
+              <Panel title="تم" kicker="تغییرات بلافاصله اعمال و برای این دستگاه ذخیره می‌شود">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Dark cinematic — primary */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme("dark")}
+                    aria-pressed={theme === "dark"}
+                    className={cn(
+                      "relative overflow-hidden rounded-2xl border p-4 text-right transition-all duration-[var(--sixteenth)]",
+                      theme === "dark" ? "border-gold-500/45 bg-gold-500/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-ink-50">تیرهٔ کنسرواتوار</span>
+                      {theme === "dark" && <StatusBadge tone="gold" label="فعال" glyph={false} />}
+                    </div>
+                    <div className="mt-3 flex gap-1.5" aria-hidden>
+                      {["bg-ink-900", "bg-ink-800", "bg-ink-700"].map((b) => (
+                        <span key={b} className={cn("h-10 flex-1 rounded-lg border border-white/[0.07]", b)} />
+                      ))}
+                    </div>
+                    <div className="mt-2 h-8 rounded-lg border border-white/[0.08] bg-ink-950/80" aria-hidden />
+                    <p className="mt-3 text-[11px] leading-relaxed text-ink-400">سالن تاریک، نور صحنهٔ طلایی — تجربهٔ اصلی محصول.</p>
+                  </button>
+
+                  {/* Glass — secondary */}
+                  <button
+                    type="button"
+                    onClick={() => setTheme("glass")}
+                    aria-pressed={theme === "glass"}
+                    className={cn(
+                      "relative overflow-hidden rounded-2xl border p-4 text-right transition-all duration-[var(--sixteenth)]",
+                      theme === "glass" ? "border-gold-500/45 bg-gold-500/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-ink-50">شیشه‌ای</span>
+                      {theme === "glass" && <StatusBadge tone="gold" label="فعال" glyph={false} />}
+                    </div>
+                    <div className="mt-3 flex gap-1.5" aria-hidden>
+                      {["bg-ink-900/50", "bg-ink-800/50", "bg-ink-700/50"].map((b) => (
+                        <span key={b} className={cn("h-10 flex-1 rounded-lg border border-white/[0.1] backdrop-blur-md", b)} />
+                      ))}
+                    </div>
+                    <div className="mt-2 h-8 rounded-lg border border-white/[0.1] bg-ink-950/35 backdrop-blur-md" aria-hidden />
+                    <p className="mt-3 text-[11px] leading-relaxed text-ink-400">سطوح شفاف با عمق کنترل‌شده — گزینهٔ ثانویهٔ محصول.</p>
+                  </button>
+                </div>
+              </Panel>
+
+              <Panel title="لهجهٔ برند" kicker="فقط سه گزینهٔ کنترل‌شده — از توکن‌های معنایی، نه رنگ‌های پراکنده">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(Object.keys(accentLabels) as Accent[]).map((a) => {
+                    const g = accentHex[a];
+                    const active = accent === a;
+                    return (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => setAccent(a)}
+                        aria-pressed={active}
+                        className={cn(
+                          "rounded-2xl border p-3.5 text-right transition-all duration-[var(--sixteenth)]",
+                          active ? "border-gold-500/45 bg-gold-500/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
+                        )}
+                      >
+                        <span className="flex items-center justify-between">
+                          <span className="h-4 w-6 rounded-md" style={{ background: `linear-gradient(90deg, ${g[400]}, ${g[600]})` }} aria-hidden />
+                          {active && <Check className="size-3.5 text-gold-400" />}
+                        </span>
+                        <span className="mt-2.5 block text-[12.5px] font-medium text-ink-50">{accentLabels[a]}</span>
+                        <span className="mt-1 flex gap-1" aria-hidden>
+                          {[g[300], g[500], g[700]].map((c) => (
+                            <i key={c} className="size-2.5 rounded-full" style={{ background: c }} />
+                          ))}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-gold-500/25 bg-gold-500/10 text-gold-400" aria-hidden>
+                    <LayoutGrid className="size-4" strokeWidth={1.8} />
+                  </span>
+                  <p className="text-[11.5px] leading-relaxed text-ink-300">
+                    لهجه روی برند، نمودارها، وضعیت‌ها و موج نبض اثر می‌گذارد؛ رنگ‌های معنایی (موفقیت، هشدار، خطر) ثابت می‌مانند.
+                  </p>
+                </div>
+              </Panel>
+
+              <Panel title="تراکم و حرکت" kicker="رفتار رابط کاربری روی این دستگاه">
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                     <div>
-                      <div className="text-[13px] text-ink-50">تم</div>
-                      <div className="mt-0.5 text-[11px] text-ink-400">تم تیرهٔ کنسرواتوار — پیش‌فرض محصول</div>
-                    </div>
-                    <Segmented value="dark" onChange={() => notify({ tone: "info", title: "تم روشن در نسخهٔ بعدی" })} options={[{ value: "dark", label: "تیره" }, { value: "light", label: "روشن" }]} />
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                    <div>
-                      <div className="text-[13px] text-ink-50">تراکم اطلاعات</div>
+                      <div className="flex items-center gap-2 text-[13px] text-ink-50">
+                        تراکم اطلاعات
+                        <History className="size-3.5 text-ink-500" aria-hidden />
+                      </div>
                       <div className="mt-0.5 text-[11px] text-ink-400">فاصلهٔ عناصر در جدول‌ها و فهرست‌ها</div>
                     </div>
-                    <Segmented value={density} onChange={(v) => { setDensity(v); setDirty(true); }} options={[{ value: "comfortable", label: "راحت" }, { value: "compact", label: "فشرده" }]} />
+                    <Segmented
+                      value={density}
+                      onChange={(v: Density) => setDensity(v)}
+                      options={[{ value: "comfortable", label: "راحت" }, { value: "compact", label: "فشرده" }]}
+                    />
                   </div>
                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                     <div>
                       <div className="text-[13px] text-ink-50">حرکت و انیمیشن</div>
                       <div className="mt-0.5 text-[11px] text-ink-400">در صورت خاموش بودن، فقط تغییر حالت‌های ضروری نمایش داده می‌شود</div>
                     </div>
-                    <Toggle checked={motion} onChange={(v) => { setMotion(v); setDirty(true); }} label="حرکت" />
+                    <Toggle checked={motion} onChange={setMotion} label="حرکت" />
                   </div>
                 </div>
               </Panel>
-              <Panel title="رنگ برند" kicker="لهجهٔ رنگی در نمودارها و وضعیت‌ها">
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { label: "طلایی صحنه", cls: "bg-gold-500", active: true },
-                    { label: "چوب گرم", cls: "bg-wood-400" },
-                    { label: "بنفش رزونانس", cls: "bg-violet-500" },
-                  ].map((c) => (
-                    <button
-                      key={c.label}
-                      type="button"
-                      onClick={() => setDirty(true)}
-                      className={cn("flex items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-[12.5px] transition-colors", c.active ? "border-gold-500/40 bg-gold-500/[0.07] text-ink-50" : "border-white/[0.07] text-ink-300 hover:border-white/[0.16]")}
-                    >
-                      <span className={cn("size-4 rounded-full", c.cls)} />
-                      {c.label}
-                    </button>
-                  ))}
+
+              <div className="rounded-2xl border border-white/[0.06] p-5">
+                <div className="mb-1.5 text-[11px] font-medium text-gold-400">پیش‌نمایش زنده</div>
+                <Surface className="flex items-center gap-4 p-4">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/25 bg-gold-500/10 text-gold-400" aria-hidden>
+                    <LayoutGrid className="size-4" strokeWidth={1.8} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-medium text-ink-50">نمونهٔ سطح در {theme === "glass" ? "تم شیشه‌ای" : "تم تیره"}</div>
+                    <div className="mt-0.5 text-[11px] text-ink-400">لهجهٔ فعال: {accentLabels[accent]} · تراکم: {density === "compact" ? "فشرده" : "راحت"} · حرکت: {motion ? "فعال" : "خاموش"}</div>
+                  </div>
+                  <StatusBadge tone="gold" label={accentLabels[accent]} glyph={false} />
+                </Surface>
+                <div className="mt-3 flex justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setTheme("dark");
+                      setAccent("gold");
+                      setDensity("comfortable");
+                      setMotion(true);
+                      notify({ tone: "info", title: "ظاهر به پیش‌فرض بازگشت", detail: "تم تیره · لهجهٔ طلایی · تراکم راحت · حرکت فعال" });
+                    }}
+                  >
+                    بازنشانی به پیش‌فرض
+                  </Button>
                 </div>
-              </Panel>
+              </div>
             </>
           )}
 

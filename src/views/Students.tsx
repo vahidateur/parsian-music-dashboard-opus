@@ -1,13 +1,33 @@
 import { useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Phone, Plus, Rows3, Wallet } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
-import { paymentLabel, studentStatusLabel, students, studentStats, teacherById, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
-import { faNum, faPercent, faToman } from "@/lib/format";
+import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { ACADEMY_NOW, instrumentLabel, type Instrument } from "@/data/academy";
+import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, students, studentStats, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { faNum, faPercent, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
+
+const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof Music2; mark: string }> = {
+  session: { label: "جلسه", icon: Music2, mark: "border-gold-500/25 bg-gold-500/[0.08] text-gold-400" },
+  payment: { label: "پرداخت", icon: Wallet, mark: "border-ok-500/25 bg-ok-500/[0.08] text-ok-400" },
+  note: { label: "یادداشت", icon: StickyNote, mark: "border-violet-500/25 bg-violet-500/[0.08] text-violet-300" },
+  enroll: { label: "ثبت‌نام", icon: UserPlus, mark: "border-info-400/25 bg-info-400/[0.08] text-info-400" },
+  absence: { label: "غیبت", icon: UserX, mark: "border-warn-500/30 bg-warn-500/[0.08] text-warn-400" },
+  message: { label: "پیام", icon: MessageSquare, mark: "border-white/[0.08] bg-white/[0.03] text-ink-300" },
+};
+
+function sessionBadge(s: GridSession): { label: string; tone: Tone; live?: boolean; cancelled?: boolean } {
+  if (s.cancelled) return { label: "لغو شده", tone: "neutral", cancelled: true };
+  if (s.conflictWith) return { label: "تعارض", tone: "warn" };
+  const start = parseTime(s.start);
+  const end = parseTime(s.end);
+  if (s.day !== TODAY_INDEX) return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
+  if (end <= ACADEMY_NOW) return { label: "برگزار شد", tone: "neutral" };
+  if (start <= ACADEMY_NOW && ACADEMY_NOW < end) return { label: "در حال برگزاری", tone: "ok", live: true };
+  return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
+}
 
 const statusTone: Record<StudentStatus, Tone> = { active: "ok", "at-risk": "warn", paused: "neutral", waitlist: "violet" };
 const paymentTone: Record<PaymentStatus, Tone> = { paid: "ok", due: "warn", overdue: "danger" };
@@ -80,13 +100,17 @@ function StudentCard({ s, onOpen }: { s: Student; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 /* Student detail workspace                                            */
 /* ------------------------------------------------------------------ */
-type DetailTab = "overview" | "attendance" | "finance" | "progress" | "notes";
+type DetailTab = "overview" | "learning" | "schedule" | "attendance" | "finance" | "notes" | "activity";
 
 function StudentDetail({ student }: { student: Student }) {
   const { navigate, notify, openSheet } = useApp();
   const [tab, setTab] = useState<DetailTab>("overview");
+  const [actFilter, setActFilter] = useState<ActivityEntry["kind"] | "all">("all");
   const teacher = teacherById(student.teacherId);
   const remaining = student.sessionsTotal - student.sessionsUsed;
+  const myClasses = academyClasses.filter((c) => c.studentIds.includes(student.id));
+  const scheduleSessions = weekSessions.filter((w) => myClasses.some((c) => c.id === w.classId));
+  const visibleActivity = actFilter === "all" ? student.activity : student.activity.filter((a) => a.kind === actFilter);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -162,10 +186,12 @@ function StudentDetail({ student }: { student: Student }) {
         onChange={setTab}
         options={[
           { value: "overview", label: "نمای کلی" },
+          { value: "learning", label: "مسیر یادگیری" },
+          { value: "schedule", label: "برنامه", count: scheduleSessions.length },
           { value: "attendance", label: "حضور و غیاب" },
           { value: "finance", label: "مالی" },
-          { value: "progress", label: "پیشرفت" },
           { value: "notes", label: "یادداشت‌ها", count: student.notes.length },
+          { value: "activity", label: "فعالیت", count: student.activity.length },
         ]}
       />
 
@@ -208,23 +234,147 @@ function StudentDetail({ student }: { student: Student }) {
               </ul>
             </Panel>
 
-            <Panel title="تاریخچهٔ فعالیت" className="lg:col-span-1">
+            <Panel
+              title="آخرین فعالیت‌ها"
+              className="lg:col-span-1"
+              action="همهٔ فعالیت‌ها"
+              onAction={() => setTab("activity")}
+            >
               <ol className="space-y-3">
-                {student.activity.map((a, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="relative flex w-2 flex-col items-center pt-1.5">
-                      <span className={cn("size-1.5 shrink-0 rounded-full", a.kind === "absence" ? "bg-warn-500" : a.kind === "payment" ? "bg-ok-500" : "bg-ink-500")} />
-                      {i < student.activity.length - 1 && <span className="mt-1 w-px flex-1 bg-white/[0.07]" />}
-                    </span>
-                    <div className="min-w-0 flex-1 pb-1">
-                      <div className="text-[12.5px] leading-relaxed text-ink-100">{a.text}</div>
-                      <div className="mt-0.5 text-[10.5px] text-ink-500">{a.date}</div>
-                    </div>
-                  </li>
-                ))}
+                {student.activity.slice(0, 3).map((a, i) => {
+                  const meta = activityMeta[a.kind];
+                  return (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg border", meta.mark)}>
+                        <meta.icon className="size-3.5" strokeWidth={1.8} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12.5px] leading-relaxed text-ink-100">{a.text}</div>
+                        <div className="mt-0.5 text-[10.5px] text-ink-500">{a.date}</div>
+                      </div>
+                    </li>
+                  );
+                })}
+                {student.activity.length === 0 && <EmptyState title="فعالیتی ثبت نشده" description="اولین جلسهٔ هنرجو در اینجا نمایش داده می‌شود." />}
               </ol>
             </Panel>
           </div>
+        )}
+
+        {tab === "schedule" && (
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Panel title="برنامهٔ هفتگی" kicker="جلسات ثبت‌شده برای کلاس‌های این هنرجو" className="lg:col-span-2">
+              {scheduleSessions.length === 0 ? (
+                <EmptyState
+                  title="کلاسی برنامه‌ریزی نشده"
+                  description="این هنرجو هنوز در کلاس فعالی ثبت نشده است."
+                  action="برنامه‌ریزی کلاس"
+                  onAction={() => openSheet("class")}
+                />
+              ) : (
+                <ol className="space-y-5">
+                  {WEEKDAYS.map((day, d) => {
+                    const sessions = scheduleSessions.filter((s) => s.day === d);
+                    if (!sessions.length) return null;
+                    return (
+                      <li key={day}>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className={cn("text-[11.5px] font-medium", d === TODAY_INDEX ? "text-gold-300" : "text-ink-400")}>{day}</span>
+                          {d === TODAY_INDEX && <StatusBadge tone="gold" label="امروز" glyph={false} />}
+                          <span className="h-px flex-1 bg-white/[0.06]" aria-hidden />
+                        </div>
+                        <ul className="space-y-2">
+                          {sessions.map((s) => {
+                            const cl = classById(s.classId);
+                            const badge = sessionBadge(s);
+                            return (
+                              <li key={s.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate({ view: "schedule" })}
+                                  className="flex w-full items-center gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] px-3.5 py-3 text-right transition-colors hover:border-white/[0.12] hover:bg-white/[0.04]"
+                                >
+                                  <span className="nums w-12 shrink-0 text-sm font-medium text-ink-100">{s.start}</span>
+                                  <span className="min-w-0 flex-1">
+                                    <span className="flex items-center gap-2">
+                                      <InstrumentGlyph kind={cl?.instrument ?? student.instrument} className="size-4 text-gold-400" />
+                                      <span className="truncate text-[13px] font-medium text-ink-50">{cl?.title ?? "کلاس"}</span>
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-[11px] text-ink-400">
+                                      {s.start}–{s.end} · {rooms.find((r) => r.id === s.roomId)?.name ?? ""} · {teacherById(s.teacherId)?.name}
+                                    </span>
+                                  </span>
+                                  <StatusBadge tone={badge.tone} label={badge.label} live={badge.live} cancelled={badge.cancelled} className="shrink-0" />
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </Panel>
+            <Panel title="نکتهٔ برنامه" kicker="برای هماهنگی با مدرس">
+              <div className="space-y-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-[12px] leading-relaxed text-ink-300">
+                <p>بازهٔ ترجیحی این هنرجو: <span className="text-ink-100">عصرها بعد از ۱۶:۰۰</span></p>
+                <p>{student.nextClass ? `کلاس بعدی: ${student.nextClass.day} · ${student.nextClass.time} · ${student.nextClass.room}` : "کلاس بعدی ثبت نشده است."}</p>
+              </div>
+              <Button size="sm" variant="subtle" className="mt-4 w-full" onClick={() => openSheet("class")}>
+                <CalendarPlus className="size-3.5" /> جابه‌جایی یا جلسهٔ جدید
+              </Button>
+            </Panel>
+          </div>
+        )}
+
+        {tab === "activity" && (
+          <Panel
+            title="تاریخچهٔ کامل فعالیت"
+            kicker="جلسات، پرداخت‌ها، یادداشت‌ها و پیام‌ها — در یک جریان"
+            action="ثبت یادداشت"
+            onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد", detail: "برای مدرس این هنرجو نیز قابل مشاهده است." })}
+          >
+            {student.activity.length > 0 && (
+              <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-0.5">
+                <Chip label="همه" active={actFilter === "all"} onClick={() => setActFilter("all")} />
+                {(Object.keys(activityMeta) as ActivityEntry["kind"][]).map((k) => (
+                  <Chip
+                    key={k}
+                    label={activityMeta[k].label}
+                    tone={k === "absence" ? "gold" : "violet"}
+                    active={actFilter === k}
+                    count={student.activity.filter((a) => a.kind === k).length}
+                    onClick={() => setActFilter(actFilter === k ? "all" : k)}
+                  />
+                ))}
+              </div>
+            )}
+            {visibleActivity.length === 0 ? (
+              <EmptyState title="فعالیتی با این فیلتر پیدا نشد" description="فیلتر را تغییر دهید یا فعالیت جدیدی ثبت کنید." />
+            ) : (
+              <ol className="space-y-1">
+                {visibleActivity.map((a, i) => {
+                  const meta = activityMeta[a.kind];
+                  return (
+                    <li key={i} className="relative flex gap-3.5">
+                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg border", meta.mark)}>
+                        <meta.icon className="size-3.5" strokeWidth={1.8} />
+                      </span>
+                      <div className="min-w-0 flex-1 pb-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[13px] leading-relaxed text-ink-100">{a.text}</span>
+                          <span className="text-[10px] text-ink-500">{meta.label}</span>
+                        </div>
+                        <div className="mt-0.5 text-[10.5px] text-ink-500">{a.date}</div>
+                      </div>
+                      {i < visibleActivity.length - 1 && <span className="absolute right-4 top-9 h-[calc(100%-30px)] w-px bg-white/[0.07]" aria-hidden />}
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </Panel>
         )}
 
         {tab === "attendance" && (
@@ -294,7 +444,7 @@ function StudentDetail({ student }: { student: Student }) {
           </Panel>
         )}
 
-        {tab === "progress" && (
+        {tab === "learning" && (
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel title="مسیر سطح" kicker="پیشرفت در مسیر آموزشی آموزشگاه">
               <ol className="relative space-y-3">

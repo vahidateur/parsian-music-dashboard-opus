@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { LayoutGrid, MessageSquare, Users } from "lucide-react";
+import { LayoutGrid, MessageSquare, Music2, Users } from "lucide-react";
 import { useState } from "react";
 import { attentionItems, insights, instrumentLabel, schedule, signals, type ClassStatus } from "@/data/academy";
 import { intelligenceCards, students } from "@/data/records";
 import { AlertItem, InsightItem, IntelligenceCardView, NavItem, QuickAction, SignalBlock, TimelineEvent } from "@/components/ds/blocks";
 import { Avatar, Chip, DataTable, Dialog, Drawer, Field, FilterBar, ListRow, Meter, PageHeader, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, Toggle, inputCls } from "@/components/ds/patterns";
 import { Button, Delta, InstrumentGlyph, Kbd, Sparkline, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { BreathingWave, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+import { BreathingWave, DemoNote, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { CommandSearchTrigger } from "@/components/layout/TopBar";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/utils/cn";
@@ -334,6 +334,103 @@ export function DesignSystemView() {
                 <div className="nums mt-0.5 text-[9.5px] opacity-80">۱۴:۰۰–۱۵:۰۰</div>
               </div>
             ))}
+          </div>
+        </Spec>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Spec title="فاصله · گوشه · مرز · سایه" note="ریتم آزاد، مرزهای نرم">
+          <div className="flex flex-wrap items-end gap-2">
+            {[4, 8, 12, 16, 20, 24].map((s) => (
+              <div key={s} className="flex flex-col items-center gap-1.5">
+                <span className="block bg-gold-500/25" style={{ width: s === 4 ? 1 : s * 2, height: 14 }} aria-hidden />
+                <span className="nums text-[9.5px] text-ink-500">{s}</span>
+              </div>
+            ))}
+            <span className="text-[10.5px] text-ink-400">فضا بر پایهٔ چهارگامِ ریتم</span>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-white/[0.06] pt-4">
+            {[
+              { cls: "rounded-lg", label: "lg" },
+              { cls: "rounded-xl", label: "xl" },
+              { cls: "rounded-2xl", label: "2xl" },
+              { cls: "rounded-3xl", label: "3xl" },
+              { cls: "rounded-full", label: "full" },
+            ].map((r) => (
+              <div key={r.label} className="flex flex-col items-center gap-1.5">
+                <span className={cn("block size-10 border border-white/[0.12] bg-white/[0.03]", r.cls)} aria-hidden />
+                <span className="nums text-[9.5px] text-ink-500">{r.label}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="h-9 w-28 rounded-xl border border-white/[0.06] bg-white/[0.02]" title="مرز ۶٪" />
+            <span className="h-9 w-28 rounded-xl border border-white/[0.12] bg-white/[0.03]" title="مرز ۱۲٪" />
+            <span className="h-9 w-28 rounded-xl border border-gold-500/40 bg-gold-500/[0.05]" title="مرز برند" />
+            <span className="h-9 w-28 rounded-xl bg-ink-900 shadow-[0_20px_40px_-24px_rgba(0,0,0,0.6)]" title="سایهٔ سطح" />
+          </div>
+        </Spec>
+
+        <Spec title="Inputs · Selects · Toggle" note="کنترل‌های فرم — یک زبان">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="نام هنرجو" hint="مثال">
+              <input className={inputCls} placeholder="مثلاً: نیلوفر رستمی" />
+            </Field>
+            <Field label="ساز">
+              <select className={inputCls} defaultValue="piano" aria-label="انتخاب ساز">
+                <option value="piano">پیانو</option>
+                <option value="guitar">گیتار</option>
+                <option value="violin">ویولن</option>
+              </select>
+            </Field>
+            <Field label="جستجو" className="sm:col-span-2">
+              <SearchInput value={q} onChange={setQ} placeholder="جستجوی هنرجو یا مدرس…" />
+            </Field>
+          </div>
+          <div className="mt-4 space-y-2.5 border-t border-white/[0.06] pt-4">
+            <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <span className="text-[12.5px] text-ink-100">اعلان فاکتور سررسید</span>
+              <Toggle checked={tog} onChange={setTog} label="نمونهٔ سوییچ" />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="primary">اصلی</Button>
+              <Button size="sm">ثانویه</Button>
+              <Button size="sm" variant="ghost">شبح</Button>
+              <Button size="sm" disabled>غیرفعال</Button>
+            </div>
+          </div>
+        </Spec>
+
+        <Spec title="Surface — Card" note="سطح، نه «کارت»">
+          <Surface className="p-5">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/25 bg-gold-500/10 text-gold-400" aria-hidden>
+                <Music2 className="size-4" strokeWidth={1.8} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13.5px] font-semibold text-ink-50">پیانو گروهی · میانی</div>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-ink-300">سطح پیش‌فرض؛ یک خط روشنایی از بالا، مرز ۶٪، هیچ سایهٔ پر سر و صدایی.</p>
+              </div>
+              <StatusBadge tone="gold" label="نزدیک اشباع" />
+            </div>
+          </Surface>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[10.5px] text-ink-400">
+            <span>مشتق‌ها: Panel · ChartCard · StatStrip · ListRow — همه از همین زبان</span>
+          </div>
+        </Spec>
+
+        <Spec title="نمونه‌های وضعیت داده" note="loading · empty · error · demo">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] p-4">
+              <BreathingWave bars={7} />
+              <span className="text-[10.5px] text-ink-400">loading</span>
+            </div>
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] p-4">
+              <EmptyState className="border-0 py-6" title="خالی" description="با اقدام همراه است" />
+            </div>
+            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] p-4 sm:col-span-2">
+              <DemoNote className="w-full" />
+            </div>
           </div>
         </Spec>
       </div>

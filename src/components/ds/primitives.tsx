@@ -179,7 +179,7 @@ export function Sparkline({
   className?: string;
   animate?: boolean;
 }) {
-  const color = { gold: "#d4a853", ok: "#5fb57a", warn: "#e0a030", violet: "#8b75dc" }[tone];
+  const toneText = { gold: "text-gold-400", ok: "text-ok-400", warn: "text-warn-500", violet: "text-violet-400" }[tone];
   const { path, area, length, bars } = useMemo(() => {
     const min = Math.min(...data);
     const max = Math.max(...data);
@@ -209,7 +209,7 @@ export function Sparkline({
   if (kind === "bars") {
     const bw = Math.max(2, ((width - 4) / Math.max(data.length - 1, 1)) * 0.55);
     return (
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", className)} aria-hidden>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", toneText, className)} aria-hidden>
         {bars.map((b, i) => (
           <rect
             key={i}
@@ -218,7 +218,7 @@ export function Sparkline({
             width={bw}
             height={b.h}
             rx={1}
-            fill={color}
+            fill="currentColor"
             opacity={i === data.length - 1 ? 1 : 0.38}
             style={
               animate
@@ -232,18 +232,18 @@ export function Sparkline({
   }
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", className)} aria-hidden>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", toneText, className)} aria-hidden>
       <defs>
         <linearGradient id={`spark-${tone}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#spark-${tone})`} style={animate ? { animation: "fade-in 900ms var(--ease-legato) 300ms both" } : undefined} />
       <path
         d={path}
         fill="none"
-        stroke={color}
+        stroke="currentColor"
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -287,7 +287,7 @@ export function Button({ variant = "subtle", size = "md", className, ...rest }: 
         "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)] active:scale-[0.985] disabled:opacity-50",
         size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
         variant === "primary" &&
-          "bg-gold-500 text-ink-950 hover:bg-gold-400 shadow-[0_8px_24px_-12px_rgba(212,168,83,0.6)]",
+          "bg-gold-500 text-ink-950 hover:bg-gold-400 shadow-[var(--shadow-accent)]",
         variant === "subtle" && "border border-white/[0.08] bg-white/[0.03] text-ink-100 hover:bg-white/[0.06] hover:border-white/[0.14]",
         variant === "ghost" && "text-ink-200 hover:bg-white/[0.05] hover:text-ink-50",
         className,

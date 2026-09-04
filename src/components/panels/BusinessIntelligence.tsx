@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpLeft, Smartphone, UserRound, UsersRound } from "l
 import { growthSeries, instruments, occupancy, revenueSeries, revenueTarget } from "@/data/academy";
 import { faNum, faPercent } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { accentHex } from "@/lib/theme";
 import { ChartCard, PeriodSelect } from "@/components/ds/blocks";
 import { Delta, Surface } from "@/components/ds/primitives";
 import { ErrorState, LoadingState } from "@/components/ds/states";
@@ -23,13 +24,14 @@ function useSize<T extends HTMLElement>() {
   return { ref, width };
 }
 
-const GOLD = "#d4a853";
 const MUTED_BAR = "#3a322a";
 
 /* ------------------------------------------------------------------ */
 /* Revenue — bars, RTL timeline                                        */
 /* ------------------------------------------------------------------ */
 function RevenueChart() {
+  const { accent } = useApp();
+  const gold = accentHex[accent];
   const [period, setPeriod] = useState("۶ ماه اخیر");
   const [state, setState] = useState<"ok" | "loading" | "error">("ok");
   const [hover, setHover] = useState<number | null>(null);
@@ -86,12 +88,12 @@ function RevenueChart() {
           <svg key={period} width={width} height={H} className="overflow-visible" role="img" aria-label="نمودار درآمد ماهانه">
             <defs>
               <linearGradient id="rev-gold" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#e4c57a" />
-                <stop offset="100%" stopColor="#b98c3e" />
+                <stop offset="0%" stopColor={gold[400]} />
+                <stop offset="100%" stopColor={gold[600]} />
               </linearGradient>
             </defs>
             {/* target */}
-            <line x1={padX} x2={width - padX} y1={y(revenueTarget)} y2={y(revenueTarget)} stroke="rgba(212,168,83,0.35)" strokeDasharray="3 4" />
+            <line x1={padX} x2={width - padX} y1={y(revenueTarget)} y2={y(revenueTarget)} stroke={gold[500]} strokeOpacity={0.35} strokeDasharray="3 4" />
             <text x={width - padX} y={y(revenueTarget) - 5} textAnchor="end" className="nums fill-gold-500/80 text-[10px]">
               هدف {faNum(revenueTarget)}
             </text>
@@ -139,6 +141,8 @@ function RevenueChart() {
 /* Student growth — line + area                                        */
 /* ------------------------------------------------------------------ */
 function GrowthChart() {
+  const { accent } = useApp();
+  const gold = accentHex[accent];
   const { ref, width } = useSize<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const H = 172;
@@ -184,8 +188,8 @@ function GrowthChart() {
           <svg width={width} height={H} className="overflow-visible" role="img" aria-label="نمودار رشد هنرجویان">
             <defs>
               <linearGradient id="growth-area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={GOLD} stopOpacity="0.22" />
-                <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
+                <stop offset="0%" stopColor={gold[500]} stopOpacity="0.22" />
+                <stop offset="100%" stopColor={gold[500]} stopOpacity="0" />
               </linearGradient>
             </defs>
             {[0.25, 0.5, 0.75].map((f) => (
@@ -196,7 +200,7 @@ function GrowthChart() {
             <path
               d={path}
               fill="none"
-              stroke={GOLD}
+              stroke={gold[500]}
               strokeWidth={1.75}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -212,8 +216,8 @@ function GrowthChart() {
                     cx={p.x}
                     cy={p.y}
                     r={isLast ? 4 : active ? 3.5 : 2.5}
-                    fill={isLast || active ? "#e4c57a" : "#1a1714"}
-                    stroke={GOLD}
+                    fill={isLast || active ? gold[400] : "#1a1714"}
+                    stroke={gold[500]}
                     strokeWidth={1.5}
                     style={{ animation: `fade-in 300ms var(--ease-legato) ${200 + i * 160}ms both`, transition: "r var(--sixteenth)" }}
                   />
@@ -239,7 +243,8 @@ function GrowthChart() {
 /* Occupancy — ring + rooms + weekday strip                            */
 /* ------------------------------------------------------------------ */
 function OccupancyChart() {
-  const { navigate } = useApp();
+  const { navigate, accent } = useApp();
+  const gold = accentHex[accent];
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = window.setTimeout(() => setMounted(true), 60);
@@ -274,7 +279,7 @@ function OccupancyChart() {
               cy="62"
               r={r}
               fill="none"
-              stroke={GOLD}
+              stroke={gold[500]}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={c}

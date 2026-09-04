@@ -76,12 +76,54 @@
   --animate-spin-slow: spin 1.5s linear infinite;
 }
 
+/* ------------------------------------------------------------------
+   Accent — controlled customization. Components use the gold scale,
+   which is aliased to the active accent at runtime. Never scatter
+   hardcoded brand colors through the pages.
+------------------------------------------------------------------- */
+:root,
+[data-accent="gold"] {
+  --accent-200: #f6e6b8;
+  --accent-300: #efd89a;
+  --accent-400: #e4c57a;
+  --accent-500: #d4a853;
+  --accent-600: #b98c3e;
+  --accent-700: #8f6a2c;
+}
+[data-accent="wood"] {
+  --accent-200: #f4e3c2;
+  --accent-300: #eacf9a;
+  --accent-400: #ddb574;
+  --accent-500: #c68f4e;
+  --accent-600: #a56e35;
+  --accent-700: #7a5126;
+}
+[data-accent="violet"] {
+  --accent-200: #ded3fa;
+  --accent-300: #c9bdf6;
+  --accent-400: #ab98ee;
+  --accent-500: #8b75dc;
+  --accent-600: #6e5bb8;
+  --accent-700: #53418c;
+}
+
+/* The brand scale resolves through the active accent — no page-level overrides. */
+@theme inline {
+  --color-gold-200: var(--accent-200);
+  --color-gold-300: var(--accent-300);
+  --color-gold-400: var(--accent-400);
+  --color-gold-500: var(--accent-500);
+  --color-gold-600: var(--accent-600);
+  --color-gold-700: var(--accent-700);
+}
+
 :root {
   --beat: 500ms;
   --eighth: 250ms;
   --sixteenth: 125ms;
   --sidebar-w: 264px;
   --rail-w: 76px;
+  --shadow-accent: 0 8px 24px -12px color-mix(in srgb, var(--accent-500) 60%, transparent);
   color-scheme: dark;
 }
 
@@ -146,7 +188,7 @@
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: rgba(212, 168, 83, 0.28);
+    background: color-mix(in srgb, var(--accent-500) 28%, transparent);
     color: #f5f0e8;
   }
   * {
@@ -158,7 +200,7 @@
   *::-webkit-scrollbar-track { background: transparent; }
   button, [role="button"] { cursor: pointer; }
   :focus-visible {
-    outline: 2px solid rgba(212, 168, 83, 0.7);
+    outline: 2px solid color-mix(in srgb, var(--accent-500) 70%, transparent);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -168,6 +210,14 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+  }
+  /* Motion preference set from Settings/theme — same contract as reduced motion */
+  [data-motion="off"] *,
+  [data-motion="off"] *::before,
+  [data-motion="off"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -184,8 +234,23 @@
     backdrop-filter: blur(14px) saturate(120%);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
+  /* Glass theme — the secondary surface language: the stage stays dark,
+     the planes become translucent and let the room breathe through. */
+  [data-theme="glass"] .surface {
+    border-color: rgba(255, 255, 255, 0.09);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 45%),
+      rgba(22, 19, 16, 0.58);
+    backdrop-filter: blur(18px) saturate(130%);
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.55);
+  }
+  [data-theme="glass"] .surface > * {
+    /* keep child surfaces from double-blurring */
+    isolation: isolate;
+  }
   .hairline-gold {
-    background-image: linear-gradient(90deg, transparent, rgba(212, 168, 83, 0.55), transparent);
+    background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-500) 55%, transparent), transparent);
   }
   .nums {
     font-variant-numeric: tabular-nums;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppProvider, useApp } from "@/context/AppContext";
+import { cn } from "@/utils/cn";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav, TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/overlays/CommandPalette";
@@ -33,7 +34,7 @@ const VIEWS = {
 } as const;
 
 function Shell() {
-  const { view, filter, detailId, openPalette, closePalette, paletteOpen } = useApp();
+  const { view, filter, detailId, openPalette, closePalette, paletteOpen, railCollapsed } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Global command shortcut
@@ -65,7 +66,7 @@ function Shell() {
 
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <div className="relative z-10 lg:mr-[var(--rail-w)] xl:mr-[var(--sidebar-w)]">
+      <div className={cn("relative z-10 lg:mr-[var(--rail-w)]", !railCollapsed && "xl:mr-[var(--sidebar-w)]")}>
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
           <div key={`${view}-${filter ?? ""}-${detailId ?? ""}`} className="animate-phrase-in">

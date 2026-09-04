@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ACADEMY_NOW, DAY_END, DAY_START, schedule } from "@/data/academy";
 import { minutesToFaTime, parseTime, toFa } from "@/lib/format";
+import { accentHex, hexA, type Accent } from "@/lib/theme";
 import { cn } from "@/utils/cn";
 
 const SAMPLES = 260;
@@ -62,16 +63,19 @@ export function PulseWaveform({
   height = 96,
   showAxis = true,
   now = ACADEMY_NOW,
+  accent = "gold",
 }: {
   className?: string;
   height?: number;
   showAxis?: boolean;
   now?: number;
+  accent?: Accent;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const env = useMemo(buildEnvelopes, []);
   const nowPct = ((now - DAY_START) / RANGE) * 100; // from the right edge (RTL)
+  const gold = accentHex[accent];
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -82,7 +86,7 @@ export function PulseWaveform({
 
     let width = wrap.clientWidth;
     let raf = 0;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.dataset.motion === "off";
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const resize = () => {
@@ -138,15 +142,15 @@ export function PulseWaveform({
       // attention window gets a warmer amber tint
       const nowStop = Math.min(0.999, Math.max(0.001, xNow / width));
       const grad = ctx.createLinearGradient(0, 0, width, 0);
-      grad.addColorStop(0, "rgba(212,168,83,0.30)");
+      grad.addColorStop(0, hexA(gold[500], 0.3));
       // conflict at 14:00–15:00 → convert to x fractions (left-based)
       const cA = 1 - (15 * 60 - DAY_START) / RANGE;
       const cB = 1 - (14 * 60 - DAY_START) / RANGE;
-      grad.addColorStop(Math.max(0, cA - 0.03), "rgba(212,168,83,0.30)");
-      grad.addColorStop((cA + cB) / 2, "rgba(224,160,48,0.82)");
-      grad.addColorStop(Math.min(nowStop - 0.001, cB + 0.03), "rgba(212,168,83,0.32)");
-      grad.addColorStop(nowStop, "rgba(228,197,122,0.95)");
-      grad.addColorStop(1, "rgba(212,168,83,0.85)");
+      grad.addColorStop(Math.max(0, cA - 0.03), hexA(gold[500], 0.3));
+      grad.addColorStop((cA + cB) / 2, hexA("#e0a030", 0.82));
+      grad.addColorStop(Math.min(nowStop - 0.001, cB + 0.03), hexA(gold[500], 0.32));
+      grad.addColorStop(nowStop, hexA(gold[400], 0.95));
+      grad.addColorStop(1, hexA(gold[500], 0.85));
 
       // harmonic (violet, quiet)
       buildLine(t, 1, 0.55, 1.4);
@@ -162,14 +166,14 @@ export function PulseWaveform({
       ctx.stroke();
 
       // playhead
-      ctx.strokeStyle = "rgba(228,197,122,0.5)";
+      ctx.strokeStyle = hexA(gold[400], 0.5);
       ctx.setLineDash([2, 3]);
       ctx.beginPath();
       ctx.moveTo(xNow + 0.5, 6);
       ctx.lineTo(xNow + 0.5, height - 6);
       ctx.stroke();
       ctx.setLineDash([]);
-      ctx.fillStyle = "rgba(228,197,122,1)";
+      ctx.fillStyle = gold[400];
       ctx.beginPath();
       ctx.arc(xNow, cy, 2.4, 0, Math.PI * 2);
       ctx.fill();
@@ -192,7 +196,7 @@ export function PulseWaveform({
       ro.disconnect();
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [env, height, now]);
+  }, [env, height, now, gold]);
 
   const hours = [8, 10, 12, 14, 16, 18, 20];
 
