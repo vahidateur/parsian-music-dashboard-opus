@@ -1,0 +1,211 @@
+@import "tailwindcss";
+@import "@fontsource/vazirmatn/300.css";
+@import "@fontsource/vazirmatn/400.css";
+@import "@fontsource/vazirmatn/500.css";
+@import "@fontsource/vazirmatn/600.css";
+@import "@fontsource/vazirmatn/700.css";
+@import "@fontsource/vazirmatn/800.css";
+
+/* ------------------------------------------------------------------
+   Design tokens — "Ava Music Academy OS"
+   Foundation: warm charcoal · wood · restrained gold · quiet violet
+------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Vazirmatn", "Segoe UI", system-ui, sans-serif;
+
+  /* Ink — warm charcoal foundation */
+  --color-ink-950: #0a0908;
+  --color-ink-900: #0f0e0c;
+  --color-ink-850: #14120f;
+  --color-ink-800: #1a1714;
+  --color-ink-750: #1f1b17;
+  --color-ink-700: #26211c;
+  --color-ink-600: #342d27;
+  --color-ink-500: #4b423a;
+  --color-ink-400: #847a6d;
+
+  /* Extra breakpoint: wide laptops/desktops where the 3-panel row has room for inline actions */
+  --breakpoint-wide: 1400px;
+  --color-ink-300: #958b7f;
+  --color-ink-200: #b9b0a4;
+  --color-ink-100: #e2dbd1;
+  --color-ink-50: #f5f0e8;
+
+  /* Gold — stage light, used sparingly */
+  --color-gold-200: #f6e6b8;
+  --color-gold-300: #efd89a;
+  --color-gold-400: #e4c57a;
+  --color-gold-500: #d4a853;
+  --color-gold-600: #b98c3e;
+  --color-gold-700: #8f6a2c;
+
+  /* Wood — acoustic walls */
+  --color-wood-400: #a8733f;
+  --color-wood-500: #8a5a34;
+  --color-wood-700: #5a3a22;
+
+  /* Violet — musical, quiet */
+  --color-violet-300: #c9bdf6;
+  --color-violet-400: #ab98ee;
+  --color-violet-500: #8b75dc;
+  --color-violet-600: #6e5bb8;
+
+  /* Semantic */
+  --color-ok-400: #86c99a;
+  --color-ok-500: #5fb57a;
+  --color-warn-400: #ecb95e;
+  --color-warn-500: #e0a030;
+  --color-danger-400: #ed837a;
+  --color-danger-500: #e0645a;
+  --color-info-400: #85b6e4;
+
+  /* Motion — tempo based (♩ = 120 bpm → 500ms) */
+  --ease-resonance: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-phrase: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-legato: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --animate-phrase-in: phrase-in 500ms var(--ease-phrase) both;
+  --animate-fade-in: fade-in 250ms var(--ease-legato) both;
+  --animate-breathe: breathe 2.4s var(--ease-legato) infinite;
+  --animate-live: live 2s var(--ease-legato) infinite;
+  --animate-resonance: resonance 1.2s var(--ease-resonance) both;
+  --animate-grow-y: grow-y 500ms var(--ease-phrase) both;
+  --animate-grow-x: grow-x 700ms var(--ease-phrase) both;
+  --animate-sheet-in: sheet-in 375ms var(--ease-phrase) both;
+  --animate-sheet-up: sheet-up 375ms var(--ease-phrase) both;
+  --animate-spin-slow: spin 1.5s linear infinite;
+}
+
+:root {
+  --beat: 500ms;
+  --eighth: 250ms;
+  --sixteenth: 125ms;
+  --sidebar-w: 264px;
+  --rail-w: 76px;
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ */
+@keyframes phrase-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes breathe {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.45; }
+  50%      { transform: scaleY(1);    opacity: 1; }
+}
+@keyframes live {
+  0%   { box-shadow: 0 0 0 0 rgba(95, 181, 122, 0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(95, 181, 122, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(95, 181, 122, 0); }
+}
+@keyframes resonance {
+  0%   { transform: scale(0.7); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes grow-y {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes grow-x {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes sheet-in {
+  from { transform: translateX(-24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes sheet-in-rtl {
+  from { transform: translateX(24px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ------------------------------------------------------------------ */
+@layer base {
+  html {
+    direction: rtl;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-ink-950 text-ink-50 antialiased;
+    font-feature-settings: "ss01", "kern";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: rgba(212, 168, 83, 0.28);
+    color: #f5f0e8;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #342d27 transparent;
+  }
+  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-thumb { background: #342d27; border-radius: 999px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  button, [role="button"] { cursor: pointer; }
+  :focus-visible {
+    outline: 2px solid rgba(212, 168, 83, 0.7);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* A quiet, elevated surface. Not a "card". */
+  .surface {
+    @apply relative rounded-2xl border border-white/[0.06] bg-ink-850/90;
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 40%);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 20px 40px -24px rgba(0, 0, 0, 0.6);
+  }
+  .surface-glass {
+    @apply relative rounded-2xl border border-white/[0.08];
+    background: rgba(20, 18, 15, 0.72);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+  }
+  .hairline-gold {
+    background-image: linear-gradient(90deg, transparent, rgba(212, 168, 83, 0.55), transparent);
+  }
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .ring-live {
+    animation: live 2s var(--ease-legato) infinite;
+  }
+  .stagger > * {
+    animation: phrase-in 500ms var(--ease-phrase) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger > *:nth-child(2) { animation-delay: 60ms; }
+  .stagger > *:nth-child(3) { animation-delay: 120ms; }
+  .stagger > *:nth-child(4) { animation-delay: 180ms; }
+  .stagger > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger > *:nth-child(6) { animation-delay: 300ms; }
+  .stagger > *:nth-child(7) { animation-delay: 360ms; }
+  .stagger > *:nth-child(8) { animation-delay: 420ms; }
+  .stagger > *:nth-child(9) { animation-delay: 480ms; }
+  .stagger > *:nth-child(10) { animation-delay: 540ms; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+}
