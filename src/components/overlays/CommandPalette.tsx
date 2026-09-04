@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, CornerDownLeft, DoorOpen, GraduationCap, Plus, Receipt, Search, Sparkles, UserRound } from "lucide-react";
+import { ChevronLeft, Clock3, CornerDownLeft, DoorOpen, GraduationCap, Plus, Receipt, Search, Sparkles, UserRound } from "lucide-react";
 import { commandVerbs, navItems, nlCommands, quickActions, searchIndex, viewTitles, type NLCommand, type QuickActionDef, type SearchEntry, type Target } from "@/data/academy";
 import { useApp } from "@/context/AppContext";
 import { navIcons } from "@/components/layout/Sidebar";
@@ -11,9 +11,32 @@ type Item =
   | { type: "verb"; id: string; title: string; subtitle?: string; target: Target }
   | { type: "nav"; id: string; title: string; subtitle?: string; target: Target }
   | { type: "action"; id: string; title: string; subtitle?: string; action: QuickActionDef["id"] }
-  | { type: "entry"; id: string; title: string; subtitle?: string; entry: SearchEntry };
+  | { type: "entry"; id: string; title: string; subtitle?: string; entry: SearchEntry }
+  | { type: "recent"; id: string; title: string; subtitle?: string; target: Target };
 
 type Group = { label: string; items: Item[] };
+
+const RECENT_KEY = "ava:palette-recents";
+const RECENT_MAX = 5;
+
+type Recent = { id: string; title: string; subtitle?: string; view: Target["view"]; filter?: string; recordId?: string };
+
+function loadRecents(): Recent[] {
+  try {
+    const raw = localStorage.getItem(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as Recent[]).slice(0, RECENT_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecents(list: Recent[]) {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX)));
+  } catch {
+    /* ignore */
+  }
+}
 
 const kindLabel: Record<SearchEntry["kind"], string> = { student: "هنرجو", teacher: "مدرس", class: "کلاس", invoice: "فاکتور" };
 const kindIcon: Record<SearchEntry["kind"], ReactNode> = {
@@ -30,8 +53,25 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [result, setResult] = useState<NLCommand | null>(null);
+  const [recents, setRecents] = useState<Recent[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  /* Recent actions — the palette gets smarter the more you use it */
+  useEffect(() => {
+    if (paletteOpen) setRecents(loadRecents());
+  }, [paletteOpen]);
+
+  const pushRecent = (target: Target, title: string, subtitle?: string) => {
+    setRecents((prev) => {
+      const next: Recent[] = [
+        { id: `${target.view}:${target.filter ?? ""}:${target.id ?? ""}`, title, subtitle, view: target.view, filter: target.filter, recordId: target.id },
+        ...prev.filter((r) => r.id !== `${target.view}:${target.filter ?? ""}:${target.id ?? ""}`),
+      ].slice(0, RECENT_MAX);
+      saveRecents(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (paletteOpen) {
@@ -51,12 +91,25 @@ export function CommandPalette() {
   const groups = useMemo<Group[]>(() => {
     const q = normalize(query);
     if (!q) {
-      return [
+      const out: Group[] = [];
+      if (recents.length)
+        out.push({
+          label: "اخیراً",
+          items: recents.map((r) => ({ type: "recent", id: `recent-${r.id}`, title: r.title, subtitle: r.subtitle, target: { view: r.view, filter: r.filter, id: r.recordId } })),
+        });
+      out.push(
         { label: "چه کاری می‌خواهید انجام دهید؟", items: commandVerbs.map((c) => ({ type: "verb", id: c.id, title: c.label, subtitle: c.hint, target: c.target })) },
         { label: "فرمان‌های طبیعی", items: nlCommands.map((c) => ({ type: "nl", id: c.id, title: c.phrase, subtitle: "Enter برای اجرا", cmd: c })) },
         { label: "ایجاد", items: quickActions.map((a) => ({ type: "action", id: a.id, title: a.label, subtitle: a.hint, action: a.id })) },
-        { label: "پرش سریع", items: navItems.slice(1, 7).map((n) => ({ type: "nav", id: n.id, title: n.label, target: { view: n.id } })) },
-      ];
+        {
+          label: "پرش سریع",
+          items: navItems
+            .filter((n) => n.id !== "dashboard")
+            .slice(0, 6)
+            .map((n) => ({ type: "nav", id: n.id, title: n.label, target: { view: n.id } })),
+        },
+      );
+      return out;
     }
     const out: Group[] = [];
     const nl = nlCommands.filter((c) => normalize(c.phrase).includes(q) || c.keywords.some((k) => q.includes(normalize(k))));
@@ -77,7 +130,7 @@ export function CommandPalette() {
     const acts = quickActions.filter((a) => normalize(a.label).includes(q) || normalize(a.hint).includes(q));
     if (acts.length) out.push({ label: "اقدامات", items: acts.map((a) => ({ type: "action", id: a.id, title: a.label, subtitle: a.hint, action: a.id })) });
     return out;
-  }, [query]);
+  }, [query, recents]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
@@ -89,8 +142,14 @@ export function CommandPalette() {
       setQuery(item.cmd.phrase);
       return;
     }
-    if (item.type === "nav" || item.type === "verb") return navigate(item.target);
-    if (item.type === "entry") return navigate(item.entry.target);
+    if (item.type === "nav" || item.type === "verb" || item.type === "recent") {
+      pushRecent(item.target, item.title, item.subtitle);
+      return navigate(item.target);
+    }
+    if (item.type === "entry") {
+      pushRecent(item.entry.target, item.title, item.subtitle);
+      return navigate(item.entry.target);
+    }
     if (item.type === "action") {
       closePalette();
       openSheet(item.action);
@@ -132,9 +191,22 @@ export function CommandPalette() {
   let runningIndex = -1;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center px-4 pt-[10vh] sm:pt-[14vh]" role="dialog" aria-modal="true" aria-label="جستجو و فرمان">
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center px-0 pb-0 sm:items-start sm:px-4 sm:pt-[14vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="جستجو و فرمان"
+    >
       <button type="button" aria-label="بستن" onClick={closePalette} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
-      <div className="relative w-full max-w-2xl animate-sheet-up overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)]">
+      {/* Mobile: action-sheet from the bottom · Desktop: centered command surface */}
+      <div
+        className="relative w-full max-w-2xl animate-sheet-up overflow-hidden rounded-t-3xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] sm:rounded-2xl"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div
+          className="absolute left-1/2 top-2.5 h-1 w-10 -translate-x-1/2 rounded-full bg-white/15 sm:hidden"
+          aria-hidden
+        />
         <div className="absolute inset-x-0 top-0 h-px hairline-gold" />
         {/* input */}
         <div className="flex items-center gap-3 border-b border-white/[0.06] px-4">
@@ -156,7 +228,7 @@ export function CommandPalette() {
         </div>
 
         {/* body */}
-        <div ref={listRef} className="max-h-[56vh] overflow-y-auto p-2" role={result ? undefined : "listbox"} aria-label="نتایج">
+        <div ref={listRef} className="max-h-[62vh] overflow-y-auto p-2 sm:max-h-[56vh]" role={result ? undefined : "listbox"} aria-label="نتایج">
           {result ? (
             <ResultView cmd={result} onOpen={() => navigate(result.target)} onBack={() => { setResult(null); setQuery(""); inputRef.current?.focus(); }} />
           ) : flat.length === 0 ? (
@@ -192,15 +264,16 @@ export function CommandPalette() {
                           "flex size-8 shrink-0 items-center justify-center rounded-lg border",
                           item.type === "nl"
                             ? "border-violet-500/30 bg-violet-500/10 text-violet-300"
-                            : item.type === "verb"
-                            ? "border-gold-500/20 bg-gold-500/[0.07] text-gold-400"
-                            : item.type === "action"
-                              ? "border-gold-500/25 bg-gold-500/10 text-gold-400"
-                              : "border-white/[0.07] bg-white/[0.03] text-ink-300",
+                            : item.type === "verb" || item.type === "action"
+                              ? "border-gold-500/20 bg-gold-500/[0.07] text-gold-400"
+                              : item.type === "recent"
+                                ? "border-white/[0.08] bg-white/[0.03] text-ink-300"
+                                : "border-white/[0.07] bg-white/[0.03] text-ink-300",
                         )}
                       >
                         {item.type === "nl" && <Sparkles className="size-4" strokeWidth={1.8} />}
                         {item.type === "action" && <Plus className="size-4" strokeWidth={2.2} />}
+                        {item.type === "recent" && <Clock3 className="size-4" strokeWidth={1.8} />}
                         {(item.type === "nav" || item.type === "verb") && (() => { const I = navIcons[item.target.view]; return <I className="size-4" strokeWidth={1.8} />; })()}
                         {item.type === "entry" && kindIcon[item.entry.kind]}
                       </span>

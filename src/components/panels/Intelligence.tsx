@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft, RefreshCw } from "lucide-react";
+import { Activity, ChevronLeft, RefreshCw } from "lucide-react";
 import strings from "@/assets/images/strings.jpg";
 import { intelligenceCards } from "@/data/records";
 import { faNum } from "@/lib/format";
@@ -36,14 +36,16 @@ export function Intelligence({ className }: { className?: string }) {
       <div className="relative flex flex-1 flex-col p-5">
         <header className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/10 text-[10px] font-bold tracking-[0.18em] text-violet-300">
-              AI
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/10 text-violet-300" aria-hidden>
+              <Activity className="size-4" strokeWidth={1.8} />
             </span>
             <div>
               <h2 id="intel-title" className="text-[15px] font-semibold leading-none text-ink-50">
                 هوش آموزشگاه
               </h2>
-              <p className="mt-1.5 text-xs text-ink-300">{faNum(intelligenceCards.length)} نکته که ارزش توجه شما را دارند</p>
+              <p className="mt-1.5 text-xs text-ink-300">
+                {faNum(intelligenceCards.length)} نکته که ارزش توجه شما را دارند · الگوی مفهومی با دادهٔ نمایشی
+              </p>
             </div>
           </div>
           <button
@@ -70,7 +72,7 @@ export function Intelligence({ className }: { className?: string }) {
         </div>
 
         <footer className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3 text-[11px] text-ink-400">
-          <span>پایهٔ تحلیل: ۳۰ روز گذشته · امروز ۰۶:۰۰</span>
+          <span>پایهٔ تحلیل: ۳۰ روز گذشته · امروز ۰۶:۰۰ · دادهٔ نمایشی</span>
           <button type="button" onClick={() => navigate({ view: "reports" })} className="group inline-flex items-center gap-1 text-violet-300 hover:text-violet-200">
             همهٔ تحلیل‌ها
             <ChevronLeft className="size-3.5 transition-transform duration-[var(--eighth)] group-hover:-translate-x-0.5" />

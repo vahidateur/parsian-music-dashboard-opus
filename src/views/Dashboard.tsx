@@ -12,7 +12,7 @@ import { SectionHeader, Surface } from "@/components/ds/primitives";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 function PulseCard() {
-  const { navigate } = useApp();
+  const { navigate, accent } = useApp();
   return (
     <Surface className="p-5">
       <SectionHeader title="نبض آموزشگاه" kicker="فعالیت امروز · اوج ۱۴:۰۰ تا ۱۵:۰۰ · ۱ نقطهٔ توجه" />
@@ -28,7 +28,7 @@ function PulseCard() {
         ))}
       </div>
       <div className="mt-5">
-        <PulseWaveform height={72} />
+        <PulseWaveform height={72} accent={accent} />
       </div>
     </Surface>
   );
@@ -39,46 +39,44 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
-      {/* 1 · Academy status */}
+      {/* 1 · Hero / academy context */}
       <div className="order-1 lg:order-none lg:col-span-12">
         <Hero compact={!isDesktop} />
       </div>
 
-      {/* Quick actions — accessible, visually secondary */}
-      <div className="order-7 lg:order-none lg:col-span-12">
-        <QuickActions />
-      </div>
-
-      {/* 2 · Key signals */}
-      <div className="order-5 lg:order-none lg:col-span-12">
+      {/* 2 · Today's key metrics */}
+      <div className="order-2 lg:order-none lg:col-span-12">
         <Signals />
       </div>
 
-      {/* 3 · What needs attention */}
+      {/* 3 · Needs attention */}
       <div className="order-3 lg:order-none lg:col-span-6 xl:col-span-4">
         <Attention className="h-full" />
       </div>
 
-      {/* 4 · Today's flow */}
-      <div className="order-2 lg:order-none lg:col-span-6 xl:col-span-4">
+      {/* 4 · Today's schedule */}
+      <div className="order-4 lg:order-none lg:col-span-6 xl:col-span-4">
         <TodayFlow className="h-full" />
       </div>
 
       {/* Pulse (mobile only) */}
       {!isDesktop && (
-        <div className="order-4">
+        <div className="order-5">
           <PulseCard />
         </div>
       )}
 
-      {/* 5 · One intelligent insight (three, quietly) */}
+      {/* 5 · Academy intelligence */}
       <div className="order-6 lg:order-none lg:col-span-12 xl:col-span-4">
         <Intelligence className="h-full" />
       </div>
 
-      {/* Below the fold */}
-      <div className="order-8 lg:order-none lg:col-span-12 lg:mt-4">
+      {/* 6 · Selective analytics, then secondary tools */}
+      <div className="order-7 lg:order-none lg:col-span-12 lg:mt-4">
         <BusinessIntelligence />
+      </div>
+      <div className="order-8 lg:order-none lg:col-span-12">
+        <QuickActions />
       </div>
       <div className="order-9 lg:order-none lg:col-span-12">
         <EcosystemStrip />

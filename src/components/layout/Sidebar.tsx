@@ -1,4 +1,4 @@
-import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, MessageSquare, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import { academy, manager, navGroups, type ViewId } from "@/data/academy";
 import { useApp } from "@/context/AppContext";
 import { NavItem } from "@/components/ds/blocks";
@@ -22,7 +22,7 @@ export const navIcons: Record<ViewId, LucideIcon> = {
 export function BrandMark({ className }: { className?: string }) {
   return (
     <span className={cn("relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/30 bg-gradient-to-br from-gold-500/15 to-transparent", className)} aria-hidden>
-      <svg viewBox="0 0 32 32" className="size-6" fill="none" stroke="#d4a853" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <svg viewBox="0 0 32 32" className="size-6 text-gold-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
         <path d="M5 16h3l2-6 3 12 3-14 3 16 3-10 2 4h3" />
       </svg>
     </span>
@@ -60,7 +60,7 @@ function Roles() {
   );
 }
 
-export function SidebarContent({ collapsed = false, onClose }: { collapsed?: boolean; onClose?: () => void }) {
+export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { collapsed?: boolean; onClose?: () => void; onToggleRail?: () => void }) {
   const { view, navigate } = useApp();
 
   return (
@@ -132,18 +132,39 @@ export function SidebarContent({ collapsed = false, onClose }: { collapsed?: boo
             </>
           )}
         </button>
+        {onToggleRail && (
+          <button
+            type="button"
+            onClick={onToggleRail}
+            aria-label={collapsed ? "باز کردن نوار کناری" : "فشرده کردن نوار کناری"}
+            title={collapsed ? "باز کردن نوار کناری" : "فشرده کردن نوار کناری"}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] text-ink-400 transition-colors hover:border-white/[0.12] hover:text-ink-100",
+              collapsed ? "justify-center p-1.5" : "p-2",
+            )}
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" strokeWidth={1.8} /> : <><PanelLeftClose className="size-4 shrink-0" strokeWidth={1.8} /><span className="text-xs">فشرده‌سازی نوار</span></>}
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
+  const { railCollapsed, toggleRail } = useApp();
   return (
     <>
-      {/* Desktop: full at xl, icon rail at lg */}
-      <aside className="fixed inset-y-0 right-0 z-30 hidden w-[var(--rail-w)] border-l border-white/[0.06] bg-ink-900/80 backdrop-blur-xl lg:block xl:w-[var(--sidebar-w)]">
+      {/* Desktop: full sidebar at xl, icon rail at lg; collapse state is user-controlled & remembered */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 right-0 z-30 hidden border-l border-white/[0.06] bg-ink-900/80 backdrop-blur-xl transition-[width] duration-[var(--eighth)] ease-[var(--ease-resonance)] lg:block",
+          "lg:w-[var(--rail-w)]",
+          railCollapsed ? "xl:w-[var(--rail-w)]" : "xl:w-[var(--sidebar-w)]",
+        )}
+      >
         <div className="hidden h-full xl:block">
-          <SidebarContent />
+          <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} />
         </div>
         <div className="h-full xl:hidden">
           <SidebarContent collapsed />

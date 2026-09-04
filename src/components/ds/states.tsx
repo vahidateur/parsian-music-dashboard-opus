@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { RotateCcw, Inbox, CircleOff } from "lucide-react";
+import { CircleOff, FlaskConical, Inbox, RotateCcw } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { Button } from "./primitives";
 
@@ -101,6 +101,21 @@ export function ErrorState({
           تلاش دوباره
         </Button>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* DemoNote — prototype discipline: never pass demo figures off as     */
+/* production values.                                                  */
+/* ------------------------------------------------------------------ */
+export function DemoNote({ text, className }: { text?: string; className?: string }) {
+  return (
+    <div role="note" className={cn("flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3", className)}>
+      <FlaskConical className="mt-0.5 size-3.5 shrink-0 text-ink-400" strokeWidth={1.8} />
+      <p className="text-[11.5px] leading-relaxed text-ink-400">
+        {text ?? "این بخش با دادهٔ نمایشی برای پیش‌نمایش پر شده است؛ پس از اتصال به سامانهٔ اصلی، همین ساختار با دادهٔ واقعی تغذیه می‌شود."}
+      </p>
     </div>
   );
 }

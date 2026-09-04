@@ -8,7 +8,7 @@ import { PulseWaveform } from "./PulseWaveform";
 import { cn } from "@/utils/cn";
 
 export function Hero({ compact = false }: { compact?: boolean }) {
-  const { navigate } = useApp();
+  const { navigate, accent } = useApp();
   const live = schedule.filter((s) => statusOf(s) === "live").length;
   const attention = schedule.filter((s) => s.conflict).length > 0 ? 1 : 0;
 
@@ -123,7 +123,7 @@ export function Hero({ compact = false }: { compact?: boolean }) {
                   </span>
                 </span>
               </div>
-              <PulseWaveform height={92} />
+              <PulseWaveform height={92} accent={accent} />
             </div>
           </>
         )}

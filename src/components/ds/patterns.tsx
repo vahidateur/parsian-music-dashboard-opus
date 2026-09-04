@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronLeft, Search, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { faNum } from "@/lib/format";
+import { useApp } from "@/context/AppContext";
 import { Delta, Sparkline, Surface, type Tone } from "./primitives";
 
 /* ================================================================== */
@@ -396,11 +397,11 @@ export function ProgressRing({
     const t = window.setTimeout(() => setMounted(true), 40);
     return () => window.clearTimeout(t);
   }, []);
-  const color = { gold: "#d4a853", ok: "#5fb57a", warn: "#e0a030", danger: "#e0645a", violet: "#8b75dc" }[tone];
+  const toneText = { gold: "text-gold-500", ok: "text-ok-500", warn: "text-warn-500", danger: "text-danger-500", violet: "text-violet-500" }[tone];
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   return (
-    <div className={cn("relative shrink-0", className)} style={{ width: size, height: size }}>
+    <div className={cn("relative shrink-0", toneText, className)} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
         <circle
@@ -408,7 +409,7 @@ export function ProgressRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={color}
+          stroke="currentColor"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
@@ -448,7 +449,9 @@ export function DataTable<T extends { id: string }>({
   caption?: string;
   className?: string;
 }) {
+  const { density } = useApp();
   const hideCls = { sm: "hidden sm:table-cell", md: "hidden md:table-cell", lg: "hidden lg:table-cell" };
+  const padY = density === "compact" ? "py-2" : "py-3";
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
     <div className={cn("overflow-x-auto", className)}>
@@ -486,7 +489,7 @@ export function DataTable<T extends { id: string }>({
               {columns.map((c) => (
                 <td
                   key={c.key}
-                  className={cn("px-3 py-3 align-middle text-[13px] text-ink-100", c.align === "end" ? "text-left" : "text-right", c.hideBelow && hideCls[c.hideBelow], c.className)}
+                  className={cn("px-3 text-[13px] text-ink-100", padY, c.align === "end" ? "text-left" : "text-right", c.hideBelow && hideCls[c.hideBelow], c.className)}
                 >
                   {c.cell(row)}
                 </td>
@@ -519,12 +522,14 @@ export function ListRow({
   active?: boolean;
   className?: string;
 }) {
+  const { density } = useApp();
   const Comp = onClick ? "button" : "div";
   return (
     <Comp
       {...(onClick ? { type: "button" as const, onClick } : {})}
       className={cn(
-        "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-right transition-all duration-[var(--sixteenth)]",
+        "flex w-full items-center gap-3 rounded-xl border px-3.5 text-right transition-all duration-[var(--sixteenth)]",
+        density === "compact" ? "py-2.5" : "py-3",
         active ? "border-gold-500/35 bg-gold-500/[0.06]" : "border-white/[0.05] bg-white/[0.02]",
         onClick && !active && "hover:border-white/[0.12] hover:bg-white/[0.04]",
         className,

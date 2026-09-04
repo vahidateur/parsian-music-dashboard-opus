@@ -480,6 +480,32 @@ export const payments = [
   { id: "p5", studentId: "st12", amount: 900_000, when: "۲ روز پیش", method: "کارت‌خوان" },
 ];
 
+export type SubscriptionStatus = "active" | "paused" | "expiring";
+export const subscriptionStatusLabel: Record<SubscriptionStatus, string> = { active: "فعال", paused: "متوقف", expiring: "در حال اتمام" };
+
+export interface Subscription {
+  id: string;
+  studentId: string;
+  plan: string;
+  term: string;
+  amount: number; // per period, Toman
+  nextBilling: string;
+  since: string;
+  status: SubscriptionStatus;
+  method: string;
+}
+
+export const subscriptions: Subscription[] = [
+  { id: "sub1", studentId: "st7", plan: "پیانو انفرادی · پیشرفته", term: "دورهٔ ۳ ماهه", amount: 4_800_000, nextBilling: "۲۵ اسفند", since: "بهمن ۱۴۰۱", status: "active", method: "درگاه آنلاین" },
+  { id: "sub2", studentId: "st11", plan: "ویولن کودکان", term: "دورهٔ ۳ ماهه", amount: 2_600_000, nextBilling: "۱۸ اسفند", since: "دی ۱۴۰۳", status: "active", method: "کارت‌خوان" },
+  { id: "sub3", studentId: "st10", plan: "درامز مقدماتی", term: "دورهٔ ۳ ماهه", amount: 3_000_000, nextBilling: "۳۰ اسفند", since: "اسفند ۱۴۰۳", status: "active", method: "انتقال بانکی" },
+  { id: "sub4", studentId: "st3", plan: "آواز · تکنیک صدا", term: "ماهانه", amount: 1_150_000, nextBilling: "۲۰ اسفند", since: "دی ۱۴۰۳", status: "expiring", method: "درگاه آنلاین" },
+  { id: "sub5", studentId: "st9", plan: "آواز · تکنیک صدا", term: "ماهانه", amount: 1_150_000, nextBilling: "۲۲ اسفند", since: "آبان ۱۴۰۲", status: "active", method: "درگاه آنلاین" },
+  { id: "sub6", studentId: "st12", plan: "تئوری و سلفژ", term: "دورهٔ ۲ ماهه", amount: 1_800_000, nextBilling: "۲۸ اسفند", since: "آذر ۱۴۰۳", status: "active", method: "کارت‌خوان" },
+  { id: "sub7", studentId: "st13", plan: "پیانو کودکان", term: "ماهانه", amount: 950_000, nextBilling: "—", since: "بهمن ۱۴۰۳", status: "paused", method: "—" },
+  { id: "sub8", studentId: "st6", plan: "گیتار · نوجوانان", term: "دورهٔ ۳ ماهه", amount: 3_200_000, nextBilling: "۲۴ اسفند", since: "مرداد ۱۴۰۳", status: "expiring", method: "درگاه آنلاین" },
+];
+
 export const financeKpis = {
   monthRevenue: 125_430_000,
   monthTarget: 142_000_000,
@@ -671,6 +697,16 @@ export const reportCatalog: ReportDef[] = [
       { label: "پیانو", value: "۵۲۴ نفر" },
       { label: "گیتار", value: "۳۱۲ نفر" },
       { label: "رشد آواز", value: "+۲ واحد" },
+    ],
+  },
+  {
+    id: "rp7", title: "حضور و غیاب", question: "غیبت‌ها در کدام روزها و کلاس‌ها متمرکز است؟", period: "این ترم",
+    headline: "۹۲٪ نرخ حضور", delta: 2.1,
+    finding: "غیبت در کلاس‌های گروهی عصر (به‌ویژه چهارشنبه) نزدیک به دو برابر میانگین است؛ نیمی از غایبان بدون اطلاع قبلی غیبت کرده‌اند.",
+    evidence: [
+      { label: "نرخ حضور این ترم", value: "۹۲٪" },
+      { label: "غیبت بدون اطلاع", value: "۵۱٪" },
+      { label: "اوج غیبت", value: "چهارشنبه" },
     ],
   },
 ];
