@@ -279,7 +279,7 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
                   <p className="mt-1 text-[12px] leading-relaxed text-ink-100">
                     {faNum(teacher.contractHours - teacher.weeklyHours)} ساعت ظرفیت آزاد در هفته. لیست انتظار {instrumentLabel[teacher.instrument]} می‌تواند به این بازه منتقل شود.
                   </p>
-                  <Button size="sm" variant="subtle" className="mt-3" onClick={() => notify({ tone: "success", title: "پیشنهاد ثبت شد", detail: "بازهٔ جدید برای بررسی به برنامه‌ریزی ارسال شد." })}>
+                  <Button size="sm" variant="subtle" className="mt-3" onClick={() => notify({ tone: "info", title: "پیشنهاد فقط در دمو نمایش داده شد", detail: "ارسال به برنامه‌ریزی به سرور نیاز دارد." })}>
                     پیشنهاد بازهٔ جدید
                   </Button>
                 </div>
@@ -328,10 +328,10 @@ export function TeachersView() {
         description="بار کاری، در دسترس بودن و کیفیت عملیاتی هر مدرس در یک نگاه."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "فرم اعلام ساعات آزاد برای مدرسین ارسال شد." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>
-            <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "دعوت‌نامهٔ مدرس ساخته شد", detail: "لینک تکمیل پروفایل آمادهٔ ارسال است." })}>
+            <Button size="sm" variant="primary" onClick={() => notify({ tone: "info", title: "دعوت‌نامه نیازمند سرور است", detail: "ساخت لینک دعوت امن فقط در سرور ممکن است." })}>
               <Plus className="size-3.5" /> افزودن مدرس
             </Button>
           </>

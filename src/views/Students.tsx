@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
 import { ACADEMY_NOW, instrumentLabel, type Instrument } from "@/data/academy";
-import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, students, studentStats, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { useStudentList } from "@/domains/students";
 import { faNum, faPercent, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
+import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof Music2; mark: string }> = {
@@ -333,7 +334,7 @@ function StudentDetail({ student }: { student: Student }) {
             title="تاریخچهٔ کامل فعالیت"
             kicker="جلسات، پرداخت‌ها، یادداشت‌ها و پیام‌ها — در یک جریان"
             action="ثبت یادداشت"
-            onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد", detail: "برای مدرس این هنرجو نیز قابل مشاهده است." })}
+            onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است", detail: "یادداشت‌ها هنوز ذخیره نمی‌شوند." })}
           >
             {student.activity.length > 0 && (
               <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-0.5">
@@ -488,9 +489,9 @@ function StudentDetail({ student }: { student: Student }) {
         )}
 
         {tab === "notes" && (
-          <Panel title="یادداشت‌های مدرس و پذیرش" action="افزودن یادداشت" onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد", detail: "برای مدرس این هنرجو نیز قابل مشاهده است." })}>
+          <Panel title="یادداشت‌های مدرس و پذیرش" action="افزودن یادداشت" onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است", detail: "یادداشت‌ها هنوز ذخیره نمی‌شوند." })}>
             {student.notes.length === 0 ? (
-              <EmptyState title="یادداشتی ثبت نشده" description="یادداشت‌های مدرس دربارهٔ پیشرفت و نیازهای هنرجو اینجا جمع می‌شود." action="افزودن یادداشت" onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد" })} />
+              <EmptyState title="یادداشتی ثبت نشده" description="یادداشت‌های مدرس دربارهٔ پیشرفت و نیازهای هنرجو اینجا جمع می‌شود." action="افزودن یادداشت" onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است" })} />
             ) : (
               <ul className="space-y-3">
                 {student.notes.map((n, i) => (
@@ -520,7 +521,10 @@ export function StudentsView() {
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<Instrument | "all">("all");
   const [layout, setLayout] = useState<"cards" | "table">("cards");
-  const state = useAsyncView([filter, detailId]);
+
+  // Repository-backed: the view no longer imports the student fixture. Loading
+  // state is the repository's real state, not a simulated delay.
+  const { students, loading, error, reload } = useStudentList();
 
   const list = useMemo(
     () =>
@@ -530,12 +534,43 @@ export function StudentsView() {
           (instrument === "all" || s.instrument === instrument) &&
           (query === "" || s.name.includes(query) || instrumentLabel[s.instrument].includes(query)),
       ),
-    [status, instrument, query],
+    [students, status, instrument, query],
+  );
+
+  // Stats are derived from the loaded dataset — never hardcoded totals.
+  const stats = useMemo(
+    () => ({
+      active: students.filter((s) => s.status === "active").length,
+      atRisk: students.filter((s) => s.status === "at-risk").length,
+      waitlist: students.filter((s) => s.status === "waitlist").length,
+      paused: students.filter((s) => s.status === "paused").length,
+    }),
+    [students],
   );
 
   const detail = detailId ? students.find((s) => s.id === detailId) : undefined;
 
-  if (state === "loading") return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  if (loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  if (error)
+    return (
+      <EmptyState
+        className="py-32"
+        title="بارگذاری هنرجویان ناموفق بود"
+        description={error.message}
+        action="تلاش دوباره"
+        onAction={reload}
+      />
+    );
+  if (detailId && !detail)
+    return (
+      <EmptyState
+        className="py-32"
+        title="هنرجو یافت نشد"
+        description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+        action="بازگشت به فهرست"
+        onAction={() => navigate({ view: "students" })}
+      />
+    );
   if (detail) return <StudentDetail student={detail} />;
 
   const columns: Column<Student>[] = [
@@ -578,7 +613,7 @@ export function StudentsView() {
         description="پروندهٔ کامل هنرجویان، وضعیت حضور، پیشرفت و مالی — همه در یک نما."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی در حال آماده‌سازی", detail: "فایل CSV برای شما ارسال می‌شود." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("student")}>
@@ -590,10 +625,10 @@ export function StudentsView() {
 
       <StatStrip
         stats={[
-          { label: "هنرجوی فعال", value: faNum(studentStats.active), delta: 8.4, hint: "روند صعودی", onClick: () => setStatus("active") },
-          { label: "در معرض ریزش", value: faNum(studentStats.atRisk), tone: "warn", hint: "بیش از ۲ هفته غیبت", onClick: () => setStatus("at-risk") },
-          { label: "لیست انتظار", value: faNum(studentStats.waitlist), tone: "violet", hint: "نیازمند تماس", onClick: () => setStatus("waitlist") },
-          { label: "ثبت‌نام این ماه", value: faNum(studentStats.newThisMonth), delta: 12, hint: "بالاتر از میانگین" },
+          { label: "هنرجوی فعال", value: faNum(stats.active), hint: "وضعیت فعال", onClick: () => setStatus("active") },
+          { label: "در معرض ریزش", value: faNum(stats.atRisk), tone: "warn", hint: "بیش از ۲ هفته غیبت", onClick: () => setStatus("at-risk") },
+          { label: "لیست انتظار", value: faNum(stats.waitlist), tone: "violet", hint: "نیازمند تماس", onClick: () => setStatus("waitlist") },
+          { label: "متوقف‌شده", value: faNum(stats.paused), hint: "بدون جلسهٔ فعال" },
         ]}
       />
 

@@ -170,7 +170,7 @@ export function FinanceView() {
         }
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی در حال آماده‌سازی" })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی نیازمند سرور است", detail: "تولید PDF/Excel در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>

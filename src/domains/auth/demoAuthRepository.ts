@@ -1,4 +1,5 @@
 import { ApiError } from "@/api/errors";
+import { isDemoMode } from "@/api/config";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { permissionsForRole } from "./permissions";
 import type { AuthRepository } from "./repository";
@@ -71,6 +72,20 @@ function demoToken(): string {
 }
 
 const normalizeEmail = (value: string): string => value.trim().toLowerCase();
+
+/**
+ * Demo accounts offered as one-click sign-in hints on the login screen.
+ *
+ * Lives here — beside the demo passphrase it belongs to — so that views never
+ * import the DemoStore. Returns an empty list outside demo mode.
+ */
+export function listDemoAccounts(limit = 5, store: DemoStore = demoStore): AuthUser[] {
+  if (!isDemoMode()) return [];
+  return store.users
+    .all()
+    .filter((u) => u.status === "active")
+    .slice(0, limit);
+}
 
 export class DemoAuthRepository implements AuthRepository {
   constructor(

@@ -46,6 +46,36 @@ export const FORBIDDEN_KEYS = [
 
 const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_KEYS.map((k) => k.toLowerCase()));
 
+/**
+ * Keys that can poison an object's prototype chain.
+ *
+ * `JSON.parse` keeps `__proto__` as a genuine *own* property, and it survives
+ * object spread. Any later `Object.assign(target, row)` then re-points
+ * `target`'s prototype, so an imported backup could smuggle inherited
+ * properties into application objects. These keys are rejected at validation
+ * time and stripped during parsing.
+ */
+export const PROTOTYPE_KEYS = ["__proto__", "constructor", "prototype"] as const;
+const PROTOTYPE_KEY_SET = new Set<string>(PROTOTYPE_KEYS);
+
+/**
+ * Recursively rebuilds parsed JSON without prototype-polluting own properties.
+ * Applied immediately after `JSON.parse`, before any validation or persistence.
+ */
+export function stripPrototypeKeys<T>(value: T): T {
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node === null || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(node as Record<string, unknown>)) {
+      if (PROTOTYPE_KEY_SET.has(key)) continue;
+      out[key] = walk((node as Record<string, unknown>)[key]);
+    }
+    return out;
+  };
+  return walk(value) as T;
+}
+
 export function datasetStats(dataset: DemoDataset): DemoDatasetStats {
   const counts = {} as Record<DemoCollectionName, number>;
   let total = 0;
@@ -108,7 +138,7 @@ function issue(code: ValidationCode, message: string, path?: string): Validation
 export function parseBackup(text: string): ValidationResult {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text) as unknown;
+    parsed = stripPrototypeKeys(JSON.parse(text) as unknown);
   } catch {
     return { ok: false, issues: [issue("MALFORMED_JSON", "فایل پشتیبان یک JSON معتبر نیست.")] };
   }
@@ -247,6 +277,9 @@ export function findForbiddenKeys(value: unknown, path = "data"): ValidationIssu
     for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
       if (FORBIDDEN_KEY_SET.has(key.toLowerCase())) {
         found.push(issue("FORBIDDEN_FIELD", `فیلد حساس «${key}» مجاز نیست.`, `${at}.${key}`));
+      }
+      if (PROTOTYPE_KEY_SET.has(key)) {
+        found.push(issue("FORBIDDEN_FIELD", `کلید «${key}» می‌تواند زنجیرهٔ prototype را آلوده کند.`, `${at}.${key}`));
       }
       walk(child, `${at}.${key}`, depth + 1);
     }

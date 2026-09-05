@@ -40,7 +40,7 @@ function ReportDetail({ r, onBack }: { r: ReportDef; onBack: () => void }) {
         title={r.title}
         description={r.question}
         actions={
-          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش در حال آماده‌سازی", detail: "نسخهٔ PDF برای شما ارسال می‌شود." })}>
+          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی گزارش نیازمند سرور است", detail: "تولید PDF در سرور انجام می‌شود و در دمو فعال نیست." })}>
             <Download className="size-3.5" /> دریافت گزارش
           </Button>
         }

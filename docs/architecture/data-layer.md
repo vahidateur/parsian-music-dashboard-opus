@@ -116,3 +116,38 @@ unchanged in this task.
 
 *Migrate the Students view from direct DemoStore/records usage to `StudentRepository`,
 preserving the exact existing UI and demo behaviour.*
+
+## Migration status (verified by inspection, not by intent)
+
+`Student` is the reference migration: `StudentsView` reads exclusively through
+`useStudentList()` → `StudentRepository` → `DemoStudentRepository | ApiStudentRepository`.
+It has no `students` fixture import, derives its stat counts from loaded data, and
+renders real loading / error / not-found states. Regression coverage lives in
+`src/views/__tests__/Students.test.tsx`, which asserts that fixture records do **not**
+appear when the repository returns something else.
+
+| View / component | Status | Reads from |
+|---|---|---|
+| Students | **IMPLEMENTED** | `useStudentList` → repository |
+| Settings → Users & Roles | **IMPLEMENTED** | `useUsers` → `UserRepository` |
+| Settings → Demo data | **IMPLEMENTED** | `useDemoData` → `demoDataManager` |
+| Login / auth | **IMPLEMENTED** | `useAuth` → `AuthRepository` |
+| Teachers, Classes, Scheduling, Attendance, Finance, Messages, Library, Reports, Dashboard | **PARTIAL** | static `@/data/records` + `@/data/academy` |
+| Rooms (Settings), Command Palette, Notifications | **PARTIAL** | static fixtures |
+
+### Why the rest were not migrated in this phase
+
+Each remaining view needs its own domain contract (Teacher, Class, Session,
+Attendance, Invoice, Conversation, Resource) plus demo *and* API implementations
+and tests. Doing that mechanically — pointing views at a repository that merely
+re-exports the same fixture — would add indirection while leaving the data just as
+static, and would make the wiring look finished when it is not. The remaining views
+are honest, read-only fixture renderers today.
+
+### Boundary rules currently enforced
+
+- No view imports `localStorage`, `fetch`, or an HTTP URL.
+- `demoStore` is imported only by `src/domains/**` and `src/services/**`.
+- Untrusted JSON (`localStorage`, imported backups) is stripped of
+  `__proto__` / `constructor` / `prototype` before use, and command-palette
+  recents are validated field-by-field rather than cast.

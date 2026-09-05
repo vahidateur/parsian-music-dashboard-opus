@@ -36,7 +36,7 @@ export function MessagesView() {
     if (!draft.trim() || !activeId) return;
     setSentThreads((p) => ({ ...p, [activeId]: [...(p[activeId] ?? []), { text: draft, when: "هم‌اکنون" }] }));
     setDraft("");
-    notify({ tone: "success", title: "پیام ارسال شد", detail: "در پنل گیرنده و اپلیکیشن او نمایش داده می‌شود." });
+    notify({ tone: "info", title: "پیام در نسخهٔ دمو ثبت شد", detail: "ارسال واقعی به سرور پیام‌رسان نیاز دارد و انجام نشده است." });
   };
 
   if (state === "loading") return <LoadingState className="py-32" label="در حال باز کردن گفتگوها…" />;
@@ -49,10 +49,10 @@ export function MessagesView() {
         description="گفتگوی مدیریت با مدرسین، هنرجویان و اولیا — همه در یک جریان."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اعلان عمومی", detail: "پیش‌نویس اطلاعیه برای همهٔ هنرجویان ساخته شد." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اعلان عمومی", detail: "ارسال گروهی به سرور نیاز دارد و در دمو فعال نیست." })}>
               <Megaphone className="size-3.5" /> اطلاعیهٔ عمومی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "گفتگوی جدید", detail: "گیرنده را انتخاب کنید." })}>
+            <Button size="sm" variant="primary" onClick={() => notify({ tone: "info", title: "گفتگوی جدید", detail: "ساخت گفتگوی جدید به سرور پیام‌رسان نیاز دارد." })}>
               گفتگوی جدید
             </Button>
           </>
@@ -144,7 +144,18 @@ export function MessagesView() {
 
               <div className="border-t border-white/[0.06] p-3">
                 <div className="flex items-end gap-2">
-                  <button type="button" aria-label="پیوست" className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] text-ink-400 hover:text-ink-100">
+                  {/*
+                    Attachments need object storage + a real messaging gateway,
+                    neither of which exists in the demo. The control is disabled
+                    and explains itself rather than pretending to upload.
+                  */}
+                  <button
+                    type="button"
+                    disabled
+                    aria-label="پیوست فایل — نیازمند سرور"
+                    title="ارسال پیوست به فضای ذخیره‌سازی سرور نیاز دارد و در نسخهٔ دمو فعال نیست."
+                    className="flex size-9 shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-white/[0.07] text-ink-600 opacity-50"
+                  >
                     <Paperclip className="size-4" />
                   </button>
                   <textarea

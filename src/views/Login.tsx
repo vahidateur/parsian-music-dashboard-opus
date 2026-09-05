@@ -2,9 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Eye, EyeOff, LogIn, TriangleAlert } from "lucide-react";
 import { academy } from "@/data/academy";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
 import { isDemoMode } from "@/api/config";
-import { demoStore } from "@/services/demoStore";
 import { roleLabels } from "@/domains/auth/permissions";
 import { Button, Surface } from "@/components/ds/primitives";
 import { Field, inputCls } from "@/components/ds/patterns";
@@ -36,7 +35,7 @@ export function LoginView() {
     await login({ email: email.trim(), password });
   };
 
-  const demoAccounts = demo ? demoStore.users.all().filter((u) => u.status === "active").slice(0, 5) : [];
+  const demoAccounts = listDemoAccounts();
 
   return (
     <main className="relative flex min-h-screen items-center justify-center bg-ink-950 px-4 py-10 text-ink-50">

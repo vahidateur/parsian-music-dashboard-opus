@@ -28,7 +28,8 @@ export function ActionSheet() {
     window.setTimeout(() => {
       setBusy(false);
       closeSheet();
-      notify({ tone: "success", title: def.success, detail: "تغییرات همان لحظه در همهٔ سطوح سامانه اعمال شد." });
+      // Honest feedback: this sheet does not persist anything yet.
+      notify({ tone: "info", title: "این فرم هنوز به سرور متصل نیست", detail: "داده‌های واردشده ذخیره نشدند." });
     }, 650);
   };
 
@@ -90,7 +91,7 @@ export function ActionSheet() {
           ))}
           <p className="flex items-start gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 text-[11px] leading-relaxed text-ink-400">
             <Info className="mt-0.5 size-3.5 shrink-0 text-ink-400" />
-            این اقدام در سامانهٔ یکپارچه ثبت می‌شود و در پنل مدرس و اپلیکیشن هنرجو نیز منعکس خواهد شد.
+            نسخهٔ دمو: این فرم هنوز به سرور متصل نیست و اطلاعات واردشده ذخیره نمی‌شود.
           </p>
         </div>
 

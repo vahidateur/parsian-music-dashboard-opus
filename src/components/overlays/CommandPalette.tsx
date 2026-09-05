@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, Clock3, CornerDownLeft, DoorOpen, GraduationCap, Plus, Receipt, Search, Sparkles, UserRound } from "lucide-react";
 import { commandVerbs, navItems, nlCommands, quickActions, searchIndex, viewTitles, type NLCommand, type QuickActionDef, type SearchEntry, type Target } from "@/data/academy";
 import { useApp } from "@/context/AppContext";
+import { isViewId } from "@/lib/hashRoute";
 import { navIcons } from "@/components/layout/Sidebar";
 import { Kbd, StatusBadge } from "@/components/ds/primitives";
 import { cn } from "@/utils/cn";
@@ -21,10 +22,32 @@ const RECENT_MAX = 5;
 
 type Recent = { id: string; title: string; subtitle?: string; view: Target["view"]; filter?: string; recordId?: string };
 
+/** Ids/filters that may be placed into a route, mirroring `hashRoute` rules. */
+const SAFE_TOKEN = /^[A-Za-z0-9_-]{1,64}$/;
+
+/**
+ * Recents come from localStorage, which the user can edit. They are turned
+ * straight into navigation targets, so every field is validated instead of
+ * cast — an unknown `view` would otherwise navigate the app to a bogus route.
+ */
+function isRecent(value: unknown): value is Recent {
+  if (typeof value !== "object" || value === null) return false;
+  const r = value as Record<string, unknown>;
+  if (typeof r.id !== "string" || typeof r.title !== "string") return false;
+  if (typeof r.view !== "string" || !isViewId(r.view)) return false;
+  if (r.subtitle !== undefined && typeof r.subtitle !== "string") return false;
+  if (r.filter !== undefined && (typeof r.filter !== "string" || !SAFE_TOKEN.test(r.filter))) return false;
+  if (r.recordId !== undefined && (typeof r.recordId !== "string" || !SAFE_TOKEN.test(r.recordId))) return false;
+  return true;
+}
+
 function loadRecents(): Recent[] {
   try {
     const raw = localStorage.getItem(RECENT_KEY);
-    return raw ? (JSON.parse(raw) as Recent[]).slice(0, RECENT_MAX) : [];
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isRecent).slice(0, RECENT_MAX);
   } catch {
     return [];
   }
@@ -349,3 +372,9 @@ function ResultView({ cmd, onOpen, onBack }: { cmd: NLCommand; onOpen: () => voi
     </div>
   );
 }
+
+/**
+ * Test-only seam. Exposes the localStorage-recents parsing so its validation
+ * can be covered directly; not part of the component's public API.
+ */
+export const __testing = { RECENT_KEY, loadRecents, isRecent };

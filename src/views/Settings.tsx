@@ -56,7 +56,7 @@ export function SettingsView() {
           dirty ? (
             <>
               <Button size="sm" variant="ghost" onClick={() => setDirty(false)}>انصراف</Button>
-              <Button size="sm" variant="primary" onClick={() => { setDirty(false); notify({ tone: "success", title: "تنظیمات ذخیره شد" }); }}>
+              <Button size="sm" variant="primary" onClick={() => { setDirty(false); notify({ tone: "info", title: "ذخیرهٔ تنظیمات نیازمند سرور است", detail: "این تغییرات ماندگار نیستند. تنظیمات ظاهر جداگانه ذخیره می‌شود." }); }}>
                 <Check className="size-3.5" /> ذخیرهٔ تغییرات
               </Button>
             </>

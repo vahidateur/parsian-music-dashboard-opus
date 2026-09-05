@@ -95,7 +95,7 @@ export function LibraryView() {
         title="کتابخانه"
         description="نت‌ها، جزوه‌ها و نمونه‌های شنیداری آموزشگاه — قابل اشتراک با مدرسین و هنرجویان."
         actions={
-          <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "منبع جدید", detail: "فایل را بکشید یا از رایانه انتخاب کنید." })}>
+          <Button size="sm" variant="primary" onClick={() => notify({ tone: "info", title: "افزودن منبع نیازمند سرور است", detail: "بارگذاری فایل به فضای ذخیره‌سازی سرور نیاز دارد." })}>
             <Plus className="size-3.5" /> افزودن منبع
           </Button>
         }
@@ -174,7 +174,7 @@ export function LibraryView() {
             title="منبعی پیدا نشد"
             description="با این فیلترها منبعی در کتابخانه وجود ندارد. می‌توانید منبع تازه‌ای اضافه کنید."
             action="افزودن منبع"
-            onAction={() => notify({ tone: "success", title: "افزودن منبع" })}
+            onAction={() => notify({ tone: "info", title: "افزودن منبع نیازمند سرور است" })}
           />
         ) : (
           <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -214,10 +214,10 @@ export function LibraryView() {
         footer={
           <>
             <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>بستن</Button>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "success", title: "اشتراک‌گذاری شد", detail: "منبع برای هنرجویان کلاس مربوطه قابل مشاهده شد." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اشتراک‌گذاری نیازمند سرور است", detail: "پیوند اشتراک واقعی با سرور ساخته می‌شود؛ در دمو انجام نشد." })}>
               اشتراک با کلاس
             </Button>
-            <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "دانلود آغاز شد" })}>
+            <Button size="sm" variant="primary" onClick={() => notify({ tone: "info", title: "دانلود در دمو در دسترس نیست", detail: "فایل واقعی در فضای ذخیره‌سازی سرور نگهداری می‌شود." })}>
               <Download className="size-3.5" /> دریافت
             </Button>
           </>

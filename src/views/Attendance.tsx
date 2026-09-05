@@ -49,7 +49,7 @@ export function AttendanceView() {
 
   const submit = (sessionId: string) => {
     setRosters((prev) => prev.map((r) => (r.sessionId === sessionId ? { ...r, state: "recorded", recordedBy: "آرمان احمدی" } : r)));
-    notify({ tone: "success", title: "حضور و غیاب ثبت شد", detail: "در پروندهٔ هنرجویان و پنل مدرس به‌روزرسانی شد." });
+    notify({ tone: "info", title: "حضور و غیاب در دمو ثبت شد", detail: "ثبت دائمی و اطلاع‌رسانی به مدرس به سرور نیاز دارد." });
   };
 
   const visibleRosters = useMemo(() => (scope === "pending" ? rosters.filter((r) => r.state === "pending") : rosters), [rosters, scope]);
@@ -147,7 +147,7 @@ export function AttendanceView() {
                 aside={<StatusBadge tone={stateMeta[active.state].tone} label={stateMeta[active.state].label} />}
               >
                 {active.state === "cancelled" ? (
-                  <EmptyState title="این کلاس لغو شده است" description="برای جلسهٔ لغو‌شده حضور و غیاب ثبت نمی‌شود. می‌توانید جلسهٔ جبرانی تعریف کنید." action="تعریف جلسهٔ جبرانی" onAction={() => notify({ tone: "success", title: "جلسهٔ جبرانی ایجاد شد" })} />
+                  <EmptyState title="این کلاس لغو شده است" description="برای جلسهٔ لغو‌شده حضور و غیاب ثبت نمی‌شود. می‌توانید جلسهٔ جبرانی تعریف کنید." action="تعریف جلسهٔ جبرانی" onAction={() => notify({ tone: "info", title: "جلسهٔ جبرانی نیازمند سرور است", detail: "زمان‌بندی جبرانی باید در سرور ثبت شود." })} />
                 ) : (
                   <>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-4">

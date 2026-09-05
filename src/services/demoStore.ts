@@ -10,6 +10,7 @@
  * same snapshot, which is also what makes atomic restore possible.
  */
 import { createSeedDataset } from "@/domains/demo/seed";
+import { stripPrototypeKeys } from "@/domains/demo/backup";
 import type { DemoDataset } from "@/domains/demo/types";
 import type { Student } from "@/data/records";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
@@ -65,7 +66,9 @@ export class DemoStoreImpl {
     const raw = this.storage.getItem(DEMO_STORAGE_KEY);
     if (raw) {
       try {
-        const parsed: unknown = JSON.parse(raw);
+        // localStorage is user-editable: strip prototype-polluting keys before
+        // the snapshot reaches any spread/Object.assign in the repositories.
+        const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
         if (parsed && typeof parsed === "object" && Array.isArray((parsed as DemoDataset).students)) {
           return parsed as DemoDataset;
         }
