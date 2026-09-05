@@ -7,6 +7,7 @@ import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Avatar, Field, ListRow, PageHeader, Panel, Segmented, Toggle, inputCls, useAsyncView } from "@/components/ds/patterns";
 import { LoadingState } from "@/components/ds/states";
+import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
 import { cn } from "@/utils/cn";
 
 
@@ -415,6 +416,7 @@ export function SettingsView() {
                   این مقادیر فقط پیش‌فرض فرم‌ها هستند و روی جلسات ثبت‌شدهٔ گذشته اثری ندارند.
                 </Surface>
               </Panel>
+              <DemoDataPanel />
             </>
           )}
         </div>

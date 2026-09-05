@@ -793,7 +793,7 @@ export const settingsSections = [
   { id: "appearance", label: "ظاهر", hint: "تم، تراکم، حرکت" },
   { id: "notifications", label: "اعلان‌ها", hint: "کانال‌ها و رویدادها" },
   { id: "localization", label: "بومی‌سازی", hint: "زبان، تقویم، واحد پول" },
-  { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، دوره‌ها، قواعد جلسه" },
+  { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، قواعد جلسه، دادهٔ دمو" },
 ] as const;
 
 export const accessRoles = [
