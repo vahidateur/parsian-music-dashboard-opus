@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getRuntimeConfig } from "@/api/config";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
 import { defaultViewFor } from "@/domains/auth/permissions";
@@ -126,10 +127,40 @@ function AuthGate() {
   );
 }
 
+/**
+ * Boot guard. If the data source is misconfigured we render nothing but the
+ * error: continuing would mean serving DemoStore fixtures to someone who
+ * believes they configured a production backend. Failing loudly is the whole
+ * point — see docs/architecture/environments.md.
+ */
+function ConfigGate({ children }: { children: React.ReactNode }) {
+  const { error } = getRuntimeConfig();
+  if (!error) return <>{children}</>;
+  return (
+    <main
+      dir="rtl"
+      className="flex min-h-screen items-center justify-center bg-ink-950 px-4 text-ink-50"
+      role="alert"
+    >
+      <div className="max-w-lg rounded-2xl border border-danger-500/30 bg-danger-500/[0.06] p-6 text-center">
+        <h1 className="text-[17px] font-semibold text-danger-400">پیکربندی محیط نامعتبر است</h1>
+        <p className="mt-3 text-[13px] leading-relaxed text-ink-200">
+          برنامه اجرا نشد تا از نمایش دادهٔ نمایشی به‌جای دادهٔ واقعی جلوگیری شود.
+        </p>
+        <p dir="ltr" className="mt-4 rounded-xl bg-ink-900/80 p-3 text-left text-[11.5px] leading-relaxed text-ink-300">
+          {error}
+        </p>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
   return (
-    <AuthProvider>
-      <AuthGate />
-    </AuthProvider>
+    <ConfigGate>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
+    </ConfigGate>
   );
 }
