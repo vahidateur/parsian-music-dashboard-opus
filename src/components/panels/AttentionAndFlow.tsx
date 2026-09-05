@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Clock3 } from "lucide-react";
 import { attentionQueue } from "@/data/records";
-import { ACADEMY_NOW, quickActions, schedule, statusOf, todayFlowIds } from "@/data/academy";
+import { quickActions, schedule, statusOf, todayFlowIds } from "@/data/academy";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { faNum, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { AlertItem, QuickAction, TimelineEvent } from "@/components/ds/blocks";
@@ -52,12 +53,13 @@ export function Attention({ className }: { className?: string }) {
 /* ------------------------------------------------------------------ */
 export function TodayFlow({ className }: { className?: string }) {
   const { navigate } = useApp();
+  const now = useAcademyNow();
   const flow = todayFlowIds.map((id) => schedule.find((s) => s.id === id)!).filter(Boolean);
   const nextId = schedule
-    .filter((s) => !s.cancelled && !s.conflict && parseTime(s.start) > ACADEMY_NOW)
+    .filter((s) => !s.cancelled && !s.conflict && parseTime(s.start) > now)
     .sort((a, b) => parseTime(a.start) - parseTime(b.start))[0]?.id;
   const total = schedule.filter((s) => !s.cancelled).length;
-  const remaining = schedule.filter((s) => !s.cancelled && parseTime(s.start) > ACADEMY_NOW).length;
+  const remaining = schedule.filter((s) => !s.cancelled && parseTime(s.start) > now).length;
   const cancelled = schedule.filter((s) => s.cancelled).length;
 
   return (

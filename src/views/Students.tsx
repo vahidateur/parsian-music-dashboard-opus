@@ -1,8 +1,12 @@
 import { useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
-import { ACADEMY_NOW, instrumentLabel, type Instrument } from "@/data/academy";
+import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { instrumentLabel, type Instrument } from "@/data/academy";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
 import { useStudentList } from "@/domains/students";
+import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
+import { getStudentRepository } from "@/domains/registry";
+import { apiErrorFromThrown } from "@/api/errors";
 import { faNum, faPercent, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
@@ -28,14 +32,14 @@ const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof 
   message: { label: "پیام", icon: MessageSquare, mark: "border-white/[0.08] bg-white/[0.03] text-ink-300" },
 };
 
-function sessionBadge(s: GridSession): { label: string; tone: Tone; live?: boolean; cancelled?: boolean } {
+function sessionBadge(s: GridSession, now: number): { label: string; tone: Tone; live?: boolean; cancelled?: boolean } {
   if (s.cancelled) return { label: "لغو شده", tone: "neutral", cancelled: true };
   if (s.conflictWith) return { label: "تعارض", tone: "warn" };
   const start = parseTime(s.start);
   const end = parseTime(s.end);
   if (s.day !== TODAY_INDEX) return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
-  if (end <= ACADEMY_NOW) return { label: "برگزار شد", tone: "neutral" };
-  if (start <= ACADEMY_NOW && ACADEMY_NOW < end) return { label: "در حال برگزاری", tone: "ok", live: true };
+  if (end <= now) return { label: "برگزار شد", tone: "neutral" };
+  if (start <= now && now < end) return { label: "در حال برگزاری", tone: "ok", live: true };
   return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
 }
 
@@ -112,8 +116,31 @@ function StudentCard({ s, onOpen }: { s: Student; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 type DetailTab = "overview" | "learning" | "schedule" | "attendance" | "finance" | "notes" | "activity";
 
-function StudentDetail({ student }: { student: Student }) {
+function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => void }) {
   const { navigate, notify, openSheet } = useApp();
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  /**
+   * Pause/resume a student. This is a real repository write: if it fails the
+   * user is told, and nothing claims success (§37).
+   */
+  const toggleStatus = async () => {
+    const next = student.status === "paused" ? "active" : "paused";
+    setStatusBusy(true);
+    try {
+      await getStudentRepository().update(student.id, { status: next });
+      notify({
+        tone: "success",
+        title: next === "paused" ? `${student.name} متوقف شد` : `${student.name} فعال شد`,
+        detail: "وضعیت در پروندهٔ هنرجو به‌روزرسانی شد.",
+      });
+    } catch (cause) {
+      notify({ tone: "danger", title: "تغییر وضعیت انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+  const now = useAcademyNow();
   const [tab, setTab] = useState<DetailTab>("overview");
   const [actFilter, setActFilter] = useState<ActivityEntry["kind"] | "all">("all");
   const teacher = teacherById(student.teacherId);
@@ -152,6 +179,13 @@ function StudentDetail({ student }: { student: Student }) {
             </Button>
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "messages" })}>
               <MessageSquare className="size-3.5" /> پیام
+            </Button>
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
+              <UserX className="size-3.5" />
+              {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
               <Wallet className="size-3.5" /> ثبت پرداخت
@@ -299,7 +333,7 @@ function StudentDetail({ student }: { student: Student }) {
                         <ul className="space-y-2">
                           {sessions.map((s) => {
                             const cl = classById(s.classId);
-                            const badge = sessionBadge(s);
+                            const badge = sessionBadge(s, now);
                             return (
                               <li key={s.id}>
                                 <button
@@ -528,7 +562,7 @@ function StudentDetail({ student }: { student: Student }) {
 /* Students view                                                       */
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
-  const { filter, detailId, navigate, openSheet, notify } = useApp();
+  const { filter, detailId, navigate, notify } = useApp();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<Instrument | "all">("all");
@@ -537,6 +571,15 @@ export function StudentsView() {
   // Repository-backed: the view no longer imports the student fixture. Loading
   // state is the repository's real state, not a simulated delay.
   const { students, loading, error, reload } = useStudentList();
+
+  // Create/edit are driven by one dialog; `editing` distinguishes the modes.
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Student | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setFormOpen(true);
+  };
 
   const list = useMemo(
     () =>
@@ -583,7 +626,30 @@ export function StudentsView() {
         onAction={() => navigate({ view: "students" })}
       />
     );
-  if (detail) return <StudentDetail student={detail} />;
+  if (detail)
+    return (
+      <>
+        <StudentDetail
+          student={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+        />
+        <StudentFormDialog
+          open={formOpen}
+          student={editing}
+          onClose={() => setFormOpen(false)}
+          onSaved={(saved, mode) =>
+            notify({
+              tone: "success",
+              title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+              detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+            })
+          }
+        />
+      </>
+    );
 
   const columns: Column<Student>[] = [
     {
@@ -628,7 +694,7 @@ export function StudentsView() {
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("student")}>
+            <Button size="sm" variant="primary" onClick={openCreate}>
               <Plus className="size-3.5" /> افزودن هنرجو
             </Button>
           </>
@@ -696,6 +762,19 @@ export function StudentsView() {
           </Surface>
         )}
       </div>
+
+      <StudentFormDialog
+        open={formOpen}
+        student={editing}
+        onClose={() => setFormOpen(false)}
+        onSaved={(saved, mode) =>
+          notify({
+            tone: "success",
+            title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+          })
+        }
+      />
     </div>
   );
 }

@@ -804,6 +804,7 @@ export const settingsSections = [
   { id: "notifications", label: "اعلان‌ها", hint: "کانال‌ها و رویدادها" },
   { id: "localization", label: "بومی‌سازی", hint: "زبان، تقویم، واحد پول" },
   { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، قواعد جلسه، دادهٔ دمو" },
+  { id: "data", label: "ورود و خروج اطلاعات", hint: "CSV و Excel · هنرجویان، مدرسین، کلاس‌ها" },
 ] as const;
 
 export const accessRoles = [

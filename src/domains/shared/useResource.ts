@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { emptyPage, type Page } from "@/api/types";
+import { useDataVersion } from "./dataVersion";
 
 /**
  * Shared list-loading hook.
@@ -25,6 +26,9 @@ export function useResourceList<T, P>(
   /** Bump to force a refetch after a mutation elsewhere. */
   revision = 0,
 ): ListState<T> {
+  // Any persisted write anywhere bumps the data version, so a list that shows
+  // data touched by another domain refreshes without cross-view coupling.
+  const dataVersion = useDataVersion();
   const key = JSON.stringify(params ?? {});
   const [page, setPage] = useState<Page<T>>(() => emptyPage<T>());
   const [loading, setLoading] = useState(true);
@@ -54,7 +58,7 @@ export function useResourceList<T, P>(
         if (ticket === latest.current) setLoading(false);
       });
     return () => controller.abort();
-  }, [key, nonce, revision]);
+  }, [key, nonce, revision, dataVersion]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
   return useMemo(

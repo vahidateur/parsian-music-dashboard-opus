@@ -1,12 +1,17 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, MessageSquare, Plus, UserCheck } from "lucide-react";
+import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
 import { instrumentLabel, type Instrument } from "@/data/academy";
-import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, teachers, weekSessions, type Teacher } from "@/data/records";
+import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, weekSessions, type Teacher } from "@/data/records";
 import { faNum, faPercent, faTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, useAsyncView } from "@/components/ds/patterns";
+import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
+import { ErrorState } from "@/components/ds/states";
+import { useTeachers } from "@/domains/teachers/useTeachers";
+import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
+import { getTeacherRepository } from "@/domains/registry";
+import { apiErrorFromThrown } from "@/api/errors";
 import { cn } from "@/utils/cn";
 
 const BLOCKS = ["صبح", "ظهر", "عصر", "شب"];
@@ -99,9 +104,33 @@ function TeacherCard({ t, onOpen }: { t: Teacher; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 /* Teacher workspace                                                   */
 /* ------------------------------------------------------------------ */
-function TeacherDetail({ teacher }: { teacher: Teacher }) {
+function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => void }) {
   const { navigate, notify } = useApp();
   const [tab, setTab] = useState<"today" | "week" | "students" | "load">("today");
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  /**
+   * Deactivation is reversible and non-destructive: the teacher keeps their
+   * history but is excluded from new class assignment.
+   */
+  const toggleActive = async () => {
+    const inactive = teacher.status === "inactive";
+    setStatusBusy(true);
+    try {
+      const repository = getTeacherRepository();
+      if (inactive) await repository.update(teacher.id, { status: "active" });
+      else await repository.deactivate(teacher.id);
+      notify({
+        tone: "success",
+        title: inactive ? `${teacher.name} فعال شد` : `${teacher.name} غیرفعال شد`,
+        detail: inactive ? "برای تخصیص کلاس در دسترس است." : "از تخصیص کلاس‌های جدید کنار گذاشته شد؛ کلاس‌های قبلی دست‌نخورده‌اند.",
+      });
+    } catch (cause) {
+      notify({ tone: "danger", title: "تغییر وضعیت انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setStatusBusy(false);
+    }
+  };
   const meta = statusMeta[teacher.status];
   const myStudents = students.filter((s) => s.teacherId === teacher.id);
   const todaySessions = weekSessions.filter((w) => w.day === TODAY_INDEX && w.teacherId === teacher.id);
@@ -132,6 +161,13 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
             </Button>
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "schedule", filter: `teacher:${teacher.id}` })}>
               <CalendarDays className="size-3.5" /> برنامهٔ کامل
+            </Button>
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void toggleActive()} disabled={statusBusy}>
+              <UserX className="size-3.5" />
+              {teacher.status === "inactive" ? "فعال‌سازی" : "غیرفعال‌سازی"}
             </Button>
           </>
         }
@@ -301,7 +337,10 @@ export function TeachersView() {
   const [only, setOnly] = useState<"all" | "absent-tomorrow" | "low-utilization">(
     filter === "absent-tomorrow" ? "absent-tomorrow" : filter === "low-utilization" ? "low-utilization" : "all",
   );
-  const state = useAsyncView([filter, detailId]);
+  // Repository-backed: loading reflects a real read, not a timer.
+  const { items: teachers, loading, error, reload } = useTeachers({ per_page: 200 });
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Teacher | undefined>(undefined);
 
   const list = useMemo(
     () =>
@@ -311,12 +350,40 @@ export function TeachersView() {
           (only === "all" || (only === "absent-tomorrow" ? t.status === "absent-tomorrow" : t.utilization < 60)) &&
           (query === "" || t.name.includes(query) || t.title.includes(query)),
       ),
-    [inst, only, query],
+    [teachers, inst, only, query],
   );
 
   const detail = detailId ? teachers.find((t) => t.id === detailId) : undefined;
-  if (state === "loading") return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
-  if (detail) return <TeacherDetail teacher={detail} />;
+
+  const savedToast = (saved: Teacher, mode: "create" | "edit") =>
+    notify({
+      tone: "success",
+      title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+      detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+    });
+
+  const dialog = (
+    <TeacherFormDialog open={formOpen} teacher={editing} onClose={() => setFormOpen(false)} onSaved={savedToast} />
+  );
+
+  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+  if (error)
+    return (
+      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
+    );
+  if (detail)
+    return (
+      <>
+        <TeacherDetail
+          teacher={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+        />
+        {dialog}
+      </>
+    );
 
   const avgUtil = Math.round(teachers.reduce((a, b) => a + b.utilization, 0) / teachers.length);
   const freeHours = teachers.reduce((a, b) => a + Math.max(0, b.contractHours - b.weeklyHours), 0);
@@ -332,7 +399,14 @@ export function TeachersView() {
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>
-            <Button size="sm" variant="primary" onClick={() => notify({ tone: "info", title: "دعوت‌نامه نیازمند سرور است", detail: "ساخت لینک دعوت امن فقط در سرور ممکن است." })}>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                setEditing(undefined);
+                setFormOpen(true);
+              }}
+            >
               <Plus className="size-3.5" /> افزودن مدرس
             </Button>
           </>
@@ -397,6 +471,8 @@ export function TeachersView() {
             ))}
         </div>
       </Panel>
+
+      {dialog}
     </div>
   );
 }

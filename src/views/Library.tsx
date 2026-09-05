@@ -5,8 +5,8 @@ import { libraryShelves, resourceKindLabel, resources, type Resource, type Resou
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Chip, Drawer, FilterBar, PageHeader, Panel, SearchInput, Segmented, StatStrip, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Chip, Drawer, FilterBar, PageHeader, Panel, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const kindIcon: Record<ResourceKind, typeof FileMusic> = { sheet: FileMusic, audio: Music2, video: Video, doc: FileText };
@@ -77,7 +77,6 @@ export function LibraryView() {
   const [sort, setSort] = useState<"recent" | "popular">("recent");
   const [open, setOpen] = useState<Resource | null>(null);
   const [playing, setPlaying] = useState(false);
-  const state = useAsyncView([]);
 
   const list = useMemo(() => {
     const out = resources.filter(
@@ -85,8 +84,6 @@ export function LibraryView() {
     );
     return sort === "popular" ? [...out].sort((a, b) => b.uses - a.uses) : out;
   }, [kind, inst, query, sort]);
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال مرتب کردن قفسه‌ها…" />;
 
   return (
     <div>

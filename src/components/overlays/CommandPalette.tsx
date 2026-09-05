@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, Clock3, CornerDownLeft, DoorOpen, GraduationCap, Plus, Receipt, Search, Sparkles, UserRound } from "lucide-react";
-import { commandVerbs, navItems, nlCommands, quickActions, searchIndex, viewTitles, type NLCommand, type QuickActionDef, type SearchEntry, type Target } from "@/data/academy";
+import { ChevronLeft, Clock3, CornerDownLeft, DoorOpen, GraduationCap, Music2, Plus, Search, Sparkles, UserRound } from "lucide-react";
+import { commandVerbs, navItems, nlCommands, quickActions, viewTitles, type NLCommand, type QuickActionDef, type Target } from "@/data/academy";
+import { useDomainSearch, type SearchResultKind } from "@/domains/shared/useDomainSearch";
+import { loadRecentTargets, pushRecentTarget, type RecentTarget } from "@/domains/shared/recentTargets";
 import { useApp } from "@/context/AppContext";
-import { isViewId } from "@/lib/hashRoute";
 import { navIcons } from "@/components/layout/Sidebar";
 import { Kbd, StatusBadge } from "@/components/ds/primitives";
 import { cn } from "@/utils/cn";
@@ -12,61 +13,17 @@ type Item =
   | { type: "verb"; id: string; title: string; subtitle?: string; target: Target }
   | { type: "nav"; id: string; title: string; subtitle?: string; target: Target }
   | { type: "action"; id: string; title: string; subtitle?: string; action: QuickActionDef["id"] }
-  | { type: "entry"; id: string; title: string; subtitle?: string; entry: SearchEntry }
+  | { type: "entry"; id: string; title: string; subtitle?: string; target: Target; kind: SearchResultKind }
   | { type: "recent"; id: string; title: string; subtitle?: string; target: Target };
 
 type Group = { label: string; items: Item[] };
 
-const RECENT_KEY = "ava:palette-recents";
-const RECENT_MAX = 5;
-
-type Recent = { id: string; title: string; subtitle?: string; view: Target["view"]; filter?: string; recordId?: string };
-
-/** Ids/filters that may be placed into a route, mirroring `hashRoute` rules. */
-const SAFE_TOKEN = /^[A-Za-z0-9_-]{1,64}$/;
-
-/**
- * Recents come from localStorage, which the user can edit. They are turned
- * straight into navigation targets, so every field is validated instead of
- * cast — an unknown `view` would otherwise navigate the app to a bogus route.
- */
-function isRecent(value: unknown): value is Recent {
-  if (typeof value !== "object" || value === null) return false;
-  const r = value as Record<string, unknown>;
-  if (typeof r.id !== "string" || typeof r.title !== "string") return false;
-  if (typeof r.view !== "string" || !isViewId(r.view)) return false;
-  if (r.subtitle !== undefined && typeof r.subtitle !== "string") return false;
-  if (r.filter !== undefined && (typeof r.filter !== "string" || !SAFE_TOKEN.test(r.filter))) return false;
-  if (r.recordId !== undefined && (typeof r.recordId !== "string" || !SAFE_TOKEN.test(r.recordId))) return false;
-  return true;
-}
-
-function loadRecents(): Recent[] {
-  try {
-    const raw = localStorage.getItem(RECENT_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isRecent).slice(0, RECENT_MAX);
-  } catch {
-    return [];
-  }
-}
-
-function saveRecents(list: Recent[]) {
-  try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX)));
-  } catch {
-    /* ignore */
-  }
-}
-
-const kindLabel: Record<SearchEntry["kind"], string> = { student: "هنرجو", teacher: "مدرس", class: "کلاس", invoice: "فاکتور" };
-const kindIcon: Record<SearchEntry["kind"], ReactNode> = {
+const kindLabel: Record<SearchResultKind, string> = { student: "هنرجو", teacher: "مدرس", class: "کلاس", room: "اتاق" };
+const kindIcon: Record<SearchResultKind, ReactNode> = {
   student: <UserRound className="size-4" strokeWidth={1.8} />,
   teacher: <GraduationCap className="size-4" strokeWidth={1.8} />,
-  class: <DoorOpen className="size-4" strokeWidth={1.8} />,
-  invoice: <Receipt className="size-4" strokeWidth={1.8} />,
+  class: <Music2 className="size-4" strokeWidth={1.8} />,
+  room: <DoorOpen className="size-4" strokeWidth={1.8} />,
 };
 
 const normalize = (s: string) => s.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").trim().toLowerCase();
@@ -76,24 +33,26 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const [result, setResult] = useState<NLCommand | null>(null);
-  const [recents, setRecents] = useState<Recent[]>([]);
+  const [recents, setRecents] = useState<RecentTarget[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   /* Recent actions — the palette gets smarter the more you use it */
   useEffect(() => {
-    if (paletteOpen) setRecents(loadRecents());
+    if (paletteOpen) setRecents(loadRecentTargets());
   }, [paletteOpen]);
 
   const pushRecent = (target: Target, title: string, subtitle?: string) => {
-    setRecents((prev) => {
-      const next: Recent[] = [
-        { id: `${target.view}:${target.filter ?? ""}:${target.id ?? ""}`, title, subtitle, view: target.view, filter: target.filter, recordId: target.id },
-        ...prev.filter((r) => r.id !== `${target.view}:${target.filter ?? ""}:${target.id ?? ""}`),
-      ].slice(0, RECENT_MAX);
-      saveRecents(next);
-      return next;
-    });
+    setRecents(
+      pushRecentTarget({
+        id: `${target.view}:${target.filter ?? ""}:${target.id ?? ""}`,
+        title,
+        subtitle,
+        view: target.view,
+        filter: target.filter,
+        recordId: target.id,
+      }),
+    );
   };
 
   useEffect(() => {
@@ -110,6 +69,9 @@ export function CommandPalette() {
       document.body.style.overflow = "";
     };
   }, [paletteOpen]);
+
+  // Repository-backed record search; empty query returns nothing.
+  const { results: records } = useDomainSearch(query);
 
   const groups = useMemo<Group[]>(() => {
     const q = normalize(query);
@@ -137,13 +99,14 @@ export function CommandPalette() {
     const out: Group[] = [];
     const nl = nlCommands.filter((c) => normalize(c.phrase).includes(q) || c.keywords.some((k) => q.includes(normalize(k))));
     if (nl.length) out.push({ label: "اجرای فرمان", items: nl.map((c) => ({ type: "nl", id: c.id, title: c.phrase, subtitle: "Enter برای اجرا", cmd: c })) });
-    const entries = searchIndex.filter((e) => normalize(e.title).includes(q) || normalize(e.subtitle).includes(q));
-    (["student", "teacher", "class", "invoice"] as const).forEach((k) => {
-      const list = entries.filter((e) => e.kind === k);
+    // Records come from the repositories, so anything created during this
+    // session is discoverable and anything removed is gone.
+    (["student", "teacher", "class", "room"] as const).forEach((k) => {
+      const list = records.filter((e) => e.kind === k);
       if (list.length)
         out.push({
-          label: { student: "هنرجویان", teacher: "مدرسین", class: "کلاس‌ها", invoice: "فاکتورها" }[k],
-          items: list.map((e) => ({ type: "entry", id: e.id, title: e.title, subtitle: e.subtitle, entry: e })),
+          label: { student: "هنرجویان", teacher: "مدرسین", class: "کلاس‌ها", room: "اتاق‌ها" }[k],
+          items: list.map((e) => ({ type: "entry", id: e.id, title: e.title, subtitle: e.subtitle, target: e.target, kind: e.kind })),
         });
     });
     const verbs = commandVerbs.filter((c) => normalize(c.label).includes(q) || normalize(c.hint).includes(q));
@@ -153,7 +116,7 @@ export function CommandPalette() {
     const acts = quickActions.filter((a) => normalize(a.label).includes(q) || normalize(a.hint).includes(q));
     if (acts.length) out.push({ label: "اقدامات", items: acts.map((a) => ({ type: "action", id: a.id, title: a.label, subtitle: a.hint, action: a.id })) });
     return out;
-  }, [query, recents]);
+  }, [query, recents, records]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
 
@@ -170,8 +133,8 @@ export function CommandPalette() {
       return navigate(item.target);
     }
     if (item.type === "entry") {
-      pushRecent(item.entry.target, item.title, item.subtitle);
-      return navigate(item.entry.target);
+      pushRecent(item.target, item.title, item.subtitle);
+      return navigate(item.target);
     }
     if (item.type === "action") {
       closePalette();
@@ -298,13 +261,13 @@ export function CommandPalette() {
                         {item.type === "action" && <Plus className="size-4" strokeWidth={2.2} />}
                         {item.type === "recent" && <Clock3 className="size-4" strokeWidth={1.8} />}
                         {(item.type === "nav" || item.type === "verb") && (() => { const I = navIcons[item.target.view]; return <I className="size-4" strokeWidth={1.8} />; })()}
-                        {item.type === "entry" && kindIcon[item.entry.kind]}
+                        {item.type === "entry" && kindIcon[item.kind]}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-ink-50">{item.title}</span>
                         {item.subtitle && <span className="block truncate text-xs text-ink-400">{item.subtitle}</span>}
                       </span>
-                      {item.type === "entry" && <span className="text-[10px] text-ink-500">{kindLabel[item.entry.kind]}</span>}
+                      {item.type === "entry" && <span className="text-[10px] text-ink-500">{kindLabel[item.kind]}</span>}
                       {isActive && (
                         <span className="flex items-center gap-1 text-[10px] text-ink-400">
                           <Kbd>
@@ -372,9 +335,3 @@ function ResultView({ cmd, onOpen, onBack }: { cmd: NLCommand; onOpen: () => voi
     </div>
   );
 }
-
-/**
- * Test-only seam. Exposes the localStorage-recents parsing so its validation
- * can be covered directly; not part of the component's public API.
- */
-export const __testing = { RECENT_KEY, loadRecents, isRecent };

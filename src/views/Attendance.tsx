@@ -4,8 +4,8 @@ import { attendanceByDay, attendanceLabel, attendanceTrend, classById, students,
 import { faNum, faPercent, faTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, ListRow, Meter, PageHeader, Panel, ProgressRing, Segmented, StatStrip, Tabs, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Avatar, ListRow, Meter, PageHeader, Panel, ProgressRing, Segmented, StatStrip, Tabs } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const MARKS: Exclude<AttendanceMark, null>[] = ["present", "late", "absent", "excused"];
@@ -31,7 +31,6 @@ export function AttendanceView() {
   const [rosters, setRosters] = useState(todayAttendance);
   const [activeId, setActiveId] = useState<string>(todayAttendance.find((r) => r.state === "pending")?.sessionId ?? todayAttendance[0].sessionId);
   const [scope, setScope] = useState<"all" | "pending">(filter === "pending" ? "pending" : "all");
-  const state = useAsyncView([filter]);
 
   const active = rosters.find((r) => r.sessionId === activeId);
   const pendingCount = rosters.filter((r) => r.state === "pending").length;
@@ -62,8 +61,6 @@ export function AttendanceView() {
       pending: all.filter((e) => e.mark === null).length,
     };
   }, [rosters]);
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال جمع‌آوری حضور امروز…" />;
 
   return (
     <div>

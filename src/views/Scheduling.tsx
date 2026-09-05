@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
-import { ACADEMY_NOW, instrumentLabel } from "@/data/academy";
+import { instrumentLabel } from "@/data/academy";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions, type GridSession } from "@/data/records";
 import { faNum, faPercent, faTime, minutesToFaTime, parseTime, toFa } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Chip, Drawer, FilterBar, ListRow, Meter, PageHeader, Panel, Segmented, StatStrip, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Chip, Drawer, FilterBar, ListRow, Meter, PageHeader, Panel, Segmented, StatStrip } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const DAY_START = 8 * 60;
@@ -26,17 +27,20 @@ function SessionBlock({
   s,
   onOpen,
   dense,
+  now,
 }: {
   s: GridSession;
   onOpen: () => void;
   dense?: boolean;
+  /** Academy time in minutes; frozen in demo, real in production. */
+  now: number;
 }) {
   const cl = classById(s.classId);
   const start = parseTime(s.start);
   const end = parseTime(s.end);
   const top = (start - DAY_START) * PX_PER_MIN;
   const height = (end - start) * PX_PER_MIN;
-  const live = s.day === TODAY_INDEX && start <= ACADEMY_NOW && ACADEMY_NOW < end && !s.cancelled;
+  const live = s.day === TODAY_INDEX && start <= now && now < end && !s.cancelled;
 
   return (
     <button
@@ -69,13 +73,13 @@ function SessionBlock({
 /* ------------------------------------------------------------------ */
 export function SchedulingView() {
   const { filter, navigate, notify, openSheet } = useApp();
+  const now = useAcademyNow();
   const [mode, setMode] = useState<"week" | "day">("week");
   const [dayIndex, setDayIndex] = useState(TODAY_INDEX);
   const [roomFilter, setRoomFilter] = useState<string | "all">("all");
   const [teacherFilter, setTeacherFilter] = useState<string | "all">(filter?.startsWith("teacher:") ? filter.slice(8) : "all");
   const [selected, setSelected] = useState<GridSession | null>(null);
   const [resolved, setResolved] = useState(false);
-  const state = useAsyncView([filter]);
 
   const visible = useMemo(
     () => weekSessions.filter((s) => (roomFilter === "all" || s.roomId === roomFilter) && (teacherFilter === "all" || s.teacherId === teacherFilter)),
@@ -83,10 +87,8 @@ export function SchedulingView() {
   );
 
   const conflicts = weekSessions.filter((s) => s.conflictWith && !resolved);
-  const nowTop = (ACADEMY_NOW - DAY_START) * PX_PER_MIN;
+  const nowTop = (now - DAY_START) * PX_PER_MIN;
   const gridHeight = (DAY_END - DAY_START) * PX_PER_MIN;
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال هماهنگ کردن تقویم…" />;
 
   const days = mode === "week" ? WEEKDAYS.map((_, i) => i) : [dayIndex];
 
@@ -214,13 +216,13 @@ export function SchedulingView() {
                     {visible
                       .filter((s) => s.day === d)
                       .map((s) => (
-                        <SessionBlock key={s.id} s={s} dense={mode === "week"} onOpen={() => setSelected(s)} />
+                        <SessionBlock key={s.id} s={s} now={now} dense={mode === "week"} onOpen={() => setSelected(s)} />
                       ))}
                     {d === TODAY_INDEX && (
                       <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top: nowTop }}>
                         <div className="relative h-px bg-gold-400/70">
                           <span className="absolute -top-[3px] right-0 size-[7px] rounded-full bg-gold-400" />
-                          <span className="nums absolute -top-2 left-1 rounded bg-ink-950/80 px-1 text-[9px] text-gold-300">{minutesToFaTime(ACADEMY_NOW)}</span>
+                          <span className="nums absolute -top-2 left-1 rounded bg-ink-950/80 px-1 text-[9px] text-gold-300">{minutesToFaTime(now)}</span>
                         </div>
                       </div>
                     )}

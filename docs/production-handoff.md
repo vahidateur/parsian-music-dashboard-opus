@@ -24,9 +24,25 @@ Status labels used throughout the docs:
 
 ### Database & API — BACKEND REQUIRED
 - [ ] Real datastore + migrations + seed strategy.
-- [ ] Implement the REST contracts the `Api*Repository` classes already assume.
+- [ ] Implement the REST contracts the `Api*Repository` classes already assume:
+      `/api/v1/{students,teachers,rooms,classes,enrollments}` with `GET|POST` on the
+      collection, `GET|PATCH|DELETE /{id}`, `POST /{id}/deactivate` (teachers, rooms),
+      `POST /{id}/archive` (classes), `POST /{id}/withdraw` (enrollments).
+      **No server serves these today.**
 - [ ] Server-side validation for every write (the client validation is convenience only).
 - [ ] Pagination/filtering/sorting server-side.
+- [ ] `UNIQUE(organization_id, national_id)`. The demo uniqueness check is a store scan
+      and is **not** a constraint.
+- [ ] Partial `UNIQUE(student_id, class_id)` over open enrollment statuses, plus a
+      **transactional** capacity check — the demo enforces capacity in application code,
+      which cannot survive concurrency.
+- [ ] Transactional **bulk import**. The importer is atomic by policy (nothing is written
+      until validation completes) but has no database transaction behind it.
+- [ ] Server-side `GET /search?q=` and `GET /dashboard/metrics`. The palette and dashboard
+      currently fan out to N `list()` calls, which is fine at demo scale only.
+- [ ] Server-authoritative time. `src/domains/shared/clock.ts` is a UI clock; any
+      time-sensitive authorization or billing must not trust it.
+- [ ] Normalized E.164 phone storage with render-time masking.
 
 ### Security — BACKEND REQUIRED
 - [ ] HTTPS/HSTS, secure cookie flags or token storage policy.
@@ -50,15 +66,22 @@ Status labels used throughout the docs:
 
 ## Frontend work still outstanding
 
-- [ ] **PARTIAL — repository wiring.** `Students` is migrated and covered by tests.
-      Teachers, Classes, Scheduling, Attendance, Finance, Messages, Library, Reports,
-      Dashboard, Rooms and the Command Palette still read fixtures from `@/data/records`
-      / `@/data/academy`. See `docs/architecture/data-layer.md` for the per-view list.
-- [ ] **DEMO ONLY — inert forms.** The global ActionSheet ("افزودن هنرجو", "ثبت پرداخت", …)
-      collects input but persists nothing. It now says so instead of showing a success toast.
-- [ ] **DEMO ONLY — dashboard/report figures** are static fixtures, not aggregates.
-- [ ] `useAsyncView` is a cosmetic 420 ms timer used by unmigrated views. Migrated views
-      use real repository loading state; delete the helper as the migration completes.
+- [x] **IMPLEMENTED — interactive core.** Students, Teachers, Rooms, Classes and
+      Enrollments are full CRUD through repositories, with cross-domain invalidation,
+      derived dashboard metrics, a repository-backed command palette, and an
+      Import/Export Center (CSV + XLSX). Covered by tests that drive the real dialogs
+      against the real demo repositories.
+- [x] **IMPLEMENTED — no cosmetic loading.** `useAsyncView` (a 420 ms fake timer) has been
+      deleted outright; every remaining spinner reflects real repository state.
+- [ ] **PARTIAL — repository wiring.** Scheduling, Attendance, Finance, Messages, Library
+      and Reports still read fixtures from `@/data/records` / `@/data/academy`.
+      See `docs/architecture/data-layer.md` for the per-view list.
+- [ ] **DEMO ONLY — inert forms.** The global ActionSheet ("ثبت پرداخت", …) collects input
+      but persists nothing outside the five wired domains. It says so instead of showing a
+      success toast.
+- [ ] **DEMO ONLY — report figures** are static fixtures, not aggregates. Dashboard tiles
+      are individually labelled DOMAIN-DERIVED / CURATED / BACKEND-REQUIRED so a viewer can
+      tell which number is real.
 
 ---
 
@@ -67,7 +90,7 @@ Status labels used throughout the docs:
 Executed, with results reproduced below in the final report:
 
 - [x] `npm run typecheck` — clean.
-- [x] `npm test` — 20 files / 174 tests passing.
+- [x] `npm test` — 38 files / 340 tests passing.
 - [x] `npm run build` — clean single-file bundle.
 - [x] Dev server + built bundle serve HTTP 200, including under a proxied preview `Host`.
 - [x] Seed referential integrity — 0 orphans/duplicates across 13 collections (script-verified).
@@ -75,6 +98,12 @@ Executed, with results reproduced below in the final report:
 - [x] Backups reject credential-like fields; invalid restore leaves state unchanged.
 - [x] Demo lifecycle (reset/clear/import/restore) invalidates an orphaned auth session.
 - [x] No duplicate `navigation` landmarks; reduced-motion honoured via CSS + `data-motion`.
+- [x] Layering enforced by test: no view or component touches `localStorage`, `demoStore`,
+      `fetch`, a hardcoded HTTP URL, or the frozen `ACADEMY_NOW` clock constant.
+- [x] Import safety: size/row/column/cell caps, zip-bomb caps, formula-injection rejection,
+      duplicate and invalid national IDs rejected per row, no store write before validation.
+- [x] Export safety: explicit column lists (no secret can leak by accident), formula
+      escaping, UTF-8 BOM for Persian CSV, current-state reflection.
 
 ## NOT verified
 
@@ -82,8 +111,10 @@ Executed, with results reproduced below in the final report:
   environment — Playwright's CDN download fails and there is no system Chromium.
   Verification was HTTP-level plus jsdom tests that mount the real `App`.
   **Manual browser QA is still required**, in particular: mobile drawer/bottom-nav,
-  command-palette keyboard flow, focus trapping in dialogs, chart rendering, and
-  RTL layout at tablet/mobile breakpoints.
+  command-palette keyboard flow, focus trapping in dialogs, chart rendering,
+  RTL layout at tablet/mobile breakpoints, and the real file-picker / file-download
+  paths of the Import/Export Center (the parsers and serializers are unit-tested,
+  but no actual browser download was exercised).
 
 ## Dependency audit
 

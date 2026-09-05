@@ -59,6 +59,36 @@ function nextId(prefix: string): string {
 export class DemoStoreImpl {
   constructor(private readonly storage: StorageLike = safeStorage() ?? memoryStorage()) {}
 
+  /**
+   * Write notification.
+   *
+   * Every mutation funnels through `replace`, so one listener set here is
+   * enough to keep every view consistent after any write, wherever it came
+   * from (CRUD, import, reset, restore). Views never subscribe to this
+   * directly — `@/domains/shared/dataVersion` bridges it into React so the
+   * UI stays unaware of demo persistence.
+   */
+  private readonly listeners = new Set<() => void>();
+
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private emit(): void {
+    // A throwing listener must not abort the remaining notifications or the
+    // write that triggered them.
+    this.listeners.forEach((listener) => {
+      try {
+        listener();
+      } catch {
+        /* a broken subscriber cannot break persistence */
+      }
+    });
+  }
+
   /* ---------------- snapshot level ---------------- */
 
   /** Reads the persisted dataset, seeding it on first access. */
@@ -93,11 +123,13 @@ export class DemoStoreImpl {
   replace(dataset: DemoDataset): void {
     const serialized = JSON.stringify(dataset);
     this.storage.setItem(DEMO_STORAGE_KEY, serialized);
+    this.emit();
   }
 
   /** Removes the persisted snapshot; the next read reseeds from the canonical seed. */
   reset(): void {
     this.storage.removeItem(DEMO_STORAGE_KEY);
+    this.emit();
   }
 
   private mutate<T>(fn: (dataset: DemoDataset) => T): T {

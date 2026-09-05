@@ -1,4 +1,4 @@
-# Data layer — Phase A (API/Domain Foundation)
+# Data layer
 
 Arena React is the primary product. This document describes the boundary that lets the
 existing UI migrate from demo persistence to a real REST backend **without being redesigned**.
@@ -83,15 +83,8 @@ Implementations:
 Selection: `getStudentRepository()` in `src/domains/registry.ts`
 (`setStudentRepository()` is the test seam).
 
-## How the Students migration will work
-
-1. `Students.tsx` replaces `import { students } from "@/data/records"` with
-   `useStudentList(params)` from `@/domains/students`.
-2. Existing filter state (status / instrument / search) is passed as `StudentListParams`;
-   the current in-component filtering is deleted, not reimplemented.
-3. Loading/error branches reuse the existing `LoadingState` / `EmptyState` components —
-   no visual change.
-4. Flipping `VITE_DATA_SOURCE=api` then switches the same view to the real backend.
+Every other domain follows this shape verbatim; see "Phase 2" below.
+Flipping `VITE_DATA_SOURCE=api` switches all of them to the real backend at once.
 
 ## Domain model rules (enforced by naming, not shortcuts)
 
@@ -104,20 +97,119 @@ Student → Enrollment → Class → Session → Attendance
 denormalized display field and is **not** the authoritative relationship; enrollments own
 Student ↔ Class over time.
 
-## Intentionally NOT implemented in Phase A
+## Phase 2 — the interactive core
 
-Backend of any kind (no Laravel involvement), auth flow, permission enforcement,
-all domains other than Students (folders carry contract sketches only), scheduling
-conflict detection / recurrence, uploads, server-side reports, `/search`, realtime,
-audit log, and any view refactor — `Students.tsx` still reads `@/data/records` and is
-unchanged in this task.
+Five domains are now wired end to end through repositories: **students, teachers,
+rooms, classes, enrollments**. Each folder holds the same five files —
+`types.ts`, `repository.ts` (the contract), `demoRepository.ts`, `apiRepository.ts`,
+`useX.ts` — plus its dialog component. Operation inputs are always
+`CreateXInput` / `UpdateXInput`; list params are snake_case (`per_page`).
 
-## Next task
+```
+React view / dialog
+    ↓ domain hook (useStudents, useTeachers, useRooms, useClasses, useEnrollments)
+    ↓ repository contract
+DemoXRepository → demoStore        ApiXRepository → ApiClient → backend
+```
 
-*Migrate the Students view from direct DemoStore/records usage to `StudentRepository`,
-preserving the exact existing UI and demo behaviour.*
+### Invariants owned by the repository, not the form
 
-## Migration status (verified by inspection, not by intent)
+Dialogs validate fields for fast feedback; repositories own the rules, and the
+`ApiError.fields` map merges into the same error state so a demo rejection and a
+future server rejection render identically. Demo error codes:
+
+`STUDENT_INVALID`, `STUDENT_NATIONAL_ID_TAKEN`,
+`TEACHER_{NOT_FOUND,PHONE_TAKEN,HAS_CLASSES,INVALID}`,
+`ROOM_{NOT_FOUND,NAME_TAKEN,IN_USE,INVALID}`,
+`CLASS_{NOT_FOUND,INVALID,ARCHIVED,FULL,HAS_ENROLLMENTS,CAPACITY_BELOW_ENROLLED}`,
+`ENROLLMENT_{NOT_FOUND,INVALID,DUPLICATE}`.
+
+### Enrollment is the canonical Student ↔ Class edge
+
+`class.enrolled`, `class.waitlist` and `class.studentIds` are a **projection** of
+enrollment rows, recomputed by `syncClassProjection()` on every write. Nothing may
+hand-write them — including the seed, which builds both sides from one source via
+`withDerivedEnrollments()` in `src/domains/demo/seed.ts`. Records reference each
+other by id; a class never embeds student objects.
+
+Rules: no duplicate open enrollment per (student, class); capacity is enforced at
+write time; an archived class and an inactive student cannot be enrolled;
+withdrawal frees the seat and is kept as history rather than deleted.
+
+### national_id
+
+`Student.nationalId` is required and unique. `src/lib/nationalId.ts` normalizes
+(Persian/Arabic digits → ASCII, 8–9 digit zero-padding) and checksum-validates it.
+Uniqueness in demo is a store scan; in production it is
+`UNIQUE(organization_id, national_id)` — **the client check is convenience only**.
+The national ID never appears in palette subtitles, telemetry, or URLs.
+
+### Cross-domain invalidation
+
+One coarse counter, `src/domains/shared/dataVersion.ts`, fed by `demoStore.subscribe()`.
+Every list hook reads `useDataVersion()`, so a write in any domain refreshes every
+dependent view. There is deliberately no second store, cache, or state framework.
+
+### Demo clock
+
+`src/domains/shared/clock.ts` (`academyNowMinutes()`, `useAcademyNow()`) returns a
+frozen demo time in demo mode and real time otherwise. Views no longer import the
+deprecated `ACADEMY_NOW` constant. Time-sensitive authorization or billing remains
+**BACKEND REQUIRED** — a client clock is not a trust boundary.
+
+### Dashboard metrics
+
+`src/domains/shared/useAcademyMetrics.ts` derives counts from repository data.
+Each tile is labelled DOMAIN-DERIVED DEMO METRIC, CURATED DEMO PRESENTATION, or
+BACKEND-REQUIRED METRIC. Attendance % was removed from the hero rather than faked.
+Fanning out to N `list()` calls is acceptable at demo scale; production wants
+`GET /dashboard/metrics`.
+
+### Command palette
+
+`src/domains/shared/useDomainSearch.ts` searches the four entity repositories live,
+so a record created seconds ago is findable. The static search index was deleted.
+Nav/help/action commands remain, and action commands call real repository
+operations. Recents live in `src/domains/shared/recentTargets.ts` — a validated,
+per-browser UI preference kept **out of** `DemoStore`, so it survives a demo reset
+and never appears in a backup. Production wants `GET /search?q=`.
+
+### Import / export
+
+`src/domains/import/` parses CSV and XLSX (`spreadsheet.ts`) under hard caps —
+5 MB, 5000 rows, 60 columns, 1000 chars/cell, 64 zip entries, 40 MB inflated —
+treating every file as untrusted. Import is **atomic by policy**: the whole file is
+parsed, mapped, validated and previewed before a single `DemoStore` write. Rows
+carry per-row rejection reasons and a downloadable error report. Formula-like cells
+in an import are rejected, not silently escaped. True DB-level atomicity is
+**BACKEND REQUIRED** (a transactional bulk-import endpoint).
+
+`src/domains/export/exportService.ts` exports students, teachers, classes and
+enrollments to CSV and XLSX from **current** state. Column lists are explicit
+(never `Object.entries(record)`) so a secret can never leak by accident; formulas
+are escaped; CSV carries a UTF-8 BOM for Persian in Excel; XLSX writes inline
+strings so leading zeros survive. Nothing is uploaded anywhere.
+
+## Enforced boundaries
+
+`src/__tests__/architectureBoundaries.test.ts` scans source (comments and string
+literals stripped) and fails the build if a view or component touches
+`localStorage`, imports `demoStore`, calls `fetch(`, hardcodes an `http(s)://` URL,
+references the deleted `useAsyncView`, or imports `ACADEMY_NOW`. Layering is a
+test, not a review convention.
+
+Untrusted JSON (`localStorage`, imported backups) is stripped of
+`__proto__` / `constructor` / `prototype` before use.
+
+## Intentionally NOT implemented
+
+Backend of any kind (no Laravel involvement is part of this work), server-side
+permission enforcement, scheduling conflict detection / recurrence, uploads,
+server-side reports, `GET /search`, `GET /dashboard/metrics`, realtime, and the
+audit log. Attendance, Finance, Messages, Library and Reports remain honest
+read-only fixture renderers with no domain layer yet.
+
+## Migration status (verified by execution, not by intent)
 
 `Student` is the reference migration: `StudentsView` reads exclusively through
 `useStudentList()` → `StudentRepository` → `DemoStudentRepository | ApiStudentRepository`.
@@ -129,16 +221,23 @@ appear when the repository returns something else.
 | View / component | Status | Reads from |
 |---|---|---|
 | Students | **IMPLEMENTED** | `useStudentList` → repository |
+| Teachers | **IMPLEMENTED** | `useTeachers` → repository |
+| Classes | **IMPLEMENTED** | `useClasses` → repository |
+| Rooms (Settings → operations) | **IMPLEMENTED** | `useRooms` → repository |
+| Enrollments | **IMPLEMENTED** | `useEnrollments` → repository |
+| Dashboard metrics | **IMPLEMENTED** | `useAcademyMetrics` → repositories |
+| Command Palette | **IMPLEMENTED** | `useDomainSearch` → repositories |
+| Import / Export Center | **IMPLEMENTED** | `src/domains/{import,export}` |
 | Settings → Users & Roles | **IMPLEMENTED** | `useUsers` → `UserRepository` |
 | Settings → Demo data | **IMPLEMENTED** | `useDemoData` → `demoDataManager` |
 | Login / auth | **IMPLEMENTED** | `useAuth` → `AuthRepository` |
-| Teachers, Classes, Scheduling, Attendance, Finance, Messages, Library, Reports, Dashboard | **PARTIAL** | static `@/data/records` + `@/data/academy` |
-| Rooms (Settings), Command Palette, Notifications | **PARTIAL** | static fixtures |
+| Scheduling, Attendance, Finance, Messages, Library, Reports | **PARTIAL** | static `@/data/records` + `@/data/academy` |
+| Notifications | **PARTIAL** | static fixtures |
 
 ### Why the rest were not migrated in this phase
 
-Each remaining view needs its own domain contract (Teacher, Class, Session,
-Attendance, Invoice, Conversation, Resource) plus demo *and* API implementations
+Each remaining view needs its own domain contract (Session, Attendance, Invoice,
+Conversation, Resource) plus demo *and* API implementations
 and tests. Doing that mechanically — pointing views at a repository that merely
 re-exports the same fixture — would add indirection while leaving the data just as
 static, and would make the wiring look finished when it is not. The remaining views
@@ -146,7 +245,8 @@ are honest, read-only fixture renderers today.
 
 ### Boundary rules currently enforced
 
-- No view imports `localStorage`, `fetch`, or an HTTP URL.
+- No view imports `localStorage`, `fetch`, an HTTP URL, or `ACADEMY_NOW`
+  — asserted by `src/__tests__/architectureBoundaries.test.ts`.
 - `demoStore` is imported only by `src/domains/**` and `src/services/**`.
 - Untrusted JSON (`localStorage`, imported backups) is stripped of
   `__proto__` / `constructor` / `prototype` before use, and command-palette

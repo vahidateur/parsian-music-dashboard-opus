@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { emptyPage, type Page } from "@/api/types";
 import { getStudentRepository } from "@/domains/registry";
+import { useDataVersion } from "@/domains/shared/dataVersion";
 import type { StudentRepository } from "./repository";
 import type { Student, StudentListParams } from "./types";
 
@@ -23,6 +24,8 @@ export interface StudentListState {
 
 export function useStudentList(params: StudentListParams = {}, repository?: StudentRepository): StudentListState {
   const repo = useMemo(() => repository ?? getStudentRepository(), [repository]);
+  // Refresh when any domain writes (e.g. an enrollment changes a student's class).
+  const dataVersion = useDataVersion();
   const key = JSON.stringify(params);
   const [page, setPage] = useState<Page<Student>>(() => emptyPage<Student>());
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ export function useStudentList(params: StudentListParams = {}, repository?: Stud
         if (ticket === latest.current) setLoading(false);
       });
     return () => controller.abort();
-  }, [repo, key, nonce]);
+  }, [repo, key, nonce, dataVersion]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 

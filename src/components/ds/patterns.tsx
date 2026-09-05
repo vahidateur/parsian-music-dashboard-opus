@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, Search, SlidersHorizontal, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { faNum } from "@/lib/format";
@@ -548,6 +548,53 @@ export function ListRow({
 /* ================================================================== */
 /* DRAWER + DIALOG                                                     */
 /* ================================================================== */
+/* ================================================================== */
+/* FOCUS TRAP — shared by Drawer and Dialog                            */
+/* ================================================================== */
+const FOCUSABLE =
+  'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keeps keyboard focus inside an open overlay and restores it on close.
+ *
+ * Without this, Tab walks out of a modal into the page behind it, which leaves
+ * screen-reader and keyboard users stranded (§20).
+ */
+function useFocusTrap(open: boolean, ref: React.RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    if (!open) return;
+    const container = ref.current;
+    const previous = document.activeElement as HTMLElement | null;
+
+    // Focus the first control so typing starts in the form, not the document.
+    const first = container?.querySelector<HTMLElement>(FOCUSABLE);
+    (first ?? container)?.focus();
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !container) return;
+      const items = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
+        (el) => el.offsetParent !== null || el === document.activeElement,
+      );
+      if (items.length === 0) return;
+      const firstItem = items[0];
+      const lastItem = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === firstItem) {
+        event.preventDefault();
+        lastItem.focus();
+      } else if (!event.shiftKey && document.activeElement === lastItem) {
+        event.preventDefault();
+        firstItem.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previous?.focus?.();
+    };
+  }, [open, ref]);
+}
+
 export function Drawer({
   open,
   onClose,
@@ -565,6 +612,9 @@ export function Drawer({
   footer?: ReactNode;
   width?: "md" | "lg" | "xl";
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(open, panelRef);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -578,9 +628,11 @@ export function Drawer({
   if (!open) return null;
   const w = { md: "sm:w-[420px]", lg: "sm:w-[560px]", xl: "sm:w-[720px]" }[width];
   return (
-    <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[65]" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/65 backdrop-blur-[2px]" />
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className={cn(
           "absolute flex flex-col border-white/[0.08] bg-ink-900 shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.7)]",
           "inset-x-0 bottom-0 max-h-[90vh] animate-sheet-up rounded-t-3xl border-t",
@@ -591,7 +643,7 @@ export function Drawer({
         <header className="flex items-start justify-between gap-3 border-b border-white/[0.06] px-5 py-4">
           <div className="min-w-0">
             {kicker && <div className="text-[10.5px] font-medium text-gold-400">{kicker}</div>}
-            <h2 className="mt-0.5 truncate text-base font-semibold text-ink-50">{title}</h2>
+            <h2 id={titleId} className="mt-0.5 truncate text-base font-semibold text-ink-50">{title}</h2>
           </div>
           <button type="button" onClick={onClose} aria-label="بستن" className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] text-ink-300 hover:bg-white/[0.05]">
             <X className="size-4" />
@@ -623,6 +675,9 @@ export function Dialog({
   children?: ReactNode;
   footer?: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useFocusTrap(open, panelRef);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -631,12 +686,12 @@ export function Dialog({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[75] flex items-end justify-center px-4 pb-4 sm:items-center sm:pb-0" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[75] flex items-end justify-center px-4 pb-4 sm:items-center sm:pb-0" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md animate-sheet-up overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)]">
+      <div ref={panelRef} tabIndex={-1} className="relative w-full max-w-md animate-sheet-up overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)]">
         <div className="absolute inset-x-0 top-0 h-px hairline-gold" />
         <div className="p-5">
-          <h2 className="text-base font-semibold text-ink-50">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-ink-50">{title}</h2>
           {description && <p className="mt-2 text-[13px] leading-relaxed text-ink-300">{description}</p>}
           {children && <div className="mt-4">{children}</div>}
         </div>
@@ -649,26 +704,94 @@ export function Dialog({
 /* ================================================================== */
 /* FORM FIELD                                                          */
 /* ================================================================== */
+/**
+ * Labelled form field.
+ *
+ * `children` may be a render function, which receives the wiring a control
+ * needs to be accessible: a stable id, `aria-invalid`, and `aria-describedby`
+ * pointing at the error or hint. The error is rendered in an assertive live
+ * region so a screen reader announces it when validation fails (§20).
+ */
 export function Field({
   label,
   hint,
+  error,
+  required,
   children,
   className,
 }: {
   label: string;
   hint?: string;
-  children: ReactNode;
+  error?: string;
+  required?: boolean;
+  children: ReactNode | ((props: FieldControlProps) => ReactNode);
   className?: string;
 }) {
-  return (
-    <label className={cn("block", className)}>
-      <span className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-xs font-medium text-ink-200">{label}</span>
-        {hint && <span className="text-[10.5px] text-ink-500">{hint}</span>}
+  const id = useId();
+  const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+  const control: FieldControlProps = {
+    id,
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": describedBy,
+    "aria-required": required || undefined,
+  };
+  const heading = (
+    <span className="mb-1.5 flex items-baseline justify-between gap-2">
+      <span className="text-xs font-medium text-ink-200">
+        {label}
+        {required && (
+          <span className="ms-1 text-danger-400" aria-hidden>
+            *
+          </span>
+        )}
       </span>
-      {children}
-    </label>
+      {hint && !error && (
+        <span id={hintId} className="text-[10.5px] text-ink-500">
+          {hint}
+        </span>
+      )}
+    </span>
   );
+
+  // Render-prop children wire themselves up by id, so the label is explicit.
+  // Plain children keep the original implicit association by nesting inside
+  // the label — that is what every existing caller relies on.
+  if (typeof children !== "function") {
+    return (
+      <label className={cn("block", className)}>
+        {heading}
+        {children}
+        {error && (
+          <span id={errorId} role="alert" className="mt-1.5 block text-[11px] leading-relaxed text-danger-400">
+            {error}
+          </span>
+        )}
+      </label>
+    );
+  }
+
+  return (
+    <div className={cn("block", className)}>
+      <label htmlFor={id} className="block">
+        {heading}
+      </label>
+      {children(control)}
+      {error && (
+        <p id={errorId} role="alert" className="mt-1.5 text-[11px] leading-relaxed text-danger-400">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export interface FieldControlProps {
+  id: string;
+  "aria-invalid"?: true;
+  "aria-describedby"?: string;
+  "aria-required"?: true;
 }
 
 export const inputCls =
@@ -743,18 +866,4 @@ export function Panel({
       <div className={cn(title && !flush && "mt-4", flush && "mt-4", bodyClassName, "flex-1")}>{children}</div>
     </Surface>
   );
-}
-
-/* ================================================================== */
-/* useAsyncView — shared loading/error rhythm for every page           */
-/* ================================================================== */
-export function useAsyncView(deps: unknown[], ms = 420) {
-  const [state, setState] = useState<"loading" | "ready">("loading");
-  const key = useMemo(() => JSON.stringify(deps), [deps]);
-  useEffect(() => {
-    setState("loading");
-    const t = window.setTimeout(() => setState("ready"), ms);
-    return () => window.clearTimeout(t);
-  }, [key, ms]);
-  return state;
 }

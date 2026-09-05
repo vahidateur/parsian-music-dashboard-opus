@@ -1,6 +1,8 @@
 import { ChevronLeft } from "lucide-react";
 import hall from "@/assets/images/hall.jpg";
-import { ACADEMY_NOW, academy, heroStats, manager, schedule, statusOf } from "@/data/academy";
+import { academy, manager, schedule, statusOf } from "@/data/academy";
+import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { faNum, faTime, faToday, greetingFor } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { StatusBadge } from "@/components/ds/primitives";
@@ -9,7 +11,10 @@ import { cn } from "@/utils/cn";
 
 export function Hero({ compact = false }: { compact?: boolean }) {
   const { navigate, accent } = useApp();
-  const live = schedule.filter((s) => statusOf(s) === "live").length;
+  const now = useAcademyNow();
+  // Domain-derived: these move when the underlying records change.
+  const { stats: heroStats } = useHeroStats();
+  const live = schedule.filter((s) => statusOf(s, now) === "live").length;
   const attention = schedule.filter((s) => s.conflict).length > 0 ? 1 : 0;
 
   return (
@@ -55,7 +60,7 @@ export function Hero({ compact = false }: { compact?: boolean }) {
         {/* greeting */}
         <div className="mt-4 sm:mt-5">
           <h1 id="hero-title" className={cn("font-bold tracking-tight text-ink-50", compact ? "text-2xl" : "text-3xl sm:text-4xl")}>
-            {greetingFor(ACADEMY_NOW)}، {manager.firstName}{" "}
+            {greetingFor(now)}، {manager.firstName}{" "}
             <span className="inline-block origin-bottom-right" aria-hidden>
               👋
             </span>

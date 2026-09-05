@@ -4,8 +4,8 @@ import { conversations, messageTemplates, type Conversation } from "@/data/recor
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, PageHeader, Panel, SearchInput, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const roleMeta: Record<Conversation["role"], { label: string; tone: "gold" | "violet" | "info" | "neutral" }> = {
@@ -23,7 +23,6 @@ export function MessagesView() {
   const [draft, setDraft] = useState("");
   const [sentThreads, setSentThreads] = useState<Record<string, { text: string; when: string }[]>>({});
   const [mobileThread, setMobileThread] = useState(false);
-  const state = useAsyncView([filter]);
 
   const list = useMemo(
     () => conversations.filter((c) => (role === "all" || c.role === role) && (query === "" || c.name.includes(query) || c.topic.includes(query))),
@@ -38,8 +37,6 @@ export function MessagesView() {
     setDraft("");
     notify({ tone: "info", title: "پیام در نسخهٔ دمو ثبت شد", detail: "ارسال واقعی به سرور پیام‌رسان نیاز دارد و انجام نشده است." });
   };
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال باز کردن گفتگوها…" />;
 
   return (
     <div>

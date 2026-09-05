@@ -83,14 +83,6 @@ export interface QuickActionDef {
   success: string;
 }
 
-export interface SearchEntry {
-  id: string;
-  kind: "student" | "teacher" | "class" | "invoice";
-  title: string;
-  subtitle: string;
-  target: Target;
-}
-
 export interface NLCommand {
   id: string;
   phrase: string;
@@ -104,6 +96,13 @@ export interface NLCommand {
 /* ------------------------------------------------------------------ */
 /* Demo clock — 10:47, a Tuesday morning                               */
 /* ------------------------------------------------------------------ */
+/**
+ * @deprecated Read "now" from `@/domains/shared/clock` (`useAcademyNow` in
+ * components, `academyNowMinutes()` elsewhere). This constant is only the
+ * *demo* instant; using it directly freezes production time too. It remains
+ * exported as the default argument of the pure helpers below, which must stay
+ * free of environment lookups so they are testable.
+ */
 export const ACADEMY_NOW = 10 * 60 + 47;
 export const DAY_START = 8 * 60;
 export const DAY_END = 21 * 60;
@@ -247,12 +246,6 @@ export const statusOf = (s: ClassSession, now = ACADEMY_NOW): ClassStatus => {
 /** A curated subset for the "Today's flow" panel — the dashboard summarises, it doesn't duplicate. */
 export const todayFlowIds = ["c1", "c3", "c5", "c7", "c9", "c11"];
 
-export const heroStats = [
-  { label: "کلاس امروز", value: 12, target: { view: "schedule" } as Target },
-  { label: "هنرجو امروز", value: 248, target: { view: "students" } as Target },
-  { label: "حضور و غیاب", value: 96, suffix: "٪", target: { view: "attendance" } as Target },
-  { label: "ظرفیت امروز", value: 82, suffix: "٪", target: { view: "classes" } as Target },
-];
 
 /* ------------------------------------------------------------------ */
 /* Primary signals (30-day)                                            */
@@ -508,22 +501,6 @@ export const freeSlotsTuesday = [
 /* ------------------------------------------------------------------ */
 /* Command palette                                                     */
 /* ------------------------------------------------------------------ */
-export const searchIndex: SearchEntry[] = [
-  { id: "s1", kind: "student", title: "سارا محمدی", subtitle: "پیانو · سطح ۳ · در معرض ریزش", target: { view: "students", filter: "at-risk" } },
-  { id: "s2", kind: "student", title: "امیرحسین کریمی", subtitle: "گیتار · سطح ۲", target: { view: "students" } },
-  { id: "s3", kind: "student", title: "نیلوفر رستمی", subtitle: "آواز · سطح ۱", target: { view: "students" } },
-  { id: "s4", kind: "student", title: "پارسا نادری", subtitle: "ویولن · سطح ۴", target: { view: "students" } },
-  { id: "s5", kind: "student", title: "رضا شریفی", subtitle: "گیتار · فاکتور سررسید گذشته", target: { view: "finance", filter: "overdue" } },
-  { id: "t1", kind: "teacher", title: "سارا احمدی", subtitle: "پیانو · ۳۲ هنرجو · بهره‌وری ۹۴٪", target: { view: "teachers" } },
-  { id: "t2", kind: "teacher", title: "محمد رضایی", subtitle: "گیتار · ۲۸ هنرجو · فردا غایب", target: { view: "teachers", filter: "absent-tomorrow" } },
-  { id: "t3", kind: "teacher", title: "علی موسوی", subtitle: "ویولن · ۱۹ هنرجو", target: { view: "teachers" } },
-  { id: "t4", kind: "teacher", title: "نرگس حسینی", subtitle: "آواز · ۱۵ هنرجو", target: { view: "teachers" } },
-  { id: "c1", kind: "class", title: "پیانو گروهی", subtitle: "سه‌شنبه‌ها ۱۷:۰۰ · اتاق ۱ · ۵ از ۶", target: { view: "classes" } },
-  { id: "c2", kind: "class", title: "گیتار مقدماتی", subtitle: "شنبه و سه‌شنبه · اتاق ۲", target: { view: "classes" } },
-  { id: "c3", kind: "class", title: "تئوری موسیقی", subtitle: "سه‌شنبه‌ها ۱۱:۰۰ · اتاق ۳", target: { view: "classes" } },
-  { id: "i1", kind: "invoice", title: "فاکتور INV-1042", subtitle: "رضا شریفی · ۱٬۲۰۰٬۰۰۰ تومان · ۱۲ روز تأخیر", target: { view: "finance", filter: "overdue" } },
-  { id: "i2", kind: "invoice", title: "فاکتور INV-1038", subtitle: "مریم توکلی · ۸۵۰٬۰۰۰ تومان · ۹ روز تأخیر", target: { view: "finance", filter: "overdue" } },
-];
 
 /** Verb-first commands — "چه کاری می‌خواهید انجام دهید؟" */
 export const commandVerbs: { id: string; label: string; hint: string; target: Target }[] = [

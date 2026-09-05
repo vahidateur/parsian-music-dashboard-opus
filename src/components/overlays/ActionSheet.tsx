@@ -131,9 +131,16 @@ export function Toasts() {
                 t.tone === "success" && "border-gold-500/40 bg-gold-500/15 text-gold-300",
                 t.tone === "info" && "border-white/[0.1] bg-white/[0.05] text-ink-200",
                 t.tone === "warning" && "border-warn-500/30 bg-warn-500/10 text-warn-400",
+                t.tone === "danger" && "border-danger-500/40 bg-danger-500/15 text-danger-400",
               )}
             >
-              {t.tone === "success" ? <Check className="size-4" strokeWidth={2.5} /> : t.tone === "warning" ? <TriangleAlert className="size-4" /> : <Info className="size-4" />}
+              {t.tone === "success" ? (
+                <Check className="size-4" strokeWidth={2.5} />
+              ) : t.tone === "warning" || t.tone === "danger" ? (
+                <TriangleAlert className="size-4" />
+              ) : (
+                <Info className="size-4" />
+              )}
             </span>
           </span>
           <div className="min-w-0 flex-1 pt-0.5">

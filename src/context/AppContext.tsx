@@ -7,7 +7,8 @@ export interface Toast {
   id: number;
   title: string;
   detail?: string;
-  tone: "success" | "info" | "warning";
+  /** `danger` is reserved for operations that genuinely failed (§37). */
+  tone: "success" | "info" | "warning" | "danger";
 }
 
 interface AppState {

@@ -19,6 +19,7 @@ import {
   teachers,
   todayAttendance,
   weekSessions,
+  type AcademyClass,
 } from "@/data/records";
 import type { Enrollment } from "@/domains/enrollments/types";
 import { ROLES, roleLabels, type RoleId } from "@/domains/auth/permissions";
@@ -36,6 +37,30 @@ function clone<T>(value: T): T {
  * `AcademyClass.studentIds` (the denormalized display field) in a stable order
  * so ids never shift between runs.
  */
+/**
+ * Seeds `classes` and `enrollments` together so they cannot disagree.
+ *
+ * `enrolled`, `waitlist` and `studentIds` are a *projection* of the enrollment
+ * rows (see the enrollments repository). The literal fixture values were
+ * hand-written and did not match the derived rows, so the first enrollment
+ * write would visibly "correct" a class's seat count. Deriving both from one
+ * source removes that class of drift at the seed level.
+ */
+function withDerivedEnrollments(): { classes: AcademyClass[]; enrollments: Enrollment[] } {
+  const enrollments = deriveEnrollments();
+  const projected = classes.map((cls) => {
+    const rows = enrollments.filter((e) => e.classId === cls.id);
+    const active = rows.filter((e) => e.status === "active");
+    return {
+      ...cls,
+      enrolled: active.length,
+      waitlist: rows.filter((e) => e.status === "waitlist").length,
+      studentIds: active.map((e) => e.studentId),
+    };
+  });
+  return { classes: projected, enrollments };
+}
+
 export function deriveEnrollments(source: typeof classes = classes): Enrollment[] {
   const out: Enrollment[] = [];
   for (const cls of source) {
@@ -111,8 +136,7 @@ export function createSeedDataset(): DemoDataset {
     rooms,
     teachers,
     students,
-    classes,
-    enrollments: deriveEnrollments(),
+    ...withDerivedEnrollments(),
     sessions: weekSessions,
     attendance: todayAttendance,
     invoices,

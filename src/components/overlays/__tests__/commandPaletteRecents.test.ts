@@ -7,9 +7,10 @@
  * `loadRecents` validates every field instead of casting.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { __testing } from "@/components/overlays/CommandPalette";
+import { loadRecentTargets as loadRecents } from "@/domains/shared/recentTargets";
 
-const { RECENT_KEY, loadRecents } = __testing;
+/** Must match the key used by the recents service. */
+const RECENT_KEY = "ava:palette-recents";
 
 const write = (value: unknown) => localStorage.setItem(RECENT_KEY, JSON.stringify(value));
 

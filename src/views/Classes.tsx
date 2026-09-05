@@ -1,12 +1,18 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Plus, Users } from "lucide-react";
+import { Archive, CalendarDays, Pencil, Plus, UserPlus, Users } from "lucide-react";
 import { instrumentLabel, type Instrument } from "@/data/academy";
-import { WEEKDAYS, WEEKDAYS_SHORT, classes, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
+import { WEEKDAYS, WEEKDAYS_SHORT, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
 import { faNum, faPercent, faTime, faToman } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, useAsyncView } from "@/components/ds/patterns";
+import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
+import { ErrorState } from "@/components/ds/states";
+import { useClasses } from "@/domains/classes/useClasses";
+import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
+import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
+import { getClassRepository } from "@/domains/registry";
+import { apiErrorFromThrown } from "@/api/errors";
 import { paymentBadge } from "./Students";
 import { cn } from "@/utils/cn";
 
@@ -85,11 +91,36 @@ function ClassCard({ c, onOpen }: { c: AcademyClass; onOpen: () => void }) {
 }
 
 /* ------------------------------------------------------------------ */
-function ClassDetail({ c }: { c: AcademyClass }) {
-  const { navigate, notify, openSheet } = useApp();
+function ClassDetail({
+  c,
+  onEdit,
+  onEnroll,
+  onArchived,
+}: {
+  c: AcademyClass;
+  onEdit: () => void;
+  onEnroll: () => void;
+  onArchived: () => void;
+}) {
+  const { navigate, notify } = useApp();
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const teacher = teacherById(c.teacherId);
   const room = rooms.find((r) => r.id === c.roomId);
   const roster = students.filter((s) => c.studentIds.includes(s.id));
+
+  /** Archive is non-destructive: history and enrollments are preserved. */
+  const archive = async () => {
+    setArchiveBusy(true);
+    try {
+      await getClassRepository().archive(c.id);
+      notify({ tone: "success", title: `${c.title} بایگانی شد`, detail: "کلاس از فهرست فعال حذف شد اما سوابق آن باقی می‌ماند." });
+      onArchived();
+    } catch (cause) {
+      notify({ tone: "danger", title: "بایگانی انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
   const sessions = weekSessions.filter((w) => w.classId === c.id);
   const pct = fullness(c);
 
@@ -112,8 +143,14 @@ function ClassDetail({ c }: { c: AcademyClass }) {
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "attendance" })}>
               <Users className="size-3.5" /> حضور و غیاب
             </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("student")}>
-              <Plus className="size-3.5" /> افزودن هنرجو
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void archive()} disabled={archiveBusy || c.status === "archived"}>
+              <Archive className="size-3.5" /> {c.status === "archived" ? "بایگانی‌شده" : "بایگانی"}
+            </Button>
+            <Button size="sm" variant="primary" onClick={onEnroll}>
+              <UserPlus className="size-3.5" /> ثبت‌نام هنرجو
             </Button>
           </>
         }
@@ -146,7 +183,7 @@ function ClassDetail({ c }: { c: AcademyClass }) {
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="هنرجویان کلاس" className="lg:col-span-2" aside={<span className="nums text-[11px] text-ink-400">{faNum(roster.length)} نفر</span>}>
           {roster.length === 0 ? (
-            <EmptyState title="هنوز هنرجویی ثبت‌نام نکرده" description="ظرفیت این کلاس کامل خالی است." action="افزودن هنرجو" onAction={() => openSheet("student")} />
+            <EmptyState title="هنوز هنرجویی ثبت‌نام نکرده" description="ظرفیت این کلاس کامل خالی است." action="افزودن هنرجو" onAction={onEnroll} />
           ) : (
             <ul className="space-y-2">
               {roster.map((s) => (
@@ -205,23 +242,74 @@ function ClassDetail({ c }: { c: AcademyClass }) {
 
 /* ------------------------------------------------------------------ */
 export function ClassesView() {
-  const { filter, detailId, navigate, openSheet } = useApp();
+  const { detailId, navigate, notify } = useApp();
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<Instrument | "all">("all");
   const [kind, setKind] = useState<"all" | "group" | "private">("all");
   const [sort, setSort] = useState<"fullness" | "waitlist">("fullness");
-  const state = useAsyncView([filter, detailId]);
+  // Repository-backed. Archived classes are excluded by the repository unless
+  // explicitly requested.
+  const { items: classes, loading, error, reload } = useClasses({ per_page: 200 });
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<AcademyClass | undefined>(undefined);
+  const [enrollFor, setEnrollFor] = useState<string | undefined>(undefined);
 
   const list = useMemo(() => {
     const out = classes.filter(
       (c) => (inst === "all" || c.instrument === inst) && (kind === "all" || c.kind === kind) && (query === "" || c.title.includes(query) || (teacherById(c.teacherId)?.name.includes(query) ?? false)),
     );
     return out.sort((a, b) => (sort === "fullness" ? fullness(b) - fullness(a) : b.waitlist - a.waitlist));
-  }, [inst, kind, query, sort]);
+  }, [classes, inst, kind, query, sort]);
 
   const detail = detailId ? classes.find((c) => c.id === detailId) : undefined;
-  if (state === "loading") return <LoadingState className="py-32" label="در حال چیدن کلاس‌ها…" />;
-  if (detail) return <ClassDetail c={detail} />;
+
+  const dialogs = (
+    <>
+      <ClassFormDialog
+        open={formOpen}
+        academyClass={editing}
+        onClose={() => setFormOpen(false)}
+        onSaved={(saved, mode) =>
+          notify({
+            tone: "success",
+            title: mode === "create" ? `${saved.title} ساخته شد` : `${saved.title} به‌روزرسانی شد`,
+            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+          })
+        }
+      />
+      <EnrollmentDialog
+        open={enrollFor !== undefined}
+        classId={enrollFor}
+        onClose={() => setEnrollFor(undefined)}
+        onEnrolled={(enrollment) =>
+          notify({
+            tone: "success",
+            title: enrollment.status === "waitlist" ? "به لیست انتظار افزوده شد" : "ثبت‌نام انجام شد",
+            detail: "ظرفیت کلاس به‌روزرسانی شد.",
+          })
+        }
+      />
+    </>
+  );
+
+  if (loading) return <LoadingState className="py-32" label="در حال چیدن کلاس‌ها…" />;
+  if (error)
+    return <ErrorState className="py-32" title="بارگذاری کلاس‌ها ناموفق بود" description={error.message} onRetry={reload} />;
+  if (detail)
+    return (
+      <>
+        <ClassDetail
+          c={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+          onEnroll={() => setEnrollFor(detail.id)}
+          onArchived={() => navigate({ view: "classes" })}
+        />
+        {dialogs}
+      </>
+    );
 
   const totalSeats = classes.reduce((a, b) => a + b.capacity, 0);
   const taken = classes.reduce((a, b) => a + b.enrolled, 0);
@@ -234,7 +322,14 @@ export function ClassesView() {
         title="کلاس‌ها"
         description="هر کلاس یک واحد زندهٔ آموزشگاه است — ظرفیت، ریتم هفتگی و کیفیت حضور آن را اینجا ببینید."
         actions={
-          <Button size="sm" variant="primary" onClick={() => openSheet("class")}>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              setEditing(undefined);
+              setFormOpen(true);
+            }}
+          >
             <Plus className="size-3.5" /> کلاس جدید
           </Button>
         }
@@ -305,6 +400,8 @@ export function ClassesView() {
           ))}
         </div>
       </Panel>
+
+      {dialogs}
     </div>
   );
 }

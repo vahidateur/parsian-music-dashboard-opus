@@ -5,8 +5,8 @@ import { financeKpis, invoices, payments, paymentLabel, revenueByStream, student
 import { faNum, faPercent, faToman } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Delta, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { DemoNote, EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
+import { DemoNote, EmptyState } from "@/components/ds/states";
+import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const tone: Record<PaymentStatus, Tone> = { paid: "ok", due: "warn", overdue: "danger" };
@@ -41,7 +41,6 @@ export function FinanceView() {
   const [status, setStatus] = useState<PaymentStatus | "all">(filter === "overdue" ? "overdue" : "all");
   const [subFocus, setSubFocus] = useState<SubscriptionStatus | "all">("all");
   const [query, setQuery] = useState("");
-  const state = useAsyncView([filter]);
 
   const list = useMemo(
     () =>
@@ -56,8 +55,6 @@ export function FinanceView() {
     () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
     [subFocus],
   );
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال جمع‌بندی دفتر مالی…" />;
 
   const columns: Column<Invoice>[] = [
     {

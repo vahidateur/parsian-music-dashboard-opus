@@ -5,8 +5,8 @@ import { attendanceByDay, attentionQueue, reportCatalog, teachers, type ReportDe
 import { faNum, faPercent } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Delta, Sparkline, StatusBadge, Surface } from "@/components/ds/primitives";
-import { DemoNote, LoadingState } from "@/components/ds/states";
-import { Meter, PageHeader, Panel, Segmented, useAsyncView } from "@/components/ds/patterns";
+import { DemoNote } from "@/components/ds/states";
+import { Meter, PageHeader, Panel, Segmented } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 /* ------------------------------------------------------------------ */
@@ -193,10 +193,8 @@ function ReportDetail({ r, onBack }: { r: ReportDef; onBack: () => void }) {
 export function ReportsView() {
   const { detailId, navigate } = useApp();
   const [period, setPeriod] = useState<"month" | "quarter" | "year">("quarter");
-  const state = useAsyncView([detailId, period]);
 
   const detail = detailId ? reportCatalog.find((r) => r.id === detailId) : undefined;
-  if (state === "loading") return <LoadingState className="py-32" label="در حال تحلیل داده‌های آموزشگاه…" />;
   if (detail) return <ReportDetail r={detail} onBack={() => navigate({ view: "reports" })} />;
 
   return (

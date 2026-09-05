@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Building2, Check, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
-import { rooms, settingsSections } from "@/data/records";
-import { faNum } from "@/lib/format";
+import { Building2, Check, FileSpreadsheet, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
+import { settingsSections } from "@/data/records";
 import { accentHex, accentLabels, type Accent, type Density } from "@/lib/theme";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
-import { Field, ListRow, PageHeader, Panel, Segmented, Toggle, inputCls, useAsyncView } from "@/components/ds/patterns";
-import { LoadingState } from "@/components/ds/states";
+import { Field, PageHeader, Panel, Segmented, Toggle, inputCls } from "@/components/ds/patterns";
+import { RoomsPanel } from "@/domains/rooms/RoomsPanel";
+import { ImportExportCenter } from "@/domains/import/ImportExportCenter";
 import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
 import { UsersPanel } from "@/components/settings/UsersPanel";
 import { cn } from "@/utils/cn";
@@ -22,6 +22,7 @@ const sectionIcon: Record<SectionId, typeof Building2> = {
   notifications: Bell,
   localization: Globe,
   operations: SlidersHorizontal,
+  data: FileSpreadsheet,
 };
 
 export function SettingsView() {
@@ -37,14 +38,11 @@ export function SettingsView() {
     email: true,
     app: true,
   });
-  const state = useAsyncView([]);
 
   const set = (k: string) => (v: boolean) => {
     setToggles((p) => ({ ...p, [k]: v }));
     setDirty(true);
   };
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال بارگذاری تنظیمات…" />;
 
   return (
     <div>
@@ -360,18 +358,7 @@ export function SettingsView() {
 
           {section === "operations" && (
             <>
-              <Panel title="اتاق‌ها" kicker="فضاهای قابل رزرو در تقویم" action="افزودن اتاق" onAction={() => notify({ tone: "info", title: "افزودن اتاق جدید" })}>
-                <ul className="space-y-2">
-                  {rooms.map((r) => (
-                    <ListRow
-                      key={r.id}
-                      title={r.name}
-                      meta={`${r.kind} · ظرفیت ${faNum(r.capacity)} نفر`}
-                      end={<StatusBadge tone={r.occupancy > 90 ? "warn" : "ok"} label={r.occupancy > 90 ? "نزدیک اشباع" : "فعال"} />}
-                    />
-                  ))}
-                </ul>
-              </Panel>
+              <RoomsPanel />
               <Panel title="قواعد جلسه" kicker="رفتار پیش‌فرض سامانه هنگام ثبت جلسات">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="مدت پیش‌فرض جلسه" hint="دقیقه"><input defaultValue="۶۰" onChange={() => setDirty(true)} className={inputCls} /></Field>
@@ -386,6 +373,8 @@ export function SettingsView() {
               <DemoDataPanel />
             </>
           )}
+
+          {section === "data" && <ImportExportCenter />}
         </div>
       </div>
     </div>
