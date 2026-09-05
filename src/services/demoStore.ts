@@ -107,33 +107,53 @@ export class DemoStoreImpl {
     return result;
   }
 
-  /* ---------------- students ---------------- */
+  /**
+   * Generic CRUD over one array collection of the snapshot.
+   *
+   * Every domain collection has identical persistence semantics, so they share
+   * one implementation rather than five near-copies. `prepend` keeps the
+   * existing Students behaviour (newest first); other collections append.
+   */
+  private collection<K extends ArrayCollection>(name: K, prefix: string, prepend = false) {
+    type Row = DemoDataset[K][number];
+    return {
+      all: (): Row[] => clone(this.snapshot()[name]) as Row[],
+      find: (id: string): Row | undefined =>
+        (this.snapshot()[name] as ReadonlyArray<{ id: string }>).find((r) => r.id === id) as Row | undefined,
+      create: (draft: Omit<Row, "id"> & { id?: string }): Row =>
+        this.mutate((dataset) => {
+          const created = { ...clone(draft), id: draft.id ?? nextId(prefix) } as Row;
+          const rows = dataset[name] as Row[];
+          dataset[name] = (prepend ? [created, ...rows] : [...rows, created]) as DemoDataset[K];
+          return clone(created);
+        }),
+      update: (id: string, patch: Partial<Omit<Row, "id">>): Row | undefined =>
+        this.mutate((dataset) => {
+          const rows = dataset[name] as Row[];
+          const index = rows.findIndex((r) => (r as { id: string }).id === id);
+          if (index === -1) return undefined;
+          const updated = { ...rows[index], ...clone(patch), id } as Row;
+          rows[index] = updated;
+          return clone(updated);
+        }),
+      remove: (id: string): boolean =>
+        this.mutate((dataset) => {
+          const rows = dataset[name] as ReadonlyArray<{ id: string }>;
+          const next = rows.filter((r) => r.id !== id);
+          if (next.length === rows.length) return false;
+          dataset[name] = next as DemoDataset[K];
+          return true;
+        }),
+    };
+  }
 
-  readonly students = {
-    all: (): Student[] => clone(this.snapshot().students),
-    find: (id: string): Student | undefined => this.students.all().find((s) => s.id === id),
-    create: (draft: StudentDraft): Student =>
-      this.mutate((dataset) => {
-        const created: Student = { ...clone(draft), id: nextId("st_") };
-        dataset.students = [created, ...dataset.students];
-        return clone(created);
-      }),
-    update: (id: string, patch: Partial<StudentDraft>): Student | undefined =>
-      this.mutate((dataset) => {
-        const index = dataset.students.findIndex((s) => s.id === id);
-        if (index === -1) return undefined;
-        const updated: Student = { ...dataset.students[index], ...clone(patch), id };
-        dataset.students[index] = updated;
-        return clone(updated);
-      }),
-    remove: (id: string): boolean =>
-      this.mutate((dataset) => {
-        const next = dataset.students.filter((s) => s.id !== id);
-        if (next.length === dataset.students.length) return false;
-        dataset.students = next;
-        return true;
-      }),
-  };
+  /* ---------------- domain collections ---------------- */
+
+  readonly students = this.collection("students", "st_", true);
+  readonly teachers = this.collection("teachers", "t_");
+  readonly rooms = this.collection("rooms", "r_");
+  readonly classes = this.collection("classes", "cl_");
+  readonly enrollments = this.collection("enrollments", "enr_");
 
   /* ---------------- users (auth domain) ---------------- */
 
@@ -170,6 +190,9 @@ export class DemoStoreImpl {
       }),
   };
 }
+
+/** Collections of the dataset that are arrays of `{ id }` rows. */
+type ArrayCollection = "students" | "teachers" | "rooms" | "classes" | "enrollments" | "users";
 
 export type StudentDraft = Omit<Student, "id">;
 

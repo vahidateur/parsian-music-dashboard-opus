@@ -26,6 +26,8 @@ export interface DemoRoom {
   kind: string;
   capacity: number;
   occupancy: number;
+  /** Absent means active. `false` excludes the room from new assignments. */
+  active?: boolean;
 }
 
 export interface DemoPayment {

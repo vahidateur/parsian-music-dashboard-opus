@@ -20,3 +20,24 @@ export interface Enrollment {
   /** Tuition plan snapshot at enrollment time (Toman per term). */
   pricingPlan: { label: string; amount: number };
 }
+
+import type { ListParams } from "@/api/types";
+
+export interface EnrollmentListParams extends ListParams {
+  studentId?: string;
+  classId?: string;
+  status?: EnrollmentStatus;
+  /** Only enrollments that currently occupy a seat. */
+  activeOnly?: boolean;
+}
+
+export interface CreateEnrollmentInput {
+  studentId: string;
+  classId: string;
+  /** Defaults to "active"; pass "waitlist" to queue past capacity. */
+  status?: Extract<EnrollmentStatus, "active" | "waitlist">;
+  startDate?: string;
+  pricingPlan?: { label: string; amount: number };
+}
+
+export type UpdateEnrollmentInput = Partial<Pick<Enrollment, "status" | "endDate" | "pricingPlan">>;

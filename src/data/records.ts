@@ -49,7 +49,8 @@ export interface Teacher {
   availability: number[][];
   since: string;
   phone: string;
-  status: "active" | "absent-tomorrow" | "light-load";
+  /** `inactive` = deactivated; excluded from new class/session assignment. */
+  status: "active" | "absent-tomorrow" | "light-load" | "inactive";
   bio: string;
 }
 
@@ -130,6 +131,13 @@ export interface ActivityEntry {
 
 export interface Student {
   id: string;
+  /**
+   * Iranian national ID (کد ملی), normalized to 10 ASCII digits.
+   * Required and unique per academy. Sensitive personal data — see
+   * `src/lib/nationalId.ts` and docs/architecture/students.md.
+   * BACKEND REQUIRED: NOT NULL + UNIQUE(organization_id, national_id) + INDEX.
+   */
+  nationalId: string;
   name: string;
   instrument: Instrument;
   teacherId: string;
@@ -162,7 +170,7 @@ const skillSet = (a: number, b: number, c: number, d: number) => [
 
 export const students: Student[] = [
   {
-    id: "st1", name: "سارا محمدی", instrument: "piano", teacherId: "t1", level: "سطح ۳ · میانی", levelStep: 3, status: "at-risk", payment: "due",
+    id: "st1", nationalId: "2000000002", name: "سارا محمدی", instrument: "piano", teacherId: "t1", level: "سطح ۳ · میانی", levelStep: 3, status: "at-risk", payment: "due",
     sessionsUsed: 9, sessionsTotal: 12, attendance: 62, progress: 54, since: "مهر ۱۴۰۳", age: 17, phone: "۰۹۱۲ ··· ۴۰۲۲",
     nextClass: { day: "پنجشنبه", time: "۱۷:۰۰", room: "اتاق ۱" }, lastSeen: "۱۵ روز پیش", balance: 1_200_000,
     notes: [
@@ -178,7 +186,7 @@ export const students: Student[] = [
     skills: skillSet(58, 64, 49, 45),
   },
   {
-    id: "st2", name: "امیرحسین کریمی", instrument: "guitar", teacherId: "t2", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "at-risk", payment: "overdue",
+    id: "st2", nationalId: "2000035711", name: "امیرحسین کریمی", instrument: "guitar", teacherId: "t2", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "at-risk", payment: "overdue",
     sessionsUsed: 11, sessionsTotal: 12, attendance: 58, progress: 41, since: "آبان ۱۴۰۳", age: 15, phone: "۰۹۱۲ ··· ۸۸۱۴", guardian: "مریم کریمی",
     nextClass: { day: "چهارشنبه", time: "۱۸:۰۰", room: "اتاق ۲" }, lastSeen: "۱۸ روز پیش", balance: 850_000,
     notes: [{ by: "محمد رضایی", date: "۳ هفته پیش", text: "تمرین خانگی انجام نمی‌شود. تماس با خانواده لازم است." }],
@@ -190,7 +198,7 @@ export const students: Student[] = [
     skills: skillSet(44, 52, 38, 36),
   },
   {
-    id: "st3", name: "نیلوفر رستمی", instrument: "voice", teacherId: "t4", level: "سطح ۱ · پایه", levelStep: 1, status: "at-risk", payment: "paid",
+    id: "st3", nationalId: "2000071422", name: "نیلوفر رستمی", instrument: "voice", teacherId: "t4", level: "سطح ۱ · پایه", levelStep: 1, status: "at-risk", payment: "paid",
     sessionsUsed: 7, sessionsTotal: 12, attendance: 66, progress: 38, since: "دی ۱۴۰۳", age: 22, phone: "۰۹۱۲ ··· ۵۵۹۰",
     nextClass: { day: "سه‌شنبه", time: "۱۹:۰۰", room: "اتاق ۳" }, lastSeen: "۱۴ روز پیش", balance: 0,
     notes: [{ by: "نرگس حسینی", date: "۱۰ روز پیش", text: "صدای خوبی دارد اما به تمرین تنفس منظم نیاز دارد." }],
@@ -201,7 +209,7 @@ export const students: Student[] = [
     skills: skillSet(40, 45, 55, 34),
   },
   {
-    id: "st4", name: "پارسا نادری", instrument: "violin", teacherId: "t3", level: "سطح ۴ · پیشرفته", levelStep: 4, status: "at-risk", payment: "overdue",
+    id: "st4", nationalId: "2000107133", name: "پارسا نادری", instrument: "violin", teacherId: "t3", level: "سطح ۴ · پیشرفته", levelStep: 4, status: "at-risk", payment: "overdue",
     sessionsUsed: 10, sessionsTotal: 16, attendance: 55, progress: 72, since: "شهریور ۱۴۰۲", age: 19, phone: "۰۹۱۲ ··· ۷۱۶۳",
     nextClass: { day: "شنبه", time: "۱۶:۰۰", room: "اتاق ۱" }, lastSeen: "۲۱ روز پیش", balance: 400_000,
     notes: [{ by: "علی موسوی", date: "۳ هفته پیش", text: "استعداد بالا؛ غیبت‌ها به دلیل تداخل با دانشگاه است. پیشنهاد: انتقال به بازهٔ عصر پنجشنبه." }],
@@ -212,14 +220,14 @@ export const students: Student[] = [
     skills: skillSet(78, 71, 74, 68),
   },
   {
-    id: "st5", name: "مهسا قاسمی", instrument: "piano", teacherId: "t1", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "at-risk", payment: "due",
+    id: "st5", nationalId: "2000142842", name: "مهسا قاسمی", instrument: "piano", teacherId: "t1", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "at-risk", payment: "due",
     sessionsUsed: 10, sessionsTotal: 12, attendance: 64, progress: 47, since: "آذر ۱۴۰۳", age: 13, phone: "۰۹۱۲ ··· ۳۳۰۸", guardian: "حسین قاسمی",
     nextClass: { day: "دوشنبه", time: "۱۳:۰۰", room: "اتاق ۱" }, lastSeen: "۱۶ روز پیش", balance: 600_000,
     notes: [], activity: [{ date: "۱۶ روز پیش", kind: "absence", text: "غیبت بدون اطلاع" }],
     skills: skillSet(50, 56, 44, 42),
   },
   {
-    id: "st6", name: "کیان عباسی", instrument: "guitar", teacherId: "t2", level: "سطح ۳ · میانی", levelStep: 3, status: "active", payment: "overdue",
+    id: "st6", nationalId: "2000178553", name: "کیان عباسی", instrument: "guitar", teacherId: "t2", level: "سطح ۳ · میانی", levelStep: 3, status: "active", payment: "overdue",
     sessionsUsed: 6, sessionsTotal: 12, attendance: 91, progress: 66, since: "مرداد ۱۴۰۳", age: 24, phone: "۰۹۱۲ ··· ۴۴۲۱",
     nextClass: { day: "سه‌شنبه", time: "۱۸:۰۰", room: "اتاق ۲" }, lastSeen: "دیروز", balance: 400_000,
     notes: [{ by: "محمد رضایی", date: "۱ هفته پیش", text: "آمادهٔ اجرای گروهی در کنسرت فصل است." }],
@@ -230,7 +238,7 @@ export const students: Student[] = [
     skills: skillSet(70, 74, 62, 69),
   },
   {
-    id: "st7", name: "آیدا شریفی", instrument: "piano", teacherId: "t1", level: "سطح ۵ · پیشرفته", levelStep: 5, status: "active", payment: "paid",
+    id: "st7", nationalId: "2000214266", name: "آیدا شریفی", instrument: "piano", teacherId: "t1", level: "سطح ۵ · پیشرفته", levelStep: 5, status: "active", payment: "paid",
     sessionsUsed: 4, sessionsTotal: 16, attendance: 98, progress: 88, since: "بهمن ۱۴۰۱", age: 20, phone: "۰۹۱۲ ··· ۱۰۵۵",
     nextClass: { day: "سه‌شنبه", time: "۱۴:۰۰", room: "اتاق ۱" }, lastSeen: "امروز", balance: 0,
     notes: [{ by: "سارا احمدی", date: "۴ روز پیش", text: "آمادهٔ اجرای رسیتال انفرادی؛ رپرتوار شوپن انتخاب شد." }],
@@ -241,28 +249,28 @@ export const students: Student[] = [
     skills: skillSet(90, 86, 84, 92),
   },
   {
-    id: "st8", name: "رضا شریفی", instrument: "guitar", teacherId: "t7", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "overdue",
+    id: "st8", nationalId: "2000249973", name: "رضا شریفی", instrument: "guitar", teacherId: "t7", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "overdue",
     sessionsUsed: 8, sessionsTotal: 12, attendance: 84, progress: 52, since: "مهر ۱۴۰۳", age: 29, phone: "۰۹۱۲ ··· ۹۰۳۴",
     nextClass: { day: "چهارشنبه", time: "۱۹:۰۰", room: "اتاق ۲" }, lastSeen: "۴ روز پیش", balance: 1_200_000,
     notes: [], activity: [{ date: "۴ روز پیش", kind: "session", text: "جلسهٔ ۸ از ۱۲ برگزار شد" }],
     skills: skillSet(55, 60, 48, 50),
   },
   {
-    id: "st9", name: "مریم توکلی", instrument: "voice", teacherId: "t4", level: "سطح ۳ · میانی", levelStep: 3, status: "active", payment: "overdue",
+    id: "st9", nationalId: "2000285686", name: "مریم توکلی", instrument: "voice", teacherId: "t4", level: "سطح ۳ · میانی", levelStep: 3, status: "active", payment: "overdue",
     sessionsUsed: 5, sessionsTotal: 12, attendance: 89, progress: 61, since: "آبان ۱۴۰۲", age: 26, phone: "۰۹۱۲ ··· ۶۶۱۲",
     nextClass: { day: "سه‌شنبه", time: "۱۲:۰۰", room: "اتاق ۳" }, lastSeen: "امروز", balance: 850_000,
     notes: [], activity: [{ date: "امروز", kind: "session", text: "جلسهٔ ۵ از ۱۲ برگزار شد" }],
     skills: skillSet(64, 58, 72, 66),
   },
   {
-    id: "st10", name: "سهیل مرادی", instrument: "drums", teacherId: "t6", level: "سطح ۱ · پایه", levelStep: 1, status: "active", payment: "paid",
+    id: "st10", nationalId: "2000321399", name: "سهیل مرادی", instrument: "drums", teacherId: "t6", level: "سطح ۱ · پایه", levelStep: 1, status: "active", payment: "paid",
     sessionsUsed: 3, sessionsTotal: 12, attendance: 95, progress: 29, since: "اسفند ۱۴۰۴", age: 12, phone: "۰۹۱۲ ··· ۲۷۴۸", guardian: "لیلا مرادی",
     nextClass: { day: "پنجشنبه", time: "۱۵:۳۰", room: "اتاق ۴" }, lastSeen: "۲ روز پیش", balance: 0,
     notes: [], activity: [{ date: "۲ روز پیش", kind: "enroll", text: "ثبت‌نام در دورهٔ درامز مقدماتی" }],
     skills: skillSet(30, 46, 28, 25),
   },
   {
-    id: "st11", name: "زهرا اکبری", instrument: "violin", teacherId: "t8", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "paid",
+    id: "st11", nationalId: "2000357105", name: "زهرا اکبری", instrument: "violin", teacherId: "t8", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "paid",
     sessionsUsed: 7, sessionsTotal: 12, attendance: 93, progress: 58, since: "دی ۱۴۰۳", age: 9, phone: "۰۹۱۲ ··· ۵۱۹۹", guardian: "نازنین اکبری",
     nextClass: { day: "یکشنبه", time: "۱۶:۰۰", room: "اتاق ۱" }, lastSeen: "۳ روز پیش", balance: 0,
     notes: [{ by: "مینا فرهادی", date: "۵ روز پیش", text: "پیشرفت خوب در کوک‌کردن گوشی؛ والدین همراهی خوبی دارند." }],
@@ -270,14 +278,14 @@ export const students: Student[] = [
     skills: skillSet(56, 62, 66, 52),
   },
   {
-    id: "st12", name: "بهنام یوسفی", instrument: "theory", teacherId: "t5", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "due",
+    id: "st12", nationalId: "2000392814", name: "بهنام یوسفی", instrument: "theory", teacherId: "t5", level: "سطح ۲ · مقدماتی", levelStep: 2, status: "active", payment: "due",
     sessionsUsed: 6, sessionsTotal: 10, attendance: 87, progress: 63, since: "آذر ۱۴۰۳", age: 31, phone: "۰۹۱۲ ··· ۸۳۲۰",
     nextClass: { day: "سه‌شنبه", time: "۱۱:۰۰", room: "اتاق ۳" }, lastSeen: "امروز", balance: 450_000,
     notes: [], activity: [{ date: "امروز", kind: "session", text: "جلسهٔ ۶ از ۱۰ برگزار شد" }],
     skills: skillSet(60, 70, 68, 44),
   },
   {
-    id: "st13", name: "الناز کریمی", instrument: "piano", teacherId: "t1", level: "سطح ۱ · پایه", levelStep: 1, status: "paused", payment: "paid",
+    id: "st13", nationalId: "2000428525", name: "الناز کریمی", instrument: "piano", teacherId: "t1", level: "سطح ۱ · پایه", levelStep: 1, status: "paused", payment: "paid",
     sessionsUsed: 5, sessionsTotal: 12, attendance: 80, progress: 33, since: "بهمن ۱۴۰۳", age: 11, phone: "۰۹۱۲ ··· ۴۷۷۱", guardian: "سعید کریمی",
     lastSeen: "۱ ماه پیش", balance: 0,
     notes: [{ by: "پذیرش", date: "۱ ماه پیش", text: "توقف موقت به دلیل امتحانات مدرسه؛ بازگشت در اردیبهشت." }],
@@ -285,7 +293,7 @@ export const students: Student[] = [
     skills: skillSet(38, 42, 40, 30),
   },
   {
-    id: "st14", name: "فرزاد بهرامی", instrument: "guitar", teacherId: "t7", level: "—", levelStep: 0, status: "waitlist", payment: "due",
+    id: "st14", nationalId: "2000464238", name: "فرزاد بهرامی", instrument: "guitar", teacherId: "t7", level: "—", levelStep: 0, status: "waitlist", payment: "due",
     sessionsUsed: 0, sessionsTotal: 0, attendance: 0, progress: 0, since: "این هفته", age: 27, phone: "۰۹۱۲ ··· ۳۹۰۵",
     lastSeen: "—", balance: 0,
     notes: [{ by: "پذیرش", date: "۲ روز پیش", text: "در انتظار بازهٔ عصر سه‌شنبه؛ تماس گرفته شود." }],
@@ -293,7 +301,7 @@ export const students: Student[] = [
     skills: skillSet(0, 0, 0, 0),
   },
   {
-    id: "st15", name: "شیوا نعمتی", instrument: "voice", teacherId: "t4", level: "—", levelStep: 0, status: "waitlist", payment: "due",
+    id: "st15", nationalId: "2000499945", name: "شیوا نعمتی", instrument: "voice", teacherId: "t4", level: "—", levelStep: 0, status: "waitlist", payment: "due",
     sessionsUsed: 0, sessionsTotal: 0, attendance: 0, progress: 0, since: "این هفته", age: 23, phone: "۰۹۱۲ ··· ۱۴۶۰",
     lastSeen: "—", balance: 0, notes: [], activity: [{ date: "۴ روز پیش", kind: "enroll", text: "افزوده شدن به لیست انتظار آواز" }],
     skills: skillSet(0, 0, 0, 0),
@@ -316,6 +324,8 @@ export const studentStats = {
 /* ------------------------------------------------------------------ */
 export interface AcademyClass {
   id: string;
+  /** Absent means active. "archived" hides the class from new enrollment. */
+  status?: "active" | "archived";
   title: string;
   instrument: Instrument;
   teacherId: string;

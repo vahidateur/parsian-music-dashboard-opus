@@ -7,9 +7,10 @@
  */
 import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset, type DemoDatasetStats } from "./types";
 import { SEED_VERSION } from "./seed";
+import { normalizeNationalId, validateNationalId } from "@/lib/nationalId";
 
 /** Bump only on breaking changes to the envelope/dataset contract. */
-export const BACKUP_SCHEMA_VERSION = "1.0";
+export const BACKUP_SCHEMA_VERSION = "1.1";
 export const BACKUP_ENVIRONMENT = "demo" as const;
 export const BACKUP_KIND = "arena.demo.backup" as const;
 
@@ -246,6 +247,29 @@ export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
         `حضور و غیاب به هنرجوی ناموجود ارجاع دارد.`,
       );
     });
+  });
+
+  // national_id: required, valid and unique across the academy (§5/§17).
+  const seenNationalIds = new Map<string, string>();
+  dataset.students.forEach((student, i) => {
+    const raw = (student as { nationalId?: unknown }).nationalId;
+    if (typeof raw !== "string" || raw.length === 0) {
+      issues.push(issue("MISSING_ID", `هنرجوی «${student.id}» کد ملی ندارد.`, `students[${i}].nationalId`));
+      return;
+    }
+    const normalized = normalizeNationalId(raw);
+    if (validateNationalId(normalized) !== null) {
+      issues.push(issue("INVALID_REFERENCE", `کد ملی هنرجوی «${student.id}» معتبر نیست.`, `students[${i}].nationalId`));
+      return;
+    }
+    const owner = seenNationalIds.get(normalized);
+    if (owner) {
+      issues.push(
+        issue("DUPLICATE_ID", `کد ملی تکراری بین «${owner}» و «${student.id}».`, `students[${i}].nationalId`),
+      );
+      return;
+    }
+    seenNationalIds.set(normalized, student.id);
   });
 
   dataset.invoices.forEach((inv, i) => {

@@ -11,10 +11,11 @@ import { cn } from "@/utils/cn";
 
 const BLOCKS = ["صبح", "ظهر", "عصر", "شب"];
 
-const statusMeta: Record<Teacher["status"], { label: string; tone: "ok" | "warn" | "violet" }> = {
+const statusMeta: Record<Teacher["status"], { label: string; tone: "ok" | "warn" | "violet" | "neutral" }> = {
   active: { label: "فعال", tone: "ok" },
   "absent-tomorrow": { label: "غیبت فردا", tone: "warn" },
   "light-load": { label: "ظرفیت آزاد", tone: "violet" },
+  inactive: { label: "غیرفعال", tone: "neutral" },
 };
 
 /* ------------------------------------------------------------------ */

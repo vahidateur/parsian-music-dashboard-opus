@@ -10,6 +10,15 @@ import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
+/**
+ * §30: never render a full national ID in a list/detail chrome. Only the last
+ * four digits are shown; the full value stays in the domain layer.
+ */
+function maskNationalId(nationalId: string): string {
+  const tail = nationalId.slice(-4);
+  return `کد ملی ···${tail}`;
+}
+
 const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof Music2; mark: string }> = {
   session: { label: "جلسه", icon: Music2, mark: "border-gold-500/25 bg-gold-500/[0.08] text-gold-400" },
   payment: { label: "پرداخت", icon: Wallet, mark: "border-ok-500/25 bg-ok-500/[0.08] text-ok-400" },
@@ -127,6 +136,9 @@ function StudentDetail({ student }: { student: Student }) {
         meta={
           <>
             <span className="nums">{faNum(student.age)} ساله</span>
+            {/* §9/§30: the national ID is a domain identifier, shown masked by
+                default so it is not casually exposed on screen or in screenshots. */}
+            <span className="nums" dir="ltr" title="کد ملی">{maskNationalId(student.nationalId)}</span>
             <span className="nums" dir="ltr">{student.phone}</span>
             {student.guardian && <span>ولی: {student.guardian}</span>}
             <span>عضو از {student.since}</span>

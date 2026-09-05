@@ -35,7 +35,12 @@ describe("repository contract stability", () => {
   it("repository writes are captured by an exported backup", async () => {
     const { repo, manager } = ctx();
     manager.initialize();
-    const created = await repo.create({ ...createSeedDataset().students[0], name: "هنرجوی جدید" });
+    // Distinct nationalId: the repository enforces academy-wide uniqueness.
+    const created = await repo.create({
+      ...createSeedDataset().students[0],
+      name: "هنرجوی جدید",
+      nationalId: "2000535658",
+    });
     const backup = manager.exportBackup();
     expect(backup.data.students.some((s) => s.id === created.id)).toBe(true);
   });

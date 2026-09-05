@@ -1,5 +1,7 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
+import { conflict, validationError } from "@/domains/shared/demoCollection";
+import { NATIONAL_ID_MESSAGES, normalizeNationalId, validateNationalId } from "@/lib/nationalId";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { StudentRepository } from "./repository";
 import type { CreateStudentInput, Student, StudentListParams, UpdateStudentInput } from "./types";
@@ -32,13 +34,44 @@ export class DemoStudentRepository implements StudentRepository {
   }
 
   async create(input: CreateStudentInput): Promise<Student> {
-    return this.store.students.create({ notes: [], activity: [], skills: [], ...input });
+    const nationalId = this.assertNationalId(input.nationalId);
+    return this.store.students.create({ notes: [], activity: [], skills: [], ...input, nationalId });
   }
 
   async update(id: string, input: UpdateStudentInput): Promise<Student> {
-    const updated = this.store.students.update(id, input);
+    const patch = { ...input };
+    if (input.nationalId !== undefined) {
+      // Update collisions must be caught too, excluding the row being edited.
+      patch.nationalId = this.assertNationalId(input.nationalId, id);
+    }
+    const updated = this.store.students.update(id, patch);
     if (!updated) throw notFound(id);
     return updated;
+  }
+
+  /**
+   * Validates the checksum and enforces academy-wide uniqueness.
+   * Returns the normalized value that must actually be stored.
+   *
+   * BACKEND REQUIRED: this is a convenience check. Production needs
+   * NOT NULL + UNIQUE(organization_id, national_id) enforced by the database,
+   * because two concurrent creates can both pass this check.
+   */
+  private assertNationalId(raw: string, exceptId?: string): string {
+    const code = validateNationalId(raw ?? "");
+    if (code) {
+      throw validationError("STUDENT_INVALID", "اطلاعات هنرجو معتبر نیست.", {
+        nationalId: [NATIONAL_ID_MESSAGES[code]],
+      });
+    }
+    const normalized = normalizeNationalId(raw);
+    const taken = this.store.students.all().some((s) => s.nationalId === normalized && s.id !== exceptId);
+    if (taken) {
+      throw conflict("STUDENT_NATIONAL_ID_TAKEN", "هنرجوی دیگری با این کد ملی ثبت شده است.", {
+        nationalId: ["تکراری است"],
+      });
+    }
+    return normalized;
   }
 
   async delete(id: string): Promise<void> {

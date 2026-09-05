@@ -6,6 +6,7 @@ import { DemoStudentRepository } from "@/domains/students/demoRepository";
 import type { CreateStudentInput } from "@/domains/students/types";
 
 const draft: CreateStudentInput = {
+  nationalId: "2000535658",
   name: "هنرجوی آزمایشی",
   instrument: "piano",
   teacherId: "t1",

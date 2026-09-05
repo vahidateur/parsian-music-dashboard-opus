@@ -16,6 +16,7 @@ import type { Student } from "@/domains/students/types";
 /** Fully-typed fixture: no casts, so a missing field is a compile error. */
 function student(over: Partial<Student> & { id: string; name: string }): Student {
   return {
+    nationalId: "2000000002",
     instrument: "piano",
     level: "مقدماتی",
     levelStep: 2,

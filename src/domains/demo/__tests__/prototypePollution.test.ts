@@ -52,7 +52,7 @@ describe("stripPrototypeKeys", () => {
 describe("parseBackup hardening", () => {
   it("strips __proto__ smuggled into a record", () => {
     const result = parseBackup(
-      backupText((j) => j.replace('"students":[', '"students":[{"id":"zz","__proto__":{"polluted":"yes"}},')),
+      backupText((j) => j.replace('"students":[', '"students":[{"id":"zz","nationalId":"2000535658","__proto__":{"polluted":"yes"}},')),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -88,7 +88,7 @@ describe("DemoStore snapshot hardening", () => {
     const dataset = createSeedDataset();
     const poisoned = JSON.stringify(dataset).replace(
       '"students":[',
-      '"students":[{"id":"zz","name":"tampered","__proto__":{"polluted":"yes"}},',
+      '"students":[{"id":"zz","nationalId":"2000535658","name":"tampered","__proto__":{"polluted":"yes"}},',
     );
     storage.setItem(DEMO_STORAGE_KEY, poisoned);
 
