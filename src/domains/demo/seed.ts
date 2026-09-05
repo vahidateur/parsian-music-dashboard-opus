@@ -9,7 +9,6 @@
  */
 import { academy, instrumentLabel, type Instrument } from "@/data/academy";
 import {
-  accessRoles,
   classes,
   conversations,
   invoices,
@@ -22,6 +21,7 @@ import {
   weekSessions,
 } from "@/data/records";
 import type { Enrollment } from "@/domains/enrollments/types";
+import { ROLES, roleLabels, type RoleId } from "@/domains/auth/permissions";
 import type { DemoDataset, DemoPayment, DemoRole, DemoUser } from "./types";
 
 /** Bump when the *shape* or content of the canonical dataset changes. */
@@ -53,20 +53,43 @@ export function deriveEnrollments(source: typeof classes = classes): Enrollment[
   return out;
 }
 
-/** Demo users: one per teacher plus the academy manager. No credentials. */
+/**
+ * Demo users: three staff accounts plus one per teacher.
+ * Deterministic ids/timestamps — no credentials are stored (see auth/demo).
+ */
+const SEED_TIMESTAMP = "2026-09-01T00:00:00.000Z";
+
 export function deriveUsers(): DemoUser[] {
-  const staff: DemoUser[] = teachers.map((t, i) => ({
-    id: `usr_t${i + 1}`,
-    name: t.name,
-    roleId: "role3",
-    email: `teacher${i + 1}@demo.local`,
-  }));
+  const base = (id: string, name: string, role: RoleId, email: string, teacherId?: string): DemoUser => ({
+    id,
+    name,
+    email,
+    role,
+    status: "active",
+    createdAt: SEED_TIMESTAMP,
+    updatedAt: SEED_TIMESTAMP,
+    ...(teacherId ? { teacherId } : {}),
+  });
   return [
-    { id: "usr_admin", name: "آرمان احمدی", roleId: "role1", email: "admin@demo.local" },
-    { id: "usr_desk", name: "پذیرش آموزشگاه", roleId: "role2", email: "desk@demo.local" },
-    { id: "usr_finance", name: "واحد مالی", roleId: "role4", email: "finance@demo.local" },
-    ...staff,
+    base("usr_admin", "آرمان احمدی", "administrator", "admin@demo.local"),
+    base("usr_manager", "مدیر آموزشگاه", "manager", "manager@demo.local"),
+    base("usr_desk", "پذیرش آموزشگاه", "staff", "desk@demo.local"),
+    base("usr_finance", "واحد مالی", "accountant", "finance@demo.local"),
+    ...teachers.map((t, i) => base(`usr_t${i + 1}`, t.name, "teacher", `teacher${i + 1}@demo.local`, t.id)),
   ];
+}
+
+/** Roles are derived from the central RBAC matrix, not hand-authored. */
+const ROLE_SCOPES: Record<RoleId, string> = {
+  administrator: "دسترسی کامل به همهٔ بخش‌ها",
+  manager: "مدیریت آموزشی، برنامه‌ریزی و گزارش‌ها",
+  teacher: "کلاس‌های خود، حضور و غیاب، کتابخانه",
+  staff: "هنرجویان، برنامه‌ریزی، پیام‌ها",
+  accountant: "فاکتورها، پرداخت‌ها، گزارش مالی",
+};
+
+export function deriveRoles(): DemoRole[] {
+  return ROLES.map((id) => ({ id, label: roleLabels[id], scope: ROLE_SCOPES[id] }));
 }
 
 const INSTRUMENTS = Object.keys(instrumentLabel) as Instrument[];
@@ -97,7 +120,7 @@ export function createSeedDataset(): DemoDataset {
     conversations,
     resources,
     users: deriveUsers(),
-    roles: accessRoles as DemoRole[],
+    roles: deriveRoles(),
   });
 }
 

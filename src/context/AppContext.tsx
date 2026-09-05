@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { QuickActionDef, Target, ViewId } from "@/data/academy";
 import { loadPref, savePref, type Accent, type Density, type ThemeMode } from "@/lib/theme";
+import { formatHash, parseHash } from "@/lib/hashRoute";
 
 export interface Toast {
   id: number;
@@ -45,9 +46,10 @@ const THEMES: readonly ThemeMode[] = ["dark", "glass"];
 const DENSITIES: readonly Density[] = ["comfortable", "compact"];
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<ViewId>("dashboard");
-  const [filter, setFilter] = useState<string | undefined>(undefined);
-  const [detailId, setDetailId] = useState<string | undefined>(undefined);
+  const initial = typeof window !== "undefined" ? parseHash(window.location.hash) : null;
+  const [view, setView] = useState<ViewId>(initial?.view ?? "dashboard");
+  const [filter, setFilter] = useState<string | undefined>(initial?.filter);
+  const [detailId, setDetailId] = useState<string | undefined>(initial?.id);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sheet, setSheet] = useState<QuickActionDef["id"] | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -74,13 +76,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
     savePref("ava:rail", railCollapsed ? "collapsed" : "expanded");
   }, [railCollapsed]);
 
-  const navigate = useCallback((target: Target) => {
+  const applyTarget = useCallback((target: Target) => {
     setView(target.view);
     setFilter(target.filter);
     setDetailId(target.id);
     setPaletteOpen(false);
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+
+  const navigate = useCallback(
+    (target: Target) => {
+      applyTarget(target);
+      if (typeof window !== "undefined") {
+        const next = formatHash(target);
+        if (window.location.hash !== next) window.location.hash = next;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [applyTarget],
+  );
+
+  /* Deep links + browser back/forward. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onHashChange = () => {
+      const target = parseHash(window.location.hash);
+      applyTarget(target ?? { view: "dashboard" });
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [applyTarget]);
+
+  /* Keep the address bar in sync on first paint. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const desired = formatHash({ view, filter, id: detailId });
+    if (window.location.hash !== desired) window.history.replaceState(null, "", desired);
+  }, [view, filter, detailId]);
 
   const dismissToast = useCallback((id: number) => {
     setToasts((t) => t.filter((x) => x.id !== id));

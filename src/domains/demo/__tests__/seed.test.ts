@@ -36,9 +36,16 @@ describe("canonical seed", () => {
   });
 
   it("derives users without any credential material", () => {
+    const allowed = new Set(["id", "name", "email", "role", "status", "createdAt", "updatedAt", "teacherId"]);
     for (const user of deriveUsers()) {
-      expect(Object.keys(user).sort()).toEqual(["email", "id", "name", "roleId"]);
+      for (const key of Object.keys(user)) expect(allowed.has(key)).toBe(true);
+      expect(JSON.stringify(user).toLowerCase()).not.toMatch(/password|hash|secret|token/);
     }
+  });
+
+  it("derives one signable account per role in the RBAC matrix", () => {
+    const roles = new Set(deriveUsers().map((u) => u.role));
+    expect(roles).toEqual(new Set(["administrator", "manager", "staff", "accountant", "teacher"]));
   });
 
   it("does not mutate the source data modules", () => {

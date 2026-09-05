@@ -12,6 +12,7 @@
 import { createSeedDataset } from "@/domains/demo/seed";
 import type { DemoDataset } from "@/domains/demo/types";
 import type { Student } from "@/data/records";
+import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
 
 export const DEMO_STORAGE_KEY = "ava:demo:dataset";
 const STORAGE_PREFIX = "ava:demo:";
@@ -127,6 +128,41 @@ export class DemoStoreImpl {
         const next = dataset.students.filter((s) => s.id !== id);
         if (next.length === dataset.students.length) return false;
         dataset.students = next;
+        return true;
+      }),
+  };
+
+  /* ---------------- users (auth domain) ---------------- */
+
+  readonly users = {
+    all: (): AuthUser[] => clone(this.snapshot().users),
+    find: (id: string): AuthUser | undefined => this.users.all().find((u) => u.id === id),
+    create: (input: CreateUserInput & { status: AuthUser["status"] }): AuthUser =>
+      this.mutate((dataset) => {
+        const now = new Date().toISOString();
+        const created: AuthUser = { ...input, id: nextId("usr_"), createdAt: now, updatedAt: now };
+        dataset.users = [...dataset.users, created];
+        return clone(created);
+      }),
+    update: (id: string, patch: UpdateUserInput): AuthUser | undefined =>
+      this.mutate((dataset) => {
+        const index = dataset.users.findIndex((u) => u.id === id);
+        if (index === -1) return undefined;
+        const updated: AuthUser = {
+          ...dataset.users[index],
+          ...clone(patch),
+          id,
+          createdAt: dataset.users[index].createdAt,
+          updatedAt: new Date().toISOString(),
+        };
+        dataset.users[index] = updated;
+        return clone(updated);
+      }),
+    remove: (id: string): boolean =>
+      this.mutate((dataset) => {
+        const next = dataset.users.filter((u) => u.id !== id);
+        if (next.length === dataset.users.length) return false;
+        dataset.users = next;
         return true;
       }),
   };

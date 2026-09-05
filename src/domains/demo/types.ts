@@ -17,6 +17,8 @@ import type {
   Teacher,
 } from "@/data/records";
 import type { Enrollment } from "@/domains/enrollments/types";
+import type { RoleId } from "@/domains/auth/permissions";
+import type { AuthUser } from "@/domains/auth/types";
 
 export interface DemoRoom {
   id: string;
@@ -34,19 +36,17 @@ export interface DemoPayment {
   method: string;
 }
 
-/** Demo-only user record. Contains no credential material by construction. */
-export interface DemoUser {
-  id: string;
-  name: string;
-  roleId: string;
-  /** Display-only contact, never used for authentication. */
-  email: string;
-}
+/**
+ * Demo user record = the authentication domain's `AuthUser`.
+ * There is deliberately ONE user model: demo and API must never diverge.
+ * Contains no credential material by construction (no password/hash/salt).
+ */
+export type DemoUser = AuthUser;
 
 export interface DemoRole {
-  id: string;
+  id: RoleId;
   label: string;
-  members: number;
+  /** Human description of the role's scope, shown in Settings. */
   scope: string;
 }
 

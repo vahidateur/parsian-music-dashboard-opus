@@ -23,6 +23,7 @@ import {
   type DemoBackup,
   type ValidationIssue,
 } from "./backup";
+import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
 import { createEmptyDataset, createSeedDataset, SEED_VERSION } from "./seed";
 import type { DemoDataset, DemoDatasetStats } from "./types";
 
@@ -167,7 +168,27 @@ export class DemoDataManager {
       };
     }
 
+    // The signed-in user may no longer exist in the new dataset. Dropping the
+    // session reference is safe: DemoAuthRepository re-validates on restore and
+    // signs the user out if their account is gone or disabled.
+    this.invalidateSessionIfUserMissing();
+
     return { ...this.success(operation, true, message), safetyBackup };
+  }
+
+  /** Clears the persisted session when its user is absent from the dataset. */
+  private invalidateSessionIfUserMissing(): void {
+    try {
+      if (typeof localStorage === "undefined") return;
+      const raw = localStorage.getItem(AUTH_SESSION_KEY);
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      const userId = typeof parsed === "object" && parsed !== null ? (parsed as { userId?: unknown }).userId : undefined;
+      const stillExists = typeof userId === "string" && this.store.snapshot().users.some((u) => u.id === userId);
+      if (!stillExists) localStorage.removeItem(AUTH_SESSION_KEY);
+    } catch {
+      /* storage unavailable or unparsable — nothing to invalidate */
+    }
   }
 
   private needsConfirmation(operation: DemoOperation): DemoOperationFailure {

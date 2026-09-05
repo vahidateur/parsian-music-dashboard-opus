@@ -52,6 +52,11 @@ export function FinanceView() {
     [status, query],
   );
 
+  const subsList = useMemo(
+    () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
+    [subFocus],
+  );
+
   if (state === "loading") return <LoadingState className="py-32" label="در حال جمع‌بندی دفتر مالی…" />;
 
   const columns: Column<Invoice>[] = [
@@ -104,11 +109,6 @@ export function FinanceView() {
       hideBelow: "sm",
     },
   ];
-
-  const subsList = useMemo(
-    () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
-    [subFocus],
-  );
 
   const subColumns: Column<Subscription>[] = [
     {

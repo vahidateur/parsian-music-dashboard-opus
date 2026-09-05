@@ -225,7 +225,10 @@ export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
     ref(has("students", p.studentId), `payments[${i}].studentId`, `پرداخت «${p.id}» به هنرجوی ناموجود ارجاع دارد.`);
   });
   dataset.users.forEach((u, i) => {
-    ref(has("roles", u.roleId), `users[${i}].roleId`, `کاربر «${u.id}» به نقش ناموجود ارجاع دارد.`);
+    ref(has("roles", u.role), `users[${i}].role`, `کاربر «${u.id}» به نقش ناموجود ارجاع دارد.`);
+    if (u.teacherId !== undefined) {
+      ref(has("teachers", u.teacherId), `users[${i}].teacherId`, `کاربر «${u.id}» به مدرس ناموجود ارجاع دارد.`);
+    }
   });
 
   issues.push(...findForbiddenKeys(dataset));

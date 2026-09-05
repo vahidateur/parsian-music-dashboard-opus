@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { AppProvider, useApp } from "@/context/AppContext";
+import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
+import { defaultViewFor } from "@/domains/auth/permissions";
+import { LoginView } from "@/views/Login";
+import { EmptyState, LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav, TopBar } from "@/components/layout/TopBar";
@@ -32,6 +36,25 @@ const VIEWS = {
   settings: SettingsView,
   "design-system": DesignSystemView,
 } as const;
+
+/** Renders the requested view only when the session carries the permission. */
+function ViewOutlet() {
+  const { view, navigate } = useApp();
+  const { canAccess, permissions } = useAuth();
+
+  if (!canAccess(view)) {
+    return (
+      <EmptyState
+        title="دسترسی ندارید"
+        description="برای مشاهدهٔ این بخش، دسترسی لازم به حساب شما داده نشده است. با مدیر آموزشگاه تماس بگیرید."
+        action="بازگشت به بخش مجاز"
+        onAction={() => navigate({ view: defaultViewFor({ permissions }) })}
+      />
+    );
+  }
+  const Current = VIEWS[view] ?? Dashboard;
+  return <Current />;
+}
 
 function Shell() {
   const { view, filter, detailId, openPalette, closePalette, paletteOpen, railCollapsed } = useApp();
@@ -70,10 +93,7 @@ function Shell() {
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
           <div key={`${view}-${filter ?? ""}-${detailId ?? ""}`} className="animate-phrase-in">
-            {(() => {
-              const Current = VIEWS[view] ?? Dashboard;
-              return <Current />;
-            })()}
+            <ViewOutlet />
           </div>
         </main>
       </div>
@@ -86,10 +106,30 @@ function Shell() {
   );
 }
 
-export default function App() {
+/** Auth gate: restoring → spinner, unauthenticated → login, else the app shell. */
+function AuthGate() {
+  const { status } = useAuth();
+
+  if (status === "restoring") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink-950">
+        <LoadingState label="در حال بررسی نشست…" />
+      </div>
+    );
+  }
+  if (status === "unauthenticated") return <LoginView />;
+
   return (
     <AppProvider>
       <Shell />
     </AppProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AuthGate />
+    </AuthProvider>
   );
 }
