@@ -14,6 +14,7 @@ import { stripPrototypeKeys } from "@/domains/demo/backup";
 import type { DemoDataset } from "@/domains/demo/types";
 import type { Student } from "@/data/records";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
+import type { BrandingSettings } from "@/domains/branding/types";
 
 export const DEMO_STORAGE_KEY = "ava:demo:dataset";
 const STORAGE_PREFIX = "ava:demo:";
@@ -187,6 +188,45 @@ export class DemoStoreImpl {
   readonly classes = this.collection("classes", "cl_");
   readonly enrollments = this.collection("enrollments", "enr_");
 
+  /* ---- profiles / learning / media / chat / gallery ---- */
+
+  readonly media = this.collection("media", "md_");
+  readonly instruments = this.collection("instruments", "ins_");
+  readonly programs = this.collection("programs", "pg_");
+  readonly levels = this.collection("levels", "lv_");
+  readonly learningContent = this.collection("learningContent", "lc_");
+  readonly levelContent = this.collection("levelContent", "lcl_");
+  readonly placements = this.collection("placements", "pl_");
+  readonly chatConversations = this.collection("chatConversations", "cv_");
+  /** Newest-last: a thread reads in chronological order. */
+  readonly chatMessages = this.collection("chatMessages", "msg_");
+  readonly galleryAlbums = this.collection("galleryAlbums", "alb_");
+  readonly galleryImages = this.collection("galleryImages", "gim_");
+
+  /* ---- repertoire and progress ---- */
+
+  readonly pieces = this.collection("pieces", "pc_");
+  readonly pieceAssignments = this.collection("pieceAssignments", "as_");
+  /** Append-only history; newest-last so a timeline reads chronologically. */
+  readonly progressEvents = this.collection("progressEvents", "pe_");
+
+  /**
+   * Branding is a singleton record rather than a collection, so it gets a
+   * read/patch pair instead of the generic CRUD surface.
+   */
+  readonly branding = {
+    get: (): BrandingSettings => clone(this.snapshot().branding),
+    update: (patch: Partial<Omit<BrandingSettings, "updatedAt">>): BrandingSettings =>
+      this.mutate((dataset) => {
+        dataset.branding = {
+          ...dataset.branding,
+          ...clone(patch),
+          updatedAt: new Date().toISOString(),
+        };
+        return clone(dataset.branding);
+      }),
+  };
+
   /* ---------------- users (auth domain) ---------------- */
 
   readonly users = {
@@ -224,7 +264,27 @@ export class DemoStoreImpl {
 }
 
 /** Collections of the dataset that are arrays of `{ id }` rows. */
-type ArrayCollection = "students" | "teachers" | "rooms" | "classes" | "enrollments" | "users";
+type ArrayCollection =
+  | "students"
+  | "teachers"
+  | "rooms"
+  | "classes"
+  | "enrollments"
+  | "users"
+  | "media"
+  | "instruments"
+  | "pieces"
+  | "pieceAssignments"
+  | "progressEvents"
+  | "programs"
+  | "levels"
+  | "learningContent"
+  | "levelContent"
+  | "placements"
+  | "chatConversations"
+  | "chatMessages"
+  | "galleryAlbums"
+  | "galleryImages";
 
 export type StudentDraft = Omit<Student, "id">;
 

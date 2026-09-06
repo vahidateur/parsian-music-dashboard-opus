@@ -8,7 +8,7 @@
  * MULTI-TENANCY (§21): a production `teachers` table needs `organization_id`
  * with a composite unique index on (organization_id, phone).
  */
-import type { Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
 import type { Teacher } from "@/data/records";
 import type { ListParams } from "@/api/types";
 
@@ -19,7 +19,7 @@ export type TeacherStatus = Teacher["status"];
 
 export interface TeacherListParams extends ListParams {
   search?: string;
-  instrument?: Instrument;
+  instrument?: InstrumentId;
   status?: TeacherStatus;
   /** Only teachers assignable to new classes/sessions (status === "active"). */
   assignableOnly?: boolean;

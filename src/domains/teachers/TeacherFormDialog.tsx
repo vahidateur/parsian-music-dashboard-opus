@@ -6,7 +6,8 @@
  * teacher starts at zero and the numbers move as classes are assigned.
  */
 import { useMemo } from "react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import type { Teacher } from "@/data/records";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
@@ -17,7 +18,7 @@ import type { CreateTeacherInput, TeacherStatus } from "./types";
 
 interface TeacherDraft {
   name: string;
-  instrument: Instrument;
+  instrument: InstrumentId;
   title: string;
   phone: string;
   status: TeacherStatus;
@@ -25,7 +26,6 @@ interface TeacherDraft {
   bio: string;
 }
 
-const INSTRUMENTS = Object.keys(instrumentLabel) as Instrument[];
 
 const STATUS_LABELS: Record<TeacherStatus, string> = {
   active: "فعال",
@@ -73,6 +73,18 @@ export function TeacherFormDialog({
   onSaved: (teacher: Teacher, mode: "create" | "edit") => void;
 }) {
   const editing = teacher !== undefined;
+  const catalog = useInstrumentCatalog();
+
+  /*
+    Offer active instruments, plus whichever one this record already uses so an
+    existing assignment is never silently dropped from the picker just because
+    the instrument was later deactivated.
+  */
+  const instrumentOptions = useMemo(() => {
+    const current = teacher?.instrument;
+    return catalog.filter((i) => i.active || i.id === current);
+  }, [catalog, teacher]);
+
   const repository = useMemo(() => getTeacherRepository(), []);
 
   const form = useEntityForm<TeacherDraft, Teacher>({
@@ -159,11 +171,11 @@ export function TeacherFormDialog({
               className={inputCls}
               value={form.draft.instrument}
               disabled={busy}
-              onChange={(e) => form.set("instrument", e.target.value as Instrument)}
+              onChange={(e) => form.set("instrument", e.target.value as InstrumentId)}
             >
-              {INSTRUMENTS.map((key) => (
-                <option key={key} value={key}>
-                  {instrumentLabel[key]}
+              {instrumentOptions.map((instrument) => (
+                <option key={instrument.id} value={instrument.id}>
+                  {instrument.name}
                 </option>
               ))}
             </select>

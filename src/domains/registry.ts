@@ -19,6 +19,20 @@ import type { ClassRepository } from "./classes/repository";
 import { ApiEnrollmentRepository } from "./enrollments/apiRepository";
 import { DemoEnrollmentRepository } from "./enrollments/demoRepository";
 import type { EnrollmentRepository } from "./enrollments/repository";
+import { DemoInstrumentRepository } from "./instruments/demoRepository";
+import type { InstrumentRepository } from "./instruments/repository";
+import { DemoLearningRepository } from "./learning/demoRepository";
+import type { LearningRepository } from "./learning/repository";
+import { DemoChatRepository } from "./chat/demoRepository";
+import type { ChatRepository } from "./chat/repository";
+import { DemoMediaRepository } from "./media/demoRepository";
+import type { MediaRepository } from "./media/repository";
+import { DemoBrandingRepository } from "./branding/demoRepository";
+import type { BrandingRepository } from "./branding/repository";
+import { DemoGalleryRepository } from "./gallery/demoRepository";
+import type { GalleryRepository } from "./gallery/repository";
+import type { ProgressRepository } from "@/domains/progress/repository";
+import { DemoProgressRepository } from "@/domains/progress/demoRepository";
 
 /**
  * Composition root. The only place that decides whether a domain is served by
@@ -37,6 +51,13 @@ interface Overrides {
   enrollments?: EnrollmentRepository;
   auth?: AuthRepository;
   users?: UserRepository;
+  instruments?: InstrumentRepository;
+  learning?: LearningRepository;
+  chat?: ChatRepository;
+  media?: MediaRepository;
+  branding?: BrandingRepository;
+  gallery?: GalleryRepository;
+  progress?: ProgressRepository;
 }
 const overrides: Overrides = {};
 
@@ -97,7 +118,60 @@ export function getUserRepository(): UserRepository {
   return isApiMode() ? new ApiUserRepository(getApiClient()) : new DemoUserRepository();
 }
 
+/**
+ * Domains added in the profiles/learning/media phase.
+ *
+ * These currently resolve to the demo implementation in BOTH modes: their REST
+ * contracts are declared (see `docs/architecture/data-layer.md`) but no server
+ * implements them, and silently returning demo data while claiming to be in API
+ * mode would be exactly the dishonest fallback §37 forbids. The API repository
+ * is the next step for each; the interface boundary already exists so nothing
+ * above these getters changes when it lands.
+ */
+export function getInstrumentRepository(): InstrumentRepository {
+  return overrides.instruments ?? new DemoInstrumentRepository();
+}
+export function getLearningRepository(): LearningRepository {
+  return overrides.learning ?? new DemoLearningRepository();
+}
+export function getChatRepository(): ChatRepository {
+  return overrides.chat ?? new DemoChatRepository();
+}
+export function getMediaRepository(): MediaRepository {
+  return overrides.media ?? new DemoMediaRepository();
+}
+export function getBrandingRepository(): BrandingRepository {
+  return overrides.branding ?? new DemoBrandingRepository();
+}
+export function getGalleryRepository(): GalleryRepository {
+  return overrides.gallery ?? new DemoGalleryRepository();
+}
+export function getProgressRepository(): ProgressRepository {
+  return overrides.progress ?? new DemoProgressRepository();
+}
+
 /* Test seams: inject fakes. Pass `undefined` to restore the real selection. */
+export function setProgressRepository(repository: ProgressRepository | undefined): void {
+  overrides.progress = repository;
+}
+export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
+  overrides.instruments = repository;
+}
+export function setLearningRepository(repository: LearningRepository | undefined): void {
+  overrides.learning = repository;
+}
+export function setChatRepository(repository: ChatRepository | undefined): void {
+  overrides.chat = repository;
+}
+export function setMediaRepository(repository: MediaRepository | undefined): void {
+  overrides.media = repository;
+}
+export function setBrandingRepository(repository: BrandingRepository | undefined): void {
+  overrides.branding = repository;
+}
+export function setGalleryRepository(repository: GalleryRepository | undefined): void {
+  overrides.gallery = repository;
+}
 export function setStudentRepository(repository: StudentRepository | undefined): void {
   overrides.students = repository;
 }
@@ -131,4 +205,11 @@ export function resetRegistry(): void {
   overrides.enrollments = undefined;
   overrides.auth = undefined;
   overrides.users = undefined;
+  overrides.instruments = undefined;
+  overrides.progress = undefined;
+  overrides.learning = undefined;
+  overrides.chat = undefined;
+  overrides.media = undefined;
+  overrides.branding = undefined;
+  overrides.gallery = undefined;
 }

@@ -24,6 +24,7 @@ import {
   type ValidationIssue,
 } from "./backup";
 import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
+import { setInstrumentCatalog } from "@/domains/instruments/catalog";
 import { createEmptyDataset, createSeedDataset, SEED_VERSION } from "./seed";
 import type { DemoDataset, DemoDatasetStats } from "./types";
 
@@ -167,6 +168,12 @@ export class DemoDataManager {
         message: "ذخیرهٔ داده ناموفق بود؛ دادهٔ فعلی تغییر نکرد.",
       };
     }
+
+    // Instrument labels are read synchronously by services and render paths
+    // that cannot await a repository call, so the projection must be refreshed
+    // as part of the swap — otherwise an export or CSV written straight after a
+    // restore would carry names from the previous dataset.
+    setInstrumentCatalog(dataset.instruments);
 
     // The signed-in user may no longer exist in the new dataset. Dropping the
     // session reference is safe: DemoAuthRepository re-validates on restore and

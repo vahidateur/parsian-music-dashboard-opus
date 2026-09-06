@@ -8,7 +8,7 @@
  *
  * MULTI-TENANCY (§21): production `classes` needs `organization_id`.
  */
-import type { Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
 import type { AcademyClass } from "@/data/records";
 import type { ListParams } from "@/api/types";
 
@@ -18,7 +18,7 @@ export type ClassStatus = "active" | "archived";
 
 export interface ClassListParams extends ListParams {
   search?: string;
-  instrument?: Instrument;
+  instrument?: InstrumentId;
   teacherId?: string;
   roomId?: string;
   status?: ClassStatus;

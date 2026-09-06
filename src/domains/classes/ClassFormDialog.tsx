@@ -10,7 +10,8 @@
  * the authoritative Student↔Class relationship and is managed separately.
  */
 import { useMemo } from "react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, type AcademyClass } from "@/data/records";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
@@ -23,7 +24,7 @@ import type { CreateClassInput } from "./types";
 
 interface ClassDraft {
   title: string;
-  instrument: Instrument;
+  instrument: InstrumentId;
   teacherId: string;
   roomId: string;
   kind: AcademyClass["kind"];
@@ -36,7 +37,6 @@ interface ClassDraft {
   archived: boolean;
 }
 
-const INSTRUMENTS = Object.keys(instrumentLabel) as Instrument[];
 
 function toDraft(cls?: AcademyClass): ClassDraft {
   return {
@@ -88,6 +88,18 @@ export function ClassFormDialog({
   onSaved: (cls: AcademyClass, mode: "create" | "edit") => void;
 }) {
   const editing = academyClass !== undefined;
+  const catalog = useInstrumentCatalog();
+
+  /*
+    Offer active instruments, plus whichever one this record already uses so an
+    existing assignment is never silently dropped from the picker just because
+    the instrument was later deactivated.
+  */
+  const instrumentOptions = useMemo(() => {
+    const current = academyClass?.instrument;
+    return catalog.filter((i) => i.active || i.id === current);
+  }, [catalog, academyClass]);
+
   const repository = useMemo(() => getClassRepository(), []);
   const { items: teachers } = useTeachers({ assignableOnly: true, per_page: 200 });
   const { items: rooms } = useRooms({ assignableOnly: true, per_page: 200 });
@@ -178,11 +190,11 @@ export function ClassFormDialog({
               className={inputCls}
               value={form.draft.instrument}
               disabled={busy}
-              onChange={(e) => form.set("instrument", e.target.value as Instrument)}
+              onChange={(e) => form.set("instrument", e.target.value as InstrumentId)}
             >
-              {INSTRUMENTS.map((key) => (
-                <option key={key} value={key}>
-                  {instrumentLabel[key]}
+              {instrumentOptions.map((instrument) => (
+                <option key={instrument.id} value={instrument.id}>
+                  {instrument.name}
                 </option>
               ))}
             </select>

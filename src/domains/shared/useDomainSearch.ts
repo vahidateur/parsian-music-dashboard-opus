@@ -16,7 +16,7 @@
  * hook should call that instead — the palette itself would not change.
  */
 import { useEffect, useMemo, useState } from "react";
-import { instrumentLabel } from "@/data/academy";
+import { instrumentName } from "@/domains/instruments/catalog";
 import type { Target } from "@/data/academy";
 import {
   getClassRepository,
@@ -86,21 +86,21 @@ export function useDomainSearch(query: string): {
             kind: "student" as const,
             title: student.name,
             // Never put the national ID in a search subtitle (§30).
-            subtitle: `${instrumentLabel[student.instrument]} · ${student.level}`,
+            subtitle: `${instrumentName(student.instrument)} · ${student.level}`,
             target: { view: "students", id: student.id } satisfies Target,
           })),
           ...teachers.data.map((teacher) => ({
             id: `teacher-${teacher.id}`,
             kind: "teacher" as const,
             title: teacher.name,
-            subtitle: `${instrumentLabel[teacher.instrument]} · ${teacher.title}`,
+            subtitle: `${instrumentName(teacher.instrument)} · ${teacher.title}`,
             target: { view: "teachers", id: teacher.id } satisfies Target,
           })),
           ...classes.data.map((cls) => ({
             id: `class-${cls.id}`,
             kind: "class" as const,
             title: cls.title,
-            subtitle: `${instrumentLabel[cls.instrument]} · ${cls.enrolled} از ${cls.capacity}`,
+            subtitle: `${instrumentName(cls.instrument)} · ${cls.enrolled} از ${cls.capacity}`,
             target: { view: "classes", id: cls.id } satisfies Target,
           })),
           ...rooms.data.map((room) => ({

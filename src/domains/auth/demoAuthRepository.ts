@@ -28,7 +28,12 @@ export const DEMO_PASSPHRASE = "arena-demo";
 
 export const AUTH_SESSION_KEY = "ava:demo:session";
 
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+/**
+ * Demo token lifetime. Exported so the client-side session clock can derive
+ * when a restored session actually began, instead of trusting a localStorage
+ * value the user can delete.
+ */
+export const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
 
 interface PersistedSession {
   userId: string;
@@ -60,14 +65,24 @@ function memory(): SessionStorageLike {
   };
 }
 
-/** Non-cryptographic reference id. Explicitly NOT a security token. */
+/**
+ * Non-cryptographic reference id. Explicitly NOT a security token.
+ *
+ * Fails loudly when no CSPRNG is available rather than silently falling back
+ * to `Math.random()`. The old fallback downgraded randomness invisibly, which
+ * is the worst failure mode: the value still looked like a token. WebCrypto is
+ * present in every browser this panel supports and in Node 18+, so the throw
+ * signals a genuinely broken environment, not a supported one.
+ */
 function demoToken(): string {
-  const bytes = new Uint8Array(16);
-  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  if (typeof crypto === "undefined" || typeof crypto.getRandomValues !== "function") {
+    throw new ApiError({
+      kind: "server",
+      code: "AUTH_NO_SECURE_RANDOM",
+      message: "این مرورگر از تولید مقدار تصادفی امن پشتیبانی نمی‌کند و ورود ممکن نیست.",
+    });
   }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
   return `demo_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
 }
 

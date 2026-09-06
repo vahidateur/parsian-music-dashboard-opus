@@ -9,7 +9,7 @@
  * demo dataset is a denormalized convenience field, not the authoritative
  * relationship — enrollments own Student ↔ Class over time.
  */
-import type { Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
 import type { PaymentStatus, Student, StudentStatus } from "@/data/records";
 import type { ListParams } from "@/api/types";
 
@@ -19,7 +19,7 @@ export interface StudentListParams extends ListParams {
   /** Free-text query over name/phone. */
   search?: string;
   status?: StudentStatus;
-  instrument?: Instrument;
+  instrument?: InstrumentId;
   payment?: PaymentStatus;
   teacherId?: string;
 }

@@ -4,11 +4,13 @@ import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
 import { defaultViewFor } from "@/domains/auth/permissions";
 import { LoginView } from "@/views/Login";
+import { SessionGuard } from "@/security/SessionGuard";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav, TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/overlays/CommandPalette";
+import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
 import { Dashboard } from "@/views/Dashboard";
 import { DesignSystemView } from "@/views/DesignSystemView";
@@ -60,6 +62,11 @@ function ViewOutlet() {
 function Shell() {
   const { view, filter, detailId, openPalette, closePalette, paletteOpen, railCollapsed } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Instruments are runtime data, but ~60 call sites need a synchronous
+  // Persian label while rendering. This keeps that lookup in step with the
+  // repository for the whole session. See domains/instruments/catalog.ts.
+  useInstrumentCatalogSync();
 
   // Global command shortcut
   useEffect(() => {
@@ -123,6 +130,8 @@ function AuthGate() {
   return (
     <AppProvider>
       <Shell />
+      {/* Idle + absolute session expiry for the authenticated app. */}
+      <SessionGuard />
     </AppProvider>
   );
 }

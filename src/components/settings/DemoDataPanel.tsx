@@ -24,6 +24,20 @@ const COLLECTION_LABELS: Record<(typeof DEMO_COLLECTIONS)[number], string> = {
   resources: "منابع",
   users: "کاربران",
   roles: "نقش‌ها",
+  media: "فایل‌های رسانه",
+  instruments: "سازها",
+  programs: "برنامه‌های آموزشی",
+  levels: "سطوح",
+  learningContent: "محتوای آموزشی",
+  levelContent: "اتصال سطح و محتوا",
+  placements: "سطح‌بندی هنرجویان",
+  chatConversations: "گفتگوهای چت",
+  chatMessages: "پیام‌ها",
+  galleryAlbums: "آلبوم‌های گالری",
+  galleryImages: "تصاویر گالری",
+  pieces: "قطعات",
+  pieceAssignments: "تخصیص قطعات",
+  progressEvents: "رویدادهای پیشرفت",
 };
 
 /**

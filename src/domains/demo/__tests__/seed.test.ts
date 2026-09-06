@@ -13,9 +13,24 @@ describe("canonical seed", () => {
     expect(SEED_VERSION).toMatch(/^\d{4}\.\d{2}\.\d+$/);
   });
 
+  /**
+   * Collections that are intentionally empty in the seed.
+   *
+   * The demo ships no binary files, so seeding `media` (or gallery images that
+   * point at media) would create references resolving to nothing and render as
+   * broken thumbnails. These fill up through the real upload flow instead.
+   */
+  const INTENTIONALLY_EMPTY = new Set(["media", "galleryImages"]);
+
   it("contains every collection with realistic Persian data", () => {
     const seed = createSeedDataset();
-    for (const name of DEMO_COLLECTIONS) expect(seed[name].length).toBeGreaterThan(0);
+    for (const name of DEMO_COLLECTIONS) {
+      if (INTENTIONALLY_EMPTY.has(name)) {
+        expect(seed[name]).toHaveLength(0);
+        continue;
+      }
+      expect(seed[name].length, `collection "${name}" should be seeded`).toBeGreaterThan(0);
+    }
     expect(seed.students[0].name).toBe(students[0].name);
     expect(seed.organization.direction).toBe("rtl");
     expect(seed.organization.calendar).toBe("jalali");

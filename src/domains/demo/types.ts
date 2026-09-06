@@ -5,7 +5,6 @@
  * A future backend can serve exactly this shape from `GET /demo/export` and
  * accept it at `POST /demo/import`; nothing here mentions storage keys.
  */
-import type { Instrument } from "@/data/academy";
 import type {
   AcademyClass,
   AttendanceRoster,
@@ -17,6 +16,19 @@ import type {
   Teacher,
 } from "@/data/records";
 import type { Enrollment } from "@/domains/enrollments/types";
+import type { InstrumentRecord } from "@/domains/instruments/types";
+import type { MediaAsset } from "@/domains/media/types";
+import type {
+  LearningContent,
+  LearningLevel,
+  LearningProgram,
+  LevelContentLink,
+  StudentPlacement,
+} from "@/domains/learning/types";
+import type { ChatConversation, ChatMessage } from "@/domains/chat/types";
+import type { GalleryAlbum, GalleryImage } from "@/domains/gallery/types";
+import type { Piece, PieceAssignment, ProgressEvent } from "@/domains/progress/types";
+import type { BrandingSettings } from "@/domains/branding/types";
 import type { RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
 
@@ -61,12 +73,13 @@ export interface DemoOrganizationSettings {
   currency: "toman" | "rial";
   firstWeekday: number;
   defaultSessionMinutes: number;
-  instruments: Instrument[];
 }
 
 /** Every collection that makes up the demo environment. */
 export interface DemoDataset {
   organization: DemoOrganizationSettings;
+  /** Academy branding (name, logo, colours, fonts). Singleton, not a list. */
+  branding: BrandingSettings;
   rooms: DemoRoom[];
   teachers: Teacher[];
   students: Student[];
@@ -80,6 +93,28 @@ export interface DemoDataset {
   resources: Resource[];
   users: DemoUser[];
   roles: DemoRole[];
+
+  /* ---- domains added in the profiles/learning/media phase ---- */
+  /** Binary metadata only; the bytes live in the blob store. */
+  media: MediaAsset[];
+  instruments: InstrumentRecord[];
+  programs: LearningProgram[];
+  levels: LearningLevel[];
+  learningContent: LearningContent[];
+  /** Many-to-many Level ↔ Content edge. Content is never duplicated. */
+  levelContent: LevelContentLink[];
+  /** Where each student sits in a program. */
+  placements: StudentPlacement[];
+  /** Chat threads. Messages are a separate collection, not nested. */
+  chatConversations: ChatConversation[];
+  chatMessages: ChatMessage[];
+  galleryAlbums: GalleryAlbum[];
+  galleryImages: GalleryImage[];
+
+  /* Repertoire and student progress. `progressEvents` is append-only. */
+  pieces: Piece[];
+  pieceAssignments: PieceAssignment[];
+  progressEvents: ProgressEvent[];
 }
 
 /** Names of the array-shaped collections — used by validation and clearing. */
@@ -97,6 +132,20 @@ export const DEMO_COLLECTIONS = [
   "resources",
   "users",
   "roles",
+  "media",
+  "instruments",
+  "programs",
+  "levels",
+  "learningContent",
+  "levelContent",
+  "placements",
+  "chatConversations",
+  "chatMessages",
+  "galleryAlbums",
+  "galleryImages",
+  "pieces",
+  "pieceAssignments",
+  "progressEvents",
 ] as const;
 
 export type DemoCollectionName = (typeof DEMO_COLLECTIONS)[number];

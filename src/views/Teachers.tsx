@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, weekSessions, type Teacher } from "@/data/records";
 import { faNum, faPercent, faTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -269,7 +270,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                     key={s.id}
                     lead={<Avatar name={s.name} size="sm" />}
                     title={s.name}
-                    meta={`${instrumentLabel[s.instrument]} · ${s.level}`}
+                    meta={`${instrumentName(s.instrument)} · ${s.level}`}
                     end={
                       <>
                         <Meter value={s.attendance} tone={s.attendance < 70 ? "warn" : "ok"} size="sm" label={faPercent(s.attendance)} className="hidden w-24 sm:flex" />
@@ -314,7 +315,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                 <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
                   <div className="text-[10.5px] font-medium text-violet-300">فرصت</div>
                   <p className="mt-1 text-[12px] leading-relaxed text-ink-100">
-                    {faNum(teacher.contractHours - teacher.weeklyHours)} ساعت ظرفیت آزاد در هفته. لیست انتظار {instrumentLabel[teacher.instrument]} می‌تواند به این بازه منتقل شود.
+                    {faNum(teacher.contractHours - teacher.weeklyHours)} ساعت ظرفیت آزاد در هفته. لیست انتظار {instrumentName(teacher.instrument)} می‌تواند به این بازه منتقل شود.
                   </p>
                   <Button size="sm" variant="subtle" className="mt-3" onClick={() => notify({ tone: "info", title: "پیشنهاد فقط در دمو نمایش داده شد", detail: "ارسال به برنامه‌ریزی به سرور نیاز دارد." })}>
                     پیشنهاد بازهٔ جدید
@@ -333,7 +334,10 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
 export function TeachersView() {
   const { filter, detailId, navigate, notify } = useApp();
   const [query, setQuery] = useState("");
-  const [inst, setInst] = useState<Instrument | "all">("all");
+  const [inst, setInst] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [only, setOnly] = useState<"all" | "absent-tomorrow" | "low-utilization">(
     filter === "absent-tomorrow" ? "absent-tomorrow" : filter === "low-utilization" ? "low-utilization" : "all",
   );
@@ -431,8 +435,8 @@ export function TeachersView() {
             <Chip label="ظرفیت آزاد" active={only === "low-utilization"} onClick={() => setOnly("low-utilization")} />
             <Chip label="غیبت فردا" active={only === "absent-tomorrow"} onClick={() => setOnly("absent-tomorrow")} />
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
-            {(["piano", "guitar", "violin", "voice", "drums", "theory"] as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={inst === k} count={teachers.filter((t) => t.instrument === k).length} onClick={() => setInst(inst === k ? "all" : k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={inst === i.id} count={teachers.filter((t) => t.instrument === i.id).length} onClick={() => setInst(inst === i.id ? "all" : i.id)} />
             ))}
           </>
         }
@@ -460,7 +464,7 @@ export function TeachersView() {
                   <Avatar name={t.name} size="sm" />
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink-50">{t.name}</div>
-                    <div className="text-[11px] text-ink-400">{instrumentLabel[t.instrument]}</div>
+                    <div className="text-[11px] text-ink-400">{instrumentName(t.instrument)}</div>
                   </div>
                 </div>
                 <div className="nums mt-3 text-[11.5px] text-ink-300">

@@ -17,14 +17,22 @@ export type ViewId =
   | "settings"
   | "design-system";
 
-export type Instrument = "piano" | "guitar" | "voice" | "violin" | "drums" | "theory";
+/**
+ * An instrument reference.
+ *
+ * Instruments are runtime data owned by `InstrumentRepository`, not a closed
+ * union — an academy can define its own. This alias documents that a string
+ * field holds an `InstrumentRecord.id`; resolve it to a Persian name with
+ * `instrumentName()` from `@/domains/instruments/catalog`.
+ */
+export type InstrumentId = string;
 
 export type ClassStatus = "done" | "live" | "next" | "scheduled" | "cancelled" | "attention";
 
 export interface ClassSession {
   id: string;
   title: string;
-  instrument: Instrument;
+  instrument: InstrumentId;
   room: string;
   teacher: string;
   start: string; // HH:MM
@@ -200,18 +208,6 @@ export const viewTitles: Record<ViewId, string> = {
   library: "کتابخانه",
   settings: "تنظیمات",
   "design-system": "سیستم طراحی",
-};
-
-/* ------------------------------------------------------------------ */
-/* Instruments                                                         */
-/* ------------------------------------------------------------------ */
-export const instrumentLabel: Record<Instrument, string> = {
-  piano: "پیانو",
-  guitar: "گیتار",
-  voice: "آواز",
-  violin: "ویولن",
-  drums: "درامز",
-  theory: "تئوری",
 };
 
 /* ------------------------------------------------------------------ */
@@ -410,7 +406,7 @@ export const occupancy = {
   ],
 };
 
-export const instruments: { key: Instrument; label: string; share: number; count: number; delta: number }[] = [
+export const instruments: { key: InstrumentId; label: string; share: number; count: number; delta: number }[] = [
   { key: "piano", label: "پیانو", share: 42, count: 524, delta: 3 },
   { key: "guitar", label: "گیتار", share: 25, count: 312, delta: 1 },
   { key: "violin", label: "ویولن", share: 15, count: 187, delta: -1 },

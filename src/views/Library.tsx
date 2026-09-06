@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
-import { Download, FileMusic, FileText, Music2, Play, Plus, Video } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import { Download, FileMusic, FileText, Music2, Plus, Video } from "lucide-react";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { libraryShelves, resourceKindLabel, resources, type Resource, type ResourceKind } from "@/data/records";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge } from "@/components/ds/primitives";
 import { EmptyState } from "@/components/ds/states";
 import { Chip, Drawer, FilterBar, PageHeader, Panel, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
+import { AudioMessagePlayer } from "@/domains/library/AudioMessagePlayer";
 import { cn } from "@/utils/cn";
 
 const kindIcon: Record<ResourceKind, typeof FileMusic> = { sheet: FileMusic, audio: Music2, video: Video, doc: FileText };
@@ -17,18 +19,19 @@ const kindTone: Record<ResourceKind, string> = {
   doc: "border-white/[0.08] bg-white/[0.03] text-ink-300",
 };
 
-/* Waveform preview — the library's musical signature */
-function Waveform({ peaks, playing }: { peaks: number[]; playing?: boolean }) {
+/*
+  Decorative waveform thumbnail on the resource card. It is a static visual
+  signature only — actual playback lives in `AudioMessagePlayer`, which never
+  animates unless audio is really playing.
+*/
+function Waveform({ peaks }: { peaks: number[] }) {
   return (
     <div className="flex h-8 items-center gap-[2px]" aria-hidden>
       {peaks.map((p, i) => (
         <span
           key={i}
-          className={cn("block w-[2px] rounded-full", playing && i < peaks.length * 0.4 ? "bg-violet-300" : "bg-violet-400/35")}
-          style={{
-            height: `${p * 100}%`,
-            animation: playing ? `breathe 2.4s var(--ease-legato) ${i * 40}ms infinite` : undefined,
-          }}
+          className="block w-[2px] rounded-full bg-violet-400/35"
+          style={{ height: `${p * 100}%` }}
         />
       ))}
     </div>
@@ -55,7 +58,7 @@ function ResourceCard({ r, onOpen }: { r: Resource; onOpen: () => void }) {
       ) : (
         <div className="flex h-8 items-center gap-2 text-[11px] text-ink-400">
           <InstrumentGlyph kind={r.instrument} className="size-4 text-gold-400" />
-          {instrumentLabel[r.instrument]} · {r.level}
+          {instrumentName(r.instrument)} · {r.level}
           {r.pages && <span className="nums">· {faNum(r.pages)} صفحه</span>}
         </div>
       )}
@@ -73,10 +76,12 @@ export function LibraryView() {
   const { notify } = useApp();
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<ResourceKind | "all">("all");
-  const [inst, setInst] = useState<Instrument | "all">("all");
+  const [inst, setInst] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [sort, setSort] = useState<"recent" | "popular">("recent");
   const [open, setOpen] = useState<Resource | null>(null);
-  const [playing, setPlaying] = useState(false);
 
   const list = useMemo(() => {
     const out = resources.filter(
@@ -158,8 +163,8 @@ export function LibraryView() {
               <Chip key={k} label={resourceKindLabel[k]} active={kind === k} count={resources.filter((r) => r.kind === k).length} onClick={() => setKind(kind === k ? "all" : k)} />
             ))}
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
-            {(["piano", "guitar", "violin", "voice", "drums", "theory"] as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={inst === k} onClick={() => setInst(inst === k ? "all" : k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={inst === i.id} onClick={() => setInst(inst === i.id ? "all" : i.id)} />
             ))}
           </>
         }
@@ -176,7 +181,7 @@ export function LibraryView() {
         ) : (
           <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {list.map((r) => (
-              <ResourceCard key={r.id} r={r} onOpen={() => { setOpen(r); setPlaying(false); }} />
+              <ResourceCard key={r.id} r={r} onOpen={() => setOpen(r)} />
             ))}
           </div>
         )}
@@ -222,27 +227,24 @@ export function LibraryView() {
       >
         {open && (
           <div className="space-y-4">
-            {open.peaks && (
-              <div className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.05] p-4">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setPlaying((p) => !p)}
-                    aria-label={playing ? "توقف" : "پخش"}
-                    className="flex size-10 shrink-0 items-center justify-center rounded-full border border-violet-400/40 bg-violet-500/15 text-violet-200 transition-transform active:scale-95"
-                  >
-                    {playing ? <span className="block h-3 w-2.5 border-x-[3px] border-violet-200" /> : <Play className="size-4 -scale-x-100" />}
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <Waveform peaks={open.peaks} playing={playing} />
-                  </div>
-                  <span className="nums shrink-0 text-[11px] text-ink-300">{open.duration}</span>
-                </div>
-              </div>
+            {(open.kind === "audio" || open.peaks) && (
+              /*
+                A real player. The demo ships no audio binaries, so there is no
+                blob to play: the control renders disabled and states why,
+                instead of animating a waveform that plays nothing (§37).
+                Once media is uploaded, `src` comes from the media blob store
+                and the same component plays it for real.
+              */
+              <AudioMessagePlayer
+                seed={open.id}
+                title={open.title}
+                peaks={open.peaks}
+                unavailableReason="فایل صوتی این منبع در نسخهٔ دمو بارگذاری نشده است. پخش واقعی به فضای ذخیره‌سازی سرور نیاز دارد."
+              />
             )}
             <dl className="grid grid-cols-2 gap-3 text-[12.5px]">
               {[
-                ["ساز", instrumentLabel[open.instrument]],
+                ["ساز", instrumentName(open.instrument)],
                 ["سطح", open.level],
                 ["آهنگساز / تهیه", open.composer],
                 ["حجم", open.size],

@@ -10,21 +10,25 @@
  * on the right input.
  */
 import { useMemo } from "react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { studentStatusLabel, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
 import { getStudentRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
+import { ProfilePhotoField } from "@/domains/media/ProfilePhotoField";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { cn } from "@/utils/cn";
 import type { CreateStudentInput } from "./types";
 
 interface StudentDraft {
   name: string;
+  /** `MediaAsset.id` of the profile photo; undefined when none. */
+  photoMediaId?: string;
   nationalId: string;
-  instrument: Instrument;
+  instrument: InstrumentId;
   teacherId: string;
   status: StudentStatus;
   phone: string;
@@ -34,12 +38,12 @@ interface StudentDraft {
   sessionsTotal: string;
 }
 
-const INSTRUMENTS = Object.keys(instrumentLabel) as Instrument[];
 const STATUSES = Object.keys(studentStatusLabel) as StudentStatus[];
 
 function toDraft(student?: Student): StudentDraft {
   return {
     name: student?.name ?? "",
+    photoMediaId: student?.photoMediaId,
     nationalId: student?.nationalId ?? "",
     instrument: student?.instrument ?? "piano",
     teacherId: student?.teacherId ?? "",
@@ -88,6 +92,18 @@ export function StudentFormDialog({
   onSaved: (student: Student, mode: "create" | "edit") => void;
 }) {
   const editing = student !== undefined;
+  const catalog = useInstrumentCatalog();
+
+  /*
+    Offer active instruments, plus whichever one this record already uses so an
+    existing assignment is never silently dropped from the picker just because
+    the instrument was later deactivated.
+  */
+  const instrumentOptions = useMemo(() => {
+    const current = student?.instrument;
+    return catalog.filter((i) => i.active || i.id === current);
+  }, [catalog, student]);
+
   const repository = useMemo(() => getStudentRepository(), []);
   // Only active teachers can be assigned to a new student.
   const { items: teachers } = useTeachers({ assignableOnly: true, per_page: 200 });
@@ -99,6 +115,7 @@ export function StudentFormDialog({
       const payload = {
         nationalId: normalizeNationalId(draft.nationalId),
         name: draft.name.trim(),
+        photoMediaId: draft.photoMediaId,
         instrument: draft.instrument,
         teacherId: draft.teacherId,
         status: draft.status,
@@ -169,6 +186,15 @@ export function StudentFormDialog({
           </p>
         )}
 
+        <div className="sm:col-span-2">
+          <ProfilePhotoField
+            mediaId={form.draft.photoMediaId}
+            personName={form.draft.name || "هنرجو"}
+            disabled={busy}
+            onChange={(next) => form.set("photoMediaId", next)}
+          />
+        </div>
+
         <Field label="نام و نام خانوادگی" error={form.errors.name} required className="sm:col-span-2">
           {(control) => (
             <input
@@ -209,11 +235,11 @@ export function StudentFormDialog({
               className={inputCls}
               value={form.draft.instrument}
               disabled={busy}
-              onChange={(e) => form.set("instrument", e.target.value as Instrument)}
+              onChange={(e) => form.set("instrument", e.target.value as InstrumentId)}
             >
-              {INSTRUMENTS.map((key) => (
-                <option key={key} value={key}>
-                  {instrumentLabel[key]}
+              {instrumentOptions.map((instrument) => (
+                <option key={instrument.id} value={instrument.id}>
+                  {instrument.name}
                 </option>
               ))}
             </select>

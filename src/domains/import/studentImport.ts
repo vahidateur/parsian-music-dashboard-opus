@@ -10,7 +10,8 @@
  * reported with its row number and reason, and the user decides whether to fix
  * the file or import the remaining valid rows.
  */
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { getInstrumentCatalog, instrumentName } from "@/domains/instruments/catalog";
 import { studentStatusLabel, type Student, type StudentStatus } from "@/data/records";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
 import { apiErrorFromThrown } from "@/api/errors";
@@ -32,13 +33,26 @@ export const STUDENT_FIELDS: ImportField[] = [
   { key: "sessionsTotal", label: "کل جلسات", required: false, aliases: ["sessions", "sessions_total", "کل جلسات", "جلسات"] },
 ];
 
-/** Reverse lookup so a file can use Persian labels for enum values. */
-const INSTRUMENT_BY_LABEL = new Map<string, Instrument>(
-  (Object.keys(instrumentLabel) as Instrument[]).flatMap((key) => [
-    [key.toLowerCase(), key] as const,
-    [instrumentLabel[key], key] as const,
-  ]),
-);
+/**
+ * Reverse lookup so an imported file can name an instrument by its Persian
+ * label, its slug, or its id.
+ *
+ * Built per import rather than once at module load: instruments are runtime
+ * data, so an academy's own instrument must be importable the moment it is
+ * defined. An unknown value is rejected row-by-row — an import never invents
+ * an instrument, because that would let an untrusted file extend the
+ * catalogue (§24).
+ */
+function instrumentLookup(): Map<string, InstrumentId> {
+  const entries = new Map<string, InstrumentId>();
+  for (const instrument of getInstrumentCatalog()) {
+    entries.set(instrument.id.toLowerCase(), instrument.id);
+    entries.set(instrument.slug.toLowerCase(), instrument.id);
+    entries.set(instrument.name, instrument.id);
+    entries.set(instrument.name.trim().toLowerCase(), instrument.id);
+  }
+  return entries;
+}
 
 const STATUS_BY_LABEL = new Map<string, StudentStatus>(
   (Object.keys(studentStatusLabel) as StudentStatus[]).flatMap((key) => [
@@ -106,6 +120,8 @@ export function validateStudentRows(
   context: StudentImportContext,
 ): ValidationReport<CreateStudentInput> {
   const out: ValidatedRow<CreateStudentInput>[] = [];
+  // Resolved once per file, not per row.
+  const instrumentByLabel = instrumentLookup();
   // Tracks IDs seen earlier in this same file, so in-file duplicates are caught.
   const seenInFile = new Map<string, number>();
   let duplicates = 0;
@@ -156,7 +172,8 @@ export function validateStudentRows(
 
     /* ---- instrument ---- */
     const rawInstrument = cellAt(row, "instrument");
-    const instrument = INSTRUMENT_BY_LABEL.get(rawInstrument.toLowerCase()) ?? INSTRUMENT_BY_LABEL.get(rawInstrument);
+    const instrument =
+      instrumentByLabel.get(rawInstrument.trim().toLowerCase()) ?? instrumentByLabel.get(rawInstrument.trim());
     if (!instrument) error("instrument", `ساز «${rawInstrument || "—"}» شناخته نشد.`);
 
     /* ---- teacher (optional, falls back with a warning) ---- */
@@ -331,7 +348,7 @@ export function studentExportRows(students: Student[]): { headers: string[]; row
     rows: students.map((s) => [
       s.name,
       s.nationalId,
-      instrumentLabel[s.instrument],
+      instrumentName(s.instrument),
       s.teacherId,
       s.guardian ?? "",
       s.phone,

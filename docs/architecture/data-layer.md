@@ -231,7 +231,14 @@ appear when the repository returns something else.
 | Settings → Users & Roles | **IMPLEMENTED** | `useUsers` → `UserRepository` |
 | Settings → Demo data | **IMPLEMENTED** | `useDemoData` → `demoDataManager` |
 | Login / auth | **IMPLEMENTED** | `useAuth` → `AuthRepository` |
-| Scheduling, Attendance, Finance, Messages, Library, Reports | **PARTIAL** | static `@/data/records` + `@/data/academy` |
+| Messages (chat) | **IMPLEMENTED** | `useConversations` / `useMessages` → `ChatRepository` |
+| Settings → Academy identity | **IMPLEMENTED** | `useBranding` → `BrandingRepository` |
+| Settings → Instruments | **IMPLEMENTED** | `useInstruments` → `InstrumentRepository` |
+| Settings → Programs & levels | **IMPLEMENTED** | `usePrograms` / `useLevels` → `LearningRepository` |
+| Settings → Gallery | **IMPLEMENTED** | `useAlbums` → `GalleryRepository` + `MediaRepository` |
+| Student → learning path | **IMPLEMENTED** | `useStudentPlacement` / `useEligibleContent` |
+| Library (audio playback) | **PARTIAL** | fixture metadata; player real, no seeded audio |
+| Scheduling, Attendance, Finance, Reports | **PARTIAL** | static `@/data/records` + `@/data/academy` |
 | Notifications | **PARTIAL** | static fixtures |
 
 ### Why the rest were not migrated in this phase
@@ -251,3 +258,269 @@ are honest, read-only fixture renderers today.
 - Untrusted JSON (`localStorage`, imported backups) is stripped of
   `__proto__` / `constructor` / `prototype` before use, and command-palette
   recents are validated field-by-field rather than cast.
+
+
+## Profiles, learning and media (this phase)
+
+Six domains were added: `instruments`, `learning`, `chat`, `media`, `branding`,
+`gallery`.
+
+### These six resolve to Demo in BOTH modes
+
+No server implements them yet. Rather than let production silently fall back to
+demo data (§37), `registry.ts` returns the Demo implementation in both modes and
+documents that at the getter. The interface boundary is already in place, so
+adding an API implementation later is a one-line registry change per domain and
+touches no UI.
+
+### Instruments are data, not a union
+
+The closed union `Instrument = "piano" | "guitar" | …` and its exhaustive
+`instrumentLabel` map are **removed**. Instruments are rows owned by
+`InstrumentRepository`, so an academy can define its own.
+
+**Single source of truth.** `src/domains/instruments/catalog.ts` holds the six
+seeded definitions and a synchronous, read-through projection of the
+instruments collection. Fields that reference an instrument are typed
+`InstrumentId` (a string alias) and hold an `InstrumentRecord.id`.
+
+Why a projection exists at all: the repository is async, but ~60 call sites
+need a Persian label *while rendering* a table cell, a CSV row or a search
+result. `instrumentName(id)` serves those. It is not a second state store —
+the repository remains the only writer, the cache is a projection of exactly
+one collection, and it is refreshed by `useInstrumentCatalogSync()` (mounted
+once in `App`) on every `dataVersion` bump, plus directly by the demo data
+manager after a reset/restore/import so a CSV written immediately after a
+restore cannot carry stale names.
+
+| Need | Use |
+|---|---|
+| A label while rendering or in a service | `instrumentName(id)` |
+| A list (pickers, filter chips), re-rendering on change | `useInstrumentCatalog()` |
+| Full CRUD | `useInstruments()` → `InstrumentRepository` |
+
+**The six seeded instruments keep their historical ids** (`piano`, `violin`, …)
+because every existing record, every saved backup and every previously
+exported CSV stores those exact strings. `catalog.test.ts` asserts this.
+
+**Fallback behaviour.** `instrumentName()` returns the id itself for an unknown
+instrument and `—` for a missing one, so a record pointing at a deleted
+instrument degrades to a readable token rather than rendering `undefined` mid
+table. `InstrumentGlyph` falls back to a generic music note for
+academy-defined instruments.
+
+Deactivating an instrument removes it from pickers but keeps it selectable on
+records that already use it, so saving an unrelated field cannot silently
+change a student's instrument. An instrument that is still referenced cannot
+be deleted (`INSTRUMENT_IN_USE`).
+
+`organization.instruments` — a second copy of the list on the settings object —
+was deleted as part of this change; it had no readers and was pure drift risk.
+
+Because the compiler can no longer catch a bad instrument reference, an
+`architectureBoundaries` check fails the build if a union, an `instrumentLabel`
+map, a `Record<Instrument, …>` or an inline `["piano", "guitar", …]` list is
+reintroduced.
+
+### Learning is one repository
+
+Programs, levels, level↔content links and student placements live in a single
+repository because the invariants span all four: contiguous level ordering, no
+deleting a level that still has students or content, and placements that must
+reference a level belonging to their own program.
+
+**Eligibility is derived, never stored.** A student sees content attached to any
+active level of their program with `order <= currentLevel.order`; a level marked
+`exclusive` restricts its content to students placed exactly there. No placement
+means an empty set — never a fallback to "show everything". Because the student
+page and the content list read the same derived function, moving a student
+between levels changes their access immediately with no separate bookkeeping.
+
+### Media: metadata in the dataset, bytes in IndexedDB
+
+`DemoStore` holds only media *metadata*; the bytes go to IndexedDB
+(`ava:media` / `blobs`). This keeps the JSON dataset (and every backup and
+export) free of megabytes of base64.
+
+Consequences that are surfaced in the UI rather than hidden:
+
+- Uploaded files live in one browser only and do **not** travel in backups.
+  After restoring a backup, metadata resolves but `getBlob()` returns
+  `undefined`, and the gallery renders "file not available in this browser".
+- Validation is an allow-list of MIME types **cross-checked against magic
+  bytes**, plus per-kind size caps (image 5 MB, audio 25 MB, document 20 MB).
+  SVG is excluded because it can carry script. Filenames are sanitized against
+  path traversal, control characters and leading dots.
+- If the blob write fails, the metadata row is rolled back, so no record ever
+  points at bytes that were never stored.
+
+**BACKEND REQUIRED:** signed upload URLs, server-side re-validation, virus
+scanning, and a real object store. Client-side checks are a UX filter, not a
+security boundary.
+
+### Audio playback never decodes
+
+`AudioMessagePlayer` renders its waveform from stored `peaks`, or from a
+deterministic id-seeded placeholder when none exist. It never calls
+`decodeAudioData` (which would need the whole file in memory and block the main
+thread), uses `timeupdate` rather than a `requestAnimationFrame` loop, and draws
+48 `<div>` bars instead of a canvas so it reflows correctly in RTL and exposes a
+real `role="slider"` with arrow-key seeking (mirrored for RTL).
+
+The demo ships no audio binaries, so in the Library the player renders disabled
+with a stated reason instead of animating a waveform that plays nothing.
+
+### Chat delivery honesty
+
+Only `in_app` messages actually deliver, and only those are marked `sent`.
+Telegram / Bale / SMS / email have no server, so messages on those transports
+are stored with status `unavailable` plus a Persian reason and rendered with a
+visible "ارسال نشد" marker. The message is still recorded — nothing is
+silently dropped, and nothing claims a send that did not happen.
+
+**Bot tokens must never reach `VITE_*`** — anything in a Vite env var is
+compiled into the client bundle and is public. Telegram/Bale integration
+requires a server-side webhook relay.
+
+### Branding
+
+Branding is a singleton inside the dataset, so it travels in backups and is
+restored by `createEmptyDataset()`. It is distinct from the per-browser `ava:*`
+viewer preferences (theme, density, motion), which are personal and stay in
+`localStorage`.
+
+Colours are validated strictly as `#RRGGBB` and fonts against an allow-list,
+because these values are written into CSS custom properties.
+`applyBranding()` re-validates before touching the DOM, so a backup predating a
+validation rule still cannot inject a CSS expression.
+
+## Learning and student progress
+
+Two domains, deliberately separate:
+
+- **`learning`** — curriculum: programs, levels, content, eligibility. Mostly
+  static, edited by administrators, bounded in size.
+- **`progress`** — what a student is actually doing: pieces, assignments,
+  practice events, analytics. High-churn, append-mostly, grows without bound.
+
+Splitting them matters because a progress history grows forever while a
+curriculum does not, and because a **piece is not learning content**.
+
+### Piece vs LearningContent
+
+A `LearningContent` is a *resource* (a PDF method book, a backing track). A
+`Piece` is a *musical work* a student learns and performs. One piece may have
+several contents; a scale-exercise sheet belongs to no piece. Progress is
+tracked against the piece, never against the PDF — "mastery of a PDF" is not a
+meaningful sentence.
+
+### Progress events are append-only
+
+`ProgressEvent` is the authoritative record. Nothing edits or deletes an event
+in normal operation: correcting a mistake appends a new observation. Every
+analytic, chart and recommendation is computed from this log, so a chart can
+never silently change shape.
+
+`PieceAssignment.latest` is a **denormalized snapshot** of the newest event,
+recomputed on every append. It exists so listing twenty assignments does not
+need twenty history scans, and it is always rebuildable from the log. It is
+derived from the newest event *by timestamp*, so a back-dated entry cannot make
+the snapshot disagree with the history.
+
+Deleting an assignment that has events is refused (`ASSIGNMENT_HAS_HISTORY`);
+close it instead. Deleting an assigned piece is refused (`PIECE_IN_USE`).
+
+### Range units
+
+Pieces are subdivided differently: a sonata in `measure`s, a recording in
+`timestamp`s, drum rudiments in `freeform`. The unit is chosen per piece, and
+the repository enforces the matching shape — a free-form piece rejects numeric
+ranges and requires a label, and vice versa. Changing a piece's unit later is
+allowed but warned about: past numbers were recorded in the old unit.
+
+### Analytics — every definition is explicit
+
+`analytics.ts` is pure arithmetic over a loaded event list. An undocumented
+metric is worse than no metric, because people act on it.
+
+| Metric | Definition |
+|---|---|
+| Learning velocity | `(latest mastery − first mastery) / span days × 7`, in points/week. `null` under two events or a zero-day span. |
+| Tempo change | latest BPM − first BPM, across events that carry a tempo. |
+| Tempo target % | latest ÷ target, capped at 100. |
+| Practice consistency | distinct days with an event ÷ weeks elapsed. |
+| Days at level | from the current placement's effective date. |
+| Average days per level | mean gap between consecutive placement changes. |
+
+`null` is used — never `0` — where a value is unknown, so "no tempo recorded"
+and "tempo did not change" stay distinguishable.
+
+### Plateau detection
+
+Flagged only when **all four** hold: the same range repeats for N trailing
+events, over at least M elapsed days, with mastery flat within a band and tempo
+flat within a band. Thresholds live in `DEFAULT_THRESHOLDS` and are a parameter,
+not a constant.
+
+The status is `possible_plateau`, never "stuck". The data can show that nothing
+measurable changed; it cannot show why, and a student may be consolidating.
+Regression is checked *before* plateau, because losing ground is more urgent.
+
+Statuses: `improving`, `stable`, `slowing`, `possible_plateau`, `regression`,
+`insufficient_data`. Each insight carries the evidence that produced it.
+
+### Recommendations — deterministic, before any AI
+
+`recommendations.ts` maps an insight to concrete advice with a stated reason
+built from the actual numbers ("۳ جلسهٔ متوالی روی ۳۷–۴۲…"). Rules encode
+ordinary pedagogy: slow down, isolate the passage, revisit prerequisites,
+extend the range, escalate to the teacher.
+
+Two properties are tested: a recommendation always explains itself, and
+**suggested content is always drawn from `resolveEligibleContent`** — advice
+can never surface material the student may not open.
+
+Silence is a valid output. Padding the panel with filler would train people to
+ignore it.
+
+**AI is deliberately not implemented in this phase.** This layer exists so a
+model can later narrate structured facts instead of being asked to invent
+clinical judgements from raw rows. AI must never compute a statistic that code
+can compute reliably.
+
+### Eligibility additions
+
+`LearningContent.visibility` (`students` | `teachers`) is now enforced inside
+`resolveEligibleContent`. The `audience` parameter defaults to `students` — the
+safer default, so a caller that forgets it cannot leak teacher-only material.
+
+### Placement history
+
+`PlacementHistoryEntry` records **both ends** of a move (`levelId` →
+`toLevelId`) plus an optional `effectiveDate` distinct from `changedAt`, so a
+promotion can be back-dated to the exam date. History is append-only; level
+reordering does not rewrite it.
+
+`prerequisiteLevelIds` on a level is **advisory, not enforced** — a transferring
+student may legitimately start at level 5.
+
+### Profile photos
+
+`Student.photoMediaId` / `Teacher.photoMediaId` hold a `MediaAsset.id`, never a
+data URL. Upload, replace and delete go through the existing media abstraction
+(validation + IndexedDB), and replacing a photo frees the previous blob. Object
+URLs are revoked by `useMediaObjectUrl` on unmount and on every id change.
+
+### Status
+
+| Capability | Status |
+|---|---|
+| Programs, levels, reorder, placement + history | **IMPLEMENTED** |
+| Content, eligibility, visibility | **IMPLEMENTED** |
+| Pieces, assignments, range/tempo/mastery, event log | **IMPLEMENTED** |
+| Analytics, plateau, recommendations | **IMPLEMENTED (deterministic)** |
+| Teacher + student progress workflows | **IMPLEMENTED** |
+| Profile photos | **DEMO ONLY** (per-browser, excluded from backups) |
+| `ApiProgressRepository` | **CONTRACT ONLY** — compiles, no server serves it |
+| AI narration | **NOT IMPLEMENTED** (deliberate; data model first) |
+| Browser QA | **NOT VERIFIED** — no browser automation available |

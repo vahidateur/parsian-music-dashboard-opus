@@ -11,7 +11,7 @@
  * column lists rather than `Object.entries(record)`, so a field added later
  * cannot leak into a file by accident.
  */
-import { instrumentLabel } from "@/data/academy";
+import { instrumentName } from "@/domains/instruments/catalog";
 import {
   getClassRepository,
   getEnrollmentRepository,
@@ -51,7 +51,7 @@ export async function buildExportTable(entity: ExportEntity): Promise<ExportTabl
         headers: ["نام", "ساز", "عنوان", "تلفن", "وضعیت", "ساعت قرارداد", "ساعت هفتگی", "هنرجویان"],
         rows: page.data.map((t) => [
           t.name,
-          instrumentLabel[t.instrument],
+          instrumentName(t.instrument),
           t.title,
           t.phone,
           t.status,
@@ -67,7 +67,7 @@ export async function buildExportTable(entity: ExportEntity): Promise<ExportTabl
         headers: ["عنوان", "ساز", "نوع", "سطح", "مدرس", "اتاق", "ساعت", "مدت", "ثبت‌نام", "ظرفیت", "لیست انتظار", "شهریه", "وضعیت"],
         rows: page.data.map((c) => [
           c.title,
-          instrumentLabel[c.instrument],
+          instrumentName(c.instrument),
           c.kind === "group" ? "گروهی" : "انفرادی",
           c.level,
           c.teacherId,

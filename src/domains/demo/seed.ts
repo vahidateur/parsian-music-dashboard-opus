@@ -7,7 +7,7 @@
  * deterministically from that data, so `createSeedDataset()` always yields the
  * same logical dataset for a given `SEED_VERSION`.
  */
-import { academy, instrumentLabel, type Instrument } from "@/data/academy";
+import { academy } from "@/data/academy";
 import {
   classes,
   conversations,
@@ -24,6 +24,19 @@ import {
 import type { Enrollment } from "@/domains/enrollments/types";
 import { ROLES, roleLabels, type RoleId } from "@/domains/auth/permissions";
 import type { DemoDataset, DemoPayment, DemoRole, DemoUser } from "./types";
+import {
+  deriveBranding,
+  deriveChat,
+  deriveGalleryAlbums,
+  deriveGalleryImages,
+  deriveInstruments,
+  deriveLearningContent,
+  deriveLevelContent,
+  deriveLevels,
+  derivePlacements,
+  derivePrograms,
+} from "./learningSeed";
+import { derivePieces, deriveProgress } from "./progressSeed";
 
 /** Bump when the *shape* or content of the canonical dataset changes. */
 export const SEED_VERSION = "2026.09.1";
@@ -117,8 +130,6 @@ export function deriveRoles(): DemoRole[] {
   return ROLES.map((id) => ({ id, label: roleLabels[id], scope: ROLE_SCOPES[id] }));
 }
 
-const INSTRUMENTS = Object.keys(instrumentLabel) as Instrument[];
-
 /** Builds the canonical dataset. Pure and deterministic. */
 export function createSeedDataset(): DemoDataset {
   return clone<DemoDataset>({
@@ -131,7 +142,6 @@ export function createSeedDataset(): DemoDataset {
       currency: "toman",
       firstWeekday: 0,
       defaultSessionMinutes: 60,
-      instruments: INSTRUMENTS,
     },
     rooms,
     teachers,
@@ -145,6 +155,29 @@ export function createSeedDataset(): DemoDataset {
     resources,
     users: deriveUsers(),
     roles: deriveRoles(),
+
+    branding: deriveBranding(),
+    // No seeded binaries: the demo ships metadata only, so nothing references
+    // a media id that cannot resolve.
+    media: [],
+    instruments: deriveInstruments(),
+    programs: derivePrograms(),
+    levels: deriveLevels(),
+    learningContent: deriveLearningContent(),
+    levelContent: deriveLevelContent(),
+    placements: derivePlacements(),
+    ...(() => {
+      const chat = deriveChat();
+      return { chatConversations: chat.conversations, chatMessages: chat.messages };
+    })(),
+    galleryAlbums: deriveGalleryAlbums(),
+    galleryImages: deriveGalleryImages(),
+
+    pieces: derivePieces(),
+    ...(() => {
+      const progress = deriveProgress();
+      return { pieceAssignments: progress.assignments, progressEvents: progress.events };
+    })(),
   });
 }
 
@@ -166,5 +199,22 @@ export function createEmptyDataset(): DemoDataset {
     resources: [],
     users: [],
     roles: [],
+    // Branding is configuration, not a record set: clearing the demo resets it
+    // to the default identity rather than leaving the app unnamed.
+    branding: deriveBranding(),
+    media: [],
+    instruments: [],
+    programs: [],
+    levels: [],
+    learningContent: [],
+    levelContent: [],
+    placements: [],
+    chatConversations: [],
+    chatMessages: [],
+    galleryAlbums: [],
+    galleryImages: [],
+    pieces: [],
+    pieceAssignments: [],
+    progressEvents: [],
   };
 }

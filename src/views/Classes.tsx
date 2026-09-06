@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Archive, CalendarDays, Pencil, Plus, UserPlus, Users } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
 import { faNum, faPercent, faTime, faToman } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -128,7 +129,7 @@ function ClassDetail({
     <div className="mx-auto max-w-5xl">
       <PageHeader
         breadcrumb={[{ label: "کلاس‌ها", onClick: () => navigate({ view: "classes" }) }, { label: c.title }]}
-        kicker={instrumentLabel[c.instrument]}
+        kicker={instrumentName(c.instrument)}
         title={c.title}
         description={`${c.kind === "group" ? "کلاس گروهی" : "کلاس خصوصی"} · ${c.level} · ${faNum(c.duration)} دقیقه در هر جلسه`}
         meta={
@@ -244,7 +245,10 @@ function ClassDetail({
 export function ClassesView() {
   const { detailId, navigate, notify } = useApp();
   const [query, setQuery] = useState("");
-  const [inst, setInst] = useState<Instrument | "all">("all");
+  const [inst, setInst] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [kind, setKind] = useState<"all" | "group" | "private">("all");
   const [sort, setSort] = useState<"fullness" | "waitlist">("fullness");
   // Repository-backed. Archived classes are excluded by the repository unless
@@ -363,8 +367,8 @@ export function ClassesView() {
             <Chip label="گروهی" active={kind === "group"} count={classes.filter((c) => c.kind === "group").length} onClick={() => setKind(kind === "group" ? "all" : "group")} />
             <Chip label="خصوصی" active={kind === "private"} count={classes.filter((c) => c.kind === "private").length} onClick={() => setKind(kind === "private" ? "all" : "private")} />
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
-            {(["piano", "guitar", "violin", "voice", "drums", "theory"] as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={inst === k} count={classes.filter((c) => c.instrument === k).length} onClick={() => setInst(inst === k ? "all" : k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={inst === i.id} count={classes.filter((c) => c.instrument === i.id).length} onClick={() => setInst(inst === i.id ? "all" : i.id)} />
             ))}
           </>
         }

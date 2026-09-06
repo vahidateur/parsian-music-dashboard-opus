@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
-import { instrumentLabel } from "@/data/academy";
+import { instrumentName } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions, type GridSession } from "@/data/records";
 import { faNum, faPercent, faTime, minutesToFaTime, parseTime, toFa } from "@/lib/format";
@@ -306,7 +306,7 @@ export function SchedulingView() {
                 ["روز", WEEKDAYS[selected.day]],
                 ["ساعت", `${faTime(selected.start)} – ${faTime(selected.end)}`],
                 ["مدرس", teacherById(selected.teacherId)?.name ?? "—"],
-                ["ساز", instrumentLabel[classById(selected.classId)?.instrument ?? "piano"]],
+                ["ساز", instrumentName(classById(selected.classId)?.instrument ?? "piano")],
                 ["هنرجویان", `${faNum(classById(selected.classId)?.enrolled ?? 0)} از ${faNum(classById(selected.classId)?.capacity ?? 0)}`],
                 ["اتاق", rooms.find((r) => r.id === selected.roomId)?.kind ?? "—"],
               ].map(([k, v]) => (

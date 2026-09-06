@@ -130,3 +130,128 @@ Remediation requires `vite@7.3.6`, which is outside the pinned dependency range.
 Deliberately **not** upgraded (pinned versions are not changed just to silence an
 advisory). None of the three ships in `dist/`. Correct remediation: bump Vite in a
 dedicated dependency PR with its own regression run.
+
+## Profiles, learning and media — backend requirements
+
+Added this phase: `instruments`, `learning`, `chat`, `media`, `branding`,
+`gallery`. All six run on the Demo adapter in **both** modes because no server
+implements them yet; this is deliberate and documented at the registry getters
+rather than being a silent production fallback.
+
+### Schema
+
+| Table | Notes |
+|---|---|
+| `instruments` | `organization_id`, `UNIQUE(organization_id, slug)`. Slug immutable after create. |
+| `learning_programs` | FK → `instruments`. `organization_id`. |
+| `learning_levels` | FK → programs, `UNIQUE(program_id, order)`, contiguous ordering enforced in a transaction. |
+| `learning_content` | FK → `media` (nullable). |
+| `level_content_links` | `UNIQUE(level_id, content_id)`. |
+| `student_placements` | `UNIQUE(student_id)` — one active placement per student; keep an append-only history table. |
+| `chat_conversations` / `chat_messages` | FK conversation → messages; index `(conversation_id, sent_at)`. |
+| `media_assets` | Metadata only. Bytes belong in object storage, never in the database. |
+| `gallery_albums` / `gallery_images` | `UNIQUE(album_id, sort_order)` or renumber transactionally. |
+| `organization_branding` | One row per organization. |
+
+### Must be enforced server-side
+
+- **Level reordering** must be transactional. Two concurrent reorders through
+  the client-side renumbering used in the demo would corrupt the sequence.
+- **Placement validity**: the level must belong to the stated program, and be
+  active. The client checks this, but the client is not trusted.
+- **Eligibility must be recomputed on the server** for any endpoint that
+  returns content to a student. The demo's derivation is a UI convenience; a
+  student must not be able to request another level's material by changing a
+  request parameter (IDOR).
+- **Deletion guards** (`INSTRUMENT_IN_USE`, `LEVEL_HAS_STUDENTS`,
+  `PROGRAM_HAS_LEVELS`) must be foreign-key constraints, not just app checks.
+
+### Media
+
+- Signed, short-lived upload URLs; never let the browser write directly to a
+  public bucket.
+- **Re-validate MIME type and magic bytes server-side.** The client's
+  allow-list and signature sniffing are a UX filter only.
+- Virus/malware scanning before an asset becomes readable.
+- Strip EXIF (including GPS) from uploaded images.
+- Serve user content from a separate origin with
+  `Content-Disposition: attachment` and a restrictive CSP, so an uploaded file
+  cannot execute in the app's origin.
+- Enforce per-organization storage quotas.
+
+### Chat
+
+- Telegram/Bale/SMS/email require a **server-side relay**. Bot tokens and API
+  keys must never appear in `VITE_*` variables — Vite inlines those into the
+  public bundle.
+- Verify webhook signatures; rate-limit outbound sends per the provider's
+  documented limits (not yet researched — do that before implementing).
+- Authorize every conversation read against the requesting user; conversation
+  ids must not be guessable authorization.
+- Persist delivery receipts server-side; the demo's `sent` / `unavailable`
+  status is local-only.
+
+### Not implemented
+
+- Audio waveform peaks are computed at upload time in a real system; the demo
+  falls back to a deterministic placeholder shape.
+- Gallery images and any uploaded media are **per-browser** in the demo and are
+  excluded from backup/restore.
+
+## Learning progress — backend requirements
+
+Added: `pieces`, `piece_assignments`, `progress_events`, plus `visibility` on
+learning content and richer placement history.
+
+### Schema
+
+| Table | Notes |
+|---|---|
+| `pieces` | FK → instruments; `organization_id`. `range_unit` enum, `total_range` nullable. |
+| `piece_assignments` | FK → students, pieces. Partial `UNIQUE(student_id, piece_id)` over OPEN statuses only, so a completed piece can be re-assigned. |
+| `progress_events` | FK → assignment, student. **Append-only**: grant INSERT/SELECT, not UPDATE/DELETE. Index `(student_id, recorded_at DESC)` and `(assignment_id, recorded_at DESC)`. |
+| `placement_history` | Separate table, not a JSON column, once volume matters. Records from-level, to-level, effective date. |
+| `learning_content.visibility` | Enum `students`/`teachers`. |
+
+### Must be enforced server-side
+
+- **Analytics and plateau detection must be recomputed on the server** over the
+  full history. The client's copy is a convenience for the demo; with thousands
+  of events, shipping the log to a browser to compute an average will not scale.
+- **Eligibility filtering for recommended content must be re-applied
+  server-side.** The client filter is UX, not an authorization boundary — a
+  student must not be able to reach another level's material by changing a
+  request parameter (IDOR).
+- **`visibility = teachers` must be enforced in the query**, not by hiding it in
+  the UI.
+- **The event log must be immutable at the database level.** An append-only
+  grant is the enforcement; application discipline is not enough.
+- **Mastery, tempo, practice minutes and range bounds must be re-validated.**
+  Client bounds catch typos, nothing more.
+- **`source` (`teacher`/`student`) is provenance, not authorization.** The
+  server decides who may write a teacher-sourced event; the client claim must
+  never be trusted.
+- Partial-unique constraint on open assignments must be a DB constraint, not an
+  application check, or a double-submit will create two.
+
+### Privacy
+
+Progress notes and practice history are **behavioural data about a minor** in
+many cases. Treat them at the same sensitivity as the national ID:
+
+- never include them in telemetry, debug logs or URLs;
+- a guardian's access must be scoped to their own child;
+- exports containing progress notes need the same permission gate as student
+  exports;
+- retention policy should be explicit — practice logs need not be kept forever.
+
+### Not implemented
+
+- **AI narration.** This phase built the deterministic data model on purpose so
+  a model can later summarise real numbers. Any future AI layer must consume
+  `ProgressInsight`/`Recommendation`, not invent statistics.
+- `ApiProgressRepository` exists and compiles against the shared `ApiClient`,
+  but no server serves those endpoints and it is deliberately **not registered**
+  — wiring it now would produce failing requests presented as a feature.
+- Profile photos and all media remain per-browser in the demo and are excluded
+  from backup/restore; production needs object storage with signed URLs.

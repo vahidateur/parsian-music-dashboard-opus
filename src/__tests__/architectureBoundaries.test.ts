@@ -99,4 +99,50 @@ describe("list hooks request an explicit page size", () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  /**
+   * Instruments are runtime data (see domains/instruments/catalog.ts).
+   *
+   * Reintroducing a closed union or a hardcoded instrument list would silently
+   * re-break academies that define their own instruments, and the compiler
+   * cannot catch it because the union would type-check fine on its own.
+   */
+  it("no module redefines instruments as a fixed set", () => {
+    const offenders: string[] = [];
+    const allSource = [...viewLayer, ...sourceFiles(join(ROOT, "domains")), ...sourceFiles(join(ROOT, "data"))];
+
+    for (const file of allSource) {
+      // The catalogue is the one place allowed to enumerate the seeded set.
+      if (file.includes(join("domains", "instruments", "catalog.ts"))) continue;
+      const source = code(readFileSync(file, "utf8"));
+
+      // The deleted union and its label map must not come back.
+      if (/\binstrumentLabel\b/.test(source)) offenders.push(`${file} → instrumentLabel`);
+      if (/type\s+Instrument\s*=/.test(source)) offenders.push(`${file} → type Instrument = …`);
+      if (/Record<\s*Instrument\s*,/.test(source)) offenders.push(`${file} → Record<Instrument, …>`);
+
+      // An inline list of instrument slugs is the same mistake by another name.
+      if (/["'`]piano["'`]\s*,\s*["'`]guitar["'`]/.test(source)) {
+        offenders.push(`${file} → hardcoded instrument list`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * §38 — no fixture constant may be presented as a real measurement.
+   *
+   * `student.skills` is seed data. It was previously rendered under the
+   * caption "ارزیابی مدرس" (teacher assessment), which is a false claim about
+   * where the number came from. Real progress is derived from the immutable
+   * ProgressEvent log and lives in the progress domain.
+   */
+  it("no view renders the fixture skills array as a progress metric", () => {
+    const offenders: string[] = [];
+    for (const file of viewLayer) {
+      const source = code(readFileSync(file, "utf8"));
+      if (/\.skills\b/.test(source)) offenders.push(`${file} → renders student.skills`);
+    }
+    expect(offenders).toEqual([]);
+  });
 });

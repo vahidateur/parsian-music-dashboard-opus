@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, CircleAlert, Info, Lightbulb, Plus, TrendingU
 import { cn } from "@/utils/cn";
 import { faNum, faTime, parseTime } from "@/lib/format";
 import type { IntelligenceCard } from "@/data/records";
-import { instrumentLabel, type AttentionItem, type ClassSession, type ClassStatus, type Insight, type Severity, type Signal } from "@/data/academy";
+import type { AttentionItem, ClassSession, ClassStatus, Insight, Severity, Signal } from "@/data/academy";
 import { academyNowMinutes } from "@/domains/shared/clock";
 import { Delta, InstrumentGlyph, Sparkline, StatusBadge, Surface } from "./primitives";
 
@@ -394,4 +394,3 @@ export function ChartCard({
   );
 }
 
-export const instrumentName = (k: ClassSession["instrument"]) => instrumentLabel[k];

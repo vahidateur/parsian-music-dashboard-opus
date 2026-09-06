@@ -6,6 +6,11 @@ import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Field, PageHeader, Panel, Segmented, Toggle, inputCls } from "@/components/ds/patterns";
 import { RoomsPanel } from "@/domains/rooms/RoomsPanel";
+import { BrandingPanel } from "@/domains/branding/BrandingPanel";
+import { InstrumentsPanel } from "@/domains/instruments/InstrumentsPanel";
+import { LearningPanel } from "@/domains/learning/LearningPanel";
+import { GalleryPanel } from "@/domains/gallery/GalleryPanel";
+import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
 import { ImportExportCenter } from "@/domains/import/ImportExportCenter";
 import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
 import { UsersPanel } from "@/components/settings/UsersPanel";
@@ -96,20 +101,17 @@ export function SettingsView() {
         <div key={section} className="animate-phrase-in space-y-4">
           {section === "profile" && (
             <>
-              <Panel title="هویت آموزشگاه" kicker="این اطلاعات در فاکتورها، پیام‌ها و اپلیکیشن هنرجو دیده می‌شود">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="نام آموزشگاه"><input defaultValue="آکادمی موسیقی آوا" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="شمارهٔ تماس"><input defaultValue="۰۲۱ ۸۸۵۴ ۲۲۱۰" onChange={() => setDirty(true)} className={inputCls} dir="ltr" /></Field>
-                  <Field label="نشانی" className="sm:col-span-2"><input defaultValue="تهران، خیابان ولیعصر، کوچهٔ هنر، پلاک ۱۴" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="شعار / معرفی کوتاه" className="sm:col-span-2">
-                    <textarea defaultValue="آموزش موسیقی با کیفیت کنسرواتوار، در فضایی آرام و حرفه‌ای." onChange={() => setDirty(true)} rows={2} className={cn(inputCls, "h-auto py-2.5 leading-relaxed")} />
-                  </Field>
-                </div>
-              </Panel>
+              {/*
+                Academy identity is real, persisted data (BrandingRepository).
+                Working hours below remain presentational until the scheduling
+                domain owns them — the notice says so rather than implying the
+                inputs are saved.
+              */}
+              <BrandingPanel />
               <Panel title="ساعات کاری" kicker="مبنای بازه‌های قابل رزرو در تقویم">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="شروع روز کاری"><input defaultValue="۰۸:۰۰" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="پایان روز کاری"><input defaultValue="۲۱:۰۰" onChange={() => setDirty(true)} className={inputCls} /></Field>
+                  <Field label="شروع روز کاری"><input defaultValue="۰۸:۰۰" disabled className={inputCls} /></Field>
+                  <Field label="پایان روز کاری"><input defaultValue="۲۱:۰۰" disabled className={inputCls} /></Field>
                 </div>
                 <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                   <div>
@@ -118,6 +120,9 @@ export function SettingsView() {
                   </div>
                   <Toggle checked={toggles.friday ?? false} onChange={set("friday")} label="تعطیلی جمعه" />
                 </div>
+                <p className="mt-3 text-[11px] leading-relaxed text-warn-400">
+                  ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است.
+                </p>
               </Panel>
             </>
           )}
@@ -359,6 +364,10 @@ export function SettingsView() {
           {section === "operations" && (
             <>
               <RoomsPanel />
+              <InstrumentsPanel />
+              <LearningPanel />
+              <RepertoirePanel />
+              <GalleryPanel />
               <Panel title="قواعد جلسه" kicker="رفتار پیش‌فرض سامانه هنگام ثبت جلسات">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="مدت پیش‌فرض جلسه" hint="دقیقه"><input defaultValue="۶۰" onChange={() => setDirty(true)} className={inputCls} /></Field>

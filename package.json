@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "gen:access-path": "node scripts/gen-access-path.mjs"
   },
   "dependencies": {
     "@fontsource/vazirmatn": "^5.3.0",
@@ -31,7 +32,6 @@
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",
     "vite": "7.3.2",
-    "vite-plugin-singlefile": "2.3.0",
     "vitest": "^3.2.7"
   }
 }

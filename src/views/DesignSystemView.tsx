@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { LayoutGrid, MessageSquare, Music2, Users } from "lucide-react";
 import { useState } from "react";
-import { attentionItems, insights, instrumentLabel, schedule, signals, type ClassStatus } from "@/data/academy";
+import { attentionItems, insights, schedule, signals, type ClassStatus } from "@/data/academy";
+import { instrumentName } from "@/domains/instruments/catalog";
 import { intelligenceCards, students } from "@/data/records";
 import { AlertItem, InsightItem, IntelligenceCardView, NavItem, QuickAction, SignalBlock, TimelineEvent } from "@/components/ds/blocks";
 import { Avatar, Chip, DataTable, Dialog, Drawer, Field, FilterBar, ListRow, Meter, PageHeader, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, Toggle, inputCls } from "@/components/ds/patterns";
@@ -266,7 +267,7 @@ export function DesignSystemView() {
             rows={students.slice(0, 3)}
             columns={[
               { key: "n", header: "هنرجو", cell: (s) => <div className="flex items-center gap-2"><Avatar name={s.name} size="xs" />{s.name}</div> },
-              { key: "i", header: "ساز", cell: (s) => instrumentLabel[s.instrument] },
+              { key: "i", header: "ساز", cell: (s) => instrumentName(s.instrument) },
               { key: "a", header: "حضور", cell: (s) => <Meter value={s.attendance} tone="ok" size="sm" label={`${s.attendance}٪`} className="w-20" />, align: "end" },
             ]}
           />

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
 import { useStudentList } from "@/domains/students";
@@ -12,6 +13,8 @@ import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
+import { StudentLearningPanel } from "@/domains/learning/StudentLearningPanel";
+import { StudentProgressPanel } from "@/domains/progress/StudentProgressPanel";
 import { cn } from "@/utils/cn";
 
 /**
@@ -68,7 +71,7 @@ function StudentCard({ s, onOpen }: { s: Student; onOpen: () => void }) {
           <div className="truncate text-[14px] font-semibold text-ink-50">{s.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
             <InstrumentGlyph kind={s.instrument} className="size-3.5 text-gold-400" />
-            {instrumentLabel[s.instrument]}
+            {instrumentName(s.instrument)}
             <span className="text-ink-600">·</span>
             <span className="truncate">{s.level}</span>
           </div>
@@ -159,7 +162,7 @@ function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => vo
             <StatusBadge tone={statusTone[student.status]} label={studentStatusLabel[student.status]} />
           </span>
         }
-        description={`${instrumentLabel[student.instrument]} · ${student.level} · مدرس: ${teacher?.name ?? "—"}`}
+        description={`${instrumentName(student.instrument)} · ${student.level} · مدرس: ${teacher?.name ?? "—"}`}
         meta={
           <>
             <span className="nums">{faNum(student.age)} ساله</span>
@@ -250,7 +253,7 @@ function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => vo
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-ink-50">
                     <InstrumentGlyph kind={student.instrument} className="size-4 text-gold-400" />
-                    {instrumentLabel[student.instrument]}
+                    {instrumentName(student.instrument)}
                   </div>
                   <div className="nums mt-2 text-[13px] text-ink-200">
                     {student.nextClass.day} · {student.nextClass.time}
@@ -267,19 +270,16 @@ function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => vo
               )}
             </Panel>
 
-            <Panel title="مهارت‌ها" kicker="ارزیابی مدرس در پایان هر ۴ جلسه" className="lg:col-span-1">
-              <ul className="space-y-3">
-                {student.skills.map((sk, i) => (
-                  <li key={sk.label}>
-                    <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                      <span className="text-ink-200">{sk.label}</span>
-                      <span className="nums text-ink-400">{faPercent(sk.value)}</span>
-                    </div>
-                    <Meter value={sk.value} tone={sk.value >= 70 ? "ok" : sk.value >= 45 ? "gold" : "neutral"} delay={i * 80} />
-                  </li>
-                ))}
-              </ul>
-            </Panel>
+            {/*
+              The fixture-driven "مهارت‌ها" meter that used to sit here has been
+              removed. It rendered `student.skills` — static seed numbers — under
+              the caption "ارزیابی مدرس", i.e. it presented invented values as a
+              teacher's assessment (§38).
+
+              Real, teacher-recorded progress lives on the «مسیر یادگیری» tab,
+              derived from the immutable ProgressEvent log. It is deliberately
+              NOT duplicated here: a second surface would drift from the log.
+            */}
 
             <Panel
               title="آخرین فعالیت‌ها"
@@ -492,45 +492,20 @@ function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => vo
         )}
 
         {tab === "learning" && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="مسیر سطح" kicker="پیشرفت در مسیر آموزشی آموزشگاه">
-              <ol className="relative space-y-3">
-                {["پایه", "مقدماتی", "میانی", "پیشرفته", "حرفه‌ای", "اجرای صحنه"].map((lvl, i) => {
-                  const done = i + 1 < student.levelStep;
-                  const current = i + 1 === student.levelStep;
-                  return (
-                    <li key={lvl} className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "flex size-7 shrink-0 items-center justify-center rounded-full border text-[10.5px] font-semibold",
-                          done ? "border-ok-500/40 bg-ok-500/15 text-ok-400" : current ? "border-gold-500/50 bg-gold-500/15 text-gold-300" : "border-white/[0.08] text-ink-500",
-                        )}
-                      >
-                        {faNum(i + 1)}
-                      </span>
-                      <span className={cn("flex-1 text-[13px]", current ? "font-medium text-ink-50" : done ? "text-ink-200" : "text-ink-500")}>{lvl}</span>
-                      {current && <StatusBadge tone="gold" label="سطح فعلی" glyph={false} />}
-                    </li>
-                  );
-                })}
-              </ol>
-            </Panel>
-            <Panel title="روند پیشرفت" kicker="بر پایهٔ ارزیابی‌های مدرس">
-              <div className="space-y-3">
-                {student.skills.map((sk, i) => (
-                  <div key={sk.label}>
-                    <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                      <span className="text-ink-200">{sk.label}</span>
-                      <span className="nums text-ink-400">{faPercent(sk.value)}</span>
-                    </div>
-                    <Meter value={sk.value} tone="violet" delay={i * 80} />
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 border-t border-white/[0.05] pt-3 text-[11.5px] leading-relaxed text-ink-300">
-                میانگین کل: <span className="nums text-ink-100">{faPercent(Math.round(student.skills.reduce((a, b) => a + b.value, 0) / student.skills.length))}</span>
-              </p>
-            </Panel>
+          <div className="space-y-4">
+            {/*
+              Real placement + derived content access (LearningRepository).
+              The previous hardcoded six-step ladder and the fixture-driven
+              `levelStep` no longer decide what a student can see.
+            */}
+            <StudentLearningPanel studentId={student.id} studentName={student.name} />
+
+            {/*
+              Repertoire, practice history, analytics and recommendations, all
+              computed from the immutable progress log. Rendered in the teacher
+              role: this is the staff-facing workspace.
+            */}
+            <StudentProgressPanel studentId={student.id} studentName={student.name} role="teacher" />
           </div>
         )}
 
@@ -565,7 +540,10 @@ export function StudentsView() {
   const { filter, detailId, navigate, notify } = useApp();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
-  const [instrument, setInstrument] = useState<Instrument | "all">("all");
+  const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [layout, setLayout] = useState<"cards" | "table">("cards");
 
   // Repository-backed: the view no longer imports the student fixture. Loading
@@ -592,7 +570,7 @@ export function StudentsView() {
         (s) =>
           (status === "all" || s.status === status) &&
           (instrument === "all" || s.instrument === instrument) &&
-          (query === "" || s.name.includes(query) || instrumentLabel[s.instrument].includes(query)),
+          (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
       ),
     [students, status, instrument, query],
   );
@@ -670,7 +648,7 @@ export function StudentsView() {
         </div>
       ),
     },
-    { key: "instrument", header: "ساز", cell: (s) => <span className="text-ink-200">{instrumentLabel[s.instrument]}</span>, hideBelow: "sm" },
+    { key: "instrument", header: "ساز", cell: (s) => <span className="text-ink-200">{instrumentName(s.instrument)}</span>, hideBelow: "sm" },
     { key: "teacher", header: "مدرس", cell: (s) => <span className="text-ink-300">{teacherById(s.teacherId)?.name}</span>, hideBelow: "md" },
     {
       key: "sessions",
@@ -736,8 +714,8 @@ export function StudentsView() {
             ))}
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
             <Chip label="همهٔ سازها" tone="violet" active={instrument === "all"} onClick={() => setInstrument("all")} />
-            {(Object.keys(instrumentLabel) as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={instrument === k} count={students.filter((s) => s.instrument === k).length} onClick={() => setInstrument(k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={instrument === i.id} count={students.filter((s) => s.instrument === i.id).length} onClick={() => setInstrument(i.id)} />
             ))}
           </>
         }

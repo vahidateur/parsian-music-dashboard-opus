@@ -34,7 +34,7 @@ describe("route protection", () => {
   it("shows the login screen when unauthenticated", async () => {
     useIsolatedAuth();
     render(<App />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "ورود" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^ورود/ })).toBeTruthy());
     expect(screen.queryByRole("navigation", { name: "ناوبری اصلی" })).toBeNull();
   });
 
@@ -42,7 +42,7 @@ describe("route protection", () => {
     window.location.hash = "#/finance";
     useIsolatedAuth();
     render(<App />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "ورود" })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: /^ورود/ })).toBeTruthy());
     expect(screen.queryByText("مالی و شهریه")).toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe("route protection", () => {
     await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
     render(<App />);
     await waitFor(() => expect(screen.getByRole("navigation", { name: "ناوبری اصلی" })).toBeTruthy());
-    expect(screen.queryByRole("button", { name: "ورود" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^ورود/ })).toBeNull();
   });
 
   it("honours a deep link for an authorized user", async () => {

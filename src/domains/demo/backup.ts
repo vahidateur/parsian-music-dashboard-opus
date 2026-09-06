@@ -249,6 +249,42 @@ export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
     });
   });
 
+  // Repertoire and progress. A progress event whose assignment vanished would
+  // make a history chart unreadable, so these are hard integrity errors.
+  dataset.pieces.forEach((piece, i) => {
+    ref(
+      has("instruments", piece.instrumentId),
+      `pieces[${i}].instrumentId`,
+      `قطعهٔ «${piece.id}» به ساز ناموجود ارجاع دارد.`,
+    );
+  });
+
+  dataset.pieceAssignments.forEach((assignment, i) => {
+    ref(
+      has("students", assignment.studentId),
+      `pieceAssignments[${i}].studentId`,
+      `تخصیص «${assignment.id}» به هنرجوی ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("pieces", assignment.pieceId),
+      `pieceAssignments[${i}].pieceId`,
+      `تخصیص «${assignment.id}» به قطعهٔ ناموجود ارجاع دارد.`,
+    );
+  });
+
+  dataset.progressEvents.forEach((event, i) => {
+    ref(
+      has("pieceAssignments", event.assignmentId),
+      `progressEvents[${i}].assignmentId`,
+      `رویداد پیشرفت «${event.id}» به تخصیص ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("students", event.studentId),
+      `progressEvents[${i}].studentId`,
+      `رویداد پیشرفت «${event.id}» به هنرجوی ناموجود ارجاع دارد.`,
+    );
+  });
+
   // national_id: required, valid and unique across the academy (§5/§17).
   const seenNationalIds = new Map<string, string>();
   dataset.students.forEach((student, i) => {

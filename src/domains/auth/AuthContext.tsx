@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
+import { clearAttempts, recordFailure } from "@/security/loginThrottle";
+import { SESSION_TTL_MS } from "@/domains/auth/demoAuthRepository";
+import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
 import { can, canAccessView, canAll, canAny, type Permission } from "./permissions";
 import type { AuthRepository } from "./repository";
@@ -53,6 +56,13 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       .restore()
       .then((restored) => {
         if (!active) return;
+        if (restored) {
+          // Re-anchor the absolute clock to the token's own expiry. Without
+          // this, clearing localStorage would hand a still-valid session a
+          // fresh absolute lifetime — the ceiling would be resettable by the
+          // party it is meant to constrain.
+          anchorSessionClock(restored.expiresAt, SESSION_TTL_MS);
+        }
         setSession(restored);
         setStatus(restored ? "authenticated" : "unauthenticated");
       })
@@ -73,10 +83,17 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       try {
         const next = await repo.login(input);
         if (!mounted.current) return true;
+        // A fresh clock on every sign-in: a new session must not inherit the
+        // previous one's remaining absolute lifetime.
+        resetSessionClock();
+        clearAttempts();
         setSession(next);
         setStatus("authenticated");
         return true;
       } catch (cause) {
+        // Record the failure for the client-side backoff. The authoritative
+        // rate limit is server-side; this only slows the honest path.
+        recordFailure();
         if (mounted.current) setError(apiErrorFromThrown(cause));
         return false;
       } finally {
@@ -90,6 +107,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     try {
       await repo.logout();
     } finally {
+      clearSessionClock();
       if (mounted.current) {
         setSession(null);
         setStatus("unauthenticated");

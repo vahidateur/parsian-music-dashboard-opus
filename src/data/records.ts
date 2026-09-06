@@ -1,4 +1,4 @@
-import type { Instrument, Severity, Target } from "./academy";
+import type { InstrumentId, Severity, Target } from "./academy";
 
 /* ------------------------------------------------------------------ */
 /* Shared vocabulary                                                    */
@@ -36,7 +36,9 @@ export interface TeacherNote {
 export interface Teacher {
   id: string;
   name: string;
-  instrument: Instrument;
+  /** Profile photo as a `MediaAsset.id`. See `Student.photoMediaId`. */
+  photoMediaId?: string;
+  instrument: InstrumentId;
   title: string;
   students: number;
   utilization: number; // % of contracted hours filled
@@ -139,7 +141,12 @@ export interface Student {
    */
   nationalId: string;
   name: string;
-  instrument: Instrument;
+  /**
+   * Profile photo, as a `MediaAsset.id`. Never a data URL: binaries live in
+   * the media domain (IndexedDB in demo, object storage in production).
+   */
+  photoMediaId?: string;
+  instrument: InstrumentId;
   teacherId: string;
   level: string;
   levelStep: number; // 1..6
@@ -327,7 +334,7 @@ export interface AcademyClass {
   /** Absent means active. "archived" hides the class from new enrollment. */
   status?: "active" | "archived";
   title: string;
-  instrument: Instrument;
+  instrument: InstrumentId;
   teacherId: string;
   roomId: string;
   kind: "private" | "group";
@@ -599,7 +606,7 @@ export interface Resource {
   title: string;
   composer: string;
   kind: ResourceKind;
-  instrument: Instrument;
+  instrument: InstrumentId;
   level: string;
   size: string;
   duration?: string;
@@ -628,10 +635,10 @@ export const resources: Resource[] = [
 ];
 
 export const libraryShelves = [
-  { id: "sh1", label: "نت‌های پیانو", kind: "sheet" as ResourceKind, instrument: "piano" as Instrument, count: 86 },
-  { id: "sh2", label: "متدهای پایه", kind: "doc" as ResourceKind, instrument: "theory" as Instrument, count: 34 },
-  { id: "sh3", label: "نمونه‌های شنیداری", kind: "audio" as ResourceKind, instrument: "voice" as Instrument, count: 52 },
-  { id: "sh4", label: "ویدیوهای آموزشی", kind: "video" as ResourceKind, instrument: "violin" as Instrument, count: 28 },
+  { id: "sh1", label: "نت‌های پیانو", kind: "sheet" as ResourceKind, instrument: "piano" as InstrumentId, count: 86 },
+  { id: "sh2", label: "متدهای پایه", kind: "doc" as ResourceKind, instrument: "theory" as InstrumentId, count: 34 },
+  { id: "sh3", label: "نمونه‌های شنیداری", kind: "audio" as ResourceKind, instrument: "voice" as InstrumentId, count: 52 },
+  { id: "sh4", label: "ویدیوهای آموزشی", kind: "video" as ResourceKind, instrument: "violin" as InstrumentId, count: 28 },
 ];
 
 /* ------------------------------------------------------------------ */
