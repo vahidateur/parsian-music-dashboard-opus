@@ -570,7 +570,12 @@ export function StudentsView() {
 
   // Repository-backed: the view no longer imports the student fixture. Loading
   // state is the repository's real state, not a simulated delay.
-  const { students, loading, error, reload } = useStudentList();
+  //
+  // `per_page` is explicit because the detail page resolves `detailId` against
+  // this list: relying on the repository default silently hid every student
+  // past the first page behind a "not found" state. BACKEND REQUIRED: server-side
+  // paging plus a `get(id)` fetch for the detail route replaces this ceiling.
+  const { students, loading, error, reload } = useStudentList({ per_page: 200 });
 
   // Create/edit are driven by one dialog; `editing` distinguishes the modes.
   const [formOpen, setFormOpen] = useState(false);

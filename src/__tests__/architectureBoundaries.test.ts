@@ -79,3 +79,24 @@ describe("demo clock is not read directly", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("list hooks request an explicit page size", () => {
+  /**
+   * A detail route resolves its id against the loaded list, so a hook that
+   * relies on the repository's default page size silently truncates the
+   * dataset and turns real records into "not found". Until the detail routes
+   * fetch by id, every call site must state its own ceiling.
+   */
+  it("no domain list hook is called with no arguments", () => {
+    const hooks = ["useStudentList", "useTeachers", "useRooms", "useClasses", "useEnrollments"];
+    const offenders: string[] = [];
+    for (const file of [...viewLayer, ...sourceFiles(join(ROOT, "domains"))]) {
+      const source = code(readFileSync(file, "utf8"));
+      for (const hook of hooks) {
+        // `useX()` with an empty argument list, i.e. no params object.
+        if (new RegExp(`\\b${hook}\\s*\\(\\s*\\)`).test(source)) offenders.push(`${file} → ${hook}()`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});
