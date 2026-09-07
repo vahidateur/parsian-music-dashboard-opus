@@ -37,6 +37,7 @@ import {
   derivePrograms,
 } from "./learningSeed";
 import { derivePieces, deriveProgress } from "./progressSeed";
+import { deriveScheduledSessions } from "./schedulingSeed";
 
 /** Bump when the *shape* or content of the canonical dataset changes. */
 export const SEED_VERSION = "2026.09.1";
@@ -173,6 +174,11 @@ export function createSeedDataset(): DemoDataset {
     galleryAlbums: deriveGalleryAlbums(),
     galleryImages: deriveGalleryImages(),
 
+    scheduledSessions: deriveScheduledSessions(),
+    // Attendance is recorded through the repository, not seeded: the demo
+    // opens with registers waiting to be taken, which is what exercises the UI.
+    attendanceRecords: [],
+    attendanceCorrections: [],
     pieces: derivePieces(),
     ...(() => {
       const progress = deriveProgress();
@@ -216,5 +222,8 @@ export function createEmptyDataset(): DemoDataset {
     pieces: [],
     pieceAssignments: [],
     progressEvents: [],
+    scheduledSessions: [],
+    attendanceRecords: [],
+    attendanceCorrections: [],
   };
 }

@@ -210,6 +210,21 @@ export class DemoStoreImpl {
   /** Append-only history; newest-last so a timeline reads chronologically. */
   readonly progressEvents = this.collection("progressEvents", "pe_");
 
+  /* ---- scheduling ---- */
+
+  /**
+   * Real dated occurrences. Generated slots carry deterministic ids
+   * (`ses_<classId>_<YYYYMMDD>_<HHmm>`) supplied by the caller, so the `ses_`
+   * prefix here only applies to manually created sessions.
+   */
+  readonly scheduledSessions = this.collection("scheduledSessions", "ses_m_");
+
+  /* ---- attendance ---- */
+
+  readonly attendanceRecords = this.collection("attendanceRecords", "att_");
+  /** Append-only: written by corrections, never updated or removed. */
+  readonly attendanceCorrections = this.collection("attendanceCorrections", "atc_");
+
   /**
    * Branding is a singleton record rather than a collection, so it gets a
    * read/patch pair instead of the generic CRUD surface.
@@ -276,6 +291,9 @@ type ArrayCollection =
   | "pieces"
   | "pieceAssignments"
   | "progressEvents"
+  | "scheduledSessions"
+  | "attendanceRecords"
+  | "attendanceCorrections"
   | "programs"
   | "levels"
   | "learningContent"

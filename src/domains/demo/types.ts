@@ -28,6 +28,8 @@ import type {
 import type { ChatConversation, ChatMessage } from "@/domains/chat/types";
 import type { GalleryAlbum, GalleryImage } from "@/domains/gallery/types";
 import type { Piece, PieceAssignment, ProgressEvent } from "@/domains/progress/types";
+import type { Session } from "@/domains/scheduling/types";
+import type { AttendanceCorrection, AttendanceRecord } from "@/domains/attendance/types";
 import type { BrandingSettings } from "@/domains/branding/types";
 import type { RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
@@ -85,8 +87,34 @@ export interface DemoDataset {
   students: Student[];
   classes: AcademyClass[];
   enrollments: Enrollment[];
+  /**
+   * LEGACY weekly template (`day: 0-6`, no date). Superseded by
+   * `scheduledSessions` and removed once the views are rewired (task H5).
+   * Retained for now so the existing seed, backup validation and views keep
+   * working while the scheduling domain is built alongside them.
+   */
   sessions: GridSession[];
+  /** LEGACY roster fixture. Superseded by the attendance domain (Group D). */
   attendance: AttendanceRoster[];
+
+  /**
+   * Real dated occurrences owned by the scheduling domain.
+   *
+   * A separate field from `sessions` on purpose: the legacy array is a weekly
+   * TEMPLATE keyed by weekday, while these are materialized dated sessions.
+   * Migrating in place would have forced the seed and backup rewrite (C3/C4)
+   * into this step.
+   */
+  scheduledSessions: Session[];
+
+  /**
+   * Attendance marks, keyed by (session, student). Owned by the attendance
+   * domain; distinct from the legacy `attendance` roster fixture above, which
+   * is removed in task H5.
+   */
+  attendanceRecords: AttendanceRecord[];
+  /** Append-only audit trail for attendance changes. Never edited. */
+  attendanceCorrections: AttendanceCorrection[];
   invoices: Invoice[];
   payments: DemoPayment[];
   conversations: Conversation[];
@@ -146,6 +174,9 @@ export const DEMO_COLLECTIONS = [
   "pieces",
   "pieceAssignments",
   "progressEvents",
+  "scheduledSessions",
+  "attendanceRecords",
+  "attendanceCorrections",
 ] as const;
 
 export type DemoCollectionName = (typeof DEMO_COLLECTIONS)[number];

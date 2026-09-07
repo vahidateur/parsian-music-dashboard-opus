@@ -32,7 +32,11 @@ import type { BrandingRepository } from "./branding/repository";
 import { DemoGalleryRepository } from "./gallery/demoRepository";
 import type { GalleryRepository } from "./gallery/repository";
 import type { ProgressRepository } from "@/domains/progress/repository";
+import type { SchedulingRepository } from "@/domains/scheduling/repository";
+import type { AttendanceRepository } from "@/domains/attendance/repository";
 import { DemoProgressRepository } from "@/domains/progress/demoRepository";
+import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
 
 /**
  * Composition root. The only place that decides whether a domain is served by
@@ -58,6 +62,8 @@ interface Overrides {
   branding?: BrandingRepository;
   gallery?: GalleryRepository;
   progress?: ProgressRepository;
+  scheduling?: SchedulingRepository;
+  attendance?: AttendanceRepository;
 }
 const overrides: Overrides = {};
 
@@ -150,9 +156,77 @@ export function getProgressRepository(): ProgressRepository {
   return overrides.progress ?? new DemoProgressRepository();
 }
 
+/**
+ * Scheduling.
+ *
+ * Resolves to the demo implementation in BOTH modes for the same reason as the
+ * domains above: `ApiSchedulingRepository` exists and compiles, but no server
+ * serves those endpoints, and registering it would turn every call into a
+ * failing request presented as a feature (§37).
+ *
+ * ATTENDANCE PROTECTION. The repository is constructed with a presence
+ * provider backed by real attendance data, so a session that already has marks
+ * against it is protected from deletion, editing and rescheduling.
+ *
+ * The provider is a NARROW boundary — a function returning session ids. It is
+ * built here rather than inside the scheduling domain so that scheduling never
+ * imports the attendance implementation, and the dependency stays
+ * one-directional: attendance may read scheduling for session context, while
+ * scheduling consumes only this set of ids.
+ *
+ * It is still fail-safe. When the provider cannot answer (an unexpected error
+ * from the attendance adapter), it returns `undefined`, which the scheduling
+ * repository treats as "attendance may exist" and refuses the operation.
+ */
+export function getSchedulingRepository(): SchedulingRepository {
+  return overrides.scheduling ?? new DemoSchedulingRepository(undefined, attendancePresence);
+}
+
+/**
+ * Attendance.
+ *
+ * Resolves to the demo implementation in BOTH modes, for the same reason as
+ * the domains above: the REST contract exists and compiles, but no server
+ * serves it.
+ */
+export function getAttendanceRepository(): AttendanceRepository {
+  return overrides.attendance ?? new DemoAttendanceRepository();
+}
+
+/**
+ * The scheduling ↔ attendance boundary.
+ *
+ * Returns the ids of sessions that have at least one attendance record, or
+ * `undefined` when that cannot be determined — which scheduling treats as
+ * "assume attendance exists" and refuses to destroy anything.
+ *
+ * An injected attendance override is honoured only when it can answer
+ * synchronously; the interface method is async by design (a real backend needs
+ * it), while the demo adapter also exposes a sync form for the planner.
+ */
+function attendancePresence(): ReadonlySet<string> | undefined {
+  try {
+    const repository = overrides.attendance ?? new DemoAttendanceRepository();
+    if (repository instanceof DemoAttendanceRepository) {
+      return repository.sessionIdsWithAttendanceSync();
+    }
+    // A non-demo adapter cannot answer synchronously. Fail safe rather than
+    // guessing that no attendance exists.
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /* Test seams: inject fakes. Pass `undefined` to restore the real selection. */
 export function setProgressRepository(repository: ProgressRepository | undefined): void {
   overrides.progress = repository;
+}
+export function setSchedulingRepository(repository: SchedulingRepository | undefined): void {
+  overrides.scheduling = repository;
+}
+export function setAttendanceRepository(repository: AttendanceRepository | undefined): void {
+  overrides.attendance = repository;
 }
 export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
   overrides.instruments = repository;
@@ -212,4 +286,6 @@ export function resetRegistry(): void {
   overrides.media = undefined;
   overrides.branding = undefined;
   overrides.gallery = undefined;
+  overrides.scheduling = undefined;
+  overrides.attendance = undefined;
 }

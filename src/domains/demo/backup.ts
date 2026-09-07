@@ -8,6 +8,7 @@
 import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset, type DemoDatasetStats } from "./types";
 import { SEED_VERSION } from "./seed";
 import { normalizeNationalId, validateNationalId } from "@/lib/nationalId";
+import { durationMinutes, isIsoDate } from "@/domains/scheduling/dateBridge";
 
 /** Bump only on breaking changes to the envelope/dataset contract. */
 export const BACKUP_SCHEMA_VERSION = "1.1";
@@ -247,6 +248,71 @@ export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
         `حضور و غیاب به هنرجوی ناموجود ارجاع دارد.`,
       );
     });
+  });
+
+  /*
+   * Dated sessions. A session pointing at a class, teacher or room that no
+   * longer exists cannot be rendered on a calendar, and a malformed time range
+   * would break every conflict calculation — so both are hard integrity
+   * errors rather than warnings.
+   *
+   * NOTE: this validates `scheduledSessions` (the scheduling domain). The
+   * legacy `sessions` weekly template is validated separately above and is
+   * removed in task H5.
+   */
+  dataset.scheduledSessions.forEach((session, i) => {
+    ref(
+      has("classes", session.classId),
+      `scheduledSessions[${i}].classId`,
+      `جلسهٔ «${session.id}» به کلاس ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("teachers", session.teacherId),
+      `scheduledSessions[${i}].teacherId`,
+      `جلسهٔ «${session.id}» به مدرس ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("rooms", session.roomId),
+      `scheduledSessions[${i}].roomId`,
+      `جلسهٔ «${session.id}» به اتاق ناموجود ارجاع دارد.`,
+    );
+
+    if (!isIsoDate(session.date)) {
+      issues.push(
+        issue("INVALID_REFERENCE", `تاریخ جلسهٔ «${session.id}» معتبر نیست.`, `scheduledSessions[${i}].date`),
+      );
+    }
+
+    const minutes = durationMinutes(session.startTime, session.endTime);
+    if (minutes === null) {
+      issues.push(
+        issue("INVALID_REFERENCE", `زمان جلسهٔ «${session.id}» معتبر نیست.`, `scheduledSessions[${i}].startTime`),
+      );
+    } else if (minutes <= 0) {
+      issues.push(
+        issue(
+          "INVALID_REFERENCE",
+          `پایان جلسهٔ «${session.id}» باید پس از شروع آن باشد.`,
+          `scheduledSessions[${i}].endTime`,
+        ),
+      );
+    }
+
+    // A reschedule link that points nowhere makes the audit trail unreadable.
+    if (session.rescheduledFromId) {
+      ref(
+        has("scheduledSessions", session.rescheduledFromId),
+        `scheduledSessions[${i}].rescheduledFromId`,
+        `جلسهٔ «${session.id}» به جلسهٔ مبدأ ناموجود ارجاع دارد.`,
+      );
+    }
+    if (session.rescheduledToId) {
+      ref(
+        has("scheduledSessions", session.rescheduledToId),
+        `scheduledSessions[${i}].rescheduledToId`,
+        `جلسهٔ «${session.id}» به جلسهٔ مقصد ناموجود ارجاع دارد.`,
+      );
+    }
   });
 
   // Repertoire and progress. A progress event whose assignment vanished would

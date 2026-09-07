@@ -38,6 +38,9 @@ const COLLECTION_LABELS: Record<(typeof DEMO_COLLECTIONS)[number], string> = {
   pieces: "قطعات",
   pieceAssignments: "تخصیص قطعات",
   progressEvents: "رویدادهای پیشرفت",
+  scheduledSessions: "جلسات زمان‌بندی‌شده",
+  attendanceRecords: "حضور و غیاب جلسات",
+  attendanceCorrections: "اصلاحات حضور و غیاب",
 };
 
 /**

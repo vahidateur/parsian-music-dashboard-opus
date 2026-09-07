@@ -88,7 +88,18 @@ describe("list hooks request an explicit page size", () => {
    * fetch by id, every call site must state its own ceiling.
    */
   it("no domain list hook is called with no arguments", () => {
-    const hooks = ["useStudentList", "useTeachers", "useRooms", "useClasses", "useEnrollments"];
+    const hooks = [
+      "useStudentList",
+      "useTeachers",
+      "useRooms",
+      "useClasses",
+      "useEnrollments",
+      // Scheduling and attendance list hooks additionally require `per_page`
+      // at the type level (see `Paged`), so this is a second line of defence.
+      "useSessions",
+      "useAttendanceRecords",
+      "useAttendanceCorrections",
+    ];
     const offenders: string[] = [];
     for (const file of [...viewLayer, ...sourceFiles(join(ROOT, "domains"))]) {
       const source = code(readFileSync(file, "utf8"));
@@ -142,6 +153,42 @@ describe("list hooks request an explicit page size", () => {
     for (const file of viewLayer) {
       const source = code(readFileSync(file, "utf8"));
       if (/\.skills\b/.test(source)) offenders.push(`${file} → renders student.skills`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Scheduling must not reach into attendance storage.
+   *
+   * An earlier iteration read the legacy `attendance` roster fixture to decide
+   * whether a session was protected. That coupled a domain to data it does not
+   * own AND could never actually match: legacy rosters key off `g*` ids while
+   * real sessions are `ses_*`, so the guard looked present but never fired.
+   *
+   * The only permitted channel is the injected `AttendancePresenceProvider`.
+   */
+  it("the scheduling domain never reads attendance storage", () => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(join(ROOT, "domains", "scheduling"))) {
+      const source = code(readFileSync(file, "utf8"));
+      if (/snapshot\(\)\s*\.\s*attendance/.test(source)) {
+        offenders.push(`${file} → reads snapshot().attendance`);
+      }
+      if (/\bstore\s*\.\s*attendance\b/.test(source)) {
+        offenders.push(`${file} → reads store.attendance`);
+      }
+      if (/\b(todayAttendance|AttendanceRoster|attendanceLabel|AttendanceMark)\b/.test(source)) {
+        offenders.push(`${file} → imports a legacy attendance fixture symbol`);
+      }
+      // Nor the attendance DOMAIN. Scheduling consumes only the narrow
+      // `AttendancePresenceProvider` boundary, injected by the registry, so
+      // the dependency stays one-directional and free of cycles.
+      if (/from\s+"@\/domains\/attendance/.test(readFileSync(file, "utf8"))) {
+        offenders.push(`${file} → imports the attendance domain directly`);
+      }
+      if (/\bstore\s*\.\s*attendanceRecords\b/.test(source)) {
+        offenders.push(`${file} → reads attendanceRecords directly`);
+      }
     }
     expect(offenders).toEqual([]);
   });

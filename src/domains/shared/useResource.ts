@@ -11,6 +11,18 @@ import { useDataVersion } from "./dataVersion";
  * manual reload. Implementing it once keeps the domain hooks to their own
  * vocabulary rather than five copies of this logic.
  */
+/**
+ * Forces a caller to state its page size.
+ *
+ * `ListParams.per_page` is optional across the whole API, so omitting it
+ * silently falls back to `DEFAULT_PER_PAGE` (25) and quietly truncates the
+ * result — a calendar would render three weeks of a term and look correct.
+ * Wrapping a params type in `Paged` turns that into a compile error at the
+ * call site, without changing the shared `ListParams` contract or any
+ * existing hook that has not opted in.
+ */
+export type Paged<P> = P & { per_page: number };
+
 export interface ListState<T> {
   page: Page<T>;
   items: T[];

@@ -20,7 +20,16 @@ describe("canonical seed", () => {
    * point at media) would create references resolving to nothing and render as
    * broken thumbnails. These fill up through the real upload flow instead.
    */
-  const INTENTIONALLY_EMPTY = new Set(["media", "galleryImages"]);
+  /**
+   * Attendance is recorded through the repository rather than seeded: the demo
+   * opens with registers waiting to be taken, which is what exercises the UI.
+   */
+  const INTENTIONALLY_EMPTY = new Set([
+    "media",
+    "galleryImages",
+    "attendanceRecords",
+    "attendanceCorrections",
+  ]);
 
   it("contains every collection with realistic Persian data", () => {
     const seed = createSeedDataset();
