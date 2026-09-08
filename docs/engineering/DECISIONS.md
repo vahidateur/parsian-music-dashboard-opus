@@ -1,0 +1,308 @@
+# DECISIONS — durable architecture record
+
+Only decisions that are still load-bearing. This is an index with rationale, **not** a
+transcript: the deep detail lives in `docs/architecture/` and in the code comments named
+below. If a decision here is ever reversed, edit the entry and say what replaced it — never
+delete it silently.
+
+Format: **Decision** → **Why** → **Enforced by** → **Status**.
+
+---
+
+## 1. Layering: View → Domain Hook → Repository → DemoStore | ApiClient
+
+**Decision.** Every surface reads through a domain hook that consumes a repository interface;
+the registry picks the implementation. Transport, errors and config know no domain; domain
+interfaces never speak HTTP; `src/services/demoStore.ts` is the only writer of demo
+`localStorage` and is never imported by a view.
+
+**Why.** It lets the UI move from demo persistence to a real REST backend without being
+redesigned, and it makes "where did this number come from?" answerable in one hop.
+
+**Enforced by.** `docs/architecture/data-layer.md` (layers table), `src/domains/registry.ts`,
+and `src/__tests__/architectureBoundaries.test.ts` — which fails the build if a view or
+component touches `localStorage`, imports `demoStore`, calls `fetch(`, hardcodes an
+`http(s)://` URL, references the removed `useAsyncView`, or imports `ACADEMY_NOW`. Layering is
+a test, not a review convention.
+
+**Status.** ✅ In force.
+
+## 2. Demo is a first-class environment, not a fake production backend
+
+**Decision.** The DemoStore is *implementation #1*, not scaffolding to be deleted. Demo mode
+stays visibly demo: no simulated production behaviour, no pretending a backend exists.
+
+**Why.** It keeps the product demonstrable with zero backend and gives the repository contract
+a second implementation — which is what proves the abstraction is real rather than decorative.
+
+**Enforced by.** `docs/architecture/data-layer.md` → "Why the DemoStore stays";
+`docs/architecture/environments.md`; `docs/security.md` §5.
+
+**Status.** ✅ In force.
+
+## 3. No silent fallback for the data source
+
+**Decision.** `VITE_DATA_SOURCE` resolves through `src/api/config.ts`: unset/`demo` → demo;
+`api`/`production`/`prod`/`live`/`real`/`staging`/`stage` → api; **anything else is a boot
+error** rendered by `ConfigGate` — no shell, no data, no login.
+
+**Why.** Previously `VITE_DATA_SOURCE=production` silently resolved to demo, serving fabricated
+records to someone who believed they had configured a real backend. That was the single most
+dangerous defect in the codebase.
+
+**Enforced by.** `src/api/__tests__/config.test.ts`, `src/__tests__/configGate.test.tsx`. The
+older suite asserted the buggy behaviour was correct; it was inverted.
+
+**Status.** ✅ In force.
+
+## 4. Two independent axes: data source ≠ environment kind
+
+**Decision.** `isDemoMode()` (build/config, from `VITE_DATA_SOURCE`) and the persisted
+lifecycle state (`ava:demo:lifecycle`, runtime, per browser) are different facts and must never
+be conflated. Demo-only affordances require **both**: `isDemoEnvironment()` =
+`isDemoMode() && state === "demo"`.
+
+**Why.** A demo-mode app can be running a customer's EMPTY environment. Labelling that
+customer's own records as demo data is the same dishonesty as demo data pretending to be real.
+
+**Enforced by.** `src/domains/demo/lifecycle.ts`, `docs/architecture/environments.md` →
+"Two independent axes", `src/views/__tests__/loginDemoIsolation.test.tsx`.
+
+**Status.** ✅ In force (Phase 2).
+
+## 5. Explicit lifecycle: UNINITIALIZED → { EMPTY | DEMO }
+
+**Decision.** Three explicit states, owned by one boundary. First run shows a chooser; nothing
+renders behind the gate while UNINITIALIZED. `EMPTY` means the visitor's own data (zero or
+more records); `DEMO` means showcase/QA material.
+
+**Why.** Implicit seeding on read made every environment ambiguous and made "empty product"
+indistinguishable from "fresh install".
+
+**Enforced by.** `src/domains/demo/lifecycle.ts`,
+`src/components/lifecycle/DataLifecycleGate.tsx`, `FirstRunChooser.tsx`,
+`src/domains/demo/__tests__/dataLifecycle.test.ts` (27 tests),
+`docs/architecture/demo-data.md`.
+
+**Status.** ✅ In force (Phase 2).
+
+## 6. Lifecycle state is persisted, never inferred — and reads never write
+
+**Decision.** The mode is a stored fact. It is **never** derived from row count: EMPTY with one
+record is still EMPTY, and DEMO emptied by `clear()` is still DEMO. Reads are side-effect-free
+with respect to lifecycle: `snapshot()` never seeds, repairs or writes; a corrupt or absent
+payload produces an in-memory empty dataset with **zero** writes and leaves stored bytes
+untouched.
+
+**Why.** Inference from data makes the mode a function of user edits, and a read that writes is
+unrecoverable from the UI and impossible to reason about.
+
+**Enforced by.** `src/services/demoStore.ts` (`LIFECYCLE_STORAGE_KEY`, `isInitialized()` =
+"a usable dataset is stored", not "the key exists"), `src/domains/demo/__tests__/dataLifecycle.test.ts`
+(asserts `writtenKeys(storage) === []` after five kinds of read, and that the mode survives a
+reload with zero rows), `src/domains/demo/__tests__/prototypePollution.test.ts`.
+
+**Status.** ✅ In force (Phase 2).
+
+## 7. Legacy datasets are adopted as DEMO, once, preserving everything
+
+**Decision.** A stored dataset with no lifecycle marker is adopted as DEMO by
+`persistLifecycleAdoption()` (in a hook effect — never during render, never from a repository
+read). Only the marker key is written; dataset bytes are unchanged; no existing environment is
+ever converted to EMPTY.
+
+**Why.** Every dataset previous builds could write came from `createSeedDataset()` or a
+demo-stamped operation, so DEMO is the only honest reading. Phase 1 `migrateDataset()` is
+untouched and still runs on the same read path.
+
+**Enforced by.** `src/domains/demo/useDataLifecycle.ts`,
+`src/services/__tests__/demoStoreMigration.test.ts`, `docs/architecture/demo-data.md`.
+
+**Status.** ✅ In force.
+
+## 8. EMPTY must be usable, without breaking the zero-record invariant
+
+**Decision.** `createEmptyDataset()` keeps every content collection at zero. The single
+bootstrap administrator is added at the **lifecycle** layer (`createEmptyEnvironment()`), not
+inside `createEmptyDataset()`, because authentication resolves a signed-in user from `users`.
+The bootstrap account is not a demo account and carries no credential material beyond the
+demo-mode passphrase mechanism.
+
+**Why.** Without it, EMPTY is a dead end nobody can sign into; adding it inside the dataset
+would break the pinned "all collections zero" invariant.
+
+**Enforced by.** `src/domains/demo/seed.ts`, `src/domains/demo/lifecycle.ts`,
+`src/domains/demo/__tests__/seed.test.ts`, `docs/architecture/auth.md` → bootstrap account.
+
+**Status.** ✅ In force. Known limitation: `clear()` still empties `users` and locks everyone
+out (recovery is `uninitialize` or restoring a backup) — see [OPEN_ITEMS.md](OPEN_ITEMS.md).
+
+## 9. Production means the API/backend — and it does not exist yet
+
+**Decision.** Production is `api` mode against a real backend. `api` mode today is an
+architectural seam, not a working configuration: no server, no database, no deployed endpoint.
+Auth, authorization, schema, money precision, capacity enforcement, uploads, media storage,
+audit logging and tenant isolation are **backend requirements**, never client-side promises.
+
+**Why.** Anything else is a fake production backend, which is explicitly forbidden.
+
+**Enforced by.** `docs/production-handoff.md` (blocker list + per-domain schema and
+server-side enforcement), `docs/security.md` §8, `src/api/client.ts`, `src/api/errors.ts`
+(the `ApiError.kind` model already represents e.g. `SCHEDULE_VERSION_CONFLICT`).
+
+**Status.** ✅ Decision stands; backend ❌ not built.
+
+## 10. Domain boundaries
+
+**Decision.** One directory per domain under `src/domains/<domain>/`, following the Students
+reference pattern: `types.ts` → `repository.ts` (interface) → `demoRepository.ts` →
+`apiRepository.ts` → hook, wired in `src/domains/registry.ts`. Cross-domain reads go through
+the other domain's hook, never through its store. Enrollment is the canonical Student ↔ Class
+edge. `national_id` rules, cross-domain invalidation and the frozen demo clock (`ACADEMY_NOW`)
+are owned by the domain layer.
+
+**Why.** It is what makes Group A / Group D style work additive instead of invasive, and it
+keeps the fixture-free guarantee checkable per domain.
+
+**Enforced by.** `docs/architecture/data-layer.md` ("Domain model rules", "Enforced
+boundaries", "Migration status"), `docs/architecture/students.md`,
+`src/__tests__/architectureBoundaries.test.ts`, `src/domains/shared/__tests__/crossDomain.test.tsx`.
+
+**Status.** ✅ In force. Gap: Finance and Reports still have no domain layer; Scheduling and
+Attendance have one that their views do not use.
+
+## 11. Scheduling: CLASS vs RECURRENCE vs SESSION — sessions are materialized
+
+**Decision.** Three concepts are never collapsed. `CLASS` is the offering (classes domain);
+`RECURRENCE` is `class.days`/`time`/`duration`, read-only from this domain; `SESSION` is one
+real dated occurrence and is **materialized, not computed on demand**, because it carries
+per-occurrence state (cancellation + reason, substitute teacher, room change, reschedule link,
+attendance). Deliberately absent from a Session: `students[]` (roster is derived from active
+Enrollment scoped to the date), `conflictWith` (conflicts are derived by `conflicts.ts`), and
+any attendance summary (`attendanceAvg` is a projection). Dates are ISO-8601 `YYYY-MM-DD` with
+`HH:mm` times; Jalali is a presentation concern handled at the UI edge via `dateBridge.ts`.
+
+**Why.** A stored roster cannot express "joined in week 6, withdrew in week 8"; hand-stored
+conflicts cannot react to a reschedule; a Persian-digit display string cannot be sorted,
+bucketed or range-queried.
+
+**Enforced by.** `src/domains/scheduling/types.ts` (the rationale is in its header comment),
+`conflicts.ts`, `generation.ts`, `dateBridge.ts`, and 211 tests across
+`src/domains/scheduling/__tests__/` (**Group A**).
+
+**Status.** ✅ Domain complete and protected. ❌ The view still renders fixtures and fakes
+success — see [OPEN_ITEMS.md](OPEN_ITEMS.md).
+
+## 12. Attendance and progress are append-only; corrections require a reason
+
+**Decision.** Attendance marks about a minor are never silently edited: the current record stays
+mutable for fast reads, but every change appends an immutable `AttendanceCorrection` carrying
+`previousStatus`, `newStatus` and a **required** reason. Corrections are never edited or
+deleted. `ProgressEvent` follows the same discipline (`POST /progress-events` only — no PATCH,
+no DELETE). Server-side this must be enforced by table grants (INSERT-only), not by convention.
+
+**Why.** "My child WAS there" is a dispute about a child's record; an unauditable edit is
+unacceptable.
+
+**Enforced by.** `src/domains/attendance/types.ts` (corrections section),
+`src/domains/attendance/apiRepository.ts`, `src/domains/progress/repository.ts`,
+`src/domains/progress/demoRepository.ts`, and the Group D suites
+(`src/domains/attendance/__tests__/`: `demoRepository`, `roster`, `useAttendance` — 79 tests)
+plus `src/domains/progress/__tests__/`.
+
+**Status.** ✅ In force and protected.
+
+## 13. Media: metadata in the dataset, bytes in IndexedDB — never a fabricated URL
+
+**Decision.** Media metadata lives with the dataset; bytes live in IndexedDB through one blob
+store. Missing bytes produce an explicit unavailable state. Downloads use real object bytes
+(`src/lib/download.ts`), never an invented URL. Audio playback never decodes what it does not
+have. Demo library material (`res1` / `md_demo_res1`) is provisioned **only** in a DEMO
+environment, and `uninitializeEnvironment()` removes binaries so they cannot leak into the next
+environment.
+
+**Why.** A placeholder that looks like a file teaches the user to distrust every file, and a
+fake download URL is a lie with a progress bar.
+
+**Enforced by.** `src/domains/media/useMedia.ts`, `src/domains/library/useLibrary.ts`,
+`src/domains/library/demoContent.ts`, `src/domains/demo/librarySeed.ts`,
+`src/views/__tests__/Library.test.tsx`, `src/domains/library/__tests__/`,
+`docs/architecture/data-layer.md` → "Media: metadata in the dataset, bytes in IndexedDB".
+
+**Status.** ✅ In force (Phase 1 + Phase 2).
+
+## 14. No-data is an explicit typed value, never `NaN` and never a consumer-side patch
+
+**Decision.** Aggregations over an empty set return `null` (`meanOf`, `ratioPct`, `topBy` in
+`src/lib/stats.ts`), and formatting renders `NO_DATA = "—"` (`src/lib/format.ts`,
+`faPercent(number | null)`). Empty states are fixed at the computation/domain boundary.
+Blanket `|| []` / `?? []` patches at consumers are forbidden: they hide broken contracts.
+
+**Why.** `0/0` prints as `NaN٪` in a Persian UI, and a defensive `|| []` in twelve views leaves
+the real bug — a function that promises a number it cannot produce — in place.
+
+**Enforced by.** `src/lib/stats.ts`, `src/lib/format.ts`,
+`src/views/__tests__/emptyEnvironment.test.tsx` (full-shell walk of all 16 surfaces in EMPTY,
+asserting no `NaN`/`Infinity` artefacts), `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx`.
+
+**Status.** ✅ In force (Phase 2). Latent risk: `Sparkline` and `BusinessIntelligence` still
+crash on an empty series — unreachable today because their callers pass static fixtures.
+
+## 15. Honesty rules for UX
+
+**Decision.** No fake success toasts, no fabricated metrics presented as measurement, no
+swallowed errors, no hardcoded fallback data, no demo labelling on a customer's own data.
+"Academy intelligence" is a product/UX pattern (signal → evidence → insight → action) over
+display data and makes no claim of real AI. Recommendations stay deterministic before any AI.
+
+**Why.** Every one of these teaches the operator that the panel lies, and the panel's whole job
+is to be trusted with children's records and money.
+
+**Enforced by.** `src/__tests__/privacyPosture.test.ts` ("Fixture data shown as real
+measurement — REMOVED"), `src/__tests__/architectureBoundaries.test.ts`,
+`docs/architecture/data-layer.md` → "Chat delivery honesty" and "Analytics — every definition
+is explicit", `README.md`.
+
+**Status.** ⚠️ Decision stands, but **violations remain** in the fixture-driven views
+(`src/views/Scheduling.tsx:144`, `src/views/Scheduling.tsx:327`, `src/views/Attendance.tsx:46`,
+`src/views/Finance.tsx:98`, `src/views/Finance.tsx:285`) and in the dashboard insight panels.
+These are the top CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md).
+
+## 16. Protected domains and the no-regression principle
+
+**Decision.** Some areas are protected: a bug is fixed at the boundary that owns it, assertions
+are never weakened to get green, and a phase that touches a protected area re-runs its suites
+explicitly. Protected today: **Group A** (scheduling), **Group D** (attendance), library/media
+bytes, student profile, messages dataset, persistence (migration/backup/restore/integrity),
+layering, privacy posture, CSP compatibility, route protection — and these engineering
+documents.
+
+**Why.** Regression is the cheapest way to destroy finished work, and a weakened test destroys
+the evidence that the work was finished.
+
+**Enforced by.** The suites listed in [PROJECT_STATE.md](PROJECT_STATE.md) §6, plus
+`src/__tests__/projectState.test.ts` for this document set.
+
+**Status.** ✅ In force. At `33b1031`: Group A + Group D 314 tests green, protected-domain run
+15 files / 166 tests green.
+
+## 17. Privacy is a product property
+
+**Decision.** The panel is private: no indexing, no share metadata, no sitemap, no product or
+operator name in the document title, secrets only via build config, and no private keys, JWTs or
+32-hex access slugs anywhere in source. The demo passphrase is a deliberately committed,
+development-only, non-secret value documented in `docs/architecture/auth.md` — and it is kept
+out of these engineering documents so they stay safe to paste into any session context.
+
+**Enforced by.** `src/__tests__/privacyPosture.test.ts`, `src/__tests__/cspCompatibility.test.ts`,
+`docs/security.md`, `public/robots.txt`, `index.html`.
+
+**Status.** ✅ In force. Edge/nginx header configs exist but were **not deployed** by this work.
+
+---
+
+### Adding a decision
+
+Append a numbered entry with the same four fields, name the file or test that enforces it, and
+link it from [PROJECT_STATE.md](PROJECT_STATE.md) §6 if it is test-protected. A decision nobody
+can point at in code is a wish, not a decision.
