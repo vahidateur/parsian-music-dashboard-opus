@@ -10,11 +10,12 @@ import { DemoProgressRepository } from "../demoRepository";
 import { MASTERY_SCALE, TEMPO_BOUNDS } from "../types";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoProgressRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   repo = new DemoProgressRepository();
 });
 

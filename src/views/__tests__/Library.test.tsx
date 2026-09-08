@@ -38,6 +38,7 @@ import {
 } from "@/domains/demo/librarySeed";
 import { faNum } from "@/lib/format";
 import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const VIEW_SOURCE = resolve(__dirname, "../Library.tsx");
 const ERROR_TITLE = "بارگذاری کتابخانه ناموفق بود";
@@ -92,7 +93,7 @@ function statTile(label: string): HTMLElement {
 
 beforeEach(() => {
   localStorage.clear();
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
   clicks = [];

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { AlertTriangle, Download, Eraser, RotateCcw, Upload } from "lucide-react";
 import { backupFileName } from "@/domains/demo";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { DESTRUCTIVE_LABELS, useDemoData, type DestructiveAction } from "@/domains/demo/useDemoData";
 import { DEMO_COLLECTIONS } from "@/domains/demo/types";
 import { downloadTextFile } from "@/lib/download";
@@ -44,13 +45,27 @@ const COLLECTION_LABELS: Record<(typeof DEMO_COLLECTIONS)[number], string> = {
 };
 
 /**
- * Demo / Development data controls.
- * Explicitly labelled as demo tooling — these are not production database controls.
+ * Environment data controls.
+ *
+ * What this panel is depends on which environment exists, so it reads the
+ * lifecycle state through the sanctioned seam (`useIsDemoEnvironment`) instead
+ * of assuming:
+ *
+ *  - in a DEMO environment it is demo tooling, and it offers the two operations
+ *    that install the showcase dataset;
+ *  - in a customer's EMPTY environment it manages REAL data, so neither the
+ *    "demo only" copy nor a control that would replace the customer's records
+ *    with showcase data may appear. Backup, restore and clear remain: they act
+ *    on this environment's own data.
+ *
+ * Explicitly labelled as browser-local tooling either way — these are not
+ * production database controls.
  */
 export function DemoDataPanel() {
   const { notify } = useApp();
   const { can } = useAuth();
   const demo = useDemoData();
+  const demoEnvironment = useIsDemoEnvironment();
   const mayManage = can("demo.manage");
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -68,7 +83,15 @@ export function DemoDataPanel() {
   const onBackup = () => {
     const backup = demo.downloadBackup();
     downloadTextFile(backupFileName(), JSON.stringify(backup, null, 2));
-    notify({ tone: "success", title: "پشتیبان دمو ساخته شد", detail: `نسخهٔ ساختار ${backup.schemaVersion}` });
+    notify({
+      tone: "success",
+      // In a customer's environment this file holds their own records, so the
+      // confirmation must not call it a demo backup. (The file envelope itself
+      // is still stamped `environment: "demo"` — a format change, tracked as a
+      // known limitation in `docs/architecture/demo-data.md`.)
+      title: demoEnvironment ? "پشتیبان دمو ساخته شد" : "پشتیبان داده‌ها ساخته شد",
+      detail: `نسخهٔ ساختار ${backup.schemaVersion}`,
+    });
   };
 
   const onPickFile = async (file: File | undefined) => {
@@ -81,16 +104,27 @@ export function DemoDataPanel() {
   return (
     <>
       <Panel
-        title="دادهٔ دمو"
-        aside={<StatusBadge tone="violet" label="محیط توسعه" />}
-        kicker="این بخش فقط دادهٔ نمایشی مرورگر را مدیریت می‌کند و پایگاه‌دادهٔ واقعی محسوب نمی‌شود."
+        title={demoEnvironment ? "دادهٔ دمو" : "دادهٔ محیط"}
+        aside={
+          <StatusBadge
+            tone={demoEnvironment ? "violet" : "ok"}
+            label={demoEnvironment ? "محیط توسعه" : "دادهٔ واقعی"}
+          />
+        }
+        kicker={
+          demoEnvironment
+            ? "این بخش فقط دادهٔ نمایشی مرورگر را مدیریت می‌کند و پایگاه‌دادهٔ واقعی محسوب نمی‌شود."
+            : "این بخش دادهٔ ثبت‌شدهٔ همین مرورگر را مدیریت می‌کند؛ تا اتصال به سرور، فایل پشتیبان تنها محافظت واقعی از آن است."
+        }
       >
         <Surface className="border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
           <span className="inline-flex items-center gap-1.5 font-semibold text-warn-400">
-            <AlertTriangle className="size-3.5" /> فقط دمو
+            <AlertTriangle className="size-3.5" /> {demoEnvironment ? "فقط دمو" : "ذخیره‌سازی مرورگری"}
           </span>{" "}
           دادهٔ این محیط در <span className="nums">localStorage</span> مرورگر شما ذخیره می‌شود، رمز یا توکنی در پشتیبان قرار نمی‌گیرد و
-          نباید به‌عنوان دادهٔ عملیاتی استفاده شود.
+          {demoEnvironment
+            ? " نباید به‌عنوان دادهٔ عملیاتی استفاده شود."
+            : " پاک‌کردن دادهٔ مرورگر یا تعویض دستگاه آن را از بین می‌برد؛ پیش از آن پشتیبان بگیرید."}
         </Surface>
 
         <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -109,12 +143,18 @@ export function DemoDataPanel() {
           <Button size="sm" disabled={!mayManage} onClick={() => fileInput.current?.click()}>
             <Upload className="size-3.5" /> بازگردانی از فایل
           </Button>
-          <Button size="sm" disabled={!mayManage} onClick={() => ask("reset")}>
-            <RotateCcw className="size-3.5" /> بازنشانی به دادهٔ اولیه
-          </Button>
-          <Button size="sm" disabled={!mayManage} onClick={() => ask("import-seed")}>
-            ورود دیتاست کانونیکال
-          </Button>
+          {/* Installing the showcase dataset is a demo-only operation: offered
+              in a DEMO environment, absent from a customer's real one. */}
+          {demoEnvironment && (
+            <>
+              <Button size="sm" disabled={!mayManage} onClick={() => ask("reset")}>
+                <RotateCcw className="size-3.5" /> بازنشانی به دادهٔ اولیه
+              </Button>
+              <Button size="sm" disabled={!mayManage} onClick={() => ask("import-seed")}>
+                ورود دیتاست کانونیکال
+              </Button>
+            </>
+          )}
           <Button size="sm" variant="ghost" disabled={!mayManage} className="text-danger-400 hover:text-danger-400" onClick={() => ask("clear")}>
             <Eraser className="size-3.5" /> پاک‌کردن کامل
           </Button>
@@ -132,7 +172,7 @@ export function DemoDataPanel() {
         </div>
 
         {!mayManage && (
-          <p className="mt-3 text-[11px] text-warn-400">فقط مدیر ارشد می‌تواند عملیات مخرب دادهٔ دمو را اجرا کند.</p>
+          <p className="mt-3 text-[11px] text-warn-400">فقط مدیر ارشد می‌تواند عملیات مخرب روی دادهٔ این محیط را اجرا کند.</p>
         )}
         <p className="nums mt-3 text-[11px] text-ink-400">
           نسخهٔ دیتاست {demo.seedVersion} · نسخهٔ ساختار پشتیبان {demo.schemaVersion}

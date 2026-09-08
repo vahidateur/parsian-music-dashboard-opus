@@ -11,6 +11,7 @@ import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { MAX_IMAGE_BYTES } from "../types";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoMediaRepository;
 
@@ -28,7 +29,7 @@ function jpegBytes(size = 64): ArrayBuffer {
 }
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   setBlobStore(createMemoryBlobStore());
   repo = new DemoMediaRepository();
 });

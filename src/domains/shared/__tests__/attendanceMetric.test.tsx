@@ -16,12 +16,13 @@ import {
 } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import type { AttendanceStatus } from "@/domains/attendance/types";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const RECORDER = "usr_admin";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

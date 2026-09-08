@@ -12,13 +12,14 @@ import { DemoLearningRepository } from "@/domains/learning/demoRepository";
 import { DemoInstrumentRepository } from "@/domains/instruments/demoRepository";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let progress: DemoProgressRepository;
 let learning: DemoLearningRepository;
 let instruments: DemoInstrumentRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   progress = new DemoProgressRepository();
   learning = new DemoLearningRepository();
   instruments = new DemoInstrumentRepository();

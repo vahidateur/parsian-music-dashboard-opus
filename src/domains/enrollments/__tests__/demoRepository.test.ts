@@ -7,9 +7,9 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { demoStore } from "@/services/demoStore";
 import { DemoEnrollmentRepository } from "@/domains/enrollments/demoRepository";
 import { DemoClassRepository } from "@/domains/classes/demoRepository";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -26,7 +26,7 @@ describe("DemoEnrollmentRepository", () => {
   let classes: DemoClassRepository;
 
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoEnrollmentRepository();
     classes = new DemoClassRepository();
   });

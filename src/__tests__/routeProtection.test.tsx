@@ -8,6 +8,7 @@ import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/r
 import { DemoUserRepository } from "@/domains/auth/userRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 /** Uses the real component tree; only the session storage is isolated. */
 function useIsolatedAuth() {
@@ -20,7 +21,7 @@ function useIsolatedAuth() {
 
 beforeEach(() => {
   window.location.hash = "";
-  demoStore.reset();
+  resetToDemoEnvironment();
   demoDataManager.initialize();
 });
 

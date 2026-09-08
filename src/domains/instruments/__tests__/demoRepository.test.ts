@@ -9,11 +9,12 @@ import { DemoInstrumentRepository } from "../demoRepository";
 import { demoStore } from "@/services/demoStore";
 import { SEEDED_INSTRUMENTS, SEEDED_INSTRUMENT_IDS } from "../catalog";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoInstrumentRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   repo = new DemoInstrumentRepository();
 });
 

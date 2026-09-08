@@ -22,11 +22,11 @@ import {
   getTeacherRepository,
   resetRegistry,
 } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

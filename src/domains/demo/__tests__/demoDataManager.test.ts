@@ -3,7 +3,14 @@ import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { createBackup } from "@/domains/demo/backup";
 import { createSeedDataset } from "@/domains/demo/seed";
 import { DEMO_COLLECTIONS } from "@/domains/demo/types";
-import { DEMO_STORAGE_KEY, DemoStoreImpl, memoryStorage, type StorageLike } from "@/services/demoStore";
+import {
+  DEMO_STORAGE_KEY,
+  LIFECYCLE_STORAGE_KEY,
+  DemoStoreImpl,
+  memoryStorage,
+  type StorageLike,
+} from "@/services/demoStore";
+import { LIFECYCLE_MODES } from "@/domains/demo/types";
 
 const CONFIRM = { confirm: true } as const;
 
@@ -160,7 +167,14 @@ describe("export / restore", () => {
 });
 
 describe("persistence boundary", () => {
-  it("uses a single localStorage key — no second demo database", () => {
+  /**
+   * One DATABASE, one key. The lifecycle marker added beside it is a one-word
+   * environment label (`"empty"` | `"demo"`), not a second store, so the intent
+   * of this check is now expressed as: exactly these two keys, and the marker
+   * key never holds records. A third key — a parallel dataset, a per-collection
+   * store — still fails here.
+   */
+  it("uses a single localStorage key for data — no second demo database", () => {
     const storage = memoryStorage();
     const keys: string[] = [];
     const wrapped: StorageLike = {
@@ -171,11 +185,17 @@ describe("persistence boundary", () => {
       },
       removeItem: (k) => storage.removeItem(k),
     };
-    const manager = new DemoDataManager(new DemoStoreImpl(wrapped));
+    const store = new DemoStoreImpl(wrapped);
+    const manager = new DemoDataManager(store);
     manager.initialize();
     manager.resetToSeed(CONFIRM);
     manager.clear(CONFIRM);
     manager.importSeed(CONFIRM);
-    expect(new Set(keys)).toEqual(new Set([DEMO_STORAGE_KEY]));
+
+    expect(new Set(keys)).toEqual(new Set([DEMO_STORAGE_KEY, LIFECYCLE_STORAGE_KEY]));
+
+    // The marker is a mode word; the dataset is the only serialized record store.
+    expect(LIFECYCLE_MODES).toContain(storage.getItem(LIFECYCLE_STORAGE_KEY));
+    expect(JSON.parse(storage.getItem(DEMO_STORAGE_KEY) ?? "null").students.length).toBeGreaterThan(0);
   });
 });

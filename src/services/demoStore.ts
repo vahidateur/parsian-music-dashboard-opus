@@ -1,22 +1,44 @@
 /**
- * DemoStore — the single persistence authority for demo mode.
+ * DemoStore — the single persistence authority for the local environment.
  *
- * It holds ONE snapshot of the whole demo environment (`DemoDataset`) under a
- * single localStorage key, seeded from the canonical seed. Repositories adapt
- * this store to domain contracts; nothing else in the app may read or write
- * demo persistence directly.
+ * It holds ONE snapshot of the whole environment (`DemoDataset`) under a single
+ * localStorage key, plus the environment's lifecycle marker under a second key.
+ * Repositories adapt this store to domain contracts; nothing else in the app may
+ * read or write this persistence directly.
  *
- * There is intentionally no second demo database: every collection lives in the
- * same snapshot, which is also what makes atomic restore possible.
+ * There is intentionally no second database: every collection lives in the same
+ * snapshot, which is also what makes atomic restore possible.
+ *
+ * READING NEVER CHOOSES A LIFECYCLE. `snapshot()` used to seed the canonical
+ * demo dataset the first time it was called, which meant demo records were
+ * inserted into every environment implicitly — including a real customer's. An
+ * environment is now created only by an explicit operation
+ * (`domains/demo/lifecycle.ts`), and a read of an uninitialized store returns a
+ * valid in-memory EMPTY dataset without writing anything.
  */
-import { createSeedDataset } from "@/domains/demo/seed";
+import { createEmptyDataset, createSeedDataset } from "@/domains/demo/seed";
 import { stripPrototypeKeys } from "@/domains/demo/backup";
-import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset } from "@/domains/demo/types";
+import {
+  DEMO_COLLECTIONS,
+  LIFECYCLE_MODES,
+  type DataLifecycleMode,
+  type DemoCollectionName,
+  type DemoDataset,
+} from "@/domains/demo/types";
 import type { Student } from "@/data/records";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
 import type { BrandingSettings } from "@/domains/branding/types";
 
 export const DEMO_STORAGE_KEY = "ava:demo:dataset";
+/**
+ * The environment's lifecycle marker (`"empty"` | `"demo"`).
+ *
+ * A separate key from the dataset on purpose: the mode is a property of the
+ * ENVIRONMENT, not academy data. Keeping it out of `DemoDataset` means it is
+ * never exported into a backup, never validated as a record, and never carried
+ * from one environment into another by a restore.
+ */
+export const LIFECYCLE_STORAGE_KEY = "ava:demo:lifecycle";
 const STORAGE_PREFIX = "ava:demo:";
 
 export interface StorageLike {
@@ -45,6 +67,25 @@ export function memoryStorage(): StorageLike {
     setItem: (k, v) => void map.set(k, v),
     removeItem: (k) => void map.delete(k),
   };
+}
+
+/**
+ * Whether a persisted payload is a dataset this store can actually serve.
+ *
+ * A key holding garbage is not an environment. Treating one as initialized would
+ * label an unreadable payload EMPTY or DEMO and render an app with no data
+ * behind that label; reporting it as uninitialized re-offers the first-run
+ * choice, which is the only recovery that cannot lose readable data — there is
+ * none to lose. Prototype-polluting keys are stripped before the shape check, so
+ * a hostile payload cannot smuggle inherited properties into the answer.
+ */
+function isUsablePayload(raw: string): boolean {
+  try {
+    const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
+    return Boolean(parsed) && typeof parsed === "object" && Array.isArray((parsed as DemoDataset).students);
+  } catch {
+    return false;
+  }
 }
 
 export function clone<T>(value: T): T {
@@ -157,49 +198,116 @@ export class DemoStoreImpl {
   /* ---------------- snapshot level ---------------- */
 
   /**
-   * Reads the persisted dataset, migrating it to the current schema and seeding
-   * it on first access.
+   * Reads the persisted dataset, migrating it to the current schema.
    *
    * A payload written by an older build is repaired here rather than crashing
    * the reader — see `migrateDataset` for why this is the only correct place.
+   *
+   * SIDE-EFFECT FREE WITH RESPECT TO THE LIFECYCLE: when nothing has been
+   * persisted this returns a valid EMPTY dataset **in memory** and writes
+   * nothing. Seeding demo data here would insert a showcase dataset into every
+   * environment implicitly — including a real customer's — and would make a
+   * read decide something only an explicit first-run choice may decide. The
+   * only write a read can still perform is the schema repair of a payload that
+   * already exists, which preserves the visitor's own records.
    */
   snapshot(): DemoDataset {
     const raw = this.storage.getItem(DEMO_STORAGE_KEY);
-    if (raw) {
-      try {
-        // localStorage is user-editable: strip prototype-polluting keys before
-        // the snapshot reaches any spread/Object.assign in the repositories.
-        const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
-        if (parsed && typeof parsed === "object" && Array.isArray((parsed as DemoDataset).students)) {
-          const { dataset, migrated } = migrateDataset(parsed as DemoDataset);
-          // Written back once, so the repair survives a reload and every later
-          // read is a plain read. Deliberately NOT `replace()`: this happens
-          // inside a read and the caller receives the migrated value, so no
-          // subscriber is stale, and emitting from a read path could notify
-          // during render.
-          if (migrated) this.write(dataset);
-          return dataset;
-        }
-      } catch {
-        /* corrupted payload — fall through and reseed */
-      }
+    if (raw !== null && isUsablePayload(raw)) {
+      // localStorage is user-editable: strip prototype-polluting keys before the
+      // snapshot reaches any spread/Object.assign in the repositories. Parsed
+      // fresh on every read — `mutate()` writes into the object it gets back, so
+      // a shared cached parse would be corrupted by the first CRUD call.
+      const parsed = stripPrototypeKeys(JSON.parse(raw) as unknown) as DemoDataset;
+      const { dataset, migrated } = migrateDataset(parsed);
+      // Written back once, so the repair survives a reload and every later read
+      // is a plain read. Deliberately NOT `replace()`: this happens inside a read
+      // and the caller receives the migrated value, so no subscriber is stale,
+      // and emitting from a read path could notify during render.
+      if (migrated) this.write(dataset);
+      return dataset;
     }
-    const seeded = createSeedDataset();
-    this.replace(seeded);
-    return seeded;
+    // Nothing persisted (or the payload was unusable): report an empty, valid
+    // dataset WITHOUT writing it. `isInitialized()` still answers false, so the
+    // lifecycle boundary can tell "no environment yet" from "an EMPTY
+    // environment", which a read must never decide on the caller's behalf.
+    return createEmptyDataset();
   }
 
-  /** True when a demo dataset has already been persisted. */
+  /**
+   * True when an environment has actually been created: a usable dataset is
+   * persisted. An absent, corrupt or non-dataset payload answers false, so the
+   * lifecycle boundary reports UNINITIALIZED and the first-run choice is offered.
+   *
+   * The check is cached per raw payload because the lifecycle state is consulted
+   * on every store notification; the cache is keyed by the stored string, so any
+   * write invalidates it by construction.
+   */
   isInitialized(): boolean {
-    return this.storage.getItem(DEMO_STORAGE_KEY) !== null;
+    const raw = this.storage.getItem(DEMO_STORAGE_KEY);
+    if (raw === null) return false;
+    if (this.usability?.raw === raw) return this.usability.value;
+    const value = isUsablePayload(raw);
+    this.usability = { raw, value };
+    return value;
   }
+
+  private usability: { raw: string; value: boolean } | null = null;
 
   /**
    * Atomically replaces the whole dataset. Serialization happens before the
    * write, so a value that cannot be serialized never clears existing state.
+   *
+   * An explicit write into a store that has no lifecycle marker yet records the
+   * environment as EMPTY: data written by the visitor is real data, never demo
+   * data, and this keeps the invariant that a persisted dataset always has a
+   * marker. (Demo environments are created by `initializeEnvironment`, which
+   * writes the marker itself.)
    */
   replace(dataset: DemoDataset): void {
+    if (this.readLifecycleMarker() === null) this.storage.setItem(LIFECYCLE_STORAGE_KEY, "empty");
     this.write(dataset);
+    this.emit();
+  }
+
+  /**
+   * Creates an environment of the given kind: marker and dataset persisted
+   * together, then subscribers notified.
+   *
+   * The marker is written FIRST so the only interruptible intermediate state is
+   * "marker without dataset", which `readLifecycleState` resolves back to
+   * UNINITIALIZED — a safe recovery that re-offers the choice instead of
+   * presenting a half-created environment as a real one.
+   */
+  initializeEnvironment(mode: DataLifecycleMode, dataset: DemoDataset): void {
+    this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
+    this.write(dataset);
+    this.emit();
+  }
+
+  /* ---------------- lifecycle marker ---------------- */
+
+  /** The persisted marker, or `null` when no lifecycle choice has been made. */
+  readLifecycleMarker(): DataLifecycleMode | null {
+    // Never trust storage contents: an unrecognised value means "no choice",
+    // which the lifecycle boundary resolves explicitly.
+    const raw = this.storage.getItem(LIFECYCLE_STORAGE_KEY);
+    return raw !== null && (LIFECYCLE_MODES as readonly string[]).includes(raw)
+      ? (raw as DataLifecycleMode)
+      : null;
+  }
+
+  /** Records the environment's mode. Notifies, because the app gates on it. */
+  writeLifecycleMarker(mode: DataLifecycleMode): void {
+    if (this.readLifecycleMarker() === mode) return;
+    this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
+    this.emit();
+  }
+
+  /** Drops the marker (used by `reset`, which returns to UNINITIALIZED). */
+  clearLifecycleMarker(): void {
+    if (this.storage.getItem(LIFECYCLE_STORAGE_KEY) === null) return;
+    this.storage.removeItem(LIFECYCLE_STORAGE_KEY);
     this.emit();
   }
 
@@ -209,9 +317,17 @@ export class DemoStoreImpl {
     this.storage.setItem(DEMO_STORAGE_KEY, serialized);
   }
 
-  /** Removes the persisted snapshot; the next read reseeds from the canonical seed. */
+  /**
+   * Removes the persisted dataset AND its lifecycle marker, returning the store
+   * to UNINITIALIZED.
+   *
+   * This does NOT seed anything: the next read reports an empty dataset in
+   * memory, and creating an environment again requires an explicit
+   * initialization (`domains/demo/lifecycle.ts`).
+   */
   reset(): void {
     this.storage.removeItem(DEMO_STORAGE_KEY);
+    this.storage.removeItem(LIFECYCLE_STORAGE_KEY);
     this.emit();
   }
 

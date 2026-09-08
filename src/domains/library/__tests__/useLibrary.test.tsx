@@ -28,6 +28,7 @@ import { ensureDemoLibraryFile } from "../demoContent";
 import type { LibraryRepository } from "../repository";
 import type { LibraryListParams } from "../types";
 import { useDemoLibraryFile, useLibraryFile, useLibraryList } from "../useLibrary";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const wrapper = ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider>;
 
@@ -38,7 +39,7 @@ let revoked: string[];
 
 beforeEach(() => {
   localStorage.clear();
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
   clicks = [];

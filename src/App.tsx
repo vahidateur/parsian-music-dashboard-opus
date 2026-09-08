@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
 import { defaultViewFor } from "@/domains/auth/permissions";
 import { LoginView } from "@/views/Login";
 import { SessionGuard } from "@/security/SessionGuard";
+import { DataLifecycleGate } from "@/components/lifecycle/DataLifecycleGate";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -175,12 +176,27 @@ function ConfigGate({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Boot order matters:
+ *
+ * 1. `ConfigGate` — refuse to run on a misconfigured data source.
+ * 2. `DataLifecycleGate` — decide what KIND of local environment this is
+ *    (EMPTY vs DEMO) before anything reads it. Above `AuthProvider`, because
+ *    authentication resolves the signed-in user against the environment.
+ * 3. `AuthProvider` / `AuthGate` — session, then the shell and the views.
+ *
+ * No view below this point branches on demo/empty: the decision is made once,
+ * here, and demo-only side effects consult the lifecycle state rather than
+ * guessing from row counts.
+ */
 export default function App() {
   return (
     <ConfigGate>
-      <AuthProvider>
-        <AuthGate />
-      </AuthProvider>
+      <DataLifecycleGate>
+        <AuthProvider>
+          <AuthGate />
+        </AuthProvider>
+      </DataLifecycleGate>
     </ConfigGate>
   );
 }

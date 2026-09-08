@@ -132,19 +132,32 @@ export function deriveRoles(): DemoRole[] {
   return ROLES.map((id) => ({ id, label: roleLabels[id], scope: ROLE_SCOPES[id] }));
 }
 
+/**
+ * Organization settings — configuration, not records.
+ *
+ * Shared by the canonical seed and the empty dataset so an EMPTY environment is
+ * still a correctly configured academy (name, locale, calendar, currency) rather
+ * than an unnamed shell. Derived from `academy` directly, WITHOUT building the
+ * seed: `createEmptyDataset()` is read on every store access while a dataset is
+ * uninitialized, so it must stay cheap.
+ */
+export function createOrganizationSettings(): DemoDataset["organization"] {
+  return {
+    name: academy.name,
+    tagline: academy.tagline,
+    locale: "fa-IR",
+    direction: "rtl",
+    calendar: "jalali",
+    currency: "toman",
+    firstWeekday: 0,
+    defaultSessionMinutes: 60,
+  };
+}
+
 /** Builds the canonical dataset. Pure and deterministic. */
 export function createSeedDataset(): DemoDataset {
   return clone<DemoDataset>({
-    organization: {
-      name: academy.name,
-      tagline: academy.tagline,
-      locale: "fa-IR",
-      direction: "rtl",
-      calendar: "jalali",
-      currency: "toman",
-      firstWeekday: 0,
-      defaultSessionMinutes: 60,
-    },
+    organization: createOrganizationSettings(),
     rooms,
     teachers,
     students,
@@ -196,11 +209,22 @@ export function createSeedDataset(): DemoDataset {
   });
 }
 
-/** An empty-but-valid dataset: the "Clear Demo" target state. */
+/**
+ * An empty-but-valid dataset: the "Clear Demo" target state, and the shape a
+ * read returns while no environment has been initialized.
+ *
+ * EVERY collection is empty — including `users` and `roles` — and
+ * `seed.test.ts` pins that. Access bootstrap for a real customer environment is
+ * therefore NOT added here; it belongs to environment initialization, one level
+ * up (`domains/demo/lifecycle.ts` → `createEmptyEnvironment()`), so this factory
+ * stays a pure statement about records.
+ *
+ * Cheap by construction: only organization settings and default branding are
+ * derived, never the full canonical seed.
+ */
 export function createEmptyDataset(): DemoDataset {
-  const seed = createSeedDataset();
   return {
-    organization: seed.organization,
+    organization: createOrganizationSettings(),
     rooms: [],
     teachers: [],
     students: [],

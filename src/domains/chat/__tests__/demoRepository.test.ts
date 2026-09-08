@@ -8,13 +8,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DemoChatRepository } from "../demoRepository";
 import { MAX_MESSAGE_LENGTH } from "../types";
-import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoChatRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   repo = new DemoChatRepository();
 });
 

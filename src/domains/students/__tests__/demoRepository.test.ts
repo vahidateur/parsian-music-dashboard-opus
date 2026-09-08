@@ -4,6 +4,7 @@ import { students as seedStudents } from "@/data/records";
 import { demoStore } from "@/services/demoStore";
 import { DemoStudentRepository } from "@/domains/students/demoRepository";
 import type { CreateStudentInput } from "@/domains/students/types";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const draft: CreateStudentInput = {
   nationalId: "2000535658",
@@ -29,7 +30,7 @@ describe("DemoStudentRepository", () => {
   let repo: DemoStudentRepository;
 
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoStudentRepository();
   });
 

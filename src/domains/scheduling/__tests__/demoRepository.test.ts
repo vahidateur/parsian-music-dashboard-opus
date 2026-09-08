@@ -19,6 +19,7 @@ import { addDays } from "../dateBridge";
 import { SESSION_ERRORS } from "../types";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoSchedulingRepository;
 
@@ -30,7 +31,7 @@ let repo: DemoSchedulingRepository;
 let attendedIds: Set<string>;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   attendedIds = new Set<string>();
   // Most tests need destructive operations to work, so they run against a
   // provider that can actually answer the question. The fail-safe default is
@@ -808,7 +809,7 @@ describe("demo persistence", () => {
     await manualSession({ date: future(400), startTime: "07:00", endTime: "08:00" });
     expect(demoStore.scheduledSessions.all().length).toBe(seeded + 1);
 
-    demoStore.reset();
+    resetToDemoEnvironment();
     // Reset restores the deterministic seed, not an empty collection.
     expect(demoStore.scheduledSessions.all()).toHaveLength(seeded);
   });

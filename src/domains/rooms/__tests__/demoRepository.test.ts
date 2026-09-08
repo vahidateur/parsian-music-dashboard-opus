@@ -1,8 +1,8 @@
 /** §11 room domain invariants (rooms constrain class capacity and scheduling). */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { demoStore } from "@/services/demoStore";
 import { DemoRoomRepository } from "@/domains/rooms/demoRepository";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -17,7 +17,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
 describe("DemoRoomRepository", () => {
   let repo: DemoRoomRepository;
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoRoomRepository();
   });
 

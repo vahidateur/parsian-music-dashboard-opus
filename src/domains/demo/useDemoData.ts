@@ -35,11 +35,28 @@ export interface PendingAction {
   fileName?: string;
 }
 
+/**
+ * Confirmation copy for the destructive operations.
+ *
+ * `reset` and `import-seed` install the showcase dataset, so they keep demo
+ * wording and are only offered in a DEMO environment (see `DemoDataPanel`).
+ *
+ * `clear` and `restore-backup` act on whatever this environment actually holds
+ * — in an EMPTY environment that is a customer's real records — so their copy
+ * must not call that data "demo". A confirmation dialog that mislabels what it
+ * is about to destroy is how real data gets deleted by accident.
+ */
 export const DESTRUCTIVE_LABELS: Record<DestructiveAction, { title: string; warning: string }> = {
   reset: { title: "بازنشانی دادهٔ دمو", warning: "همهٔ تغییرات فعلی دمو حذف و دیتاست اولیه جایگزین می‌شود." },
-  clear: { title: "پاک‌کردن دادهٔ دمو", warning: "همهٔ رکوردهای دمو حذف می‌شوند و محیط خالی می‌ماند." },
+  clear: {
+    title: "پاک‌کردن کامل داده‌ها",
+    warning: "همهٔ رکوردهای این محیط حذف می‌شوند و محیط بدون رکورد باقی می‌ماند.",
+  },
   "import-seed": { title: "ورود دیتاست کانونیکال", warning: "دادهٔ فعلی دمو با دیتاست کانونیکال جایگزین می‌شود." },
-  "restore-backup": { title: "بازگردانی پشتیبان", warning: "دادهٔ فعلی دمو با محتوای فایل پشتیبان جایگزین می‌شود." },
+  "restore-backup": {
+    title: "بازگردانی پشتیبان",
+    warning: "دادهٔ فعلی این محیط با محتوای فایل پشتیبان جایگزین می‌شود.",
+  },
 };
 
 export function useDemoData(manager: DemoDataManager = demoDataManager): DemoDataState {

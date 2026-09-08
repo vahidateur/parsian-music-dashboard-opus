@@ -3,7 +3,6 @@
  * agree on one dataset, and repositories must reflect the state afterwards.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { demoStore } from "@/services/demoStore";
 import { demoDataManager } from "@/domains/demo/demoDataManager";
 import { getClassRepository, getStudentRepository, resetRegistry } from "@/domains/registry";
 import { parseCsv } from "@/domains/import/spreadsheet";
@@ -14,11 +13,12 @@ import {
   loadStudentImportContext,
   validateStudentRows,
 } from "@/domains/import/studentImport";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const confirmed = { confirm: true } as const;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

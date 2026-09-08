@@ -19,12 +19,12 @@ import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { instrumentName, resetInstrumentCatalog, setInstrumentCatalog } from "../catalog";
 import { getInstrumentRepository, getStudentRepository, resetRegistry } from "@/domains/registry";
 import { buildExportTable } from "@/domains/export/exportService";
-import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   resetInstrumentCatalog();
 });

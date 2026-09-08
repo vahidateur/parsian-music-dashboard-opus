@@ -5,7 +5,6 @@
  * against actual stored data rather than a stub.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { demoStore } from "@/services/demoStore";
 import { resetRegistry, getStudentRepository } from "@/domains/registry";
 import { parseCsv, toXlsx, parseXlsx } from "../spreadsheet";
 import {
@@ -16,6 +15,7 @@ import {
   loadStudentImportContext,
   validateStudentRows,
 } from "../studentImport";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const HEADERS = ["name", "national_id", "instrument", "phone"];
 
@@ -32,7 +32,7 @@ async function validate(rows: string[][]) {
 }
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

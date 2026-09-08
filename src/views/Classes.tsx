@@ -4,6 +4,7 @@ import type { InstrumentId } from "@/data/academy";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
 import { faNum, faPercent, faTime, faToman } from "@/lib/format";
+import { meanOf, ratioPct, topBy } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
@@ -318,6 +319,11 @@ export function ClassesView() {
   const totalSeats = classes.reduce((a, b) => a + b.capacity, 0);
   const taken = classes.reduce((a, b) => a + b.enrolled, 0);
   const waitlist = classes.reduce((a, b) => a + b.waitlist, 0);
+  // Derived from the live rows, never hardcoded: in an environment with no
+  // classes there is no occupancy ratio, no average attendance and no "most
+  // waitlisted" class. Each of those has to read as absent («—», no hint)
+  // rather than as 0٪, «NaN٪» or the name of a record that does not exist.
+  const mostWaitlisted = topBy(classes, (c) => c.waitlist, (c) => c.waitlist > 0);
 
   return (
     <div>
@@ -342,9 +348,9 @@ export function ClassesView() {
       <StatStrip
         stats={[
           { label: "کلاس فعال", value: faNum(classes.length), hint: `${faNum(classes.filter((c) => c.kind === "group").length)} گروهی · ${faNum(classes.filter((c) => c.kind === "private").length)} خصوصی` },
-          { label: "اشغال صندلی", value: faPercent(Math.round((taken / totalSeats) * 100)), delta: 3.4, hint: `${faNum(taken)} از ${faNum(totalSeats)}` },
-          { label: "لیست انتظار", value: faNum(waitlist), tone: "violet", hint: "بیشترین: پیانو" },
-          { label: "میانگین حضور", value: faPercent(Math.round(classes.reduce((a, b) => a + b.attendanceAvg, 0) / classes.length)), delta: 2.1 },
+          { label: "اشغال صندلی", value: faPercent(ratioPct(taken, totalSeats)), delta: 3.4, hint: `${faNum(taken)} از ${faNum(totalSeats)}` },
+          { label: "لیست انتظار", value: faNum(waitlist), tone: "violet", hint: mostWaitlisted ? `بیشترین: ${mostWaitlisted.title}` : undefined },
+          { label: "میانگین حضور", value: faPercent(meanOf(classes, (c) => c.attendanceAvg)), delta: 2.1 },
         ]}
       />
 

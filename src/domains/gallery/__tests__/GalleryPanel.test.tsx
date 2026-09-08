@@ -13,6 +13,7 @@ import { GalleryPanel } from "../GalleryPanel";
 import { getGalleryRepository, getMediaRepository, resetRegistry } from "@/domains/registry";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 
@@ -20,7 +21,7 @@ afterEach(cleanup);
 let seededMediaCount: number;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
   seededMediaCount = demoStore.media.all().length;

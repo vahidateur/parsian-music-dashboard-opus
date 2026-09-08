@@ -10,11 +10,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LearningPanel } from "../LearningPanel";
 import { getLearningRepository, resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

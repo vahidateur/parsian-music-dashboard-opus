@@ -23,6 +23,7 @@ import { ApiAttendanceRepository } from "@/domains/attendance/apiRepository";
 import { getRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const originalMode = getRuntimeConfig().mode;
 
@@ -90,7 +91,7 @@ describe("the real attendance provider is wired (C2b)", () => {
    * are protected, sessions without them are freely editable.
    */
   it("allows deleting a session that has no attendance", async () => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     resetRegistry();
 
     const repo = getSchedulingRepository();
@@ -104,7 +105,7 @@ describe("the real attendance provider is wired (C2b)", () => {
   });
 
   it("protects a session once real attendance exists", async () => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     resetRegistry();
 
     const scheduling = getSchedulingRepository();
@@ -144,7 +145,7 @@ describe("the real attendance provider is wired (C2b)", () => {
   });
 
   it("still allows non-destructive reads and previews", async () => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     resetRegistry();
 
     const repo = getSchedulingRepository();
@@ -183,7 +184,7 @@ describe("attendance registry", () => {
 
 describe("seeded data is reachable through the registry", () => {
   it("lists the dated sessions from the seed", async () => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     resetRegistry();
 
     const page = await getSchedulingRepository().list({ per_page: 500 });

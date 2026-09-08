@@ -3,13 +3,13 @@
  * round-trip through Excel-compatible encodings.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { demoStore } from "@/services/demoStore";
 import { getStudentRepository, resetRegistry } from "@/domains/registry";
 import { parseCsv, parseXlsx } from "@/domains/import/spreadsheet";
 import { buildExportTable, serializeTable } from "../exportService";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

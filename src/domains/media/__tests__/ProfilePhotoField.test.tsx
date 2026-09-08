@@ -13,6 +13,7 @@ import { ProfilePhotoField } from "../ProfilePhotoField";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { getMediaRepository, resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 
@@ -22,7 +23,7 @@ let revoked: string[];
 let seededMediaCount: number;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
   seededMediaCount = demoStore.media.all().length;

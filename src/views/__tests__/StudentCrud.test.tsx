@@ -13,12 +13,12 @@ import { AppProvider } from "@/context/AppContext";
 import { StudentsView } from "@/views/Students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
 import { getStudentRepository } from "@/domains/registry";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

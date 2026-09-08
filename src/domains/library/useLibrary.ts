@@ -10,31 +10,43 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { downloadBlobFile } from "@/lib/download";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { getLibraryRepository, getMediaRepository } from "@/domains/registry";
 import { useResourceList, type ListState, type Paged } from "@/domains/shared/useResource";
 import { ensureDemoLibraryFile } from "./demoContent";
 import type { LibraryFileState, LibraryItem, LibraryListParams } from "./types";
 
 /**
- * Provisions the demo library file once per session.
+ * Provisions the demo library file — in a DEMO environment only.
  *
  * The dataset can carry the file's metadata but not its bytes (a pure,
  * synchronous seed cannot write to a blob store), so the bytes are written here,
  * at bootstrap, by the one function that owns that job.
  *
  * THIS IS THE SINGLE DEMO-CONTENT CALL SITE. It is deliberately a hook of its
- * own rather than a line buried in the view, so the lifecycle phase can decide
- * *whether* demo content is provisioned at all — per environment mode — without
- * touching the Library domain, the repository or `Library.tsx`.
+ * own rather than a line buried in the view, so the lifecycle boundary decides
+ * *whether* demo content is provisioned at all — the Library domain, the
+ * repository and `Library.tsx` know nothing about environment modes.
+ *
+ * GATED ON THE PERSISTED LIFECYCLE STATE, not on how many rows exist:
+ *  - EMPTY (a real customer environment) never receives `res1`, `md_demo_res1`
+ *    or the demo blob — no demo bytes are written into a customer's browser;
+ *  - `api` mode never receives them either (`isDemoEnvironment()` is false
+ *    whenever the data source is a real backend);
+ *  - DEMO provisions them, and re-provisions if the environment is later reset
+ *    to the canonical dataset, because the hook subscribes to persistence.
  *
  * Failures are not thrown and not swallowed silently either: if the blob store
  * cannot hold the bytes, `useLibraryFile` reports the record as `missing` and
  * the UI says the file is unavailable, which is the honest outcome.
  */
 export function useDemoLibraryFile(): void {
+  const demo = useIsDemoEnvironment();
+
   useEffect(() => {
+    if (!demo) return;
     void ensureDemoLibraryFile();
-  }, []);
+  }, [demo]);
 }
 
 /** The catalogue list. `per_page` is required at the type level (see `Paged`). */

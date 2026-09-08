@@ -19,15 +19,18 @@ vi.mock("@/api/config", async (importOriginal) => ({
 import { LoginView } from "../Login";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/demoAuthRepository";
-import { demoStore } from "@/services/demoStore";
 import { resetRegistry } from "@/domains/registry";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  // Drop any session left by the previous test FIRST: `clear()` wipes every
+  // key, so running it after the environment is seeded would also remove the
+  // dataset and its lifecycle marker and leave the store UNINITIALIZED.
+  localStorage.clear();
+  resetToDemoEnvironment();
   resetRegistry();
   isDemoMode.mockReturnValue(true);
-  localStorage.clear();
 });
 
 function renderLogin() {

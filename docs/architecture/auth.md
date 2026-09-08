@@ -68,6 +68,26 @@ Passphrase for all: `arena-demo`.
 
 Session TTL is 12h. Unknown user and wrong passphrase return an **identical** error (`AUTH_INVALID_CREDENTIALS`) so the demo does not enumerate accounts. Restoration re-reads role and permissions from the matrix, never from stored payload, so editing `localStorage` cannot grant privileges beyond the stored `userId`'s real role.
 
+## EMPTY environment bootstrap account — IMPLEMENTED
+
+An EMPTY environment (a real customer, zero academy records) ships with exactly one
+account, so that it can be signed into at all:
+
+| Email | Role | Where it comes from |
+| --- | --- | --- |
+| `admin@academy.local` | administrator | `BOOTSTRAP_ADMIN` in `src/domains/demo/lifecycle.ts` |
+
+It is **access bootstrap, not academy content**: `createEmptyDataset()` stays empty in
+every collection (pinned by `seed.test.ts`) and the account is added by
+`createEmptyEnvironment()` at lifecycle level. Without it an EMPTY environment would be a
+dead end, because demo authentication resolves the signed-in user against `users` — zero
+users means nobody can ever get in to create the first student.
+
+It carries no credential material (demo auth stores none — see
+`auth/demoAuthRepository.ts`), it exists only in demo mode, and the customer can rename
+it, add staff and delete it from Settings → Users. It is deliberately not one of the demo
+accounts above: those belong to the showcase dataset.
+
 ## Demo lifecycle integration — IMPLEMENTED
 
 Reset / clear / import / restore all run `invalidateSessionIfUserMissing()`. If the signed-in `userId` no longer exists, the session is dropped, so clearing the dataset cannot leave a ghost session. Invalid restores leave state unchanged. Backups carry users and roles but never credentials or sessions.

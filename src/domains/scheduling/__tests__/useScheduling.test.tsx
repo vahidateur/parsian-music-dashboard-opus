@@ -17,10 +17,11 @@ import {
 } from "../useScheduling";
 import { getSchedulingRepository, resetRegistry, setSchedulingRepository } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

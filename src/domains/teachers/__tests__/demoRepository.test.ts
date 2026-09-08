@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { teachers as seedTeachers } from "@/data/records";
-import { demoStore } from "@/services/demoStore";
 import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -18,7 +18,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
 describe("DemoTeacherRepository", () => {
   let repo: DemoTeacherRepository;
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoTeacherRepository();
   });
 

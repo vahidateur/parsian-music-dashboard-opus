@@ -114,9 +114,23 @@ describe("DemoStore migration", () => {
     expect(migrateDataset(snapshot).migrated).toBe(false);
   });
 
-  it("still reseeds a payload that is not a dataset at all", () => {
-    const { store } = storeWith("{ not json");
-    expect(store.snapshot().students.length).toBeGreaterThan(0);
+  it("treats a payload that is not a dataset at all as uninitialized", () => {
+    // Corruption is not a licence to install demo records into somebody's
+    // environment. The read hands back a valid EMPTY dataset so no reader
+    // crashes, reports that no environment exists yet — which is what makes the
+    // first-run choice appear again — and leaves the stored bytes untouched,
+    // because a read must never write on the visitor's behalf.
+    const { store, storage } = storeWith("{ not json");
+
+    expect(store.isInitialized()).toBe(false);
+
+    const snapshot = store.snapshot();
+    for (const name of DEMO_COLLECTIONS) {
+      expect(Array.isArray(snapshot[name]), `collection "${name}" must still be an array`).toBe(true);
+      expect(snapshot[name]).toHaveLength(0);
+    }
+
+    expect(storage.getItem(DEMO_STORAGE_KEY)).toBe("{ not json");
   });
 
   it("restores a missing singleton instead of returning undefined", () => {

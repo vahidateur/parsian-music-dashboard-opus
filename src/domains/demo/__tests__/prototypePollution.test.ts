@@ -99,10 +99,20 @@ describe("DemoStore snapshot hardening", () => {
     expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
 
-  it("reseeds instead of throwing when the snapshot is corrupt", () => {
+  it("never throws on a corrupt snapshot, and never reseeds from a read", () => {
     const storage = memoryStorage();
     storage.setItem(DEMO_STORAGE_KEY, "{{{not-json");
     const store = new DemoStoreImpl(storage);
-    expect(store.students.all().length).toBeGreaterThan(0);
+
+    // Truncated or hostile bytes must not crash a reader...
+    expect(() => store.students.all()).not.toThrow();
+    expect(store.students.all()).toEqual([]);
+
+    // ...and must not be silently "repaired" into a demo environment either.
+    // The store reports that no environment exists, so the explicit first-run
+    // choice decides what happens next, and the payload is left on disk exactly
+    // as it was found — a read never writes, and never deletes.
+    expect(store.isInitialized()).toBe(false);
+    expect(storage.getItem(DEMO_STORAGE_KEY)).toBe("{{{not-json");
   });
 });

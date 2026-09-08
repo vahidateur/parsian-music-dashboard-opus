@@ -12,6 +12,7 @@ import { ATTENDANCE_ERRORS } from "../types";
 import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoAttendanceRepository;
 let scheduling: DemoSchedulingRepository;
@@ -19,7 +20,7 @@ let scheduling: DemoSchedulingRepository;
 const RECORDER = "usr_admin";
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   repo = new DemoAttendanceRepository();
   // Presence provider wired so scheduling can delete freely in setup.
   scheduling = new DemoSchedulingRepository(demoStore, () => repo.sessionIdsWithAttendanceSync());
@@ -520,7 +521,7 @@ describe("persistence", () => {
     const { sessionId, studentIds } = await sessionWithRoster();
     await repo.record({ sessionId, studentId: studentIds[0], status: "present", recordedByUserId: RECORDER });
 
-    demoStore.reset();
+    resetToDemoEnvironment();
     expect(demoStore.attendanceRecords.all()).toHaveLength(0);
   });
 });

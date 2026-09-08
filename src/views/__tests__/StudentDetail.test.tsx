@@ -13,8 +13,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { StudentsView } from "@/views/Students";
 import { getStudentRepository, resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
 import { DEFAULT_PER_PAGE } from "@/domains/shared/demoCollection";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 /** Builds the check digit so generated fixtures pass the real validator. */
 function makeNationalId(seq: number): string {
@@ -26,7 +26,7 @@ function makeNationalId(seq: number): string {
 
 afterEach(cleanup);
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

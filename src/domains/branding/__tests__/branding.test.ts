@@ -9,13 +9,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { DemoBrandingRepository } from "../demoRepository";
 import { applyBranding } from "../useBranding";
 import { DEFAULT_BRANDING, isHexColor } from "../types";
-import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoBrandingRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   repo = new DemoBrandingRepository();
 });
 
@@ -67,7 +67,7 @@ describe("persistence", () => {
 
   it("survives a demo reset by returning to the default", async () => {
     await repo.update({ academyName: "موقت" });
-    demoStore.reset();
+    resetToDemoEnvironment();
     expect((await new DemoBrandingRepository().get()).academyName).toBe(DEFAULT_BRANDING.academyName);
   });
 });

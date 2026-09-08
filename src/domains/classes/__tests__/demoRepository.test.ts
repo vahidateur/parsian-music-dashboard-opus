@@ -1,9 +1,9 @@
 /** §11 class invariants: capacity is bounded by the room, archive is non-destructive. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { demoStore } from "@/services/demoStore";
 import { DemoClassRepository } from "@/domains/classes/demoRepository";
 import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -18,7 +18,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
 describe("DemoClassRepository", () => {
   let repo: DemoClassRepository;
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoClassRepository();
   });
 

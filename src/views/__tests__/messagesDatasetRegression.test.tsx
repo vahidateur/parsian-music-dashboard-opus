@@ -24,6 +24,7 @@ import { getChatRepository, resetRegistry, setChatRepository } from "@/domains/r
 import { createEmptyDataset, createSeedDataset } from "@/domains/demo/seed";
 import { DEMO_COLLECTIONS, type DemoDataset } from "@/domains/demo/types";
 import { DEMO_STORAGE_KEY, demoStore, migrateDataset } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const ERROR_TITLE = "بارگذاری گفتگوها ناموفق بود";
 
@@ -84,7 +85,7 @@ function failingChatRepository(message: string): ChatRepository {
 afterEach(cleanup);
 beforeEach(() => {
   localStorage.clear();
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

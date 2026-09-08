@@ -32,6 +32,27 @@ Now:
 Covered by `src/api/__tests__/config.test.ts`. The earlier suite asserted the
 buggy behaviour was correct; it has been inverted.
 
+## Two independent axes — do not conflate them
+
+"Demo" means two different things in this codebase, and confusing them is a bug
+source:
+
+| Question | Answered by | Persisted where | Values |
+|---|---|---|---|
+| **Where does data come from?** | `isDemoMode()` (`src/api/config.ts`) | `VITE_DATA_SOURCE`, resolved at boot | `demo` \| `api` |
+| **What kind of local environment is this?** | `readLifecycleState()` / `isDemoEnvironment()` (`src/domains/demo/lifecycle.ts`) | `ava:demo:lifecycle` in localStorage | `uninitialized` \| `empty` \| `demo` |
+
+The first is a *build/configuration* fact; the second is a *persisted runtime*
+fact about the visitor's own browser. A demo-mode app can be running a customer's
+EMPTY environment, and an api-mode app has no local environment at all.
+
+Demo-only affordances therefore require **both**: `isDemoEnvironment()` is
+`isDemoMode() && state === "demo"`. That is why the demo library file, `DemoNote`
+and the demo labelling in the Settings data panel all go through it rather than
+through `isDemoMode()` alone — in an EMPTY environment the records on screen are
+the customer's own, and labelling them demo data is the same dishonesty in the
+opposite direction. See `docs/architecture/demo-data.md` for the lifecycle model.
+
 ## Demo-only material must not leak
 
 `isDemoMode()` gates every demo affordance. Two independent layers:

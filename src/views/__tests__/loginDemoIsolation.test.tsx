@@ -7,11 +7,12 @@
  *   2. The login screen renders no demo panel, passphrase or warning banner.
  */
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { LoginView } from "@/views/Login";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const renderLogin = () =>
   render(
@@ -19,6 +20,14 @@ const renderLogin = () =>
       <LoginView />
     </AuthProvider>,
   );
+
+beforeEach(() => {
+  // A read no longer seeds an environment, so the DEMO one is created
+  // explicitly. That makes these assertions stronger rather than weaker: demo
+  // records genuinely exist in storage, and what keeps them out of an api-mode
+  // login screen is the runtime mode — not the accident of an absent dataset.
+  resetToDemoEnvironment();
+});
 
 afterEach(() => {
   resetRuntimeConfig();

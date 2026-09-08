@@ -12,10 +12,10 @@ import { ApiClient } from "@/api/client";
 import { ApiError } from "@/api/errors";
 import { DemoLibraryRepository } from "@/domains/library/demoRepository";
 import { getLibraryRepository, resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
 import { ApiLibraryRepository, toQuery } from "../apiRepository";
 import type { CreateLibraryItemInput } from "../types";
 import { asFetch, createFetchMock, jsonResponse, requestOf, type FetchHandler } from "@/test/fetchMock";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const BASE = "https://example.test/api/v1";
 
@@ -132,7 +132,7 @@ describe("error honesty over the wire", () => {
 
 describe("composition root", () => {
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     resetRegistry();
   });
 

@@ -4,6 +4,7 @@ import type { InstrumentId } from "@/data/academy";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, weekSessions, type Teacher } from "@/data/records";
 import { faNum, faPercent, faTime } from "@/lib/format";
+import { meanOf } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
@@ -389,7 +390,9 @@ export function TeachersView() {
       </>
     );
 
-  const avgUtil = Math.round(teachers.reduce((a, b) => a + b.utilization, 0) / teachers.length);
+  // `null` while the academy has no teachers: an average over nothing is not
+  // 0٪, and inline it evaluated to NaN and rendered as «NaN٪».
+  const avgUtil = meanOf(teachers, (t) => t.utilization);
   const freeHours = teachers.reduce((a, b) => a + Math.max(0, b.contractHours - b.weeklyHours), 0);
 
   return (

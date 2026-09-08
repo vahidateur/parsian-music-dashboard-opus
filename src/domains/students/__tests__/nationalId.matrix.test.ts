@@ -11,9 +11,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { students as seedStudents } from "@/data/records";
-import { demoStore } from "@/services/demoStore";
 import { DemoStudentRepository } from "@/domains/students/demoRepository";
 import type { CreateStudentInput } from "@/domains/students/types";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const base: CreateStudentInput = {
   nationalId: "2000535658",
@@ -46,7 +46,7 @@ describe("student national_id invariant", () => {
   let repo: DemoStudentRepository;
 
   beforeEach(() => {
-    demoStore.reset();
+    resetToDemoEnvironment();
     repo = new DemoStudentRepository();
   });
 

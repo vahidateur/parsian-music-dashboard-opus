@@ -8,7 +8,6 @@
  */
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { demoStore } from "@/services/demoStore";
 import {
   getClassRepository,
   getEnrollmentRepository,
@@ -22,9 +21,10 @@ import { useRooms } from "@/domains/rooms/useRooms";
 import { useClasses } from "@/domains/classes/useClasses";
 import { useAcademyMetrics } from "@/domains/shared/useAcademyMetrics";
 import { useDomainSearch } from "@/domains/shared/useDomainSearch";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

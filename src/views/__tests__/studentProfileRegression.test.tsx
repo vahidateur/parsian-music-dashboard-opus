@@ -20,7 +20,8 @@ import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { getMediaRepository, getProgressRepository, getStudentRepository, resetRegistry } from "@/domains/registry";
 import { ACTIVE_ASSIGNMENT_STATUSES } from "@/domains/progress/types";
 import { createSeedDataset } from "@/domains/demo/seed";
-import { DEMO_STORAGE_KEY, demoStore } from "@/services/demoStore";
+import { DEMO_STORAGE_KEY } from "@/services/demoStore";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const LEARNING_ERROR = "بارگذاری مسیر یادگیری ناموفق بود";
 const PROGRESS_ERROR = "بارگذاری پیشرفت ناموفق بود";
@@ -62,7 +63,7 @@ function renderProfile(studentId: string) {
 afterEach(cleanup);
 beforeEach(() => {
   localStorage.clear();
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
 });
 

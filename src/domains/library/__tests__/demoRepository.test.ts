@@ -26,11 +26,12 @@ import { createEmptyDataset } from "@/domains/demo/seed";
 import { demoStore } from "@/services/demoStore";
 import { ensureDemoLibraryFile } from "../demoContent";
 import { DemoLibraryRepository, addedLabel, durationLabel, sizeLabel } from "../demoRepository";
+import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 let repo: DemoLibraryRepository;
 
 beforeEach(() => {
-  demoStore.reset();
+  resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
   repo = new DemoLibraryRepository();

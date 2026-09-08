@@ -191,3 +191,30 @@ export interface DemoDatasetStats {
   counts: Record<DemoCollectionName, number>;
   total: number;
 }
+
+/* ------------------------------------------------------------------ */
+/* Data lifecycle                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The two initialized kinds of environment.
+ *
+ * `empty` — a real/customer environment: a valid dataset with zero academy
+ * records, ready for the customer's own data.
+ * `demo`  — the explicit showcase/QA dataset (`createSeedDataset()`).
+ *
+ * The mode is a persisted FACT about the environment, never a guess from how
+ * many rows it happens to hold: an EMPTY academy with zero students is still
+ * EMPTY, and a DEMO dataset emptied during testing is still DEMO.
+ */
+export const LIFECYCLE_MODES = ["empty", "demo"] as const;
+
+export type DataLifecycleMode = (typeof LIFECYCLE_MODES)[number];
+
+/**
+ * `uninitialized` — no lifecycle choice has been made yet, so nothing has been
+ * written and no data of either kind exists. Distinct from EMPTY on purpose:
+ * EMPTY is a deliberate, supported environment, while UNINITIALIZED means the
+ * first-run decision is still outstanding.
+ */
+export type DataLifecycleState = "uninitialized" | DataLifecycleMode;
