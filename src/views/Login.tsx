@@ -4,6 +4,7 @@ import { academy } from "@/data/academy";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
 import { isDemoMode } from "@/api/config";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { roleLabels } from "@/domains/auth/permissions";
 import stageImage from "@/assets/login-stage.jpg";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
@@ -25,9 +26,14 @@ import { cn } from "@/utils/cn";
  * `prefers-reduced-motion`. Nothing here fakes progress — the only spinner is
  * bound to the real `pending` flag from the auth repository.
  *
- * HONESTY (§37/§38): the demo banner is rendered strictly behind
- * `isDemoMode()`. In production the credential hints, the passphrase and the
- * one-tap fill buttons do not exist in the DOM at all.
+ * HONESTY (§37/§38): the credential panel is rendered strictly behind
+ * `isDemoMode()`, so in api mode the hints, the passphrase and the one-tap fill
+ * buttons do not exist in the DOM at all. Its WORDING is gated one level deeper,
+ * by `isDemoEnvironment()`: in a customer's EMPTY environment the passphrase
+ * must stay reachable — it is the only way into the bootstrap account that
+ * environment creates — but the environment may not be called a demo, nor that
+ * account a sample one. Two axes, two different questions; see
+ * `docs/architecture/environments.md`.
  */
 export function LoginView() {
   const { login, pending, error, clearError } = useAuth();
@@ -43,6 +49,11 @@ export function LoginView() {
   const emailErrorId = useId();
   const passwordErrorId = useId();
   const demo = isDemoMode();
+  // The data source decides WHETHER a credential panel exists at all; the
+  // persisted lifecycle state decides what that panel may CALL itself. In an
+  // EMPTY environment the accounts on screen are the visitor's own, so labelling
+  // them demo data is the same dishonesty in the opposite direction.
+  const demoEnvironment = useIsDemoEnvironment();
 
   useEffect(() => {
     emailRef.current?.focus();
@@ -276,7 +287,7 @@ export function LoginView() {
               </form>
             </div>
 
-            {demo && <DemoPanel onPick={(nextEmail) => {
+            {demo && <DemoPanel demoEnvironment={demoEnvironment} onPick={(nextEmail) => {
               setEmail(nextEmail);
               setPassword(DEMO_PASSPHRASE);
               clearError();
@@ -312,20 +323,29 @@ function StageMark() {
 }
 
 /**
- * Demo credentials.
+ * Local credentials.
  *
- * Rendered only in demo mode. The wording states plainly that this login has
- * no security — claiming otherwise about localStorage auth would be dishonest.
+ * Rendered only when the data source is demo; in api mode it is not in the DOM
+ * at all. The wording states plainly that this login has no security — claiming
+ * otherwise about localStorage auth would be dishonest.
+ *
+ * `demoEnvironment` chooses the LABELS only, never the capability: an EMPTY
+ * environment still needs the passphrase on screen, because the bootstrap
+ * account it created is the only way in. What it must not do is call that
+ * customer environment a demo, or that account a sample one.
  */
-function DemoPanel({ onPick }: { onPick: (email: string) => void }) {
+function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPick: (email: string) => void }) {
   const accounts = listDemoAccounts();
   return (
     <div className="mt-5 rounded-2xl border border-warn-500/[0.18] bg-warn-500/[0.045] p-4">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-400">
-        <TriangleAlert className="size-3.5" aria-hidden /> محیط دمو — بدون امنیت واقعی
+        <TriangleAlert className="size-3.5" aria-hidden />{" "}
+        {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-ink-300">
-        این ورود صرفاً نمایشی است و هیچ محافظت امنیتی ندارد. گذرواژهٔ همهٔ حساب‌های نمونه{" "}
+        {demoEnvironment
+          ? "این ورود صرفاً نمایشی است و هیچ محافظت امنیتی ندارد. گذرواژهٔ همهٔ حساب‌های نمونه"
+          : "این ورود روی دادهٔ ذخیره‌شده در همین مرورگر است و هیچ محافظت امنیتی ندارد. گذرواژهٔ حساب دسترسیِ این محیط"}{" "}
         <code dir="ltr" className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[10.5px] text-ink-100">
           {DEMO_PASSPHRASE}
         </code>{" "}

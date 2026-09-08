@@ -101,7 +101,11 @@ describe("signing in to an EMPTY environment", () => {
     expectNoArtefacts(container, "dashboard");
   });
 
-  it("offers no demo credential hints, because this is not a demo environment", async () => {
+  it("the signed-in dashboard surface shows no demo credential hints", async () => {
+    // Scope note: this asserts on the DASHBOARD after a programmatic sign-in, so
+    // it says nothing about the login screen — where a credential panel is
+    // legitimate and must stay. The login screen in EMPTY is covered by
+    // `loginEmptyEnvironment.test.tsx`.
     const { container } = await renderView("dashboard");
 
     expect(container.textContent).not.toContain("@demo.local");

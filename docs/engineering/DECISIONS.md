@@ -65,10 +65,25 @@ be conflated. Demo-only affordances require **both**: `isDemoEnvironment()` =
 **Why.** A demo-mode app can be running a customer's EMPTY environment. Labelling that
 customer's own records as demo data is the same dishonesty as demo data pretending to be real.
 
-**Enforced by.** `src/domains/demo/lifecycle.ts`, `docs/architecture/environments.md` →
-"Two independent axes", `src/views/__tests__/loginDemoIsolation.test.tsx`.
+**Rule.** Each axis answers a different question and a component must ask the right one. The
+**data-source** axis decides whether a local-data affordance exists at all — in `api` mode there is
+no local dataset to choose, reset, back up or sign into, so nothing of the kind renders. The
+**environment** axis decides what such an affordance may *call itself*. Views therefore branch on
+lifecycle state for **wording only**; seeding, filtering and hiding capability stay at the lifecycle
+boundary (§5, §6). `useIsDemoEnvironment()` from `src/domains/demo/useDataLifecycle.ts` is the only
+seam a view may use for that, which is why the login credential panel and the Settings data panel
+read the same way.
 
-**Status.** ✅ In force (Phase 2).
+**Enforced by.** `src/domains/demo/lifecycle.ts`, `docs/architecture/environments.md` →
+"Two independent axes", and in the UI by `useIsDemoEnvironment()` from
+`src/domains/demo/useDataLifecycle.ts` — consumed by `src/components/settings/DemoDataPanel.tsx`
+and by `src/views/Login.tsx`. Tests: `src/views/__tests__/loginDemoIsolation.test.tsx` (api-mode
+isolation), `src/views/__tests__/loginEmptyEnvironment.test.tsx` (EMPTY labels truthful **and**
+the bootstrap entry preserved), `src/components/settings/__tests__/DemoDataPanel.test.tsx`.
+
+**Status.** ✅ In force (Phase 2). The login screen's *wording* was corrected in the documentation
+pass: it had been gated on the data-source axis alone, so an EMPTY environment was announced as a
+demo one — see [OPEN_ITEMS.md](OPEN_ITEMS.md) H3.
 
 ## 5. Explicit lifecycle: UNINITIALIZED → { EMPTY | DEMO }
 
@@ -298,6 +313,45 @@ out of these engineering documents so they stay safe to paste into any session c
 `docs/security.md`, `public/robots.txt`, `index.html`.
 
 **Status.** ✅ In force. Edge/nginx header configs exist but were **not deployed** by this work.
+
+## 18. Boot chain and access path — nothing renders above a gate it depends on
+
+**Decision.** The application boots through a fixed chain, and each gate exists to refuse one
+specific kind of lie:
+
+```
+src/main.tsx   AccessGate          the panel is private; the access path comes from build
+                                   config, never from a literal in source
+src/App.tsx    ConfigGate          refuse to boot on an unrecognised data source (§3)
+               DataLifecycleGate   decide what KIND of local environment this is before
+                                   anything reads it (§5) — mounted ABOVE AuthProvider,
+                                   because authentication resolves the signed-in user
+                                   from the dataset's own `users` collection
+               AuthProvider        session, then AuthGate, then the shell and the views
+```
+
+**Rule.** No view, panel or provider may be mounted above a gate whose decision it depends on:
+nothing that reads the dataset may sit above `DataLifecycleGate`, nothing that renders a route may
+sit above `ConfigGate`, and nothing at all may sit above `AccessGate`. The access-path slug is
+*generated* — `scripts/gen-access-path.mjs` writes `src/security/accessPath.ts` — and must never be
+hardcoded, committed as a literal, or logged.
+
+**Why.** Each gate closes a failure that already happened or was one refactor away. Reading the
+environment before it has been chosen is precisely how implicit demo seeding kept creeping back
+into read paths (§5, §6). Booting on a mistyped data source used to serve fabricated records to
+someone who believed they had configured a real backend (§3). And the access-path slug is the only
+thing keeping a private panel out of indexes and "sites running X" datasets, so a hardcoded
+literal would publish it to Git and to every clone.
+
+**Enforced by.** `src/main.tsx`, `src/App.tsx` (the order is documented in its own comment block),
+`src/security/AccessGate.tsx`, `src/security/accessPath.ts`, `scripts/gen-access-path.mjs`,
+`src/__tests__/routeProtection.test.tsx`, `src/__tests__/configGate.test.tsx`,
+`src/components/lifecycle/__tests__/DataLifecycleGate.test.tsx`, and the "hardcodes no access path"
+rule in `src/__tests__/privacyPosture.test.ts`.
+
+**Status.** ✅ In force. Gap: once an environment exists there is **no UI affordance** that returns
+the visitor to `DataLifecycleGate`, so a wrong first choice cannot be undone from inside the
+product — see [OPEN_ITEMS.md](OPEN_ITEMS.md) H5.
 
 ---
 

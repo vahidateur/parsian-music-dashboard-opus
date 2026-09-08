@@ -4,6 +4,18 @@
 
 > «یک مرکز فرماندهی مدرن برای ادارهٔ یک آکادمی موسیقی»
 
+## وضعیت مهندسی
+
+نقطهٔ شروع برای هر نشست یا مشارکت‌کنندهٔ تازه:
+[`docs/engineering/PROJECT_STATE.md`](docs/engineering/PROJECT_STATE.md) — فاز جاری،
+checkpoint‌های ماندگار، وضعیت اعتبارسنجی (تست / typecheck / build)، محدودیت‌های شناخته‌شده و
+اقدام بعدی. سه سند همراه آن:
+[`docs/engineering/PHASES.md`](docs/engineering/PHASES.md) (تاریخچهٔ فازها)،
+[`docs/engineering/DECISIONS.md`](docs/engineering/DECISIONS.md) (تصمیم‌های معماری و دلیلشان) و
+[`docs/engineering/OPEN_ITEMS.md`](docs/engineering/OPEN_ITEMS.md) (کارهای باز، دسته‌بندی‌شده).
+این چهار سند با `src/__tests__/projectState.test.ts` اعتبارسنجی می‌شوند، پس هر ادعای نادرست در
+آن‌ها تست را قرمز می‌کند.
+
 ## اجرا
 
 ```bash

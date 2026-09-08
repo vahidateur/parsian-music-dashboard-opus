@@ -17,6 +17,9 @@ be derived, it is marked **not recorded** rather than guessed.
 | Phase 2 — explicit data lifecycle + empty-state audit | `33b10311f0d3a38745b4d0c00f22e4f63665888d` | ✅ yes | **COMPLETE** |
 | Product-feature phase | — | — | ❌ **NOT STARTED** |
 
+Pushed commits that change **documents or validation gates only** are not phases and are listed
+separately, at the end of this ledger → "Documentation checkpoints".
+
 ---
 
 ## Baseline — the inherited repository
@@ -28,8 +31,10 @@ build dependencies* · 2026-09-07 · author `vahidateur`.
 single-page app, Persian/RTL, with a design system (`src/components/ds`), 13 views
 (`src/views`), a demo persistence layer (`src/services/demoStore.ts`), a domain registry
 (`src/domains/registry.ts`) with demo *and* API implementations for many domains, security
-plumbing (`src/security`), and four architecture documents plus a production hand-off
-checklist and a gap matrix.
+plumbing (`src/security`), and **eight documents under `docs/`** — five architecture documents
+(`auth.md`, `data-layer.md`, `demo-data.md`, `environments.md`, `students.md`), a security
+posture (`security.md`), a production hand-off checklist (`production-handoff.md`) and a gap
+matrix (`gap-matrix.md`). Verified with `git ls-tree -r 292b8b8 docs/`, not counted by hand.
 
 **Why it matters now.** It is the graft boundary of this shallow clone — history before it is
 not present locally. Anything claimed about earlier work must be verified on GitHub.
@@ -62,10 +67,16 @@ surfaces they touch with regression tests so later phases cannot quietly break t
   by `src/services/__tests__/demoStoreMigration.test.ts` (+200).
 - **Rewritten Library view** (`src/views/Library.tsx`, +240) and gallery cleanup
   (`src/domains/gallery/useGallery.ts`, `GalleryPanel.tsx`).
-- **Three new library test suites** — `demoRepository.test.ts` (348 lines),
-  `useLibrary.test.tsx` (342), `apiRepository.test.ts` (145) — plus `src/views/__tests__/Library.test.tsx` (347).
-- **Two named regression suites**: `src/views/__tests__/studentProfileRegression.test.tsx` (158)
-  and `src/views/__tests__/messagesDatasetRegression.test.tsx` (175).
+- **Three new library test suites** — `demoRepository.test.ts` (+348), `useLibrary.test.tsx` (+342),
+  `apiRepository.test.ts` (+145) — plus `src/views/__tests__/Library.test.tsx` (+347).
+- **Two named regression suites**: `src/views/__tests__/studentProfileRegression.test.tsx` (+158)
+  and `src/views/__tests__/messagesDatasetRegression.test.tsx` (+175).
+
+  ⚠️ **Those `+N` figures are diff insertions** from `git show --stat aca40c5`, *not* file line
+  counts, and the two are not interchangeable. Five of the files above are one line longer today
+  because Phase 2 added the `resetToDemoEnvironment()` import to each;
+  `apiRepository.test.ts` is unchanged because its Phase 2 edit was 2 insertions plus 2 deletions.
+  When quoting a past commit, quote insertions as insertions.
 
 **Validation.** Typecheck, suite and build were reported green at the time; the exact counts
 are **not recorded in the repository**. What *is* verifiable today: the suites this phase added
@@ -150,3 +161,31 @@ the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md).
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the
 same commit.
+
+---
+
+## Documentation checkpoints (pushed, not application phases)
+
+Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
+
+- A **phase checkpoint** is a durable *application* milestone — a reviewed, approved and pushed
+  commit that ends a phase of product work.
+- A **documentation checkpoint** is a pushed commit that changes documents and validation gates.
+  It does not advance the "current phase", and it is recorded here so that `git log` never shows a
+  commit this ledger fails to explain.
+
+| Documentation checkpoint | Contents | Product behaviour | Pushed? |
+|---|---|---|---|
+| `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` | none | ✅ |
+
+**The pass that followed** corrected the findings of a read-only audit of those documents:
+checkpoint terminology, a verification rule in place of a hardcoded remote SHA, an accurate
+account of the (non-existent) in-product recovery path, `npm ci` instead of `npm install`, the
+boot-chain decision, a README entry point, and several evidence and wording fixes across
+[OPEN_ITEMS.md](OPEN_ITEMS.md). It added `src/views/__tests__/loginEmptyEnvironment.test.tsx`
+(8 gates) and is the **one** exception to "no product behaviour": it changed *labels only* on the
+login credential panel in an EMPTY environment, with capability preserved and pinned by that test.
+
+Its own SHA is deliberately **not** written here: a ledger cannot contain the SHA of the commit
+that carries the entry. `git log --oneline -- docs/engineering` is the authority for the newest
+documentation checkpoint, and [PROJECT_STATE.md](PROJECT_STATE.md) §2 records the previous one.

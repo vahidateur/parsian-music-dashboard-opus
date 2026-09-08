@@ -77,8 +77,16 @@ function recordedValue(document: string, label: string): string {
   return match ? match[1] : "";
 }
 
-const CURRENT = recordedSha(doc("PROJECT_STATE.md"), "Current durable checkpoint");
-const PREVIOUS = recordedSha(doc("PROJECT_STATE.md"), "Previous durable checkpoint");
+const CURRENT = recordedSha(doc("PROJECT_STATE.md"), "Phase checkpoint (application)");
+const PREVIOUS = recordedSha(doc("PROJECT_STATE.md"), "Previous phase checkpoint");
+const DOCS_CHECKPOINT = recordedSha(doc("PROJECT_STATE.md"), "Documentation checkpoint (pushed)");
+
+/** The row that describes the remote, so its shape can be policed. */
+function remoteRow(document: string): string {
+  const row = document.split("\n").find((line) => line.startsWith("| Remote state"));
+  expect(row, "PROJECT_STATE.md must have a \"Remote state\" row").toBeDefined();
+  return row ?? "";
+}
 
 /* ------------------------------------------------------------------ */
 /* 1. The documents exist                                              */
@@ -119,14 +127,18 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
     const required = [
       "Repository",
       "Working branch",
-      "Current durable checkpoint",
-      "Previous durable checkpoint",
+      "Phase checkpoint (application)",
+      "Previous phase checkpoint",
+      "Documentation checkpoint (pushed)",
+      "Remote state",
+      "Two kinds of checkpoint",
       "Phase status",
       "Validation status",
       "Browser QA status",
       "Protected domains and invariants",
       "Known limitations",
       "Immediate next action",
+      "Working conventions",
       "DO NOT",
       "Last state update",
     ];
@@ -141,10 +153,38 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
     expect(state).toMatch(/Browser QA status[\s\S]{0,200}NOT VERIFIED/);
   });
 
-  it("records two distinct full-length checkpoints", () => {
+  it("records three distinct full-length checkpoints", () => {
     expect(CURRENT).toMatch(/^[0-9a-f]{40}$/);
     expect(PREVIOUS).toMatch(/^[0-9a-f]{40}$/);
-    expect(CURRENT).not.toBe(PREVIOUS);
+    expect(DOCS_CHECKPOINT).toMatch(/^[0-9a-f]{40}$/);
+    expect(new Set([CURRENT, PREVIOUS, DOCS_CHECKPOINT]).size, "the three checkpoints must differ").toBe(3);
+  });
+
+  it("separates phase checkpoints from documentation checkpoints, in both documents", () => {
+    // A docs-only commit is durable but is not a phase: conflating them is how a ledger starts
+    // claiming product progress that never happened.
+    expect(state).toContain("### Two kinds of checkpoint");
+    expect(state).toMatch(/phase checkpoint/i);
+    expect(state).toMatch(/documentation checkpoint/i);
+    const phases = doc("PHASES.md");
+    expect(phases, "PHASES.md must keep its own ledger of documentation checkpoints").toContain(
+      "## Documentation checkpoints",
+    );
+    expect(phases).toContain(DOCS_CHECKPOINT);
+  });
+
+  it("tells the reader how to verify the remote instead of freezing a remote SHA", () => {
+    // A recorded remote SHA goes stale the moment anyone pushes, and a stale value reads as a
+    // fact. The durable form is the command that produces the current answer.
+    const row = remoteRow(state);
+    expect(row).toContain("git ls-remote");
+    expect(/[0-9a-f]{40}/.test(row), "the \"Remote state\" row must not hardcode a SHA").toBe(false);
+    expect(state).toMatch(/Deliberately not recorded as a value/i);
+  });
+
+  it("never claims to know the SHA of the commit that carries it", () => {
+    expect(state).toMatch(/No self-referential SHAs/);
+    expect(doc("PHASES.md")).toMatch(/cannot contain the SHA of the commit\s+that carries/);
   });
 
   it("names the working branch, which Git can confirm", () => {
@@ -185,6 +225,38 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
     // must never point at a commit the working copy has quietly drifted away from.
     const head = git("rev-parse", "HEAD");
     expect(head === CURRENT || isAncestor(CURRENT, head), `HEAD ${head} must be ${CURRENT} or descend from it`).toBe(true);
+  });
+
+  it("the documentation checkpoint is real and follows the phase checkpoint", () => {
+    expect(isCommit(DOCS_CHECKPOINT), `${DOCS_CHECKPOINT} must be present in this clone`).toBe(true);
+    expect(isAncestor(CURRENT, DOCS_CHECKPOINT), `the docs checkpoint must come after ${CURRENT}`).toBe(true);
+  });
+
+  it("HEAD descends from every checkpoint the documents record", () => {
+    const head = git("rev-parse", "HEAD");
+    for (const sha of [CURRENT, PREVIOUS, DOCS_CHECKPOINT]) {
+      expect(head === sha || isAncestor(sha, head), `HEAD ${head} must descend from ${sha}`).toBe(true);
+    }
+  });
+
+  it("no document quotes a commit that does not already exist", () => {
+    // The self-reference ban, made testable. A document cannot know the SHA of the commit that
+    // will carry it — that SHA does not exist yet — so every full SHA a document does quote must
+    // already be reachable from HEAD. A pasted future SHA, an invented one, or one left over from
+    // a lost object store fails here instead of sending the next reader to a commit that is not
+    // there. (Short digests that are not commits — e.g. an aggregate content hash — are not
+    // 40 hex characters and are deliberately out of scope.)
+    const head = git("rev-parse", "HEAD");
+    for (const name of REQUIRED_DOCS) {
+      for (const match of doc(name).matchAll(/[0-9a-f]{40}/g)) {
+        const sha = match[0];
+        expect(isCommit(sha), `${name} quotes ${sha}, which is not a commit in this clone`).toBe(true);
+        expect(
+          sha === head || isAncestor(sha, head),
+          `${name} quotes ${sha}, which is not reachable from HEAD ${head}`,
+        ).toBe(true);
+      }
+    }
   });
 
   it("the recorded working branch is the branch actually checked out", () => {
@@ -327,15 +399,113 @@ describe("deferred work stays visible as deferred", () => {
     expect(doc("PROJECT_STATE.md")).toMatch(/Next phase[\s\S]{0,160}NOT STARTED/);
   });
 
-  it("the ledger and the state document agree on both checkpoints", () => {
+  it("the ledger and the state document agree on all three checkpoints", () => {
     const phases = doc("PHASES.md");
-    expect(phases, "PHASES.md must record the current checkpoint").toContain(CURRENT);
-    expect(phases, "PHASES.md must record the previous checkpoint").toContain(PREVIOUS);
+    expect(phases, "PHASES.md must record the phase checkpoint").toContain(CURRENT);
+    expect(phases, "PHASES.md must record the previous phase checkpoint").toContain(PREVIOUS);
+    expect(phases, "PHASES.md must record the documentation checkpoint").toContain(DOCS_CHECKPOINT);
   });
 
   it("the ledger warns about the older, stale phase numbering", () => {
     const phases = doc("PHASES.md");
     expect(phases).toContain("docs/gap-matrix.md");
     expect(phases).toMatch(/stale/i);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 7. The recovery instructions are honest and reproducible            */
+/* ------------------------------------------------------------------ */
+
+describe("the recovery documentation does not overpromise", () => {
+  const state = doc("PROJECT_STATE.md");
+  const open = doc("OPEN_ITEMS.md");
+
+  it("says plainly that a cleared environment has no in-product recovery", () => {
+    expect(state).toMatch(/NO in-product recovery/);
+    expect(state).toMatch(/no component calls it/i);
+    // The wording this replaces offered `uninitialize` or a backup restore as a way back.
+    // Neither is reachable from inside a product that cannot be signed into.
+    expect(state).not.toContain("Recovery path: `uninitialize`");
+    expect(open).not.toMatch(/Recovery today:/);
+  });
+
+  it("tracks the missing recovery affordance as a critical open item", () => {
+    expect(open).toMatch(/### H5\. No in-product recovery/);
+    expect(open).toMatch(/H5[\s\S]{0,1600}Priority: CRITICAL/);
+    expect(open).toMatch(/Deliberately not implemented/);
+    // The invariant that constrains any fix stays visible and cross-referenced.
+    expect(open).toMatch(/### I10\.[^\n]*H5/);
+  });
+
+  it("installs dependencies with npm ci, never npm install", () => {
+    expect(state).toContain("npm ci");
+    expect(state).toMatch(/[Nn]ever `npm install`/);
+    // `npm install` may appear only inside a prohibition, never as an instruction to run it.
+    const imperatives = state
+      .split("\n")
+      .filter((line) => line.includes("npm install"))
+      .filter((line) => !/never/i.test(line));
+    expect(imperatives, "npm install must only ever appear in a prohibition").toEqual([]);
+  });
+
+  it("explains why the suite total can legitimately differ by eight", () => {
+    expect(state).toMatch(/build artifact/i);
+    expect(state).toMatch(/dist\//);
+    expect(state).toMatch(/skip/i);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 8. The boot chain is a recorded decision, not tribal knowledge      */
+/* ------------------------------------------------------------------ */
+
+describe("DECISIONS.md records the boot chain and the access path", () => {
+  const decisions = doc("DECISIONS.md");
+  const chain = ["AccessGate", "ConfigGate", "DataLifecycleGate", "AuthProvider"];
+
+  it("lists every gate in boot order", () => {
+    const section = decisions.slice(decisions.indexOf("## 18."));
+    expect(section.length, "DECISIONS.md must carry a §18").toBeGreaterThan(0);
+    const positions = chain.map((gate) => section.indexOf(gate));
+    expect(positions.filter((position) => position === -1), "every gate must be named in §18").toEqual([]);
+    expect([...positions].sort((a, b) => a - b), "the gates must appear in boot order").toEqual(positions);
+  });
+
+  it("forbids mounting anything above a gate it depends on", () => {
+    expect(decisions).toMatch(
+      /No view, panel or provider may be mounted above a gate whose decision it depends on/,
+    );
+    expect(decisions).toContain("src/security/accessPath.ts");
+    expect(decisions).toMatch(/must never be/);
+    expect(decisions).toContain("scripts/gen-access-path.mjs");
+  });
+
+  it("cross-references the remaining gap instead of implying the chain is complete", () => {
+    expect(decisions).toMatch(/no UI affordance/i);
+    expect(decisions).toContain("](OPEN_ITEMS.md)");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 9. The documents are reachable from the repository entry point      */
+/* ------------------------------------------------------------------ */
+
+describe("the engineering state is discoverable from README.md", () => {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+
+  it("points a new reader at PROJECT_STATE.md", () => {
+    expect(readme).toContain("](docs/engineering/PROJECT_STATE.md)");
+    expect(existsSync(join(ROOT, "docs", "engineering", "PROJECT_STATE.md"))).toBe(true);
+  });
+
+  it("points at the rest of the set as well", () => {
+    for (const name of ["PHASES.md", "DECISIONS.md", "OPEN_ITEMS.md"]) {
+      expect(readme, `README.md must link to ${name}`).toContain(`](docs/engineering/${name})`);
+    }
+  });
+
+  it("names the gate that keeps the documents honest", () => {
+    expect(readme).toContain("src/__tests__/projectState.test.ts");
   });
 });

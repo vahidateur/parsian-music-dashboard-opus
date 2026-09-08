@@ -6,7 +6,7 @@
 > Sibling documents: [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md)
 >
-> **Last state update: 2026-09-08.**
+> **Last state update: 2026-09-09.**
 
 ---
 
@@ -26,19 +26,35 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Current durable checkpoint** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed |
-| **Previous durable checkpoint** | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed |
+| Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
+| **Documentation checkpoint (pushed)** | `68b4fe339582211c23c422befe527a98203031ef` — these engineering documents and their validation gate |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
-| Remote state | `origin/arena/01a07c61-parsian-music-dashboard-opus` = `33b1031` at the time of writing |
+| Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
-A **durable checkpoint** is a commit that has been reviewed, approved and pushed. The
-docs-only commit that introduced this file sits on top of `33b1031` and is *not* itself a
-checkpoint; the recorded checkpoint advances only when a phase is approved and pushed.
+### Two kinds of checkpoint
 
-⚠️ **This clone is shallow** (`292b8b8` is grafted, only 3 commits were reachable before
-Phase 2). Older history must be read on GitHub, not assumed locally. The clone's fetch
-refspec is limited to `main`, so `refs/remotes/origin/arena/…` may not exist locally —
-verify the remote with `git ls-remote origin refs/heads/<branch>` instead.
+- A **phase checkpoint** is a durable *application* milestone: a reviewed, approved and pushed
+  commit that ends a phase of product work. `33b1031` (Phase 2) is the current one, and only a
+  phase checkpoint advances "current phase" in §3.
+- A **documentation checkpoint** is a pushed commit that changes documents and validation gates
+  but no product behaviour. `68b4fe3` is the first. These are listed in
+  [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a commit
+  this ledger does not explain.
+
+**No self-referential SHAs.** A document cannot contain the SHA of the commit that carries it —
+that SHA does not exist until the commit is made. So the documentation checkpoint above is always
+the *previous* pushed docs commit, and `git log -- docs/engineering` is the authority for anything
+newer. `src/__tests__/projectState.test.ts` enforces the testable form of the rule: every full SHA
+quoted in these documents must already exist as a commit and be reachable from `HEAD`, so a pasted
+future SHA or an invented one fails the suite instead of misleading the next reader.
+
+⚠️ **This clone is shallow** (`292b8b8` is grafted). At the time of the Phase 2 audit only three
+commits were reachable locally; that count grows as work lands, but history *before* the graft
+never becomes reachable — read it on GitHub rather than assuming it locally. The clone's fetch
+refspec is limited to `main`, so `refs/remotes/origin/arena/…` can be missing even after a
+successful push: verify the remote with `git ls-remote origin refs/heads/<branch>`, not with
+`git rev-parse refs/remotes/origin/…`.
 
 ⚠️ **Unpushed commits are NOT durable in this environment.** Observed on 2026-09-08: the
 sandbox workspace was **re-cloned** between turns. The local branch pointer reverted to the
@@ -56,6 +72,10 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
   `git reset --mixed <checkpoint>` — which moves the branch pointer and index only, never the
   files — followed by re-verification that every hash is unchanged.
 - Push approved checkpoints promptly.
+- **Commit identity and trailer are environment-provided, not versioned.** Commits carry the Git
+  identity configured in the clone, and a `commit-msg` hook in `.git/hooks` (which is *not* part of
+  the repository) appends a `Co-authored-by: arena-agent …` trailer. After a re-clone that hook may
+  be absent, so a missing trailer is cosmetic — never a reason to amend a pushed commit.
 
 ## 3. Current phase and status
 
@@ -64,7 +84,10 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 | Current phase | **Phase 2 — data lifecycle (UNINITIALIZED / EMPTY / DEMO)** |
 | Phase status | ✅ **COMPLETE**, committed as `33b1031`, pushed to the working branch |
 | Next phase | Product-feature phase — ❌ **NOT STARTED**, not authorized yet |
-| Working tree at last update | Clean (0 modified, 0 untracked, 0 staged) |
+| Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
+
+Nothing here is advanced by a documentation checkpoint (§2): only a reviewed, approved and pushed
+*phase* moves "Current phase", which is why it still reads Phase 2 after the audit pass.
 
 ### Last completed work (Phase 2, in one paragraph)
 
@@ -80,6 +103,20 @@ surfaces fixed three real `NaN` bugs and one lying hint at the computation bound
 (`src/lib/stats.ts`, `src/lib/format.ts`, `src/views/Classes.tsx`, `src/views/Teachers.tsx`)
 and removed demo labelling from a customer EMPTY environment
 (`src/components/settings/DemoDataPanel.tsx`).
+
+### Work landed since the Phase 2 checkpoint
+
+Documents and validation gates only, plus one labelling fix — **no product feature work**:
+
+1. The four `docs/engineering/` recovery documents and their gate
+   (`src/__tests__/projectState.test.ts`).
+2. After a read-only audit of those documents: truthful environment labels on the login
+   credential panel in an EMPTY environment (`src/views/Login.tsx` takes its wording from
+   `useIsDemoEnvironment()`), pinned by `src/views/__tests__/loginEmptyEnvironment.test.tsx`.
+   Capability is unchanged — the bootstrap account is still offered and still signs in.
+
+The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
+file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
 
@@ -100,11 +137,27 @@ uses `describe.skipIf(!hasBuild)` where `hasBuild = existsSync("dist/index.html"
 suite reports `1255 passed + 0 skipped`. `1247 + 8 = 1255`. Both are green; the difference is
 only whether the production artifact was present.
 
-**After this documentation commit** (docs + one validation test, no application source):
-`npm test` reports **92 files / 1 284 passed / 0 failed**, and `npm run typecheck` is clean.
-The added file is `src/__tests__/projectState.test.ts` (29 tests) — it validates these four
-documents. `npm run build` was **not** re-run, because no application source changed; the Phase 2
-build result above still stands. Re-run it whenever you touch `src/` outside `__tests__`.
+**`dist/` is a build artifact and is not in Git.** After a workspace re-clone it is absent, so the
+same 8 CSP tests skip again and the total reads 8 lower. That is neither a failure nor a
+regression: `npm run build` brings them back. Always report which shape you observed —
+`N passed` or `(N−8) passed + 8 skipped` — rather than a bare number.
+
+**Current state of the suite** (measured in the working tree of the documentation pass, with
+`dist/` present): `npm test` reports **93 files / 1 308 passed / 0 failed / 0 skipped**,
+`npm run typecheck` is clean, `npm run build` succeeds, `git diff --check` is clean. The
+arithmetic from the Phase 2 baseline, so the number can be audited rather than trusted:
+
+| Step | Files | Tests |
+|---|---|---|
+| Phase 2 checkpoint `33b1031` | 91 | 1 255 |
+| + `src/__tests__/projectState.test.ts` (the gate over these documents) | 92 | 1 284 |
+| + `src/views/__tests__/loginEmptyEnvironment.test.tsx` (8 gates, EMPTY login) | 93 | 1 292 |
+| + 16 gates added to `projectState.test.ts` by the audit corrections | 93 | **1 308** |
+
+Because the EMPTY-login labelling fix touched application source (`src/views/Login.tsx`), the build
+was re-run and the neighbouring suites were re-verified green individually: `Login` (15),
+`loginDemoIsolation` (5), `emptyEnvironment` (21), `architectureBoundaries` (9),
+`privacyPosture` (22) — 80 tests across the six files that could have been affected, all passing.
 
 ## 5. Browser QA status
 
@@ -130,6 +183,7 @@ These are pinned by tests. Changing them is a regression, not a refactor.
 | Student profile + messages regressions (Phase 1) | `src/views/__tests__/studentProfileRegression.test.tsx` · `messagesDatasetRegression.test.tsx` |
 | Persistence boundary: migration, backup/restore, dataset integrity, prototype-pollution defence | `src/services/__tests__/demoStoreMigration.test.ts` · `src/domains/demo/__tests__/backup.test.ts` · `contracts.test.ts` · `dataIntegrity.test.ts` · `prototypePollution.test.ts` · `seed.test.ts` |
 | Lifecycle model (Phase 2) | `src/domains/demo/__tests__/dataLifecycle.test.ts` · `src/components/lifecycle/__tests__/FirstRunChooser.test.tsx` · `DataLifecycleGate.test.tsx` · `src/views/__tests__/emptyEnvironment.test.tsx` · `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx` · `src/components/settings/__tests__/DemoDataPanel.test.tsx` |
+| Login in an EMPTY environment — truthful labels **and** preserved bootstrap entry | `src/views/__tests__/loginEmptyEnvironment.test.tsx` · plus `src/views/__tests__/loginDemoIsolation.test.tsx` (api isolation) and `src/views/__tests__/Login.test.tsx` (form/auth contract) |
 | Layering (views never touch `localStorage`/`demoStore`/`fetch`/hardcoded URLs/`ACADEMY_NOW`) | `src/__tests__/architectureBoundaries.test.ts` |
 | Privacy/exposure posture and absence of embedded secrets | `src/__tests__/privacyPosture.test.ts` |
 | Production artifact loads under the deployed CSP | `src/__tests__/cspCompatibility.test.ts` |
@@ -155,8 +209,16 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
    `arena-demo-backup-*.json` — even for a customer's EMPTY data. Round-trip is lossless; the
    labels are wrong. Fixing it is a versioned format change touching the `WRONG_ENVIRONMENT`
    validation rule.
-5. **`clear()` produces an environment nobody can sign into** (it empties `users` too).
-   Pre-existing. Recovery path: `uninitialize` (choose again at first run) or restore a backup.
+5. **`clear()` produces an environment nobody can sign into, and there is NO in-product recovery.**
+   It empties `users`, so no account remains, while the lifecycle marker survives — so
+   `DataLifecycleGate` stays transparent and the visitor lands on a login screen that cannot
+   succeed. Settings, and therefore "restore a backup", sits *behind* that login and is unreachable
+   too. `uninitializeEnvironment()` exists (`src/domains/demo/lifecycle.ts`) and is exposed as
+   `demoDataManager.uninitialize()`, but **no component calls it**: the Settings panel wires only
+   `reset | clear | import-seed | restore-backup` (`src/domains/demo/useDemoData.ts:29`). The only
+   recovery today is from outside the product — deleting the `ava:demo:*` keys by hand, or calling
+   the manager from a dev console. Pre-existing behaviour, deliberately unchanged here; tracked as
+   **H5** in [OPEN_ITEMS.md](OPEN_ITEMS.md).
 6. **Latent DS crashes**: `Sparkline` with `data={[]}` and `BusinessIntelligence` with an empty
    series. Not reachable today (static fixtures only) — must be guarded before those panels go live.
 7. **Command-palette natural-language matching is substring-loose** (`q.includes(keyword)`).
@@ -182,11 +244,15 @@ was dropped.
 spec before any code is written.**
 
 When authorized, the first step is *not* implementation: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md),
-confirm the recorded checkpoint against Git (§10), re-run the validation commands in §4 to
-establish a green baseline, and only then start from the CRITICAL/HIGH items — wiring the
-Scheduling and Attendance views to their existing domains and removing fake-success UX
-(`src/views/Scheduling.tsx:144`, `src/views/Scheduling.tsx:327`, `src/views/Attendance.tsx:46`,
-`src/views/Finance.tsx:98`, `src/views/Finance.tsx:285`).
+confirm the recorded checkpoints against Git (§2, and the recovery contract at the end of this
+file), re-run the validation commands in §4 to establish a green baseline, and only then start from
+the CRITICAL/HIGH items — wiring the Scheduling and Attendance views to their existing domains and
+removing fake-success UX (`src/views/Scheduling.tsx:144`, `src/views/Scheduling.tsx:327`,
+`src/views/Attendance.tsx:46`, `src/views/Finance.tsx:98`, `src/views/Finance.tsx:285`).
+
+Among those items, **H5** — no in-product recovery from an environment `clear()` has made unusable —
+is the one that can cost a customer their data. Sequence it first, or defer it explicitly and in
+writing inside [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 Until that authorization arrives: **do not start it.**
 
@@ -205,8 +271,12 @@ These come from the product owner and survive every session.
 - Do **not** start a new phase while the current one is unfinished or unreviewed.
 - Do **not** weaken a failing assertion to make a suite green; fix the owning boundary.
 - Do **not** blanket-patch consumers with `|| []` / `?? []` — fix the contract at its boundary.
-- Do **not** branch on `isDemo`/`isDemoEnvironment` inside domain views; lifecycle lives in one
-  boundary and reaches components only through `src/domains/demo/useDataLifecycle.ts`.
+- Do **not** branch on `isDemo`/`isDemoEnvironment` inside domain views to decide *what data to
+  read or write*; lifecycle lives in one boundary and reaches components only through
+  `src/domains/demo/useDataLifecycle.ts`. The one permitted use inside a view is **wording**: where
+  a label would otherwise lie about the environment (the Settings data panel, the login credential
+  panel), the component takes its text from `useIsDemoEnvironment()` — the same seam — rather than
+  re-deriving lifecycle state. Seeding, filtering and hiding capability all stay at the boundary.
 - Do **not** let reads mutate state: `snapshot()` must never seed, repair or write.
 - Do **not** put demo media or demo records into an EMPTY environment.
 - Do **not** build a fake production backend, fake success toast, fake download URL or
@@ -219,6 +289,18 @@ These come from the product owner and survive every session.
 - No copyrighted third-party franchise assets (e.g. Harry Potter / Hogwarts material).
 - No secrets, credentials, tokens, API keys or personal data in React source, in `VITE_*`
   variables, in `localStorage`, or in these documents. Credentials are a backend concern only.
+
+## 11. Working conventions (the things that bite a new session)
+
+| Convention | Detail |
+|---|---|
+| Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
+| Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
+| Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
+| Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
+| Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |
+| Typecheck | `npm run typecheck`. Never `npx tsc`, which can fetch an unrelated package named `tsc` |
+| Commit trailer | See §2: a non-versioned `.git/hooks/commit-msg` appends `Co-authored-by: arena-agent …`; its absence after a re-clone is cosmetic |
 
 ---
 
@@ -250,9 +332,12 @@ verify every claim against Git and the test suite.**
    record `git status --porcelain` and `git diff --stat`, and ask.
 7. **Continue only from §9 "Immediate Next Action"** — and only if it is authorized. If §9 says
    NOT STARTED, do not start it; report and wait.
-8. **Re-establish a green baseline before changing anything**: `npm install` if `node_modules`
-   is missing, then `npm run typecheck`, `npm test`, `git diff --check` (add `npm run build`
-   only if you touch application source).
+8. **Re-establish a green baseline before changing anything.** If `node_modules` is missing —
+   common after a workspace re-clone — run **`npm ci`**, never `npm install`: `npm install` can
+   rewrite `package-lock.json`, which is a dependency change nobody authorized and dirties the very
+   tree you were told to keep clean. Then `npm run typecheck`, `npm test`, `git diff --check`, and
+   `npm run build` if you touched application source (or if `dist/` is missing and you want the 8
+   CSP tests to run rather than skip — §4).
 9. **Update this file when a durable checkpoint or phase changes** — and update
    [PHASES.md](PHASES.md) / [OPEN_ITEMS.md](OPEN_ITEMS.md) in the same commit, so the ledger
    never contradicts the state. `src/__tests__/projectState.test.ts` fails the suite if the
