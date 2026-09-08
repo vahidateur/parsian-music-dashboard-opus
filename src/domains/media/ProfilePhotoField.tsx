@@ -18,7 +18,7 @@ import { ImagePlus, Loader2, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ds/primitives";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getMediaRepository } from "@/domains/registry";
-import { useMediaObjectUrl } from "@/domains/gallery/useGallery";
+import { useMediaObjectUrl } from "./useMedia";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "./types";
 import { faNum } from "@/lib/format";
 import { cn } from "@/utils/cn";

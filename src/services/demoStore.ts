@@ -11,7 +11,7 @@
  */
 import { createSeedDataset } from "@/domains/demo/seed";
 import { stripPrototypeKeys } from "@/domains/demo/backup";
-import type { DemoDataset } from "@/domains/demo/types";
+import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset } from "@/domains/demo/types";
 import type { Student } from "@/data/records";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
 import type { BrandingSettings } from "@/domains/branding/types";
@@ -57,6 +57,70 @@ function nextId(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${seq.toString(36)}`;
 }
 
+/**
+ * Upgrades a persisted dataset to the current schema.
+ *
+ * WHY THIS EXISTS
+ *
+ * `localStorage` outlives deploys. A dataset written by an older build does not
+ * have the collections added since — media, chat, gallery, learning, progress,
+ * the scheduling/attendance domains, branding — because that build never had
+ * them. Handing such a payload straight to a repository means
+ * `store.chatConversations.all()` returns `undefined` and the first `.filter()`
+ * throws, which is exactly how Messages rendered "بارگذاری گفتگوها ناموفق بود /
+ * Cannot read properties of undefined (reading 'filter')" and how a student
+ * profile lost its learning and progress panels.
+ *
+ * WHY HERE AND NOT IN THE CALLERS
+ *
+ * The store is the single persistence authority, so it is the only place that
+ * can repair the payload once, for every reader — repositories, backup export,
+ * stats and validation all see the same complete dataset. A `?? []` in a view or
+ * a repository would hide one symptom, leave the payload broken on disk, and
+ * have to be repeated at all ~30 read sites. `backup.ts` already rejects such a
+ * dataset with MISSING_COLLECTION; this makes the live read path agree with that
+ * judgement instead of crashing on it.
+ *
+ * WHAT IS PRESERVED
+ *
+ * Every collection the payload already has, untouched — the visitor's own
+ * students, classes, invoices and edits. Only collections that build could not
+ * possibly have stored are added, taken from the canonical seed so a migrated
+ * environment is as coherent as a fresh one (an empty `instruments` list would
+ * otherwise blank every instrument label in the product).
+ *
+ * A value that is present but not an array (`null`, an object) is corruption,
+ * not data: it can never satisfy the contract, so it is replaced the same way.
+ * An intentionally EMPTY dataset (`createEmptyDataset()`) has every collection
+ * as `[]`, so it is already valid and is never reseeded — zero rows is a state,
+ * not an error.
+ */
+export function migrateDataset(dataset: DemoDataset): {
+  dataset: DemoDataset;
+  migrated: boolean;
+  added: DemoCollectionName[];
+} {
+  const added = DEMO_COLLECTIONS.filter((name) => !Array.isArray(dataset[name]));
+  const needsOrganization = typeof dataset.organization !== "object" || dataset.organization === null;
+  const needsBranding = typeof dataset.branding !== "object" || dataset.branding === null;
+
+  if (added.length === 0 && !needsOrganization && !needsBranding) {
+    return { dataset, migrated: false, added: [] };
+  }
+
+  // Derived only when something is genuinely missing, so the common path (a
+  // current payload) costs one array scan and no allocation.
+  const canonical = createSeedDataset();
+  const migrated: DemoDataset = { ...dataset };
+  for (const name of added) {
+    (migrated as unknown as Record<string, unknown>)[name] = canonical[name];
+  }
+  if (needsOrganization) migrated.organization = canonical.organization;
+  if (needsBranding) migrated.branding = canonical.branding;
+
+  return { dataset: migrated, migrated: true, added };
+}
+
 export class DemoStoreImpl {
   constructor(private readonly storage: StorageLike = safeStorage() ?? memoryStorage()) {}
 
@@ -92,7 +156,13 @@ export class DemoStoreImpl {
 
   /* ---------------- snapshot level ---------------- */
 
-  /** Reads the persisted dataset, seeding it on first access. */
+  /**
+   * Reads the persisted dataset, migrating it to the current schema and seeding
+   * it on first access.
+   *
+   * A payload written by an older build is repaired here rather than crashing
+   * the reader — see `migrateDataset` for why this is the only correct place.
+   */
   snapshot(): DemoDataset {
     const raw = this.storage.getItem(DEMO_STORAGE_KEY);
     if (raw) {
@@ -101,7 +171,14 @@ export class DemoStoreImpl {
         // the snapshot reaches any spread/Object.assign in the repositories.
         const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
         if (parsed && typeof parsed === "object" && Array.isArray((parsed as DemoDataset).students)) {
-          return parsed as DemoDataset;
+          const { dataset, migrated } = migrateDataset(parsed as DemoDataset);
+          // Written back once, so the repair survives a reload and every later
+          // read is a plain read. Deliberately NOT `replace()`: this happens
+          // inside a read and the caller receives the migrated value, so no
+          // subscriber is stale, and emitting from a read path could notify
+          // during render.
+          if (migrated) this.write(dataset);
+          return dataset;
         }
       } catch {
         /* corrupted payload — fall through and reseed */
@@ -122,9 +199,14 @@ export class DemoStoreImpl {
    * write, so a value that cannot be serialized never clears existing state.
    */
   replace(dataset: DemoDataset): void {
+    this.write(dataset);
+    this.emit();
+  }
+
+  /** Serialize + persist, without notifying. `replace()` adds the notification. */
+  private write(dataset: DemoDataset): void {
     const serialized = JSON.stringify(dataset);
     this.storage.setItem(DEMO_STORAGE_KEY, serialized);
-    this.emit();
   }
 
   /** Removes the persisted snapshot; the next read reseeds from the canonical seed. */
@@ -187,6 +269,17 @@ export class DemoStoreImpl {
   readonly rooms = this.collection("rooms", "r_");
   readonly classes = this.collection("classes", "cl_");
   readonly enrollments = this.collection("enrollments", "enr_");
+
+  /* ---- library ---- */
+
+  /**
+   * Catalogue rows (sheet music, audio, video, handouts).
+   *
+   * The BYTES of a library file are not here: they live in the blob store behind
+   * `MediaRepository` and are referenced by `LibraryItem.mediaId`, exactly like
+   * profile photos and gallery images. One storage boundary for the product.
+   */
+  readonly resources = this.collection("resources", "res_");
 
   /* ---- profiles / learning / media / chat / gallery ---- */
 
@@ -302,7 +395,8 @@ type ArrayCollection =
   | "chatConversations"
   | "chatMessages"
   | "galleryAlbums"
-  | "galleryImages";
+  | "galleryImages"
+  | "resources";
 
 export type StudentDraft = Omit<Student, "id">;
 

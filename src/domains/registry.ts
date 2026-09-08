@@ -27,6 +27,8 @@ import { DemoChatRepository } from "./chat/demoRepository";
 import type { ChatRepository } from "./chat/repository";
 import { DemoMediaRepository } from "./media/demoRepository";
 import type { MediaRepository } from "./media/repository";
+import { DemoLibraryRepository } from "./library/demoRepository";
+import type { LibraryRepository } from "./library/repository";
 import { DemoBrandingRepository } from "./branding/demoRepository";
 import type { BrandingRepository } from "./branding/repository";
 import { DemoGalleryRepository } from "./gallery/demoRepository";
@@ -59,6 +61,7 @@ interface Overrides {
   learning?: LearningRepository;
   chat?: ChatRepository;
   media?: MediaRepository;
+  library?: LibraryRepository;
   branding?: BrandingRepository;
   gallery?: GalleryRepository;
   progress?: ProgressRepository;
@@ -145,6 +148,19 @@ export function getChatRepository(): ChatRepository {
 }
 export function getMediaRepository(): MediaRepository {
   return overrides.media ?? new DemoMediaRepository();
+}
+
+/**
+ * Library.
+ *
+ * Resolves to the demo implementation in BOTH modes, for the documented reason
+ * above: `ApiLibraryRepository` declares the REST contract (`/resources`) and is
+ * covered by a test, but no server serves it. Its files would additionally need
+ * a binary-capable client — `ApiClient` speaks JSON only — so registering it
+ * would advertise a download path that cannot work (§37).
+ */
+export function getLibraryRepository(): LibraryRepository {
+  return overrides.library ?? new DemoLibraryRepository();
 }
 export function getBrandingRepository(): BrandingRepository {
   return overrides.branding ?? new DemoBrandingRepository();
@@ -240,6 +256,9 @@ export function setChatRepository(repository: ChatRepository | undefined): void 
 export function setMediaRepository(repository: MediaRepository | undefined): void {
   overrides.media = repository;
 }
+export function setLibraryRepository(repository: LibraryRepository | undefined): void {
+  overrides.library = repository;
+}
 export function setBrandingRepository(repository: BrandingRepository | undefined): void {
   overrides.branding = repository;
 }
@@ -284,6 +303,7 @@ export function resetRegistry(): void {
   overrides.learning = undefined;
   overrides.chat = undefined;
   overrides.media = undefined;
+  overrides.library = undefined;
   overrides.branding = undefined;
   overrides.gallery = undefined;
   overrides.scheduling = undefined;

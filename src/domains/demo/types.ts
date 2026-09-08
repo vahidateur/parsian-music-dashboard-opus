@@ -11,10 +11,10 @@ import type {
   Conversation,
   GridSession,
   Invoice,
-  Resource,
   Student,
   Teacher,
 } from "@/data/records";
+import type { LibraryItem } from "@/domains/library/types";
 import type { Enrollment } from "@/domains/enrollments/types";
 import type { InstrumentRecord } from "@/domains/instruments/types";
 import type { MediaAsset } from "@/domains/media/types";
@@ -118,7 +118,12 @@ export interface DemoDataset {
   invoices: Invoice[];
   payments: DemoPayment[];
   conversations: Conversation[];
-  resources: Resource[];
+  /**
+   * Library catalogue. Owned by the library domain; `LibraryItem` extends the
+   * catalogue entity with the media reference, so a row can point at a real
+   * stored file.
+   */
+  resources: LibraryItem[];
   users: DemoUser[];
   roles: DemoRole[];
 

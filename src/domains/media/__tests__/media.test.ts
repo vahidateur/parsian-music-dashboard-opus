@@ -96,8 +96,12 @@ describe("upload validation", () => {
   });
 
   it("stores nothing when validation fails", async () => {
+    // Measured against the seeded baseline rather than an absolute zero: the
+    // demo library ships one document asset (see demo/librarySeed.ts), and the
+    // claim under test is that a REJECTED upload adds no row of its own.
+    const before = demoStore.media.all().length;
     await fieldsOf(repo.create({ kind: "image", filename: "x.svg", mimeType: "image/svg+xml", bytes: pngBytes() }));
-    expect(demoStore.media.all()).toHaveLength(0);
+    expect(demoStore.media.all()).toHaveLength(before);
   });
 });
 

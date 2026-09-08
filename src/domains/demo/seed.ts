@@ -36,6 +36,7 @@ import {
   derivePlacements,
   derivePrograms,
 } from "./learningSeed";
+import { DEMO_LIBRARY_ASSET, withDemoLibraryFile } from "./librarySeed";
 import { derivePieces, deriveProgress } from "./progressSeed";
 import { deriveScheduledSessions } from "./schedulingSeed";
 
@@ -153,14 +154,22 @@ export function createSeedDataset(): DemoDataset {
     invoices,
     payments: payments as DemoPayment[],
     conversations,
-    resources,
+    resources: withDemoLibraryFile(resources),
     users: deriveUsers(),
     roles: deriveRoles(),
 
     branding: deriveBranding(),
-    // No seeded binaries: the demo ships metadata only, so nothing references
-    // a media id that cannot resolve.
-    media: [],
+    /*
+      Metadata for the ONE file the demo library ships (see `librarySeed.ts`).
+
+      The bytes are not here and cannot be: `createSeedDataset()` is pure and
+      synchronous while binaries live in the blob store. They are written by
+      `ensureDemoLibraryFile()` at bootstrap. A row whose bytes have not landed
+      yet is a documented, honest state — the same one a backup restore produces,
+      since backups carry metadata only — and the Library UI reports it as
+      unavailable instead of offering a download that yields nothing.
+    */
+    media: [{ ...DEMO_LIBRARY_ASSET }],
     instruments: deriveInstruments(),
     programs: derivePrograms(),
     levels: deriveLevels(),

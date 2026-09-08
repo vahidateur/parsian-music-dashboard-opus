@@ -16,10 +16,14 @@ import { demoStore } from "@/services/demoStore";
 
 afterEach(cleanup);
 
+/** Assets the canonical seed ships on its own (the library's demo file). */
+let seededMediaCount: number;
+
 beforeEach(() => {
   demoStore.reset();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
+  seededMediaCount = demoStore.media.all().length;
 
   // jsdom implements neither of these.
   if (!URL.createObjectURL) {
@@ -81,12 +85,16 @@ describe("albums", () => {
     renderPanel();
     await waitForPanel();
 
-    // Albums give the demo structure; the seed deliberately ships zero binary
-    // assets, so every album starts genuinely empty rather than showing
-    // placeholder imagery that does not exist.
+    /*
+      Albums give the demo structure; the seed ships zero IMAGES, so every album
+      starts genuinely empty rather than showing placeholder imagery that does
+      not exist. The one seeded media asset is the library's text file, not a
+      photo, and no gallery row points at it.
+    */
     const albums = await getGalleryRepository().listAlbums({ per_page: 100 });
     expect(albums.data.length).toBeGreaterThan(0);
-    expect(demoStore.media.all()).toHaveLength(0);
+    expect(demoStore.galleryImages.all()).toHaveLength(0);
+    expect(demoStore.media.all().filter((asset) => asset.kind === "image")).toHaveLength(0);
     expect(await screen.findByText("این آلبوم خالی است")).toBeDefined();
   });
 });
@@ -134,8 +142,8 @@ describe("uploading", () => {
     await waitFor(async () => {
       expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(0);
     });
-    // No orphan media metadata either.
-    expect(demoStore.media.all()).toHaveLength(0);
+    // No orphan media metadata either: the rejected upload added no asset.
+    expect(demoStore.media.all()).toHaveLength(seededMediaCount);
   });
 
   it("rejects a file whose bytes contradict its declared type", async () => {

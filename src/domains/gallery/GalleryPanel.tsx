@@ -16,7 +16,8 @@ import { Field, Panel, inputCls } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getGalleryRepository, getMediaRepository } from "@/domains/registry";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
-import { useAlbums, useGalleryImages, useMediaObjectUrl } from "./useGallery";
+import { useAlbums, useGalleryImages } from "./useGallery";
+import { useMediaObjectUrl } from "@/domains/media/useMedia";
 import type { GalleryAlbum, GalleryImage } from "./types";
 import { cn } from "@/utils/cn";
 

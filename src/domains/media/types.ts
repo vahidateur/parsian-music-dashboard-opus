@@ -89,7 +89,18 @@ export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "im
 
 export const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/ogg", "audio/wav", "audio/webm"] as const;
 
-export const ALLOWED_DOCUMENT_TYPES = ["application/pdf"] as const;
+/**
+ * Allow-listed document types.
+ *
+ * `text/plain` is included because a music library legitimately holds plain-text
+ * material (study notes, lyric sheets, fingering annotations) — the seeded demo
+ * file is one. It is not a script container: unlike SVG, which stays EXCLUDED
+ * because it is an XML document that can carry `<script>`, a text file rendered
+ * as text cannot execute. It has no magic-byte signature, so validation falls
+ * back to the declared type having passed this allow-list (see `SIGNATURES` in
+ * `demoRepository.ts`).
+ */
+export const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "text/plain"] as const;
 
 /** Per-kind size ceilings. Rejected before any read, not after. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;

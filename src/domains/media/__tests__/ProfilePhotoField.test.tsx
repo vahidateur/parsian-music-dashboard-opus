@@ -18,11 +18,14 @@ afterEach(cleanup);
 
 let created: string[];
 let revoked: string[];
+/** Assets the canonical seed ships on its own (the library's demo file). */
+let seededMediaCount: number;
 
 beforeEach(() => {
   demoStore.reset();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
+  seededMediaCount = demoStore.media.all().length;
 
   created = [];
   revoked = [];
@@ -91,7 +94,8 @@ describe("uploading", () => {
 
     await screen.findByRole("alert");
     expect(onChange).not.toHaveBeenCalled();
-    expect(demoStore.media.all()).toHaveLength(0);
+    // Baseline-relative: the rejected upload must add no asset of its own.
+    expect(demoStore.media.all()).toHaveLength(seededMediaCount);
   });
 
   it("shows initials before any photo exists", () => {

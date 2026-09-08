@@ -11,6 +11,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav, TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/overlays/CommandPalette";
 import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
+import { useDemoLibraryFile } from "@/domains/library/useLibrary";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
 import { Dashboard } from "@/views/Dashboard";
 import { DesignSystemView } from "@/views/DesignSystemView";
@@ -67,6 +68,16 @@ function Shell() {
   // Persian label while rendering. This keeps that lookup in step with the
   // repository for the whole session. See domains/instruments/catalog.ts.
   useInstrumentCatalogSync();
+
+  /*
+    Demo content provisioning — the bytes behind the seeded library file.
+
+    Runs inside the shell, i.e. after the access gate and after authentication,
+    so a visitor who never gets in never touches storage. Idempotent, and the
+    ONE call site for demo file provisioning: the lifecycle phase gates this
+    call by environment mode rather than changing the Library domain.
+  */
+  useDemoLibraryFile();
 
   // Global command shortcut
   useEffect(() => {
