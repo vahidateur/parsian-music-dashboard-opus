@@ -28,6 +28,18 @@ function doc(name: string): string {
   return readFileSync(join(ENGINEERING, name), "utf8");
 }
 
+/**
+ * Document text with every run of whitespace collapsed to one space.
+ *
+ * These documents are prose, wrapped at ~100 columns, so a phrase gate written against the
+ * literal text breaks whenever a sentence is re-wrapped — a false red that teaches people to
+ * delete gates. Phrase assertions go through this; path assertions do not need it, because no
+ * path in these documents contains whitespace.
+ */
+function flat(text: string): string {
+  return text.replace(/\s+/g, " ");
+}
+
 function git(...args: string[]): string {
   return execFileSync("git", args, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 }
@@ -80,6 +92,7 @@ function recordedValue(document: string, label: string): string {
 const CURRENT = recordedSha(doc("PROJECT_STATE.md"), "Phase checkpoint (application)");
 const PREVIOUS = recordedSha(doc("PROJECT_STATE.md"), "Previous phase checkpoint");
 const DOCS_CHECKPOINT = recordedSha(doc("PROJECT_STATE.md"), "Documentation checkpoint (pushed)");
+const PREVIOUS_DOCS = recordedSha(doc("PROJECT_STATE.md"), "Previous documentation checkpoint");
 
 /** The row that describes the remote, so its shape can be policed. */
 function remoteRow(document: string): string {
@@ -130,6 +143,7 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
       "Phase checkpoint (application)",
       "Previous phase checkpoint",
       "Documentation checkpoint (pushed)",
+      "Previous documentation checkpoint",
       "Remote state",
       "Two kinds of checkpoint",
       "Phase status",
@@ -153,11 +167,14 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
     expect(state).toMatch(/Browser QA status[\s\S]{0,200}NOT VERIFIED/);
   });
 
-  it("records three distinct full-length checkpoints", () => {
-    expect(CURRENT).toMatch(/^[0-9a-f]{40}$/);
-    expect(PREVIOUS).toMatch(/^[0-9a-f]{40}$/);
-    expect(DOCS_CHECKPOINT).toMatch(/^[0-9a-f]{40}$/);
-    expect(new Set([CURRENT, PREVIOUS, DOCS_CHECKPOINT]).size, "the three checkpoints must differ").toBe(3);
+  it("records four distinct full-length checkpoints", () => {
+    for (const sha of [CURRENT, PREVIOUS, DOCS_CHECKPOINT, PREVIOUS_DOCS]) {
+      expect(sha).toMatch(/^[0-9a-f]{40}$/);
+    }
+    expect(
+      new Set([CURRENT, PREVIOUS, DOCS_CHECKPOINT, PREVIOUS_DOCS]).size,
+      "the phase and documentation checkpoints must all differ",
+    ).toBe(4);
   });
 
   it("separates phase checkpoints from documentation checkpoints, in both documents", () => {
@@ -171,6 +188,7 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
       "## Documentation checkpoints",
     );
     expect(phases).toContain(DOCS_CHECKPOINT);
+    expect(phases, "the ledger keeps its history instead of overwriting it").toContain(PREVIOUS_DOCS);
   });
 
   it("tells the reader how to verify the remote instead of freezing a remote SHA", () => {
@@ -184,7 +202,7 @@ describe("PROJECT_STATE.md carries what a new session needs", () => {
 
   it("never claims to know the SHA of the commit that carries it", () => {
     expect(state).toMatch(/No self-referential SHAs/);
-    expect(doc("PHASES.md")).toMatch(/cannot contain the SHA of the commit\s+that carries/);
+    expect(flat(doc("PHASES.md"))).toMatch(/cannot contain the SHA of the commit that carries/);
   });
 
   it("names the working branch, which Git can confirm", () => {
@@ -232,9 +250,27 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
     expect(isAncestor(CURRENT, DOCS_CHECKPOINT), `the docs checkpoint must come after ${CURRENT}`).toBe(true);
   });
 
+  it("the documentation checkpoints are recorded in real chronological order", () => {
+    expect(isCommit(PREVIOUS_DOCS), `${PREVIOUS_DOCS} must be present in this clone`).toBe(true);
+    expect(PREVIOUS_DOCS).not.toBe(DOCS_CHECKPOINT);
+    expect(
+      isAncestor(PREVIOUS_DOCS, DOCS_CHECKPOINT),
+      `${PREVIOUS_DOCS} must precede ${DOCS_CHECKPOINT}`,
+    ).toBe(true);
+  });
+
+  it("the recorded documentation checkpoint really carries documentation", () => {
+    // Registering a checkpoint is only meaningful if that commit actually changed the documents.
+    const touched = git("show", "--name-only", "--format=", DOCS_CHECKPOINT);
+    expect(
+      touched.split("\n").some((path) => path.startsWith("docs/engineering/")),
+      `${DOCS_CHECKPOINT} must touch docs/engineering/ to be a documentation checkpoint`,
+    ).toBe(true);
+  });
+
   it("HEAD descends from every checkpoint the documents record", () => {
     const head = git("rev-parse", "HEAD");
-    for (const sha of [CURRENT, PREVIOUS, DOCS_CHECKPOINT]) {
+    for (const sha of [CURRENT, PREVIOUS, DOCS_CHECKPOINT, PREVIOUS_DOCS]) {
       expect(head === sha || isAncestor(sha, head), `HEAD ${head} must descend from ${sha}`).toBe(true);
     }
   });
@@ -399,11 +435,12 @@ describe("deferred work stays visible as deferred", () => {
     expect(doc("PROJECT_STATE.md")).toMatch(/Next phase[\s\S]{0,160}NOT STARTED/);
   });
 
-  it("the ledger and the state document agree on all three checkpoints", () => {
+  it("the ledger and the state document agree on every checkpoint", () => {
     const phases = doc("PHASES.md");
     expect(phases, "PHASES.md must record the phase checkpoint").toContain(CURRENT);
     expect(phases, "PHASES.md must record the previous phase checkpoint").toContain(PREVIOUS);
     expect(phases, "PHASES.md must record the documentation checkpoint").toContain(DOCS_CHECKPOINT);
+    expect(phases, "PHASES.md must record the previous documentation checkpoint").toContain(PREVIOUS_DOCS);
   });
 
   it("the ledger warns about the older, stale phase numbering", () => {
@@ -507,5 +544,54 @@ describe("the engineering state is discoverable from README.md", () => {
 
   it("names the gate that keeps the documents honest", () => {
     expect(readme).toContain("src/__tests__/projectState.test.ts");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* 10. A retired race is recorded as retired — not as never happening  */
+/* ------------------------------------------------------------------ */
+
+describe("the retired test-harness race is recorded honestly", () => {
+  // Phrase gates run against whitespace-collapsed text: these are prose paragraphs, and a
+  // re-wrap must not be able to turn an honesty gate red.
+  const state = flat(doc("PROJECT_STATE.md"));
+  const open = flat(doc("OPEN_ITEMS.md"));
+
+  it("names the file, the root cause and the boundary that owned it", () => {
+    expect(open).toMatch(/### I11\. Test-harness races/);
+    expect(open).toContain("src/views/__tests__/emptyEnvironment.test.tsx");
+    expect(open).toContain("src/domains/shared/useResource.ts");
+    expect(open, "the race must be attributed to the phase that introduced it").toMatch(
+      /inherited from Phase 2/,
+    );
+    expect(open).toMatch(/Fixed at the boundary that owned it/);
+  });
+
+  it("records which shortcuts were NOT taken", () => {
+    // A race can always be "fixed" by weakening the assertion, sleeping, or retrying until it
+    // passes. Unless the document states that none of those was used, the fix is unverifiable.
+    expect(open).toMatch(/No sleep, no retry, no assertion weakened or removed/);
+    expect(open).toMatch(/no product source touched/i);
+  });
+
+  it("ties every green claim to a stated number of repeated runs", () => {
+    // The shape is gated, not the literal count: a future pass re-measures and writes a bigger
+    // number, and a gate pinned to "12" would force it to lie or to be deleted.
+    expect(state).toMatch(/\d+ consecutive targeted runs/);
+    expect(state).toMatch(/\d+ consecutive full/);
+    expect(state).toMatch(/evidence, not a proof of determinism/i);
+    expect(open).toMatch(/Only repeated runs may be reported as green/);
+  });
+
+  it("keeps the unrelated flake that was observed but not investigated visible", () => {
+    expect(open).toContain("src/domains/learning/__tests__/LearningPanel.test.tsx");
+    expect(open).toMatch(/deliberately not investigated/);
+    expect(state).toMatch(/One honest caveat/);
+  });
+
+  it("teaches the waiting rule, so the next harness does not repeat it", () => {
+    expect(state).toMatch(/Waiting for a view in tests/);
+    expect(state).toContain('role="status"');
+    expect(open).toMatch(/must wait for the data-derived/);
   });
 });

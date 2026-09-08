@@ -205,6 +205,37 @@ bootstrap administrator lives at the lifecycle layer (`createEmptyEnvironment()`
 fix lands without weakening that invariant, or a recorded decision in [DECISIONS.md](DECISIONS.md)
 §8 changes the invariant first.
 
+### I11. Test-harness races — one retired at its boundary, one observed and not investigated
+- **Retired in this pass:** `src/views/__tests__/emptyEnvironment.test.tsx` carried a harness race
+  inherited from Phase 2 (`33b1031`, confirmed with `git blame`). Its shared `renderView()` waited
+  only for `viewTitles[view]`, which the shell renders immediately, so it could return while
+  `useResourceList` (`src/domains/shared/useResource.ts`) still had a repository read in flight.
+  Symptom: *"classes reports occupancy and average attendance as absent, not as NaN"* failed twice
+  in six full-suite runs with `expected '…' to contain '۰ از ۰'`, the received text still showing
+  «در حال چیدن کلاس‌ها…». The *absence* assertions in the same file were unsound in the opposite
+  direction: they could pass by measuring a loading placeholder.
+- **Fixed at the boundary that owned it**, in test code only: `renderView()` now also waits for the
+  design system's in-flight marker (`role="status"`, from `BreathingWave` in
+  `src/components/ds/states.tsx`) to disappear — queried **by role, not by its Persian label**, so a
+  copy change cannot silently turn the wait into a no-op. The contract is pinned for every live
+  surface inside the existing `it.each(LIVE_VIEWS)` case, not only for the test that was seen to
+  fail. No sleep, no retry, no assertion weakened or removed, no product source touched.
+- **Evidence after the fix:** 22 consecutive targeted runs (21 tests each) and 6 consecutive full
+  `npm test` runs (93 files / 1 315 tests) green, the last on the committed tree, plus one of two
+  *concurrently* running full suites green — recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §4.
+  Only repeated runs may be reported as green; a single green run proves nothing about a race.
+- **Still open — observed once, deliberately not investigated:** under that same artificial double
+  contention the other suite failed one unrelated test,
+  `src/domains/learning/__tests__/LearningPanel.test.tsx` → *"reorders levels and keeps the ordering
+  contiguous"*. It has not appeared in any single-suite run and was outside this pass's scope.
+  **Done when:** it is either reproduced and fixed at its owning boundary (same rule — wait for the
+  real state, never sleep or retry) or shown to be an artefact of running two suites on one machine,
+  with that conclusion written down here.
+- **The general rule this establishes:** a helper that renders a view must wait for the data-derived
+  state its callers assert on. A helper that waits for a title, a heading, or merely "something
+  rendered" turns every assertion in the file into a coin toss under load — and makes absence
+  assertions lie.
+
 ---
 
 ## LOWER PRIORITY / HYGIENE

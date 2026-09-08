@@ -176,16 +176,28 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 
 | Documentation checkpoint | Contents | Product behaviour | Pushed? |
 |---|---|---|---|
-| `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` | none | ✅ |
+| `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` (29 checks) | none | ✅ |
+| `77b019ef07f99817da985e1602dd11365b4b9365` | **Latest recorded.** The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
 
-**The pass that followed** corrected the findings of a read-only audit of those documents:
-checkpoint terminology, a verification rule in place of a hardcoded remote SHA, an accurate
-account of the (non-existent) in-product recovery path, `npm ci` instead of `npm install`, the
-boot-chain decision, a README entry point, and several evidence and wording fixes across
-[OPEN_ITEMS.md](OPEN_ITEMS.md). It added `src/views/__tests__/loginEmptyEnvironment.test.tsx`
-(8 gates) and is the **one** exception to "no product behaviour": it changed *labels only* on the
-login credential panel in an EMPTY environment, with capability preserved and pinned by that test.
+**The `77b019ef` pass** holds the one exception to "no product behaviour", and it is a narrow one:
+it changed *labels only* on the login credential panel in an EMPTY environment, so a customer's own
+environment is no longer announced as a demo and their own bootstrap administrator is no longer
+listed as a sample account. No capability was added or removed — the security warning, the visible
+passphrase, the account list, one-tap fill and real sign-in all still work — and api mode is
+untouched. It is pinned in both directions by `src/views/__tests__/loginEmptyEnvironment.test.tsx`
+(8 gates) and recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3.
 
-Its own SHA is deliberately **not** written here: a ledger cannot contain the SHA of the commit
-that carries the entry. `git log --oneline -- docs/engineering` is the authority for the newest
-documentation checkpoint, and [PROJECT_STATE.md](PROJECT_STATE.md) §2 records the previous one.
+**The pass after it** (test and documentation only — no product source) did two things. It retired a
+harness race inherited from Phase 2: `src/views/__tests__/emptyEnvironment.test.tsx` now waits for
+the design system's in-flight marker instead of the view title, so its data-derived assertions
+measure loaded records rather than a loading placeholder. And it recorded that race honestly —
+together with one *unrelated* flake seen under artificial double contention and deliberately not
+investigated — in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11 and [PROJECT_STATE.md](PROJECT_STATE.md) §4,
+growing the gate from 45 to 52 checks. It also registered `77b019ef` in the row above, which the
+revision of this ledger inside `77b019ef` itself could not do.
+
+**No ledger entry ever carries its own SHA.** A commit cannot contain the SHA of the commit that
+carries it, so the newest documentation checkpoint listed here is always the one *before* the commit
+you are reading, and `git log --oneline -- docs/engineering` is the authority for anything newer.
+[PROJECT_STATE.md](PROJECT_STATE.md) §2 records the same pair and enforces it with a test: every
+full SHA quoted in these documents must already exist and be reachable from `HEAD`.

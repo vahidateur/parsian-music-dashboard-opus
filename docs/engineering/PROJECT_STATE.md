@@ -28,7 +28,8 @@
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
 | **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `68b4fe339582211c23c422befe527a98203031ef` — these engineering documents and their validation gate |
+| **Documentation checkpoint (pushed)** | `77b019ef07f99817da985e1602dd11365b4b9365` — the audit-correction pass: these documents, their validation gate, and the EMPTY login labels |
+| Previous documentation checkpoint | `68b4fe339582211c23c422befe527a98203031ef` — the first one: these documents and their validation gate |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -38,9 +39,11 @@
   commit that ends a phase of product work. `33b1031` (Phase 2) is the current one, and only a
   phase checkpoint advances "current phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. `68b4fe3` is the first. These are listed in
-  [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a commit
-  this ledger does not explain.
+  but no product behaviour. Two exist so far: `68b4fe3` (these documents and their gate) and
+  `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
+  truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3). They are
+  listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
+  commit this ledger does not explain.
 
 **No self-referential SHAs.** A document cannot contain the SHA of the commit that carries it —
 that SHA does not exist until the commit is made. So the documentation checkpoint above is always
@@ -106,7 +109,8 @@ and removed demo labelling from a customer EMPTY environment
 
 ### Work landed since the Phase 2 checkpoint
 
-Documents and validation gates only, plus one labelling fix — **no product feature work**:
+Documents and validation gates, one labelling fix and one test-harness fix — **no product feature
+work**:
 
 1. The four `docs/engineering/` recovery documents and their gate
    (`src/__tests__/projectState.test.ts`).
@@ -114,6 +118,11 @@ Documents and validation gates only, plus one labelling fix — **no product fea
    credential panel in an EMPTY environment (`src/views/Login.tsx` takes its wording from
    `useIsDemoEnvironment()`), pinned by `src/views/__tests__/loginEmptyEnvironment.test.tsx`.
    Capability is unchanged — the bootstrap account is still offered and still signs in.
+3. A test-harness race inherited from Phase 2, fixed at its own boundary:
+   `src/views/__tests__/emptyEnvironment.test.tsx` waited only for the view *title*, so it could
+   return while the view still showed its loading placeholder and then assert against that. It now
+   waits for the design system's in-flight marker to disappear. Test code only — no product source
+   touched, no assertion weakened or removed. Recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11.
 
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
 file never records the SHA of the commit carrying the edit (§2).
@@ -142,22 +151,59 @@ same 8 CSP tests skip again and the total reads 8 lower. That is neither a failu
 regression: `npm run build` brings them back. Always report which shape you observed —
 `N passed` or `(N−8) passed + 8 skipped` — rather than a bare number.
 
-**Current state of the suite** (measured in the working tree of the documentation pass, with
-`dist/` present): `npm test` reports **93 files / 1 308 passed / 0 failed / 0 skipped**,
-`npm run typecheck` is clean, `npm run build` succeeds, `git diff --check` is clean. The
-arithmetic from the Phase 2 baseline, so the number can be audited rather than trusted:
+**Current state of the suite** (measured in the working tree of this pass, with `dist/` present):
+`npm test` reports **93 files / 1 315 passed / 0 failed / 0 skipped**, `npm run typecheck` is
+clean, `npm run build` succeeds, `git diff --check` is clean. The arithmetic from the Phase 2
+baseline, so the number can be audited rather than trusted:
 
 | Step | Files | Tests |
 |---|---|---|
 | Phase 2 checkpoint `33b1031` | 91 | 1 255 |
 | + `src/__tests__/projectState.test.ts` (the gate over these documents) | 92 | 1 284 |
 | + `src/views/__tests__/loginEmptyEnvironment.test.tsx` (8 gates, EMPTY login) | 93 | 1 292 |
-| + 16 gates added to `projectState.test.ts` by the audit corrections | 93 | **1 308** |
+| + 16 gates added to `projectState.test.ts` by the audit corrections | 93 | 1 308 |
+| + 7 gates added to `projectState.test.ts` by the harness-race record (this pass) | 93 | **1 315** |
 
 Because the EMPTY-login labelling fix touched application source (`src/views/Login.tsx`), the build
 was re-run and the neighbouring suites were re-verified green individually: `Login` (15),
 `loginDemoIsolation` (5), `emptyEnvironment` (21), `architectureBoundaries` (9),
 `privacyPosture` (22) — 80 tests across the six files that could have been affected, all passing.
+
+### Suite reliability: a retired race, and what a green claim is worth
+
+**The former flake.** `src/views/__tests__/emptyEnvironment.test.tsx` failed intermittently — twice
+in six full-suite runs, never in a targeted one. The case was *"classes reports occupancy and
+average attendance as absent, not as NaN"*: `expected '…' to contain '۰ از ۰'`, and the received
+text contained «در حال چیدن کلاس‌ها…». Root cause: the shared `renderView()` helper waited only for
+`viewTitles[view]`, which the shell renders immediately, so it could return while `useResourceList`
+(`src/domains/shared/useResource.ts`) still had a repository read in flight. Every data-derived
+assertion in that file was exposed, and the *absence* assertions were worse than flaky — they could
+pass for the wrong reason, by measuring a loading placeholder. `git blame` places those lines in
+Phase 2 (`33b1031`): an inherited harness race, not a regression from the documentation pass.
+
+**The fix** — test code only, at the boundary that owned the bug. `renderView()` now also waits for
+the design system's in-flight marker to disappear: `role="status"`, rendered by `BreathingWave` in
+`src/components/ds/states.tsx` and wrapped by `LoadingState`. It is queried **by role, not by its
+Persian label**, so a copy change cannot silently turn the wait into a no-op and let the race back
+in. Because `useResourceList` starts `loading: true` and clears it in the same promise's `finally`,
+"no marker in the DOM" is equivalent to "the loaded records are on screen". No sleeps, no retries,
+no assertion weakened or removed — and the contract is now pinned for every live surface inside the
+existing `it.each(LIVE_VIEWS)` case, not only for the test that was observed to fail.
+
+**What the green claim is therefore worth.** Measured after the fix, with `dist/` present:
+**22 consecutive targeted runs** of the affected file (21 tests each, the harness byte-identical
+throughout) and **6 consecutive full `npm test` runs** — 93 files / 1 315 tests — all green, the
+last of them on the exact tree that was committed. Under
+artificial double contention (two full suites running at once, the exact condition that used to
+lose the race) one of the two was green, and the affected file was green in both. That is
+evidence, not a proof of determinism: quote the run counts together with the number, and re-measure
+rather than inheriting this paragraph.
+
+**One honest caveat.** In the other half of that concurrent pair a *different* test failed once:
+`src/domains/learning/__tests__/LearningPanel.test.tsx` → *"reorders levels and keeps the ordering
+contiguous"*. It is unrelated to the harness fix, it has not appeared in any single-suite run, and
+it was **not investigated** — this pass was scoped to three items. It is recorded in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I11 so that nobody concludes the suite is contention-proof.
 
 ## 5. Browser QA status
 
@@ -296,6 +342,7 @@ These come from the product owner and survive every session.
 |---|---|
 | Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
 | Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
+| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op |
 | Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
 | Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
 | Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |

@@ -66,9 +66,46 @@ async function renderShell(hash: string) {
   return rendered;
 }
 
+/**
+ * The design system's in-flight marker: `BreathingWave` renders
+ * `role="status"` with the label «در حال بارگذاری» (`src/components/ds/states.tsx`),
+ * and `LoadingState` wraps it. Queried by ROLE only, on purpose — if the copy
+ * ever changes, this wait keeps working instead of silently becoming a no-op
+ * that lets the race back in. The only other `role="status"` in the product is
+ * the login spinner, which cannot be present here because `renderShell` signs in
+ * before rendering.
+ */
+const inFlightMarkers = () => screen.queryAllByRole("status");
+
+/**
+ * Signs in, opens one view, and — the part that used to be missing — waits for
+ * that view to finish loading its data.
+ *
+ * WHY THE WAIT IS HERE AND NOT IN EACH TEST
+ *
+ * `useResourceList` (`src/domains/shared/useResource.ts`) starts `loading: true`
+ * and clears it in the same promise's `finally`, so the loading marker is in the
+ * DOM exactly while a repository read is in flight, and it is gone exactly when
+ * the loaded records are on screen. Waiting for it to disappear is therefore
+ * waiting for the data-derived UI — deterministic Testing Library semantics, no
+ * sleeps and no retries.
+ *
+ * Waiting only for `viewTitles[view]` (what this helper used to do) is not
+ * enough: the shell renders the title immediately, so the helper could return
+ * while the view still showed «در حال چیدن کلاس‌ها…». Every assertion about
+ * derived content then measured a loading placeholder — «۰ از ۰» was missing,
+ * and absence assertions such as "does not name a most-waitlisted class" passed
+ * for the wrong reason. Both directions were unsound, which is why this belongs
+ * in the shared harness rather than in one test.
+ *
+ * The timeout is generous because this suite runs alongside 92 others and the
+ * race that motivated it only ever lost under that contention. A timeout is
+ * still a hard failure, never a hidden one.
+ */
 async function renderView(view: ViewId) {
   const rendered = await renderShell(`#/${view}`);
   await waitFor(() => expect(screen.getAllByText(viewTitles[view]).length).toBeGreaterThan(0));
+  await waitFor(() => expect(inFlightMarkers()).toHaveLength(0), { timeout: 5000 });
   return rendered;
 }
 
@@ -116,6 +153,13 @@ describe("signing in to an EMPTY environment", () => {
 describe("live surfaces over zero records", () => {
   it.each(LIVE_VIEWS)("#/%s renders, and renders no arithmetic artefacts", async (view) => {
     const { container } = await renderView(view);
+
+    // Pins the harness contract for every live surface, not just the one that
+    // was observed to lose the race: `renderView` must never hand back a view
+    // that still has a repository read in flight, otherwise the absence
+    // assertions in this file measure a loading placeholder and pass for the
+    // wrong reason.
+    expect(inFlightMarkers(), `#/${view} still had a read in flight`).toHaveLength(0);
     expectNoArtefacts(container, `#/${view}`);
   });
 
