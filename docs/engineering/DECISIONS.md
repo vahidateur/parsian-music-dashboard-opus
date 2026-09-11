@@ -355,6 +355,219 @@ product — see [OPEN_ITEMS.md](OPEN_ITEMS.md) H5.
 
 ---
 
+## 19. Product-phase decision register (D1–D9)
+
+Nine decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D9** to
+keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
+where a D-entry touches an existing section, that section is the authority and the D-entry says so.
+Two are already decided (both by deferral); seven are open, and each open entry names the milestone
+it blocks. An open decision is **not** an invitation to implement — it is a stop sign with a reason.
+
+| ID | Decision | Status | Blocks |
+|---|---|---|---|
+| D1 | Student / guardian role in this panel, or a separate app | **DEFERRED** | M-none (I5, I4) |
+| D2 | Branding as the source of truth for the academy identity | **OPEN** | M8 |
+| D3 | Where the environment-recovery affordance lives | **OPEN** | M1 |
+| D4 | `clear()` semantics against the zero-record invariant | **OPEN** | M1 |
+| D5 | Shape of the fixture / type / seed separation | **OPEN** | M10 |
+| D6 | Creating the finance and reports domains in this phase | **DEFERRED** | M-none (I2) |
+| D7 | How accessibility is enforced | **OPEN** | M11 |
+| D8 | How the api-mode hybrid is disclosed | **OPEN** | M11 |
+| D9 | Bundle budget | **OPEN — measure first** | M11 |
+
+### D1. Student role — deferred, not designed
+
+**Decision.** No `student` role is added to this panel in the product phase. The question stays
+open exactly as [OPEN_ITEMS.md](OPEN_ITEMS.md) I5 frames it — a role in this panel, or a separate
+app — and is **deferred by product-owner instruction (2026-09-09)**. Nothing is implemented before
+the decision is recorded here as decided.
+
+**Why.** `src/domains/auth/permissions.ts` states that frontend RBAC is UX only and that real
+authorization must be enforced server-side; there is no server. A `student` principal in a
+browser-local environment would see the same `localStorage` as the administrator, so the role
+would be a **security boundary that does not exist** — a fake UX of exactly the kind §15 forbids.
+Attendance and progress records concern minors, so `docs/security.md` §7 and the privacy section of
+`docs/production-handoff.md` apply to any future design.
+
+**Enforced by.** [OPEN_ITEMS.md](OPEN_ITEMS.md) I5 (*"Do not implement before the role decision is
+recorded in DECISIONS.md"*), `src/domains/auth/permissions.ts`, and the absence of any student
+workspace in `src/views`.
+
+**Status.** ⏸️ Deferred by decision. Consequence: I5 and I4 (teacher visual workspace — what a
+teacher role may see is the same authorization question) stay out of the phase. The chat domain
+already models a student *counterpart* (`ChatParticipantRole` includes `student` and `guardian`),
+which is not a login principal and is unaffected.
+
+### D2. Branding is the source of truth for the academy identity
+
+**Decision.** To be recorded before M8: the academy name, tagline, colours and font shown in the
+shell, the login screen and exports come from the persisted `BrandingSettings`, and the fixture
+value in `src/data/academy.ts` is demo seed material only. The shipped default name is decided in
+the same entry — today `DEFAULT_BRANDING.academyName` in `src/domains/branding/types.ts` is
+«آموزشگاه موسیقی پارسیان» while the fixture `academy.name` rendered on screen is «آکادمی موسیقی
+آوا», and the two cannot both be the product's name.
+
+**Why.** `src/domains/branding/useBranding.ts` already implements `applyBranding` with a
+CSS-injection guard and is tested — but it has **only test callers**, and the `--brand-*` custom
+properties it writes have **zero consumers**. Meanwhile `src/components/layout/Sidebar.tsx` and
+`src/views/Login.tsx` render the fixture name. The result is a settings panel that saves an identity
+the product does not use: a write that visibly does nothing is the same dishonesty as a fake
+success toast (§15).
+
+**Enforced by.** `src/domains/branding/useBranding.ts`, `src/domains/branding/types.ts`,
+`src/domains/branding/__tests__/branding.test.ts`, and — once M8 lands — the design-system token
+definitions in `src/index.css` plus a test asserting the saved identity is the rendered identity.
+
+**Status.** 🔶 Open. Blocks M8. Constraints that are not negotiable: writes stay in the CSSOM
+(`style-src 'self'` with `style-src-attr 'unsafe-inline'` as the one narrow exception — see
+`deploy/nginx.conf` and `src/__tests__/cspCompatibility.test.ts`), and `logoMediaId` /
+`faviconMediaId` remain `MediaAsset.id` references, never data URLs (§13).
+
+### D3. Placement of the environment-recovery affordance
+
+**Decision.** To be recorded before M1: where the "start over / choose the environment again"
+affordance lives — on the login screen, or inside `src/components/lifecycle/DataLifecycleGate.tsx`
+itself. [OPEN_ITEMS.md](OPEN_ITEMS.md) H5 requires it to be **outside the signed-in shell**,
+because after `clear()` there is no account to sign in with and Settings — where "restore a backup"
+lives — sits behind that login.
+
+**Why.** §18 forbids mounting anything above a gate whose decision it depends on. Recovery changes
+the lifecycle state, so it must render **at or below** `DataLifecycleGate` in the boot chain
+(AccessGate → ConfigGate → DataLifecycleGate → AuthProvider); placing it above would let a control
+mutate the environment before the environment's kind has been decided, which is precisely the
+failure §5 and §6 were written to prevent.
+
+**Enforced by.** `src/components/lifecycle/DataLifecycleGate.tsx`, `src/domains/demo/lifecycle.ts`
+(`uninitializeEnvironment`), `src/__tests__/routeProtection.test.tsx`, and the gate tests in
+`src/components/lifecycle/__tests__`.
+
+**Status.** 🔶 Open. Blocks M1. In api mode the gate is transparent, so no local recovery
+affordance may render at all — there is no local environment to recover.
+
+### D4. `clear()` keeps its meaning; recovery is `uninitialize`
+
+**Decision.** To be recorded before M1, and the recommended shape is: `clear()` continues to empty
+every collection including `users`, and the way back is **`uninitialize`**, not a re-added account.
+Any alternative — having `clear()` re-bootstrap an administrator — changes §8 and must be written
+down here *first*.
+
+**Why.** §8 and [OPEN_ITEMS.md](OPEN_ITEMS.md) I10 pin the invariant: an empty dataset keeps every
+collection at zero, and the single bootstrap administrator is added at the **lifecycle** layer
+(`createEmptyEnvironment()` in `src/domains/demo/lifecycle.ts`), not inside the dataset, because a
+dataset that quietly contains an account is not empty. `src/domains/demo/__tests__/seed.test.ts`
+pins it. Weakening it to make recovery convenient would trade a durable invariant for a shortcut,
+and §16 forbids that trade.
+
+**Enforced by.** `src/domains/demo/__tests__/seed.test.ts`, `src/domains/demo/lifecycle.ts`,
+`src/domains/demo/useDemoData.ts` (whose `DESTRUCTIVE_LABELS` must state the real consequence), and
+the lockout/recovery tests M1 adds.
+
+**Status.** 🔶 Open. Blocks M1. The distinction the copy must preserve is the one
+`src/domains/demo/lifecycle.ts` already documents: clearing removes **records** and keeps the
+environment and its mode; `uninitialize` removes **the environment itself**, binaries included.
+
+### D5. Fixtures have three roles; only one of them is a defect
+
+**Decision.** To be recorded before M10 (and known from M4 onward): `src/data/records.ts` and
+`src/data/academy.ts` are split by role — **entity types** move to their owning domains, the
+**canonical DEMO seed** moves under `src/domains/demo/`, and the third role, **fake data for
+unwired views**, is deleted once M4–M9 have removed every reader. The modules are *relocated*, not
+removed: DEMO is a first-class environment (§2) and its showcase dataset must stay exactly as rich.
+
+**Why.** The two files are 822 and 539 lines with **51 non-test importers**. `src/data/records.ts`
+defines `Student`, which `src/domains/students/types.ts`, `src/domains/teachers/types.ts` and
+`src/domains/classes/types.ts` re-import so there is one source of truth; and
+`src/domains/demo/seed.ts` *derives* the shipped demo dataset from the same fixtures. Treating the
+files as "fake data to delete" would break the type layer and the seed together — and §16 makes
+that a regression, not a cleanup.
+
+**Enforced by.** `src/domains/demo/__tests__/seed.test.ts`,
+`src/services/__tests__/demoStoreMigration.test.ts`, `src/__tests__/architectureBoundaries.test.ts`
+and the new M10 boundary test asserting no view imports those modules at all.
+
+**Status.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
+or seed roles).
+
+### D6. Finance and reports domains are not built in this phase
+
+**Decision.** No `finance`, `reports`, `messaging` or `notifications` domain is created in the
+product phase — **deferred by product-owner instruction (2026-09-09)**. What the phase does instead
+is stop their controls from lying: the fake reminders and the fabricated follow-up message are
+disabled or removed in M2.
+
+**Why.** The four README stubs state the contracts that make these domains non-trivial: balances
+are computed by Finance and **never** from session counters, and reports are *"authoritative
+server-side results, not client-side math"*. Money precision, idempotency and gateway behaviour are
+backend requirements listed in `docs/production-handoff.md`. A local implementation would either
+duplicate that logic in the browser or fake it — §15 forbids the second and
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I2 scopes the first as its own phase.
+
+**Enforced by.** `src/domains/finance/README.md`, `src/domains/reports/README.md`,
+`src/domains/messaging/README.md`, `src/domains/notifications/README.md`, and the honest
+`tone: "info"` "requires a server" toasts in `src/views/Finance.tsx` and `src/views/Reports.tsx`.
+
+**Status.** ⏸️ Deferred by decision; I2 stays open. The `invoices` and `payments` collections
+continue to persist and to be validated for referential integrity by the backup contract — they are
+not deleted, they are simply not yet read by a domain.
+
+### D7. Accessibility is enforced without a new dependency
+
+**Decision.** To be recorded before M11: a11y assertions are written with the tooling already
+present (Testing Library queries by role and accessible name, focus assertions, and a
+`prefers-reduced-motion` case). Adding an automated audit dependency requires separate
+authorization and is **not** assumed by this phase.
+
+**Why.** §10 of [PROJECT_STATE.md](PROJECT_STATE.md) forbids adding dependencies without
+authorization, and `package.json` contains no axe-family package today. Forty-two source files
+already carry `aria-*`/`role` attributes and the motion preference is honoured and persisted, so
+the gap is **assertions**, not implementation — and assertions can be written with what exists.
+
+**Enforced by.** the milestone suites added in M11, alongside the existing behaviour tests; the
+product requirement itself is §10's *"Persian-first, RTL, accessible, performant"*.
+
+**Status.** 🔶 Open. Blocks M11.
+
+### D8. api mode must disclose which domains are still local
+
+**Decision.** To be recorded before M11: the ten registry getters that resolve to the Demo
+implementation in **both** modes become visible to the operator as local, rather than being implied
+to sit behind the configured API.
+
+**Why.** `src/domains/registry.ts` already documents the reason those getters do not switch:
+*"silently returning demo data while claiming to be in API mode would be exactly the dishonest
+fallback"* §37 of `docs/architecture/data-layer.md` forbids. Only seven getters switch on
+`isApiMode()`, while nine domains already ship an `apiRepository.ts` that nothing selects. An
+operator who sets the data source to `api` therefore gets a hybrid, and a hybrid that does not say
+so reads as a production-ready deployment (§3, §9, §15).
+
+**Enforced by.** `src/domains/registry.ts`, `docs/architecture/data-layer.md`, and the M11 test
+that asserts the disclosure renders in api mode and not in demo mode.
+
+**Status.** 🔶 Open. Blocks M11. Note the deployment constraint that goes with it: both edge
+configs set `connect-src 'self'`, so an api deployment is same-origin or the CSP changes by
+recorded decision.
+
+### D9. The bundle budget is measured before it is set
+
+**Decision.** No numeric budget is written into this register until M11 has measured a real build
+and recorded the numbers. The budget then becomes a **test**, and it may never be satisfied by
+raising `chunkSizeWarningLimit`.
+
+**Why.** [OPEN_ITEMS.md](OPEN_ITEMS.md) I6 requires the warning to be resolved *"by real splitting
+(not by raising the warning threshold), with a measured before/after"*. `dist/` is a gitignored
+build artifact and is absent from a fresh workspace, so any size quoted from memory is unverifiable
+— including I6's own figure, which is dated to `33b1031`. A budget chosen before measurement is a
+guess with a test wrapped around it.
+
+**Enforced by.** `vite.config.ts`, `src/App.tsx` (13 static view imports, no `lazy`/`Suspense`
+today), `src/index.css` (the six imported `@fontsource/vazirmatn` weights, of which the design
+system uses four), `src/__tests__/cspCompatibility.test.ts` and the budget assertion M11 adds.
+
+**Status.** 🔶 Open — deliberately empty. Blocks M11, and is filled in by M11's measurement step.
+
+---
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

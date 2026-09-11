@@ -144,23 +144,59 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — NOT STARTED
+## Product-feature phase — SPECIFIED (M0), IMPLEMENTATION NOT STARTED
 
-**Durable SHA:** none. **Pushed:** n/a. **Status:** ❌ not started, **not authorized**.
+**Durable SHA:** none — M0 changes documents only, and a documentation checkpoint is not a phase
+(see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
+implementation ❌ **not started, not authorized**.
 
-**Intended scope as discussed (not a commitment, no code exists):** chat/messaging UI
-completion, learning-content → level assignment, removal of the remaining fake-UX surfaces,
-teacher and student visual workspaces (including the unresolved student-role decision),
-performance and code-splitting, research into official Telegram/Bale messaging providers, and
-the deferred documentation cleanup.
+**The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
+replaces the informal "intended scope as discussed" that stood here before: every milestone carries
+scope, dependencies, protected areas, Demo/API behaviour, tests, acceptance, out-of-scope and a
+checkpoint boundary, with `file:line` evidence. The decisions that gate it are recorded in
+[DECISIONS.md](DECISIONS.md) §19 as **D1–D9**.
 
-**Precondition to start:** explicit authorization plus the phase spec, a clean tree, and a
-re-verified green baseline (`npm run typecheck`, `npm test`, `git diff --check`). Begin from
-the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md).
+**Milestone order (M0 … M11).**
+
+| Milestone | Closes | Status |
+|---|---|---|
+| M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ this pass (documents only) |
+| M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ❌ not started |
+| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ❌ not started |
+| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started |
+| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
+| M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
+| M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
+| M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ❌ not started |
+| M8 — branding application | the identity that is saved becomes the identity rendered (needs **D2**) | ❌ not started |
+| M9 — dashboard insight from live data | **H4**, with **I9** guards landing first | ❌ not started |
+| M10 — fixture / type / seed separation | **D5**, the documentation-drift table, **L2**, **L3** | ❌ not started |
+| M11 — performance, api disclosure, a11y, browser QA | **I6**, **D7**, **D8**, **D9**, **L4** | ❌ not started |
+
+**Deferred by decision, and therefore absent from that table:** the student role and student
+workspace (**D1** / I5), the teacher visual workspace (I4), creating the finance, reports,
+messaging and notifications domains (**D6** / I2), official Telegram/Bale providers (I7), the
+backup-envelope relabelling (I8), and all backend work. Deferral is recorded in
+[DECISIONS.md](DECISIONS.md) §19 and in [OPEN_ITEMS.md](OPEN_ITEMS.md) — never silently, and never
+as completion.
+
+**Precondition to start M1** (unchanged in substance from the rule that was here before): explicit
+authorization, **D3 and D4 recorded first** (H5's own done-when requires the decision before the
+code), a clean tree, and a re-verified baseline — `npm run typecheck`, `npm test`,
+`git diff --check` — reported in the shape the spec's §10 requires rather than as a bare number.
+Begin from the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md); the spec sequences them.
 
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the
 same commit.
+
+**Not done in this pass, recorded so it is not forgotten:** the documentation-checkpoint table below
+still names `77b019ef` as the latest, and the pass after it (the retired test-harness race, the I11
+record, the gate growing from 45 to 52 checks) is described in prose without its SHA. Registering it
+belongs to the commit that follows, because a ledger entry never carries its own SHA — and because
+every 40-hex SHA quoted here must be a real commit reachable from `HEAD`, which
+`src/__tests__/projectState.test.ts` enforces. Advancing the two documentation-checkpoint rows in
+[PROJECT_STATE.md](PROJECT_STATE.md) §2 belongs in the same edit.
 
 ---
 
