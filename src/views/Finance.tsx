@@ -5,8 +5,8 @@ import { financeKpis, invoices, payments, paymentLabel, revenueByStream, student
 import { faNum, faPercent, faToman } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Delta, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { DemoNote, EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
+import { DemoNote, EmptyState } from "@/components/ds/states";
+import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const tone: Record<PaymentStatus, Tone> = { paid: "ok", due: "warn", overdue: "danger" };
@@ -41,7 +41,6 @@ export function FinanceView() {
   const [status, setStatus] = useState<PaymentStatus | "all">(filter === "overdue" ? "overdue" : "all");
   const [subFocus, setSubFocus] = useState<SubscriptionStatus | "all">("all");
   const [query, setQuery] = useState("");
-  const state = useAsyncView([filter]);
 
   const list = useMemo(
     () =>
@@ -52,7 +51,10 @@ export function FinanceView() {
     [status, query],
   );
 
-  if (state === "loading") return <LoadingState className="py-32" label="در حال جمع‌بندی دفتر مالی…" />;
+  const subsList = useMemo(
+    () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
+    [subFocus],
+  );
 
   const columns: Column<Invoice>[] = [
     {
@@ -93,7 +95,14 @@ export function FinanceView() {
           <span className="text-[11px] text-ink-500">{i.method}</span>
         ) : (
           <div className="flex justify-end gap-1.5">
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); notify({ tone: "success", title: "یادآوری ارسال شد", detail: `پیامک برای ${studentById(i.studentId)?.name}` }); }}>
+            {/*
+              There is no SMS service to send through and nothing is queued, so
+              this reports what is true — a payment reminder needs a messaging
+              service — instead of announcing one as delivered (H2). It is the
+              sanctioned honest "requires a server" shape already used by the
+              export button in this view's header.
+            */}
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); notify({ tone: "info", title: "یادآوری پیامکی نیازمند سرویس پیامک است", detail: `هیچ پیامکی برای ${studentById(i.studentId)?.name} ارسال نشد.` }); }}>
               <Send className="size-3.5" />
             </Button>
             <Button size="sm" variant="subtle" onClick={(e) => { e.stopPropagation(); openSheet("payment"); }}>
@@ -104,11 +113,6 @@ export function FinanceView() {
       hideBelow: "sm",
     },
   ];
-
-  const subsList = useMemo(
-    () => (subFocus === "all" ? subscriptions : subscriptions.filter((s) => s.status === subFocus)),
-    [subFocus],
-  );
 
   const subColumns: Column<Subscription>[] = [
     {
@@ -170,7 +174,7 @@ export function FinanceView() {
         }
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی در حال آماده‌سازی" })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی نیازمند سرور است", detail: "تولید PDF/Excel در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
@@ -285,7 +289,13 @@ export function FinanceView() {
                     <p className="mt-0.5 text-[11.5px] text-ink-300">قدیمی‌ترین فاکتور ۱۲ روز از سررسید گذشته است.</p>
                   </div>
                 </div>
-                <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "یادآوری گروهی ارسال شد", detail: `${faNum(list.length)} پیام در صف ارسال قرار گرفت.` })}>
+                {/*
+                  No queue exists and nothing is sent, so the count the previous
+                  toast quoted described an operation that never happened (H2).
+                  Honest `info` with no numeral claim — and no longer styled as
+                  this surface's primary action, since it performs none.
+                */}
+                <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "یادآوری گروهی نیازمند سرویس پیامک است", detail: "هیچ پیامی ارسال یا در صف قرار نگرفت." })}>
                   <Send className="size-3.5" /> یادآوری گروهی
                 </Button>
               </Surface>

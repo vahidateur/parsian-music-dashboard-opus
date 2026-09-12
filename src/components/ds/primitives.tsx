@@ -315,7 +315,16 @@ export function IconButton({ className, label, ...rest }: ButtonHTMLAttributes<H
 /* ------------------------------------------------------------------ */
 /* Instrument glyphs — minimal line marks, not cartoon icons           */
 /* ------------------------------------------------------------------ */
-export function InstrumentGlyph({ kind, className }: { kind: "piano" | "guitar" | "voice" | "violin" | "drums" | "theory"; className?: string }) {
+/**
+ * Instrument icon.
+ *
+ * `kind` is an instrument id, which is open-ended now that academies define
+ * their own instruments. The six seeded instruments have bespoke glyphs; any
+ * other id falls back to a generic music note rather than rendering an empty
+ * `<svg>`.
+ */
+export function InstrumentGlyph({ kind, className }: { kind: string; className?: string }) {
+  const known = kind === "piano" || kind === "guitar" || kind === "voice" || kind === "violin" || kind === "drums" || kind === "theory";
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   return (
     <svg viewBox="0 0 24 24" className={cn("size-4", className)} aria-hidden {...common}>
@@ -358,6 +367,14 @@ export function InstrumentGlyph({ kind, className }: { kind: "piano" | "guitar" 
           <path d="M3 7h18M3 10.5h18M3 14h18M3 17.5h18" opacity={0.6} />
           <circle cx="9" cy="14" r="1.8" fill="currentColor" stroke="none" />
           <path d="M10.8 14V6.5" />
+        </>
+      )}
+      {!known && (
+        /* Generic note for academy-defined instruments. */
+        <>
+          <circle cx="8" cy="17" r="2.6" />
+          <path d="M10.6 17V5l8 -1.6V15" />
+          <circle cx="16" cy="15" r="2.6" />
         </>
       )}
     </svg>

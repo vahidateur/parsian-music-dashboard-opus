@@ -3,6 +3,7 @@ import { Bell, CalendarDays, LayoutGrid, Menu, Search, Users, Wallet } from "luc
 import { schedule, statusOf, viewTitles } from "@/data/academy";
 import { faNum, faToday } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/domains/auth/AuthContext";
 import { Kbd } from "@/components/ds/primitives";
 import { cn } from "@/utils/cn";
 
@@ -87,7 +88,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
             aria-label="اعلان‌ها — ۳ اعلان جدید"
             onClick={() => {
               setNotified(true);
-              notify({ tone: "info", title: "۳ اعلان جدید", detail: "۲ پرداخت موفق · ۱ درخواست جلسهٔ جبرانی" });
+              notify({ tone: "info", title: "اعلان‌ها نمونهٔ ثابت هستند", detail: "اعلان زندهٔ واقعی به سرور نیاز دارد و در دمو وجود ندارد." });
             }}
             className="relative flex size-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-ink-200 transition-colors hover:bg-white/[0.06]"
           >
@@ -105,19 +106,20 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
 /* ------------------------------------------------------------------ */
 export function BottomNav() {
   const { view, navigate, openPalette } = useApp();
+  const { canAccess } = useAuth();
   const items = [
     { id: "dashboard" as const, label: "داشبورد", icon: LayoutGrid },
     { id: "schedule" as const, label: "برنامه", icon: CalendarDays },
     { id: "students" as const, label: "هنرجویان", icon: Users },
     { id: "finance" as const, label: "مالی", icon: Wallet },
-  ];
+  ].filter((it) => canAccess(it.id));
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-30 border-t border-white/[0.06] bg-ink-950/85 backdrop-blur-xl lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="ناوبری موبایل"
     >
-      <div className="grid h-16 grid-cols-5">
+      <div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length + 1}, minmax(0, 1fr))` }}>
         {items.map((it) => {
           const active = view === it.id;
           return (

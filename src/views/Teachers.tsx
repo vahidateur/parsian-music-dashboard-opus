@@ -1,20 +1,29 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, MessageSquare, Plus, UserCheck } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
-import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, teachers, weekSessions, type Teacher } from "@/data/records";
+import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { WEEKDAYS, WEEKDAYS_SHORT, TODAY_INDEX, classById, classes, students, weekSessions, type Teacher } from "@/data/records";
 import { faNum, faPercent, faTime } from "@/lib/format";
+import { meanOf } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs, useAsyncView } from "@/components/ds/patterns";
+import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
+import { ErrorState } from "@/components/ds/states";
+import { useTeachers } from "@/domains/teachers/useTeachers";
+import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
+import { getTeacherRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { apiErrorFromThrown } from "@/api/errors";
 import { cn } from "@/utils/cn";
 
 const BLOCKS = ["صبح", "ظهر", "عصر", "شب"];
 
-const statusMeta: Record<Teacher["status"], { label: string; tone: "ok" | "warn" | "violet" }> = {
+const statusMeta: Record<Teacher["status"], { label: string; tone: "ok" | "warn" | "violet" | "neutral" }> = {
   active: { label: "فعال", tone: "ok" },
   "absent-tomorrow": { label: "غیبت فردا", tone: "warn" },
   "light-load": { label: "ظرفیت آزاد", tone: "violet" },
+  inactive: { label: "غیرفعال", tone: "neutral" },
 };
 
 /* ------------------------------------------------------------------ */
@@ -98,9 +107,33 @@ function TeacherCard({ t, onOpen }: { t: Teacher; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 /* Teacher workspace                                                   */
 /* ------------------------------------------------------------------ */
-function TeacherDetail({ teacher }: { teacher: Teacher }) {
+function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => void }) {
   const { navigate, notify } = useApp();
   const [tab, setTab] = useState<"today" | "week" | "students" | "load">("today");
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  /**
+   * Deactivation is reversible and non-destructive: the teacher keeps their
+   * history but is excluded from new class assignment.
+   */
+  const toggleActive = async () => {
+    const inactive = teacher.status === "inactive";
+    setStatusBusy(true);
+    try {
+      const repository = getTeacherRepository();
+      if (inactive) await repository.update(teacher.id, { status: "active" });
+      else await repository.deactivate(teacher.id);
+      notify({
+        tone: "success",
+        title: inactive ? `${teacher.name} فعال شد` : `${teacher.name} غیرفعال شد`,
+        detail: inactive ? "برای تخصیص کلاس در دسترس است." : "از تخصیص کلاس‌های جدید کنار گذاشته شد؛ کلاس‌های قبلی دست‌نخورده‌اند.",
+      });
+    } catch (cause) {
+      notify({ tone: "danger", title: "تغییر وضعیت انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setStatusBusy(false);
+    }
+  };
   const meta = statusMeta[teacher.status];
   const myStudents = students.filter((s) => s.teacherId === teacher.id);
   const todaySessions = weekSessions.filter((w) => w.day === TODAY_INDEX && w.teacherId === teacher.id);
@@ -131,6 +164,13 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
             </Button>
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "schedule", filter: `teacher:${teacher.id}` })}>
               <CalendarDays className="size-3.5" /> برنامهٔ کامل
+            </Button>
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void toggleActive()} disabled={statusBusy}>
+              <UserX className="size-3.5" />
+              {teacher.status === "inactive" ? "فعال‌سازی" : "غیرفعال‌سازی"}
             </Button>
           </>
         }
@@ -232,7 +272,7 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
                     key={s.id}
                     lead={<Avatar name={s.name} size="sm" />}
                     title={s.name}
-                    meta={`${instrumentLabel[s.instrument]} · ${s.level}`}
+                    meta={`${instrumentName(s.instrument)} · ${s.level}`}
                     end={
                       <>
                         <Meter value={s.attendance} tone={s.attendance < 70 ? "warn" : "ok"} size="sm" label={faPercent(s.attendance)} className="hidden w-24 sm:flex" />
@@ -277,9 +317,9 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
                 <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3">
                   <div className="text-[10.5px] font-medium text-violet-300">فرصت</div>
                   <p className="mt-1 text-[12px] leading-relaxed text-ink-100">
-                    {faNum(teacher.contractHours - teacher.weeklyHours)} ساعت ظرفیت آزاد در هفته. لیست انتظار {instrumentLabel[teacher.instrument]} می‌تواند به این بازه منتقل شود.
+                    {faNum(teacher.contractHours - teacher.weeklyHours)} ساعت ظرفیت آزاد در هفته. لیست انتظار {instrumentName(teacher.instrument)} می‌تواند به این بازه منتقل شود.
                   </p>
-                  <Button size="sm" variant="subtle" className="mt-3" onClick={() => notify({ tone: "success", title: "پیشنهاد ثبت شد", detail: "بازهٔ جدید برای بررسی به برنامه‌ریزی ارسال شد." })}>
+                  <Button size="sm" variant="subtle" className="mt-3" onClick={() => notify({ tone: "info", title: "پیشنهاد فقط در دمو نمایش داده شد", detail: "ارسال به برنامه‌ریزی به سرور نیاز دارد." })}>
                     پیشنهاد بازهٔ جدید
                   </Button>
                 </div>
@@ -295,12 +335,19 @@ function TeacherDetail({ teacher }: { teacher: Teacher }) {
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
   const { filter, detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
-  const [inst, setInst] = useState<Instrument | "all">("all");
+  const [inst, setInst] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [only, setOnly] = useState<"all" | "absent-tomorrow" | "low-utilization">(
     filter === "absent-tomorrow" ? "absent-tomorrow" : filter === "low-utilization" ? "low-utilization" : "all",
   );
-  const state = useAsyncView([filter, detailId]);
+  // Repository-backed: loading reflects a real read, not a timer.
+  const { items: teachers, loading, error, reload } = useTeachers({ per_page: 200 });
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Teacher | undefined>(undefined);
 
   const list = useMemo(
     () =>
@@ -310,14 +357,47 @@ export function TeachersView() {
           (only === "all" || (only === "absent-tomorrow" ? t.status === "absent-tomorrow" : t.utilization < 60)) &&
           (query === "" || t.name.includes(query) || t.title.includes(query)),
       ),
-    [inst, only, query],
+    [teachers, inst, only, query],
   );
 
   const detail = detailId ? teachers.find((t) => t.id === detailId) : undefined;
-  if (state === "loading") return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
-  if (detail) return <TeacherDetail teacher={detail} />;
 
-  const avgUtil = Math.round(teachers.reduce((a, b) => a + b.utilization, 0) / teachers.length);
+  const savedToast = (saved: Teacher, mode: "create" | "edit") =>
+    notify({
+      tone: "success",
+      title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+      // The write is real in every environment, so the confirmation may only
+      // call it demo data where it actually is one. In an EMPTY environment
+      // these are the academy's own records (H3).
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+    });
+
+  const dialog = (
+    <TeacherFormDialog open={formOpen} teacher={editing} onClose={() => setFormOpen(false)} onSaved={savedToast} />
+  );
+
+  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+  if (error)
+    return (
+      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
+    );
+  if (detail)
+    return (
+      <>
+        <TeacherDetail
+          teacher={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+        />
+        {dialog}
+      </>
+    );
+
+  // `null` while the academy has no teachers: an average over nothing is not
+  // 0٪, and inline it evaluated to NaN and rendered as «NaN٪».
+  const avgUtil = meanOf(teachers, (t) => t.utilization);
   const freeHours = teachers.reduce((a, b) => a + Math.max(0, b.contractHours - b.weeklyHours), 0);
 
   return (
@@ -328,10 +408,17 @@ export function TeachersView() {
         description="بار کاری، در دسترس بودن و کیفیت عملیاتی هر مدرس در یک نگاه."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "فرم اعلام ساعات آزاد برای مدرسین ارسال شد." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>
-            <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "دعوت‌نامهٔ مدرس ساخته شد", detail: "لینک تکمیل پروفایل آمادهٔ ارسال است." })}>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => {
+                setEditing(undefined);
+                setFormOpen(true);
+              }}
+            >
               <Plus className="size-3.5" /> افزودن مدرس
             </Button>
           </>
@@ -356,8 +443,8 @@ export function TeachersView() {
             <Chip label="ظرفیت آزاد" active={only === "low-utilization"} onClick={() => setOnly("low-utilization")} />
             <Chip label="غیبت فردا" active={only === "absent-tomorrow"} onClick={() => setOnly("absent-tomorrow")} />
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
-            {(["piano", "guitar", "violin", "voice", "drums", "theory"] as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={inst === k} count={teachers.filter((t) => t.instrument === k).length} onClick={() => setInst(inst === k ? "all" : k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={inst === i.id} count={teachers.filter((t) => t.instrument === i.id).length} onClick={() => setInst(inst === i.id ? "all" : i.id)} />
             ))}
           </>
         }
@@ -385,7 +472,7 @@ export function TeachersView() {
                   <Avatar name={t.name} size="sm" />
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink-50">{t.name}</div>
-                    <div className="text-[11px] text-ink-400">{instrumentLabel[t.instrument]}</div>
+                    <div className="text-[11px] text-ink-400">{instrumentName(t.instrument)}</div>
                   </div>
                 </div>
                 <div className="nums mt-3 text-[11.5px] text-ink-300">
@@ -396,6 +483,8 @@ export function TeachersView() {
             ))}
         </div>
       </Panel>
+
+      {dialog}
     </div>
   );
 }

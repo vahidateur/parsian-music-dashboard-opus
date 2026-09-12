@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CircleOff, FlaskConical, Inbox, RotateCcw } from "lucide-react";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { cn } from "@/utils/cn";
 import { Button } from "./primitives";
 
@@ -110,6 +111,17 @@ export function ErrorState({
 /* production values.                                                  */
 /* ------------------------------------------------------------------ */
 export function DemoNote({ text, className }: { text?: string; className?: string }) {
+  /*
+    A claim about where the data came from, so it is only made where it is true.
+
+    In an EMPTY environment the records on screen are the customer's own, and in
+    `api` mode they come from a real backend: rendering "this section is filled
+    with demo data" there would mislabel real data — the same dishonesty in the
+    opposite direction. Gated centrally, on the persisted lifecycle state, so no
+    view has to branch on the environment kind.
+  */
+  if (!useIsDemoEnvironment()) return null;
+
   return (
     <div role="note" className={cn("flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3", className)}>
       <FlaskConical className="mt-0.5 size-3.5 shrink-0 text-ink-400" strokeWidth={1.8} />

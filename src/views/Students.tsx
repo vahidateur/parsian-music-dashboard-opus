@@ -1,13 +1,31 @@
 import { useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
-import { ACADEMY_NOW, instrumentLabel, type Instrument } from "@/data/academy";
-import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, students, studentStats, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { useAcademyNow } from "@/domains/shared/clock";
+import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLabel, rooms, studentStatusLabel, teacherById, weekSessions, type ActivityEntry, type GridSession, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { useStudentList } from "@/domains/students";
+import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
+import { getStudentRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { apiErrorFromThrown } from "@/api/errors";
 import { faNum, faPercent, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, useAsyncView, type Column } from "@/components/ds/patterns";
+import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
+import { StudentLearningPanel } from "@/domains/learning/StudentLearningPanel";
+import { StudentProgressPanel } from "@/domains/progress/StudentProgressPanel";
 import { cn } from "@/utils/cn";
+
+/**
+ * §30: never render a full national ID in a list/detail chrome. Only the last
+ * four digits are shown; the full value stays in the domain layer.
+ */
+function maskNationalId(nationalId: string): string {
+  const tail = nationalId.slice(-4);
+  return `کد ملی ···${tail}`;
+}
 
 const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof Music2; mark: string }> = {
   session: { label: "جلسه", icon: Music2, mark: "border-gold-500/25 bg-gold-500/[0.08] text-gold-400" },
@@ -18,14 +36,14 @@ const activityMeta: Record<ActivityEntry["kind"], { label: string; icon: typeof 
   message: { label: "پیام", icon: MessageSquare, mark: "border-white/[0.08] bg-white/[0.03] text-ink-300" },
 };
 
-function sessionBadge(s: GridSession): { label: string; tone: Tone; live?: boolean; cancelled?: boolean } {
+function sessionBadge(s: GridSession, now: number): { label: string; tone: Tone; live?: boolean; cancelled?: boolean } {
   if (s.cancelled) return { label: "لغو شده", tone: "neutral", cancelled: true };
   if (s.conflictWith) return { label: "تعارض", tone: "warn" };
   const start = parseTime(s.start);
   const end = parseTime(s.end);
   if (s.day !== TODAY_INDEX) return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
-  if (end <= ACADEMY_NOW) return { label: "برگزار شد", tone: "neutral" };
-  if (start <= ACADEMY_NOW && ACADEMY_NOW < end) return { label: "در حال برگزاری", tone: "ok", live: true };
+  if (end <= now) return { label: "برگزار شد", tone: "neutral" };
+  if (start <= now && now < end) return { label: "در حال برگزاری", tone: "ok", live: true };
   return { label: "برنامه‌ریزی‌شده", tone: "neutral" };
 }
 
@@ -54,7 +72,7 @@ function StudentCard({ s, onOpen }: { s: Student; onOpen: () => void }) {
           <div className="truncate text-[14px] font-semibold text-ink-50">{s.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
             <InstrumentGlyph kind={s.instrument} className="size-3.5 text-gold-400" />
-            {instrumentLabel[s.instrument]}
+            {instrumentName(s.instrument)}
             <span className="text-ink-600">·</span>
             <span className="truncate">{s.level}</span>
           </div>
@@ -102,8 +120,31 @@ function StudentCard({ s, onOpen }: { s: Student; onOpen: () => void }) {
 /* ------------------------------------------------------------------ */
 type DetailTab = "overview" | "learning" | "schedule" | "attendance" | "finance" | "notes" | "activity";
 
-function StudentDetail({ student }: { student: Student }) {
+function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => void }) {
   const { navigate, notify, openSheet } = useApp();
+  const [statusBusy, setStatusBusy] = useState(false);
+
+  /**
+   * Pause/resume a student. This is a real repository write: if it fails the
+   * user is told, and nothing claims success (§37).
+   */
+  const toggleStatus = async () => {
+    const next = student.status === "paused" ? "active" : "paused";
+    setStatusBusy(true);
+    try {
+      await getStudentRepository().update(student.id, { status: next });
+      notify({
+        tone: "success",
+        title: next === "paused" ? `${student.name} متوقف شد` : `${student.name} فعال شد`,
+        detail: "وضعیت در پروندهٔ هنرجو به‌روزرسانی شد.",
+      });
+    } catch (cause) {
+      notify({ tone: "danger", title: "تغییر وضعیت انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+  const now = useAcademyNow();
   const [tab, setTab] = useState<DetailTab>("overview");
   const [actFilter, setActFilter] = useState<ActivityEntry["kind"] | "all">("all");
   const teacher = teacherById(student.teacherId);
@@ -122,10 +163,13 @@ function StudentDetail({ student }: { student: Student }) {
             <StatusBadge tone={statusTone[student.status]} label={studentStatusLabel[student.status]} />
           </span>
         }
-        description={`${instrumentLabel[student.instrument]} · ${student.level} · مدرس: ${teacher?.name ?? "—"}`}
+        description={`${instrumentName(student.instrument)} · ${student.level} · مدرس: ${teacher?.name ?? "—"}`}
         meta={
           <>
             <span className="nums">{faNum(student.age)} ساله</span>
+            {/* §9/§30: the national ID is a domain identifier, shown masked by
+                default so it is not casually exposed on screen or in screenshots. */}
+            <span className="nums" dir="ltr" title="کد ملی">{maskNationalId(student.nationalId)}</span>
             <span className="nums" dir="ltr">{student.phone}</span>
             {student.guardian && <span>ولی: {student.guardian}</span>}
             <span>عضو از {student.since}</span>
@@ -139,6 +183,13 @@ function StudentDetail({ student }: { student: Student }) {
             </Button>
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "messages" })}>
               <MessageSquare className="size-3.5" /> پیام
+            </Button>
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
+              <UserX className="size-3.5" />
+              {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
               <Wallet className="size-3.5" /> ثبت پرداخت
@@ -203,7 +254,7 @@ function StudentDetail({ student }: { student: Student }) {
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-ink-50">
                     <InstrumentGlyph kind={student.instrument} className="size-4 text-gold-400" />
-                    {instrumentLabel[student.instrument]}
+                    {instrumentName(student.instrument)}
                   </div>
                   <div className="nums mt-2 text-[13px] text-ink-200">
                     {student.nextClass.day} · {student.nextClass.time}
@@ -220,19 +271,16 @@ function StudentDetail({ student }: { student: Student }) {
               )}
             </Panel>
 
-            <Panel title="مهارت‌ها" kicker="ارزیابی مدرس در پایان هر ۴ جلسه" className="lg:col-span-1">
-              <ul className="space-y-3">
-                {student.skills.map((sk, i) => (
-                  <li key={sk.label}>
-                    <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                      <span className="text-ink-200">{sk.label}</span>
-                      <span className="nums text-ink-400">{faPercent(sk.value)}</span>
-                    </div>
-                    <Meter value={sk.value} tone={sk.value >= 70 ? "ok" : sk.value >= 45 ? "gold" : "neutral"} delay={i * 80} />
-                  </li>
-                ))}
-              </ul>
-            </Panel>
+            {/*
+              The fixture-driven "مهارت‌ها" meter that used to sit here has been
+              removed. It rendered `student.skills` — static seed numbers — under
+              the caption "ارزیابی مدرس", i.e. it presented invented values as a
+              teacher's assessment (§38).
+
+              Real, teacher-recorded progress lives on the «مسیر یادگیری» tab,
+              derived from the immutable ProgressEvent log. It is deliberately
+              NOT duplicated here: a second surface would drift from the log.
+            */}
 
             <Panel
               title="آخرین فعالیت‌ها"
@@ -286,7 +334,7 @@ function StudentDetail({ student }: { student: Student }) {
                         <ul className="space-y-2">
                           {sessions.map((s) => {
                             const cl = classById(s.classId);
-                            const badge = sessionBadge(s);
+                            const badge = sessionBadge(s, now);
                             return (
                               <li key={s.id}>
                                 <button
@@ -333,7 +381,7 @@ function StudentDetail({ student }: { student: Student }) {
             title="تاریخچهٔ کامل فعالیت"
             kicker="جلسات، پرداخت‌ها، یادداشت‌ها و پیام‌ها — در یک جریان"
             action="ثبت یادداشت"
-            onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد", detail: "برای مدرس این هنرجو نیز قابل مشاهده است." })}
+            onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است", detail: "یادداشت‌ها هنوز ذخیره نمی‌شوند." })}
           >
             {student.activity.length > 0 && (
               <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-0.5">
@@ -445,52 +493,27 @@ function StudentDetail({ student }: { student: Student }) {
         )}
 
         {tab === "learning" && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Panel title="مسیر سطح" kicker="پیشرفت در مسیر آموزشی آموزشگاه">
-              <ol className="relative space-y-3">
-                {["پایه", "مقدماتی", "میانی", "پیشرفته", "حرفه‌ای", "اجرای صحنه"].map((lvl, i) => {
-                  const done = i + 1 < student.levelStep;
-                  const current = i + 1 === student.levelStep;
-                  return (
-                    <li key={lvl} className="flex items-center gap-3">
-                      <span
-                        className={cn(
-                          "flex size-7 shrink-0 items-center justify-center rounded-full border text-[10.5px] font-semibold",
-                          done ? "border-ok-500/40 bg-ok-500/15 text-ok-400" : current ? "border-gold-500/50 bg-gold-500/15 text-gold-300" : "border-white/[0.08] text-ink-500",
-                        )}
-                      >
-                        {faNum(i + 1)}
-                      </span>
-                      <span className={cn("flex-1 text-[13px]", current ? "font-medium text-ink-50" : done ? "text-ink-200" : "text-ink-500")}>{lvl}</span>
-                      {current && <StatusBadge tone="gold" label="سطح فعلی" glyph={false} />}
-                    </li>
-                  );
-                })}
-              </ol>
-            </Panel>
-            <Panel title="روند پیشرفت" kicker="بر پایهٔ ارزیابی‌های مدرس">
-              <div className="space-y-3">
-                {student.skills.map((sk, i) => (
-                  <div key={sk.label}>
-                    <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
-                      <span className="text-ink-200">{sk.label}</span>
-                      <span className="nums text-ink-400">{faPercent(sk.value)}</span>
-                    </div>
-                    <Meter value={sk.value} tone="violet" delay={i * 80} />
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 border-t border-white/[0.05] pt-3 text-[11.5px] leading-relaxed text-ink-300">
-                میانگین کل: <span className="nums text-ink-100">{faPercent(Math.round(student.skills.reduce((a, b) => a + b.value, 0) / student.skills.length))}</span>
-              </p>
-            </Panel>
+          <div className="space-y-4">
+            {/*
+              Real placement + derived content access (LearningRepository).
+              The previous hardcoded six-step ladder and the fixture-driven
+              `levelStep` no longer decide what a student can see.
+            */}
+            <StudentLearningPanel studentId={student.id} studentName={student.name} />
+
+            {/*
+              Repertoire, practice history, analytics and recommendations, all
+              computed from the immutable progress log. Rendered in the teacher
+              role: this is the staff-facing workspace.
+            */}
+            <StudentProgressPanel studentId={student.id} studentName={student.name} role="teacher" />
           </div>
         )}
 
         {tab === "notes" && (
-          <Panel title="یادداشت‌های مدرس و پذیرش" action="افزودن یادداشت" onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد", detail: "برای مدرس این هنرجو نیز قابل مشاهده است." })}>
+          <Panel title="یادداشت‌های مدرس و پذیرش" action="افزودن یادداشت" onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است", detail: "یادداشت‌ها هنوز ذخیره نمی‌شوند." })}>
             {student.notes.length === 0 ? (
-              <EmptyState title="یادداشتی ثبت نشده" description="یادداشت‌های مدرس دربارهٔ پیشرفت و نیازهای هنرجو اینجا جمع می‌شود." action="افزودن یادداشت" onAction={() => notify({ tone: "success", title: "یادداشت ثبت شد" })} />
+              <EmptyState title="یادداشتی ثبت نشده" description="یادداشت‌های مدرس دربارهٔ پیشرفت و نیازهای هنرجو اینجا جمع می‌شود." action="افزودن یادداشت" onAction={() => notify({ tone: "info", title: "ثبت یادداشت نیازمند سرور است" })} />
             ) : (
               <ul className="space-y-3">
                 {student.notes.map((n, i) => (
@@ -515,12 +538,49 @@ function StudentDetail({ student }: { student: Student }) {
 /* Students view                                                       */
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
-  const { filter, detailId, navigate, openSheet, notify } = useApp();
+  const { filter, detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
-  const [instrument, setInstrument] = useState<Instrument | "all">("all");
+  const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [layout, setLayout] = useState<"cards" | "table">("cards");
-  const state = useAsyncView([filter, detailId]);
+
+  // Repository-backed: the view no longer imports the student fixture. Loading
+  // state is the repository's real state, not a simulated delay.
+  //
+  // `per_page` is explicit because the detail page resolves `detailId` against
+  // this list: relying on the repository default silently hid every student
+  // past the first page behind a "not found" state. BACKEND REQUIRED: server-side
+  // paging plus a `get(id)` fetch for the detail route replaces this ceiling.
+  const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+
+  // Create/edit are driven by one dialog; `editing` distinguishes the modes.
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Student | undefined>(undefined);
+
+  const openCreate = () => {
+    setEditing(undefined);
+    setFormOpen(true);
+  };
+
+  /**
+   * One confirmation for both places the dialog is mounted (list and detail),
+   * so the copy cannot drift between them again — the duplicated literal is how
+   * the demo label survived review in the first place.
+   *
+   * The dialog awaited a real repository write before calling this, so the only
+   * environment-dependent part is the label: in an EMPTY environment these are
+   * the academy's own students, not demo data (H3).
+   */
+  const savedToast = (saved: Student, mode: "create" | "edit") =>
+    notify({
+      tone: "success",
+      title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+    });
 
   const list = useMemo(
     () =>
@@ -528,15 +588,63 @@ export function StudentsView() {
         (s) =>
           (status === "all" || s.status === status) &&
           (instrument === "all" || s.instrument === instrument) &&
-          (query === "" || s.name.includes(query) || instrumentLabel[s.instrument].includes(query)),
+          (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
       ),
-    [status, instrument, query],
+    [students, status, instrument, query],
+  );
+
+  // Stats are derived from the loaded dataset — never hardcoded totals.
+  const stats = useMemo(
+    () => ({
+      active: students.filter((s) => s.status === "active").length,
+      atRisk: students.filter((s) => s.status === "at-risk").length,
+      waitlist: students.filter((s) => s.status === "waitlist").length,
+      paused: students.filter((s) => s.status === "paused").length,
+    }),
+    [students],
   );
 
   const detail = detailId ? students.find((s) => s.id === detailId) : undefined;
 
-  if (state === "loading") return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
-  if (detail) return <StudentDetail student={detail} />;
+  if (loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  if (error)
+    return (
+      <EmptyState
+        className="py-32"
+        title="بارگذاری هنرجویان ناموفق بود"
+        description={error.message}
+        action="تلاش دوباره"
+        onAction={reload}
+      />
+    );
+  if (detailId && !detail)
+    return (
+      <EmptyState
+        className="py-32"
+        title="هنرجو یافت نشد"
+        description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+        action="بازگشت به فهرست"
+        onAction={() => navigate({ view: "students" })}
+      />
+    );
+  if (detail)
+    return (
+      <>
+        <StudentDetail
+          student={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+        />
+        <StudentFormDialog
+          open={formOpen}
+          student={editing}
+          onClose={() => setFormOpen(false)}
+          onSaved={savedToast}
+        />
+      </>
+    );
 
   const columns: Column<Student>[] = [
     {
@@ -552,7 +660,7 @@ export function StudentsView() {
         </div>
       ),
     },
-    { key: "instrument", header: "ساز", cell: (s) => <span className="text-ink-200">{instrumentLabel[s.instrument]}</span>, hideBelow: "sm" },
+    { key: "instrument", header: "ساز", cell: (s) => <span className="text-ink-200">{instrumentName(s.instrument)}</span>, hideBelow: "sm" },
     { key: "teacher", header: "مدرس", cell: (s) => <span className="text-ink-300">{teacherById(s.teacherId)?.name}</span>, hideBelow: "md" },
     {
       key: "sessions",
@@ -578,10 +686,10 @@ export function StudentsView() {
         description="پروندهٔ کامل هنرجویان، وضعیت حضور، پیشرفت و مالی — همه در یک نما."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی در حال آماده‌سازی", detail: "فایل CSV برای شما ارسال می‌شود." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("student")}>
+            <Button size="sm" variant="primary" onClick={openCreate}>
               <Plus className="size-3.5" /> افزودن هنرجو
             </Button>
           </>
@@ -590,10 +698,10 @@ export function StudentsView() {
 
       <StatStrip
         stats={[
-          { label: "هنرجوی فعال", value: faNum(studentStats.active), delta: 8.4, hint: "روند صعودی", onClick: () => setStatus("active") },
-          { label: "در معرض ریزش", value: faNum(studentStats.atRisk), tone: "warn", hint: "بیش از ۲ هفته غیبت", onClick: () => setStatus("at-risk") },
-          { label: "لیست انتظار", value: faNum(studentStats.waitlist), tone: "violet", hint: "نیازمند تماس", onClick: () => setStatus("waitlist") },
-          { label: "ثبت‌نام این ماه", value: faNum(studentStats.newThisMonth), delta: 12, hint: "بالاتر از میانگین" },
+          { label: "هنرجوی فعال", value: faNum(stats.active), hint: "وضعیت فعال", onClick: () => setStatus("active") },
+          { label: "در معرض ریزش", value: faNum(stats.atRisk), tone: "warn", hint: "بیش از ۲ هفته غیبت", onClick: () => setStatus("at-risk") },
+          { label: "لیست انتظار", value: faNum(stats.waitlist), tone: "violet", hint: "نیازمند تماس", onClick: () => setStatus("waitlist") },
+          { label: "متوقف‌شده", value: faNum(stats.paused), hint: "بدون جلسهٔ فعال" },
         ]}
       />
 
@@ -618,8 +726,8 @@ export function StudentsView() {
             ))}
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
             <Chip label="همهٔ سازها" tone="violet" active={instrument === "all"} onClick={() => setInstrument("all")} />
-            {(Object.keys(instrumentLabel) as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={instrument === k} count={students.filter((s) => s.instrument === k).length} onClick={() => setInstrument(k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={instrument === i.id} count={students.filter((s) => s.instrument === i.id).length} onClick={() => setInstrument(i.id)} />
             ))}
           </>
         }
@@ -649,6 +757,13 @@ export function StudentsView() {
           </Surface>
         )}
       </div>
+
+      <StudentFormDialog
+        open={formOpen}
+        student={editing}
+        onClose={() => setFormOpen(false)}
+        onSaved={savedToast}
+      />
     </div>
   );
 }

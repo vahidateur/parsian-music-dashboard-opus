@@ -1,5 +1,8 @@
-import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
-import { academy, manager, navGroups, type ViewId } from "@/data/academy";
+import { useMemo, useState } from "react";
+import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { academy, navGroups, type ViewId } from "@/data/academy";
+import { useAuth } from "@/domains/auth/AuthContext";
+import { roleLabels } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
 import { NavItem } from "@/components/ds/blocks";
 import { cn } from "@/utils/cn";
@@ -60,7 +63,25 @@ function Roles() {
   );
 }
 
-export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { collapsed?: boolean; onClose?: () => void; onToggleRail?: () => void }) {
+export function SidebarContent({
+  collapsed = false,
+  onClose,
+  onToggleRail,
+  navLabel = "ناوبری اصلی",
+}: {
+  collapsed?: boolean;
+  onClose?: () => void;
+  onToggleRail?: () => void;
+  /** Distinct per instance so the a11y tree has no ambiguous duplicate landmarks. */
+  navLabel?: string;
+}) {
+  const { user, logout, canAccess } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+  /* Navigation only shows what the session may actually open. */
+  const visibleGroups = useMemo(
+    () => navGroups.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(n.id)) })).filter((g) => g.items.length > 0),
+    [canAccess],
+  );
   const { view, navigate } = useApp();
 
   return (
@@ -81,8 +102,8 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
         )}
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label="ناوبری اصلی">
-        {navGroups.map((group, gi) => (
+      <nav className={cn("flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label={navLabel}>
+        {visibleGroups.map((group, gi) => (
           <div key={group.id} className={cn(gi > 0 && (collapsed ? "mt-2" : "mt-4"))}>
             {group.label &&
               (collapsed ? (
@@ -112,26 +133,53 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
 
       <div className={cn("space-y-3 p-3", collapsed && "p-2")}>
         {!collapsed && <Roles />}
-        <button
-          type="button"
-          className={cn(
-            "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 text-right transition-colors hover:border-white/[0.12]",
-            collapsed && "justify-center border-0 bg-transparent p-1",
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setAccountOpen((v) => !v)}
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+            aria-label={`حساب کاربری — ${user?.name ?? ""}`}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 text-right transition-colors hover:border-white/[0.12]",
+              collapsed && "justify-center border-0 bg-transparent p-1",
+            )}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-500/30">
+              {(user?.name ?? "؟").trim().charAt(0)}
+            </span>
+            {!collapsed && (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-ink-50">{user?.name}</span>
+                  <span className="block truncate text-[11px] text-ink-400">{user ? roleLabels[user.role] : ""}</span>
+                </span>
+                <ChevronDown className={cn("size-4 text-ink-400 transition-transform", accountOpen && "rotate-180")} />
+              </>
+            )}
+          </button>
+          {accountOpen && (
+            <div
+              role="menu"
+              className={cn(
+                "absolute bottom-full mb-2 w-full overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
+                collapsed && "w-40 right-0",
+              )}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setAccountOpen(false);
+                  void logout();
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-right text-[12.5px] text-ink-100 transition-colors hover:bg-white/[0.06]"
+              >
+                <LogOut className="size-4 text-ink-400" /> خروج از حساب
+              </button>
+            </div>
           )}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-500/30">
-            {manager.initials}
-          </span>
-          {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink-50">{manager.name}</span>
-                <span className="block truncate text-[11px] text-ink-400">{manager.role}</span>
-              </span>
-              <ChevronDown className="size-4 text-ink-400" />
-            </>
-          )}
-        </button>
+        </div>
         {onToggleRail && (
           <button
             type="button"
@@ -167,7 +215,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
           <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} />
         </div>
         <div className="h-full xl:hidden">
-          <SidebarContent collapsed />
+          <SidebarContent collapsed navLabel="ناوبری فشرده" />
         </div>
       </aside>
 
@@ -176,7 +224,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="منو">
           <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
           <aside className="absolute inset-y-0 right-0 w-[86vw] max-w-[320px] animate-sheet-in border-l border-white/[0.06] bg-ink-900 shadow-2xl" style={{ animationName: "sheet-in-rtl" }}>
-            <SidebarContent onClose={onClose} />
+            <SidebarContent onClose={onClose} navLabel="ناوبری موبایل" />
           </aside>
         </div>
       )}

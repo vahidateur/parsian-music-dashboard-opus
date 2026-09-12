@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
-import { ACADEMY_NOW, instrumentLabel } from "@/data/academy";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { instrumentName } from "@/domains/instruments/catalog";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions, type GridSession } from "@/data/records";
 import { faNum, faPercent, faTime, minutesToFaTime, parseTime, toFa } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Chip, Drawer, FilterBar, ListRow, Meter, PageHeader, Panel, Segmented, StatStrip, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Chip, Drawer, FilterBar, ListRow, Meter, PageHeader, Panel, Segmented, StatStrip } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const DAY_START = 8 * 60;
@@ -26,17 +27,20 @@ function SessionBlock({
   s,
   onOpen,
   dense,
+  now,
 }: {
   s: GridSession;
   onOpen: () => void;
   dense?: boolean;
+  /** Academy time in minutes; frozen in demo, real in production. */
+  now: number;
 }) {
   const cl = classById(s.classId);
   const start = parseTime(s.start);
   const end = parseTime(s.end);
   const top = (start - DAY_START) * PX_PER_MIN;
   const height = (end - start) * PX_PER_MIN;
-  const live = s.day === TODAY_INDEX && start <= ACADEMY_NOW && ACADEMY_NOW < end && !s.cancelled;
+  const live = s.day === TODAY_INDEX && start <= now && now < end && !s.cancelled;
 
   return (
     <button
@@ -68,25 +72,31 @@ function SessionBlock({
 
 /* ------------------------------------------------------------------ */
 export function SchedulingView() {
-  const { filter, navigate, notify, openSheet } = useApp();
+  const { filter, navigate, openSheet } = useApp();
+  const now = useAcademyNow();
   const [mode, setMode] = useState<"week" | "day">("week");
   const [dayIndex, setDayIndex] = useState(TODAY_INDEX);
   const [roomFilter, setRoomFilter] = useState<string | "all">("all");
   const [teacherFilter, setTeacherFilter] = useState<string | "all">(filter?.startsWith("teacher:") ? filter.slice(8) : "all");
   const [selected, setSelected] = useState<GridSession | null>(null);
-  const [resolved, setResolved] = useState(false);
-  const state = useAsyncView([filter]);
 
   const visible = useMemo(
     () => weekSessions.filter((s) => (roomFilter === "all" || s.roomId === roomFilter) && (teacherFilter === "all" || s.teacherId === teacherFilter)),
     [roomFilter, teacherFilter],
   );
 
-  const conflicts = weekSessions.filter((s) => s.conflictWith && !resolved);
-  const nowTop = (ACADEMY_NOW - DAY_START) * PX_PER_MIN;
+  /*
+    A conflict stays on screen until it is actually resolved in the data. The
+    `resolved` flag this list used to be filtered by was set by a button that
+    claimed to move a class to room 4 and to have notified teacher and student;
+    it wrote nothing, so all it really did was hide the warning (H2). Moving a
+    session is `rescheduleSession` guarded by `checkConflicts`, which this
+    fixture-driven view cannot call — these sessions carry no domain ids — and
+    which arrives with the scheduling wiring.
+  */
+  const conflicts = weekSessions.filter((s) => s.conflictWith);
+  const nowTop = (now - DAY_START) * PX_PER_MIN;
   const gridHeight = (DAY_END - DAY_START) * PX_PER_MIN;
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال هماهنگ کردن تقویم…" />;
 
   const days = mode === "week" ? WEEKDAYS.map((_, i) => i) : [dayIndex];
 
@@ -130,19 +140,17 @@ export function SchedulingView() {
               </p>
             </div>
           </div>
+          {/*
+            Only the action that does something true survives: «مشاهده در تقویم»
+            really moves the calendar. The «انتقال به اتاق ۴» button claimed a
+            room transfer plus a notification to teacher and student and
+            persisted neither, so it is removed rather than disabled — a disabled
+            control would still promise a capability the product does not have
+            (H2). The warning itself stays until the conflict is really resolved.
+          */}
           <div className="flex shrink-0 gap-2">
             <Button size="sm" variant="subtle" onClick={() => { setMode("day"); setDayIndex(TODAY_INDEX); }}>
               مشاهده در تقویم
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => {
-                setResolved(true);
-                notify({ tone: "success", title: "تعارض برطرف شد", detail: "پیانو پیشرفته به اتاق ۴ منتقل شد · مدرس و هنرجو مطلع شدند." });
-              }}
-            >
-              <Sparkles className="size-3.5" /> انتقال به اتاق ۴
             </Button>
           </div>
         </Surface>
@@ -214,13 +222,13 @@ export function SchedulingView() {
                     {visible
                       .filter((s) => s.day === d)
                       .map((s) => (
-                        <SessionBlock key={s.id} s={s} dense={mode === "week"} onOpen={() => setSelected(s)} />
+                        <SessionBlock key={s.id} s={s} now={now} dense={mode === "week"} onOpen={() => setSelected(s)} />
                       ))}
                     {d === TODAY_INDEX && (
                       <div className="pointer-events-none absolute inset-x-0 z-20" style={{ top: nowTop }}>
                         <div className="relative h-px bg-gold-400/70">
                           <span className="absolute -top-[3px] right-0 size-[7px] rounded-full bg-gold-400" />
-                          <span className="nums absolute -top-2 left-1 rounded bg-ink-950/80 px-1 text-[9px] text-gold-300">{minutesToFaTime(ACADEMY_NOW)}</span>
+                          <span className="nums absolute -top-2 left-1 rounded bg-ink-950/80 px-1 text-[9px] text-gold-300">{minutesToFaTime(now)}</span>
                         </div>
                       </div>
                     )}
@@ -304,7 +312,7 @@ export function SchedulingView() {
                 ["روز", WEEKDAYS[selected.day]],
                 ["ساعت", `${faTime(selected.start)} – ${faTime(selected.end)}`],
                 ["مدرس", teacherById(selected.teacherId)?.name ?? "—"],
-                ["ساز", instrumentLabel[classById(selected.classId)?.instrument ?? "piano"]],
+                ["ساز", instrumentName(classById(selected.classId)?.instrument ?? "piano")],
                 ["هنرجویان", `${faNum(classById(selected.classId)?.enrolled ?? 0)} از ${faNum(classById(selected.classId)?.capacity ?? 0)}`],
                 ["اتاق", rooms.find((r) => r.id === selected.roomId)?.kind ?? "—"],
               ].map(([k, v]) => (
@@ -322,9 +330,12 @@ export function SchedulingView() {
                 <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-300">
                   اتاق ۴ در همین بازه آزاد است و پیانو دارد؛ انتقال یکی از دو کلاس مشکل را حل می‌کند.
                 </p>
-                <Button size="sm" variant="primary" className="mt-3" onClick={() => { setResolved(true); setSelected(null); notify({ tone: "success", title: "تعارض برطرف شد", detail: "کلاس به اتاق ۴ منتقل شد." }); }}>
-                  انتقال به اتاق ۴
-                </Button>
+                {/*
+                  The «انتقال به اتاق ۴» button that used to sit here claimed the
+                  transfer had happened and then closed this drawer, taking the
+                  evidence with it; it wrote nothing (H2). Removed, and the
+                  drawer stays open.
+                */}
               </div>
             )}
             <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11.5px] text-ink-300">
