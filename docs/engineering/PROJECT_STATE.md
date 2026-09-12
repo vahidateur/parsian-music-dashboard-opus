@@ -403,8 +403,9 @@ I13 or I14, and neither is reported as fixed. I13 matters before M3 specifically
 `loading` — was subsequently authorized, implemented and **validated** at `289e080` (6 consecutive
 full-suite runs green, 4 contention samples green, build, typecheck, 68 documentation gates, and a
 reversion check on each half).
-**I14 is untouched**, and so are I13's Checkpoint 2 (`attachContent` still carries no caller intent)
-and Checkpoint 3 (five hand-rolled readers with the same shape). See §7 item 12 and
+**I14 is untouched**, and so is I13's Checkpoint 3 (five hand-rolled readers with the same shape).
+Checkpoint 2 — the `attachContent` intent guard — was **authorized on 2026-09-13 and is in
+progress**; it is not recorded as fixed until its own validation lands. See §7 item 12 and
 [OPEN_ITEMS.md](OPEN_ITEMS.md) I13.
 
 ## 5. Browser QA status
@@ -494,8 +495,10 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     on each half): the state now
     carries the query identity it answers and what the hook exposes is derived at render, so a page
     belonging to another query cannot be exposed at all, and the six consumers that ignored `loading`
-    now show an in-flight state instead of a false empty. **Still open:** `attachContent` carries no
-    caller intent (Checkpoint 2); five hand-rolled readers keep the old shape (Checkpoint 3, none of
+    now show an in-flight state instead of a false empty. **Still open:** `attachContent` carried no
+    caller intent (**Checkpoint 2** — authorized 2026-09-13, **in progress**, not yet fixed and not
+    to be reported as fixed until its validation is recorded); five hand-rolled readers keep the old
+    shape (Checkpoint 3, none of
     them reachable in shipped UI today); `useLibraryFile` can offer the previous item's bytes under a
     new title. `paginate` still turns `per_page: 0` — three call sites' way of saying "load nothing"
     — into one row (**I14**, untouched, and not an M3 blocker). The test harness stopped trusting
@@ -543,9 +546,11 @@ each half, so neither the hook fix nor the consumer gates are pinned by a test t
 without them. **That gate is discharged; M3 is no longer held by I13 Checkpoint 1.** Two parts of I13
 were **deliberately left out** of that
 authorization and remain open: **Checkpoint 2**, the `attachContent` intent guard (`attachContent`
-still takes only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a
-level against — it is **not** fixed), and **Checkpoint 3**, five hand-rolled readers with the same
-shape, none of them reachable in shipped UI today. **I14** (`paginate` clamps `per_page: 0` to one
+took only `(levelId, contentId)`, so unlike `assignPlacement` it had nothing to compare a level
+against) — **authorized by the owner on 2026-09-13 as its own change and now in progress**, so it is
+still **not** recorded as fixed and must not be reported as one until its own measured validation
+lands; and **Checkpoint 3**, five hand-rolled readers with the same
+shape, none of them reachable in shipped UI today, **not authorized and not started**. **I14** (`paginate` clamps `per_page: 0` to one
 row) was assessed for M3 relevance and **deferred**: M3's assignment surface never reads through a
 `per_page: 0` query, since that is only the not-yet-selected branch of three call sites. The two
 findings that M2

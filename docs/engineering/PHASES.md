@@ -212,9 +212,11 @@ samples as two concurrent full suites, build 3.29 s, typecheck, 68 documentation
 reversion check on each half. It is **not** registered as a milestone or as a documentation
 checkpoint: it is product source, so no row above moves, and §4 of PROJECT_STATE records it under
 "Work landed since the Phase 2 checkpoint" instead. Excluded from that authorization and still open:
-**I13 Checkpoint 2** (`attachContent` takes
-only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a level against —
-**not fixed**, and M3's own prohibition forbids doing it inside M3), **I13 Checkpoint 3** (five
+**I13 Checkpoint 2** (`attachContent` took
+only `(levelId, contentId)`, so unlike `assignPlacement` it had nothing to compare a level against) —
+**authorized by the owner on 2026-09-13 as its own change and in progress**, still **not fixed** and
+not to be reported as fixed until its measured validation is recorded; M3's own prohibition forbids
+doing it inside M3, which is why it is its own pass. **I13 Checkpoint 3** (five
 hand-rolled readers with the same shape, none reachable in shipped UI today), and **I14** (`paginate`
 clamps `per_page: 0` to one row) — assessed for M3 relevance and **deferred**, because M3's
 assignment surface never reads through a `per_page: 0` query.

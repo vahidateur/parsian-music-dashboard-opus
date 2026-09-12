@@ -271,10 +271,13 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   STARTED and awaits the owner's authorization. Two parts were **deliberately excluded** from that
   authorization
   and stay open: **Checkpoint 2**, an intent guard on `attachContent` — which this milestone's surface
-  writes through, and which today takes only `(levelId, contentId)`, so unlike `assignPlacement` it
-  has nothing to compare a level against (**not fixed**, and it cannot be done inside M3, whose
-  prohibition below forbids editing the learning domain); and **Checkpoint 3**, five hand-rolled
-  readers with the same shape, none reachable in shipped UI today. Consequence for M3's own code: a
+  writes through, and which took only `(levelId, contentId)`, so unlike `assignPlacement` it had
+  nothing to compare a level against. The owner **authorized it on 2026-09-13 as its own pass and it
+  is in progress**; it is still **not fixed**, it must not be reported as fixed until its measured
+  validation is recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I13, and it cannot be done inside M3,
+  whose prohibition below forbids editing the learning domain — which is exactly why it is separate.
+  And **Checkpoint 3**, five hand-rolled
+  readers with the same shape, none reachable in shipped UI today, not authorized and not started. Consequence for M3's own code: a
   write whose target comes from a rendered row must pair it with a parent id from an **independent**
   query, as `StudentLearningPanel` already does — two values from the same stale row cannot
   contradict each other, so a guard built on them proves nothing.

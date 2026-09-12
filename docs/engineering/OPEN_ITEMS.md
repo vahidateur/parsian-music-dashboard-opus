@@ -484,8 +484,8 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
-- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented and validated; Checkpoints 2
-  and 3 not authorized, not started.** The owner authorized **Checkpoint 1 only**: the shared hook
+- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented and validated; Checkpoint 2
+  authorized the same day and now IN PROGRESS; Checkpoint 3 not authorized, not started.** The owner authorized **Checkpoint 1 only**: the shared hook
   plus the six dynamic-params consumers that ignored `loading`. It landed as
   `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
   `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
@@ -499,12 +499,15 @@ recovery and the zero-record tests both remaining green.
   were **reversion-checked** so that neither test is vacuous: reverting the hook to its pre-fix
   version fails the new hook suite (2 cases), and reverting the `GalleryPanel` gate alone — with the
   hook fix in place — fails the gallery gate on a false empty state. Repeated runs are evidence, not
-  a proof of determinism. **This item is nevertheless still open:** **Checkpoint 2** (the
-  `attachContent` intent guard) and **Checkpoint 3** (the hand-rolled readers below) are **not
-  implemented**, and **I14 is not implemented** and remains a separate item. `attachContent` is
-  **not** fixed and is **not** claimed to be — Checkpoint 1 removed the window in which a stale row
-  could be read as the current query's row, which lowers but does not eliminate the risk that a
-  surface attaches content to a level it did not mean.
+  a proof of determinism. **This item is nevertheless still open.** On the same day the owner
+  authorized **Checkpoint 2** — the `attachContent` intent guard — as a separate change, and it is
+  **IN PROGRESS**: the contract, the demo implementation and its adversarial tests are being written
+  now, and nothing about it may be reported as fixed until its own validation is recorded here.
+  **Checkpoint 3** (the hand-rolled readers below) is **not authorized and not started**, and
+  **I14 is not implemented** and remains a separate item. As of Checkpoint 1's push, `attachContent`
+  was **not** fixed: Checkpoint 1 removed the window in which a stale row could be *read* as the
+  current query's row, which lowered but did not eliminate the risk that a surface attaches content
+  to a level it did not mean.
 - **What (as it was, before Checkpoint 1):** `useResourceList`
   (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
   effect**. When the params changed — a new `programId`, a different page, a changed filter — the
@@ -566,12 +569,19 @@ recovery and the zero-record tests both remaining green.
   authorization, its own suite, and the six-run evidence rule in §10.1 — which is what Checkpoint 1
   then did.
 - **Not done in Checkpoint 1, deliberately — still open:**
-  - **Checkpoint 2: `attachContent` carries no caller intent.** It takes `(levelId, contentId)`, so
-    there is nothing for it to compare a level against; `assignPlacement` can refuse a cross-program
-    level only because it is handed a `programId` as well. **`attachContent` is not fixed and no
-    cross-program guard exists.** It was not implemented here because M3's own prohibition ("no edit
-    to the learning domain") means it has to be a separate authorized change, and its tests live in a
-    file M3 protects.
+  - **Checkpoint 2: `attachContent` carried no caller intent — AUTHORIZED 2026-09-13, IN PROGRESS.**
+    It took `(levelId, contentId)`, so there was nothing for it to compare a level against;
+    `assignPlacement` can refuse a cross-program level only because it is handed a `programId` as
+    well. It was not implemented inside Checkpoint 1 because M3's own prohibition ("no edit to the
+    learning domain") means it has to be a separate authorized change. **The authorized shape is the
+    `assignPlacement` pattern and nothing larger:** a required `AttachContentIntent { programId }`
+    third argument, resolved *independently* of the level being written to (never read back from that
+    level, which would make the comparison a tautology), compared against `level.programId` and
+    refused with a validation error when they disagree. No schema change, no `programId` on
+    `LearningContent`, no redesign of the learning domain, and every existing behaviour — including
+    `CONTENT_ALREADY_LINKED` and one content item serving several levels — preserved. **Not
+    implemented at the time of this sentence being written; it is recorded as in progress until its
+    own measured validation lands.**
   - **Checkpoint 3: five hand-rolled readers with the same shape, none of them fixed here** —
     `useStudentList` (`src/domains/students/useStudents.ts:25`), `useDerived`
     (`src/domains/learning/useLearning.ts:62`, which backs placement and eligible content, both
