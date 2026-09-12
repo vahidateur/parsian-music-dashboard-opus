@@ -255,15 +255,21 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   Today **only tests call them**.
 - **Prohibition (I3, verbatim).** *"This is a UI and workflow gap, **not a schema redesign**."* No
   new field, no model change, no edit to the learning domain.
-- **Dependencies.** None — the contract is complete. **I11's still-open `LearningPanel` flake must
-  be triaged here**, because this milestone touches the same domain and the same suites.
+- **Dependencies.** None — the contract is complete. I11's `LearningPanel` flake was named as a
+  precondition of this milestone and has been **discharged before it** — reproduced, root-caused and
+  fixed in the test harness; see [OPEN_ITEMS.md](OPEN_ITEMS.md) I11. What that triage left open is
+  **I13**: a list hook can render the previous query's rows with no loading marker when its params
+  change, and `attachContent` — which this milestone's surface writes through — has no cross-program
+  guard that would catch it. Recording that here is not a decision: whether I13 becomes a dependency
+  of M3 is the owner's call, and it is deliberately not made in this document.
 - **Protected areas.** `src/domains/learning/__tests__/demoRepository.test.ts`,
   `LearningPanel.test.tsx`, `StudentLearningPanel.test.tsx`; DECISIONS.md §10 domain boundaries.
 - **Demo/API behaviour.** Learning resolves to Demo in **both** modes
   (`src/domains/registry.ts:144`) — the surface must not imply a server; D8's indicator covers it.
 - **Tests.** Assignment persists across a reload; the `CONTENT_ALREADY_LINKED` conflict surfaces as
   an honest refusal; detach removes the link; EMPTY renders «داده‌ای نیست», never a fixture; the
-  previously flaky reorder test passes on repeated runs.
+  previously flaky `LearningPanel` cases pass on repeated runs — six consecutive full-suite runs,
+  the count §10.1 requires of a file that has ever flaked.
 - **Acceptance.** I3's done-when: *"an assignment surface exists …, writes through that existing
   contract, and is covered by a test."*
 - **Out of scope.** Any change to `Piece` / `LearningContent` / placement / eligibility models;
@@ -575,15 +581,28 @@ item downward to make a phase look finished."*
    system's in-flight marker (`role="status"`, from `BreathingWave` in
    `src/components/ds/states.tsx`), queried **by role, not by its Persian label**, so a copy change
    cannot silently turn the wait into a no-op. Never a title, never a sleep, never a retry.
+   **Correction (2026-09-12, from I11's triage):** the marker is sufficient for a refetch of the
+   *same* query and **insufficient when the query's params change**. `useResourceList` sets `loading`
+   inside an effect, so the frame between a params change and that effect carries the previous
+   query's rows with `loading === false` and no marker at all — measured `role="status"` count 0.
+   Where a list's params can change (a selected parent, a page, a filter), the helper must wait for
+   the data-derived state itself: the rows on screen are the rows the repository holds for what the
+   screen claims to be showing. The marker check stays, as necessary but not sufficient. The
+   underlying hook behaviour is **I13**, open.
 3. **No assertion is weakened, skipped or deleted to reach green.** Fix the owning boundary
    (§10 of [PROJECT_STATE.md](PROJECT_STATE.md)).
 4. **Report the shape, not a bare number:** `N passed` or `(N − 8) passed + 8 skipped` depending on
    whether `dist/` exists, and — while the local pointer disagrees with the remote — the nine
    environmental `projectState` failures named in §2.
-5. **I11's open flake** (`src/domains/learning/__tests__/LearningPanel.test.tsx` → *"reorders levels
-   and keeps the ordering contiguous"*, seen once under artificial double contention) must be
-   reproduced-and-fixed or written off with a recorded conclusion **at M3**, before this phase
-   touches that domain further.
+5. **I11's open flake — discharged before M3, not at it.**
+   `src/domains/learning/__tests__/LearningPanel.test.tsx` was reproduced (1 failure in 4
+   double-contention full-suite samples, after 31 focused runs stayed green), root-caused and fixed
+   in the test harness on 2026-09-12; the recorded conclusion is in
+   [OPEN_ITEMS.md](OPEN_ITEMS.md) I11. Two corrections to this clause as originally written: the
+   failure was **not** an artefact of running two suites on one machine — the state it exposed occurs
+   on every run — and it did not land on the named *"reorders levels"* case, which passed in the
+   failing run; all of the file's cases shared the two helpers. The product behaviour underneath is
+   **I13** and **I14**, both open and neither fixed by that pass.
 6. **New suites assert absence, not just presence:** the `Students.test.tsx` pattern — fixture
    records must *not* appear when the repository returns something else.
 

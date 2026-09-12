@@ -194,10 +194,17 @@ Begin from the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md); the spec s
 
 **Precondition to start M3** (the next milestone): the same rule, with two differences the spec
 states. M3 gates on **no decision** — "Dependencies. None — the contract is complete" — so nothing
-has to be recorded before the code. But it **must triage the I11 `LearningPanel` flake first**,
-because M3 touches the same domain and the same suites, and a green run there is the precondition
-for trusting any new one. M2's findings **H6** and **H7** were triaged before M3 rather than
-alongside it, and landed as **M2.1** — see that section below.
+has to be recorded before the code. It did name one precondition, **triaging the I11
+`LearningPanel` flake**, because M3 touches the same domain and the same suites and a green run
+there is what makes any new run trustworthy. That precondition has been **discharged before M3
+rather than inside it**: I11 was reproduced, root-caused and fixed in the test harness, and its
+recorded conclusion is that contention was an amplifier, not the cause. M2's findings **H6** and
+**H7** were likewise triaged before M3 rather than alongside it, and landed as **M2.1** — see that
+section below. What I11's triage found underneath the harness is still open — **I13** (a list hook
+publishes the previous query's rows with no loading marker when its params change) and **I14**
+(`paginate` clamps `per_page: 0` to one row) — and I13 is worth deciding before M3 writes an
+assignment surface, because `attachContent` has no cross-program guard. Whether it becomes a formal
+M3 dependency is the owner's call and is not recorded here as one.
 
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the
@@ -488,11 +495,14 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` (29 checks) | none | ✅ |
 | `77b019ef07f99817da985e1602dd11365b4b9365` | The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
 | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` | The retired test-harness race: `src/views/__tests__/emptyEnvironment.test.tsx` waits for the design system's in-flight marker instead of the view title, so its data-derived assertions measure loaded records rather than a placeholder; the race and one deliberately uninvestigated flake are recorded in I11 — and the gate grew from 45 to 52 checks | none (test code and documents only) | ✅ |
-| `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` | **Latest recorded.** The M2.1 validation block in [PROJECT_STATE.md](PROJECT_STATE.md) §4 corrected to the definitive run's measured timings (build 4.12 s, full suite 111.3 s) — no count, conclusion or behaviour changed | none (documents only) | ✅ |
+| `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` | The M2.1 validation block in [PROJECT_STATE.md](PROJECT_STATE.md) §4 corrected to the definitive run's measured timings (build 4.12 s, full suite 111.3 s) — no count, conclusion or behaviour changed | none (documents only) | ✅ |
+| `9247a17681871c2be39ecf3193c0aded3d0232a0` | **Latest recorded.** M2.1's phase-checkpoint SHA `73b40d9` registered in the ledger, its section, the milestone table and the phase-heading status line, plus PROJECT_STATE §2/§3, the H6/H7 status lines in [OPEN_ITEMS.md](OPEN_ITEMS.md) and DECISIONS §15; the documentation checkpoint advanced to `b3ffffd` | none (documents only) | ✅ |
 
-The commit that registered those last two entries — M2.1's phase checkpoint `73b40d9` and the
-documentation checkpoint `b3ffffd` — is itself documents-only and is registered by the next pushed
-commit. That gap is the rule working, not an omission: no entry may carry its own SHA.
+The commit that registered those entries — `9247a17` — is itself documents-only, and is registered
+here by the commit that followed it. The same is true of the **I11 Tier 1 harness fix**: it changes
+one test file and these documents and no product behaviour, so it is a documentation checkpoint by
+the definition above, and the next pushed commit registers its SHA. That gap is the rule working, not
+an omission — no entry may carry its own SHA.
 
 **The `77b019ef` pass** holds the one exception to "no product behaviour", and it is a narrow one:
 it changed *labels only* on the login credential panel in an EMPTY environment, so a customer's own

@@ -28,8 +28,8 @@
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
 | **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b` — and §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` — the M2.1 validation block's measured timings corrected to the definitive run; documents only, no behaviour |
-| Previous documentation checkpoint | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` — the retired test-harness race: the EMPTY audit waits for loaded data instead of a view title, and the race is recorded in I11 |
+| **Documentation checkpoint (pushed)** | `9247a17681871c2be39ecf3193c0aded3d0232a0` — M2.1's phase-checkpoint SHA registered in the ledger and the four documents; documents only, no behaviour |
+| Previous documentation checkpoint | `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` — the M2.1 validation block's measured timings corrected to the definitive run |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -42,11 +42,12 @@
   registered in [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Four exist so far: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Five exist so far: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
   truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
-  `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11) and
-  `b3ffffd` (the M2.1 validation block's measured timings). They
+  `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11),
+  `b3ffffd` (the M2.1 validation block's measured timings) and
+  `9247a17` (M2.1's SHA registered in the ledger). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -329,7 +330,10 @@ the design system's in-flight marker to disappear: `role="status"`, rendered by 
 `src/components/ds/states.tsx` and wrapped by `LoadingState`. It is queried **by role, not by its
 Persian label**, so a copy change cannot silently turn the wait into a no-op and let the race back
 in. Because `useResourceList` starts `loading: true` and clears it in the same promise's `finally`,
-"no marker in the DOM" is equivalent to "the loaded records are on screen". No sleeps, no retries,
+"no marker in the DOM" is equivalent to "the loaded records are on screen" — **for a refetch of the
+same query. That equivalence does not hold when the query's *params* change**, which is what I11's
+second half turned out to be; see the correction below and
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I13. No sleeps, no retries,
 no assertion weakened or removed — and the contract is now pinned for every live surface inside the
 existing `it.each(LIVE_VIEWS)` case, not only for the test that was observed to fail.
 
@@ -342,11 +346,47 @@ lose the race) one of the two was green, and the affected file was green in both
 evidence, not a proof of determinism: quote the run counts together with the number, and re-measure
 rather than inheriting this paragraph.
 
-**One honest caveat.** In the other half of that concurrent pair a *different* test failed once:
-`src/domains/learning/__tests__/LearningPanel.test.tsx` → *"reorders levels and keeps the ordering
-contiguous"*. It is unrelated to the harness fix, it has not appeared in any single-suite run, and
-it was **not investigated** — this pass was scoped to three items. It is recorded in
-[OPEN_ITEMS.md](OPEN_ITEMS.md) I11 so that nobody concludes the suite is contention-proof.
+**One honest caveat — since investigated, and it was not what it looked like.** In the other half of
+that concurrent pair a *different* test failed once:
+`src/domains/learning/__tests__/LearningPanel.test.tsx`. It was recorded as uninvestigated and
+carried as [OPEN_ITEMS.md](OPEN_ITEMS.md) I11 so that nobody concluded the suite was
+contention-proof. A read-only triage on 2026-09-12 reproduced it — **1 failure in 4** full-suite
+samples run as two concurrent suites, after 31 focused runs stayed green — and found that
+**contention was an amplifier, not the cause**: the state it exposed occurs on *every* run.
+
+**What it actually was.** `useResourceList` sets `loading` inside an effect, so when a list query's
+params change there is one committed frame holding the *previous* query's rows with `loading ===
+false` and **no in-flight marker at all** — measured `role="status"` 0, `aria-busy` 0, no loading
+string. `LearningPanel` reaches that frame on mount because it asks for `{ per_page: 0 }` before a
+program is selected and `paginate`'s `Math.max(1, …)` turns "no rows" into **one** row, so the panel
+showed «سطوح «ویولن کلاسیک» — ۱ سطح» over a single unrelated level while the store held fifteen. The
+file's `waitForPanel()` waited only for the two loading strings to be absent — which they were in
+that frame — so a case read `levelItems().length` as 1 and failed with `expected 16 to be 2`. It was
+**not** the case I11 named (*"reorders levels…"*, which passed in the failing run); every case in the
+file shared the helpers. A starvation timeout was measured and ruled out: the reorder case runs
+178 ms idle and 483–609 ms under four-way oversubscription, against a 5000 ms test timeout.
+
+**What was fixed (test code only, Tier 1).** `waitForPanel()` now settles on the data instead of on
+marker absence: it asserts against the repository that the rows on screen are the rows belonging to
+the program the heading names — same count, same order, same titles — and returns that state, so no
+case reads the list before it is settled. Marker checks remain as necessary-but-not-sufficient
+conditions. No sleep, no retry, **no timeout increased**, no assertion weakened, skipped or deleted.
+  One case was added (*"never shows one program's levels under another program's heading"*) and three
+  were strengthened. Mutation-checked with a read-only probe: it recorded instants where the old
+  condition holds and the new one is violated (`rowsOnScreen=1` against `storeForThatProgram=15`),
+  three runs out of three. **Measured after the fix, per §10.1's six-run rule for a file that has
+  ever flaked:** 6 consecutive full `npm test` runs — 97 files / 1370 passed / 0 failed / 0 skipped
+  each, `dist/` present — plus **4 samples run as two concurrent full suites**, the exact condition
+  that reproduced the failure (1 in 4 before the fix), all green with the file at 3288–3792 ms
+  against 2498 ms idle, so the contention was real and heavier than the run that failed. A seventh
+  full run on the final tree was green after the documentation edits below.
+
+**What was deliberately *not* fixed.** The product behaviour that creates the frame is untouched and
+is recorded as **I13** (the hook publishes a previous query's page with no marker — 12 domain hooks,
+every list in the product) and **I14** (`paginate` clamps `per_page: 0` to one row — three call sites
+rely on it meaning "nothing"). Tier 1 closes I11 as a *test reliability* defect; it does not close
+I13 or I14, and neither is reported as fixed. I13 matters before M3 specifically because
+`attachContent` has no cross-program guard, unlike `assignPlacement`.
 
 ## 5. Browser QA status
 
@@ -422,6 +462,17 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
 10. **No code-splitting** — one main chunk > 500 kB (build warning).
 11. **No backend.** `api` mode is an architectural seam pointing at a server that does not
     exist. See `docs/production-handoff.md` and `docs/security.md` §8.
+12. **A list can show the previous query's rows and claim nothing is loading.** `useResourceList`
+    sets `loading` inside an effect, so when a query's params change one committed frame still holds
+    the previous page with no in-flight marker of any kind — measured on `LearningPanel`: a single
+    unrelated level under a heading claiming «۱ سطح» for a fifteen-level program, and on a program
+    switch piano's heading over violin's rows with their delete and move buttons enabled.
+    `StudentLearningPanel` renders «سطح نامشخص از ۱ سطح این دوره» in the same window for a placed
+    student. `paginate` compounds it by turning `per_page: 0` — three call sites' way of saying "load
+    nothing" — into one row. The test harness no longer trusts that frame (**I11**, fixed); the
+    behaviour itself is **I13** and **I14**, both open, and I13 is worth deciding before M3 attaches
+    content to a level row.
+
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
 called a real write demo data (**H7**). Both are recorded as landed in
@@ -449,9 +500,15 @@ typecheck`, `npm test`, `git diff --check`, `npm run build`), and only then star
 UI over the learning-content repository that already exists — **UI only**, no new domain, no
 invented content bytes, honest unavailable states where media is missing.
 
-**M3's own spec makes one thing a precondition rather than a courtesy:** the still-open **I11**
-`LearningPanel` flake must be triaged in that milestone, because M3 touches the same domain and the
-same suites and a green run there is what makes any new run trustworthy. The two findings that M2
+**M3's own spec named one precondition, and it is now discharged:** the **I11** `LearningPanel`
+flake has been reproduced, root-caused and fixed in the test harness, so the suites M3 touches are
+trustworthy again — and the triage answered the spec's question honestly: it was *not* an artefact of
+running two suites on one machine. What I11's triage found underneath is **not** discharged: **I13**
+(a list hook publishes the previous query's rows with no loading marker when its params change —
+every list in the product, and `attachContent` has no cross-program guard to catch it) and **I14**
+(`paginate` clamps `per_page: 0` to one row). **Decide I13 before M3 writes an assignment surface**,
+because that surface will render level rows through the same hook and attach content to whichever
+level a row happens to hold. The two findings that M2
 recorded and M2.1 fixed (**H6**, **H7**) no longer block anything; what M2.1 leaves behind is the
 knowledge that `RepertoirePanel` and `PieceFormDialog` are now safe to build on — a piece's
 `programId`, `rangeUnit` and `active` flag survive an edit, which is exactly what M3's assignment
@@ -508,7 +565,7 @@ These come from the product owner and survive every session.
 |---|---|
 | Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
 | Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
-| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op |
+| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence is not enough when the query's params can change:** the frame between a params change and the effect that re-sets `loading` carries no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**, and the open **I13**) |
 | Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
 | Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
 | Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |

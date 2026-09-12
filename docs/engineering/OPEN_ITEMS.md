@@ -373,7 +373,7 @@ empty dataset. That is why the bootstrap administrator lives at the lifecycle la
 re-add one. **Done when:** the H5 fix lands without weakening this invariant, with the gate-owned
 recovery and the zero-record tests both remaining green.
 
-### I11. Test-harness races — one retired at its boundary, one observed and not investigated
+### I11. Test-harness races — both retired at their boundaries; the product behaviour behind the second is now I13 and I14
 - **Retired in this pass:** `src/views/__tests__/emptyEnvironment.test.tsx` carried a harness race
   inherited from Phase 2 (`33b1031`, confirmed with `git blame`). Its shared `renderView()` waited
   only for `viewTitles[view]`, which the shell renders immediately, so it could return while
@@ -392,17 +392,79 @@ recovery and the zero-record tests both remaining green.
   `npm test` runs (93 files / 1 315 tests) green, the last on the committed tree, plus one of two
   *concurrently* running full suites green — recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §4.
   Only repeated runs may be reported as green; a single green run proves nothing about a race.
-- **Still open — observed once, deliberately not investigated:** under that same artificial double
-  contention the other suite failed one unrelated test,
-  `src/domains/learning/__tests__/LearningPanel.test.tsx` → *"reorders levels and keeps the ordering
-  contiguous"*. It has not appeared in any single-suite run and was outside this pass's scope.
-  **Done when:** it is either reproduced and fixed at its owning boundary (same rule — wait for the
-  real state, never sleep or retry) or shown to be an artefact of running two suites on one machine,
-  with that conclusion written down here.
-- **The general rule this establishes:** a helper that renders a view must wait for the data-derived
-  state its callers assert on. A helper that waits for a title, a heading, or merely "something
-  rendered" turns every assertion in the file into a coin toss under load — and makes absence
-  assertions lie.
+- **Was:** observed once under artificial double contention and left **deliberately not
+  investigated**, because the pass that recorded it was scoped to three other items. **Now: ✅
+  reproduced, root-caused, and the harness fixed (2026-09-12, Tier 1 — its commit SHA is registered
+  in [PHASES.md](PHASES.md) by the *next* commit).** The done-when is answered, and the answer is
+  **not** "an artefact of running two suites on one machine": contention only widened a window that
+  exists on every run. The *product* behaviour behind that window is
+  still open, split out as **I13** and **I14** below — neither is fixed and neither is reported as
+  fixed.
+- **Reproduction (read-only triage, 2026-09-12).** 31 focused runs of the file stayed green (10
+  idle, 15 against one concurrent full suite, 6 against three). The failure then appeared in **1 of
+  4** full-suite samples run as two concurrent suites — the exact original condition. It did **not**
+  fail on the test this item named: the failure was
+  `src/domains/learning/__tests__/LearningPanel.test.tsx` → *"adds a level at the end of the
+  program"*, `AssertionError: expected 16 to be 2` at `:85`, that case taking 1373 ms against a
+  306 ms baseline, while *"reorders levels and keeps the ordering contiguous"* **passed** in the same
+  run (256 ms). The reorder case is named here because it is the one that lost the coin toss that
+  day; every case in the file shared the two helpers and was equally exposed. A starvation timeout
+  was measured and ruled out: the reorder case goes 178 ms → 483–609 ms under four-way CPU
+  oversubscription, against a 5000 ms test timeout.
+- **Root cause — two links, both in product code, neither changed by Tier 1.** (1)
+  `src/domains/shared/useResource.ts` sets `loading` inside an effect, so when a list query's
+  *params* change React commits one frame that still holds the previous query's page with
+  `loading === false` and **no in-flight marker of any kind** — measured `role="status"` count 0,
+  `aria-busy` count 0, both loading strings absent (**I13**). (2) `LearningPanel.tsx:104` asks for
+  `{ per_page: 0 }` before a program is selected, and `paginate`
+  (`src/domains/shared/demoCollection.ts:23`, `Math.max(1, …)`) turns that into **one** row — the
+  globally-first level, `lv_violin_1` (**I14**). Together they produce a frame in which the heading
+  reads «سطوح «ویولن کلاسیک» — ۱ سطح» over a single row while the store holds fifteen. Measured with
+  a 1 ms sampler and a MutationObserver against the real component, from probes in `/tmp` that
+  modified nothing in the repository: `rowsOnScreen=1 storeForThatProgram=15
+  oldHarnessSaysSettled=true`, in every case of every run, lasting 63–388 ms idle and 138–999 ms
+  under contention. `waitForPanel()` waited only for the two loading strings to be absent — which
+  they were — so `before = levelItems().length` read **1**, and `1 + 1` is the `2` in
+  `expected 16 to be 2`.
+- **Fixed at the boundary that owned it, test code only.** `waitForPanel()` now settles on the data:
+  it asserts against the repository that the rows on screen are the rows belonging to the program the
+  heading names — same count, same order, same titles — and returns that settled state, so no case
+  reads `levelItems()` before it. The two marker checks remain as necessary-but-not-sufficient
+  conditions. No sleep, no retry budget, **no timeout increased** (the default `waitFor` timeout is
+  untouched; the condition changed), no assertion weakened, skipped or deleted. One case added:
+  *"never shows one program's levels under another program's heading"* walks every seeded program and
+  refuses to treat a switch as complete until that program's own rows are on screen — the assertion
+  that catches «سطوح «پیانو کلاسیک» — ۱۵ سطح». Three existing cases were also strengthened rather
+  than left as they were: the default selection is now asserted to be the repository's first program,
+  the reorder case states that a second level must exist before indexing it (it used to fail as a
+  `TypeError` on `items[1]`), and the delete-refusal case asserts which program it switched to.
+  9 tests, all green. **Only repeated runs are reported here, per this file's own rule:** 6
+  consecutive full `npm test` runs (97 files / 1370 passed / 0 failed / 0 skipped each, the count
+  §10.1 requires of a file that has ever flaked) and 4 samples run as **two concurrent full suites**
+  — the exact condition that reproduced the failure at 1 in 4 — all green, with the file taking
+  3288–3792 ms under that contention against 2498 ms idle.
+- **Mutation-checked.** A read-only probe evaluated both conditions at 1 ms and on every DOM
+  mutation: it recorded instants where the **old** condition holds (both markers absent, so the old
+  wait would resolve) while the **new** condition is violated (`rowsOnScreen=1` against
+  `storeForThatProgram=15`, titles not matching), three runs out of three. That is the evidence the
+  strengthened assertion detects the state the old one passed vacuously.
+- **Two honest limits of the harness fix, recorded so nobody over-reads it.** (1) Rows expose a
+  level's order and name but not its id, and two seeded programs (voice and drums — 8 levels each,
+  both naming them «سطح N») are indistinguishable on screen, so a stale frame *between those two*
+  cannot be detected from the DOM at all; only I13 removes it. (2) The cross-program frame with
+  differing depths was observed once during triage («سطوح «پیانو کلاسیک» — ۱۵ سطح», piano's name over
+  violin's fifteen rows) and **not again** on re-measurement: on a program switch the intermediate
+  frame normally carries the levels loader, which even the old wait handled correctly. The
+  reproducible window is the mount frame above. The new case is a pin against the cross-program shape
+  returning, not a claim that it was reproduced on demand.
+- **The general rule this establishes, corrected:** a helper that renders a view must wait for the
+  data-derived state its callers assert on. A helper that waits for a title, a heading, or merely
+  "something rendered" turns every assertion in the file into a coin toss under load — and makes
+  absence assertions lie. **Waiting for an in-flight marker to disappear is not sufficient either
+  when the query's params can change**, because the frame between a params change and the effect that
+  re-sets `loading` carries no marker at all. The marker rule in
+  [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §10.2 is correct for a refetch of
+  the *same* query and is now caveated there for this case.
 
 ### I12. Attendance's «ثبت نهایی» toast reports a local state change as a demo recording (raised during M2, deferred to M5 by decision)
 - **What:** `submit()` in `src/views/Attendance.tsx` marks the roster `recorded` in React state,
@@ -420,6 +482,71 @@ recovery and the zero-record tests both remaining green.
   an awaited `record`/`bulkRecord` with an honest failure path — at which point `recordedBy` must
   come from the authenticated user rather than a fixture name, and the demo wording must come from
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
+
+### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
+- **What:** `useResourceList` (`src/domains/shared/useResource.ts:35`) keeps its page in state and
+  sets `loading` **inside an effect** (`src/domains/shared/useResource.ts:53`). When the params change — a new `programId`, a different page,
+  a changed filter — the render that follows carries the *previous* query's page with
+  `loading === false`, and the effect that re-sets `loading` runs only after that commit. So there is
+  a committed frame in which the component shows rows that do not belong to the params it was called
+  with, and reports that nothing is in flight.
+- **Why it matters beyond tests:** in that frame there is **no in-flight marker of any kind** —
+  measured on the real component: `role="status"` count 0, `aria-busy` count 0, no loading string.
+  Two consequences. (1) It falsifies the assumption written into
+  [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §10.2 and
+  [PROJECT_STATE.md](PROJECT_STATE.md) §4, that "no marker in the DOM" is equivalent to "the loaded
+  records are on screen" — true for a refetch of the same query, false when the params changed. (2)
+  The rows are rendered with their normal controls. In
+  `src/domains/learning/LearningPanel.tsx` a program switch was observed with piano's heading over
+  fifteen rows belonging to violin (piano has twelve), whose «حذف» and move buttons are enabled by
+  the panel's own logic; in `src/domains/learning/StudentLearningPanel.tsx:144` the same window
+  rendered «سطح نامشخص از ۱ سطح این دوره» for a student the store had placed on «سطح 1» of twelve,
+  with «انتقال به این سطح» enabled on the stale row.
+- **Why it is not (yet) a data-integrity incident:** `assignPlacement`
+  (`src/domains/learning/demoRepository.ts`) refuses a level that belongs to another program
+  (`PLACEMENT_INVALID`, «سطح انتخاب‌شده به این برنامه تعلق ندارد.»), so a click in that window is
+  honestly rejected. **`attachContent` has no such guard** — it takes `(levelId, contentId)`, checks
+  only that both exist, and has no `programId` to check against. Any surface that attaches content to
+  a level rendered from this hook inherits the window with nothing downstream to catch it, which is
+  why this is recorded **before M3** rather than after it.
+- **Blast radius:** every list in the product — 12 domain hook modules call `useResourceList`
+  (attendance, chat, classes, enrollments, gallery, instruments, learning, library, progress, rooms,
+  scheduling, teachers), and `paginate` has 13 callers. There is **no direct suite** for either
+  `useResource.ts` or `paginate`.
+- **Smallest owning boundary:** `useResourceList` itself — clear the page and set `loading` during
+  the render in which the serialized params change (React's documented "adjust state when a prop
+  changes" pattern) instead of only in the effect. Then "no marker ⇒ the rows on screen are the rows
+  for these params" becomes true app-wide and §10.2's rule holds as written.
+- **Not done, deliberately:** the I11 Tier 1 pass was authorized for the test harness only, in one
+  file. This changes a hook every list depends on and needs its own authorization, its own suite, and
+  the six-run evidence rule in §10.1.
+- **Done when:** a params change cannot be observed with the previous page and `loading === false`; a
+  new suite for the hook — there is none today, which is how this survived — pins it (params change ⇒
+  the same commit exposes an empty page and `loading: true`; a refetch of the *same* params still
+  exposes the marker), living beside `src/domains/shared/__tests__/entityFormDraft.test.tsx`; and the
+  §10.2 / §4 wording is re-checked against the new behaviour.
+
+### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
+- **What:** `src/domains/shared/demoCollection.ts:23` computes
+  `Math.max(1, Math.trunc(params.per_page ?? DEFAULT_PER_PAGE))`. A caller that passes `per_page: 0`
+  to mean "there is nothing to fetch yet" gets **one row** back, and since such a call usually has no
+  filter either, the row it gets is whatever sorts first across the whole collection.
+- **Where it is relied on:** three call sites use `{ per_page: 0 }` as "load nothing" —
+  `src/domains/learning/LearningPanel.tsx:104`, `src/domains/learning/StudentLearningPanel.tsx:32`
+  and `src/domains/gallery/GalleryPanel.tsx:65`. In `LearningPanel` this is what put a single
+  unrelated level (`lv_violin_1`, «۱. سطح 1») on screen under a heading claiming «۱ سطح» for a
+  fifteen-level program, and it is the direct cause of the I11 failure
+  (`expected 16 to be 2`).
+- **Why it survived:** the returned row is plausible. It has the right shape, the right kind of name,
+  and a working set of controls; only a comparison against the repository shows it does not belong to
+  the program being displayed.
+- **Smallest owning boundary:** either honour `per_page: 0` as an empty page in `paginate`, or stop
+  the three call sites from fetching at all when there is no parent to fetch for. The first is one
+  line and changes `PageRequest` semantics for 13 callers; the second is three small edits and leaves
+  the trap for the next caller. The choice is a contract decision, not a bug fix, which is why it is
+  recorded rather than made here.
+- **Done when:** `per_page: 0` has one documented meaning, a test in the owning module pins it, and
+  the three call sites above agree with it.
 
 ---
 
