@@ -12,6 +12,7 @@ import { Field, Panel, inputCls } from "@/components/ds/patterns";
 import { ErrorState, LoadingState } from "@/components/ds/states";
 import { useApp } from "@/context/AppContext";
 import { getBrandingRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { PERSIAN_FONTS, type BrandingSettings } from "./types";
@@ -79,6 +80,7 @@ function ColorField({
 
 export function BrandingPanel() {
   const { notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const { branding, loading, error, reload } = useBranding();
   const [draft, setDraft] = useState<Draft>(() => toDraft(branding));
   const [fields, setFields] = useState<Record<string, string[]>>({});
@@ -112,7 +114,14 @@ export function BrandingPanel() {
     try {
       const saved = await getBrandingRepository().update(draft);
       setSavedAt(saved.updatedAt);
-      notify({ tone: "success", title: "هویت آموزشگاه ذخیره شد", detail: "تغییرات در دادهٔ دمو ثبت شد." });
+      // The awaited write is real in every environment, so the confirmation may
+      // only call it demo data where it is demo data: in an EMPTY environment
+      // this is the academy's own persisted identity (H3).
+      notify({
+        tone: "success",
+        title: "هویت آموزشگاه ذخیره شد",
+        detail: demoEnvironment ? "تغییرات در دادهٔ دمو ثبت شد." : "تغییرات در داده‌ها ثبت شد.",
+      });
     } catch (cause) {
       const apiError: ApiError = apiErrorFromThrown(cause);
       setFields(apiError.fields ?? {});

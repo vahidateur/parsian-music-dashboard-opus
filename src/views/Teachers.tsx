@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ds/states";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
 import { getTeacherRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { cn } from "@/utils/cn";
 
@@ -334,6 +335,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
   const { filter, detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<InstrumentId | "all">("all");
   // Filter chips enumerate the live instrument catalogue, so an academy's own
@@ -364,7 +366,10 @@ export function TeachersView() {
     notify({
       tone: "success",
       title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-      detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+      // The write is real in every environment, so the confirmation may only
+      // call it demo data where it actually is one. In an EMPTY environment
+      // these are the academy's own records (H3).
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
     });
 
   const dialog = (

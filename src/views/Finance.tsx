@@ -95,7 +95,14 @@ export function FinanceView() {
           <span className="text-[11px] text-ink-500">{i.method}</span>
         ) : (
           <div className="flex justify-end gap-1.5">
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); notify({ tone: "success", title: "یادآوری ارسال شد", detail: `پیامک برای ${studentById(i.studentId)?.name}` }); }}>
+            {/*
+              There is no SMS service to send through and nothing is queued, so
+              this reports what is true — a payment reminder needs a messaging
+              service — instead of announcing one as delivered (H2). It is the
+              sanctioned honest "requires a server" shape already used by the
+              export button in this view's header.
+            */}
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); notify({ tone: "info", title: "یادآوری پیامکی نیازمند سرویس پیامک است", detail: `هیچ پیامکی برای ${studentById(i.studentId)?.name} ارسال نشد.` }); }}>
               <Send className="size-3.5" />
             </Button>
             <Button size="sm" variant="subtle" onClick={(e) => { e.stopPropagation(); openSheet("payment"); }}>
@@ -282,7 +289,13 @@ export function FinanceView() {
                     <p className="mt-0.5 text-[11.5px] text-ink-300">قدیمی‌ترین فاکتور ۱۲ روز از سررسید گذشته است.</p>
                   </div>
                 </div>
-                <Button size="sm" variant="primary" onClick={() => notify({ tone: "success", title: "یادآوری گروهی ارسال شد", detail: `${faNum(list.length)} پیام در صف ارسال قرار گرفت.` })}>
+                {/*
+                  No queue exists and nothing is sent, so the count the previous
+                  toast quoted described an operation that never happened (H2).
+                  Honest `info` with no numeral claim — and no longer styled as
+                  this surface's primary action, since it performs none.
+                */}
+                <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "یادآوری گروهی نیازمند سرویس پیامک است", detail: "هیچ پیامی ارسال یا در صف قرار نگرفت." })}>
                   <Send className="size-3.5" /> یادآوری گروهی
                 </Button>
               </Surface>

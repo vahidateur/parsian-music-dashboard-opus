@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus, Sparkles } from "lucide-react";
+import { AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { instrumentName } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions, type GridSession } from "@/data/records";
@@ -72,21 +72,29 @@ function SessionBlock({
 
 /* ------------------------------------------------------------------ */
 export function SchedulingView() {
-  const { filter, navigate, notify, openSheet } = useApp();
+  const { filter, navigate, openSheet } = useApp();
   const now = useAcademyNow();
   const [mode, setMode] = useState<"week" | "day">("week");
   const [dayIndex, setDayIndex] = useState(TODAY_INDEX);
   const [roomFilter, setRoomFilter] = useState<string | "all">("all");
   const [teacherFilter, setTeacherFilter] = useState<string | "all">(filter?.startsWith("teacher:") ? filter.slice(8) : "all");
   const [selected, setSelected] = useState<GridSession | null>(null);
-  const [resolved, setResolved] = useState(false);
 
   const visible = useMemo(
     () => weekSessions.filter((s) => (roomFilter === "all" || s.roomId === roomFilter) && (teacherFilter === "all" || s.teacherId === teacherFilter)),
     [roomFilter, teacherFilter],
   );
 
-  const conflicts = weekSessions.filter((s) => s.conflictWith && !resolved);
+  /*
+    A conflict stays on screen until it is actually resolved in the data. The
+    `resolved` flag this list used to be filtered by was set by a button that
+    claimed to move a class to room 4 and to have notified teacher and student;
+    it wrote nothing, so all it really did was hide the warning (H2). Moving a
+    session is `rescheduleSession` guarded by `checkConflicts`, which this
+    fixture-driven view cannot call — these sessions carry no domain ids — and
+    which arrives with the scheduling wiring.
+  */
+  const conflicts = weekSessions.filter((s) => s.conflictWith);
   const nowTop = (now - DAY_START) * PX_PER_MIN;
   const gridHeight = (DAY_END - DAY_START) * PX_PER_MIN;
 
@@ -132,19 +140,17 @@ export function SchedulingView() {
               </p>
             </div>
           </div>
+          {/*
+            Only the action that does something true survives: «مشاهده در تقویم»
+            really moves the calendar. The «انتقال به اتاق ۴» button claimed a
+            room transfer plus a notification to teacher and student and
+            persisted neither, so it is removed rather than disabled — a disabled
+            control would still promise a capability the product does not have
+            (H2). The warning itself stays until the conflict is really resolved.
+          */}
           <div className="flex shrink-0 gap-2">
             <Button size="sm" variant="subtle" onClick={() => { setMode("day"); setDayIndex(TODAY_INDEX); }}>
               مشاهده در تقویم
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={() => {
-                setResolved(true);
-                notify({ tone: "success", title: "تعارض برطرف شد", detail: "پیانو پیشرفته به اتاق ۴ منتقل شد · مدرس و هنرجو مطلع شدند." });
-              }}
-            >
-              <Sparkles className="size-3.5" /> انتقال به اتاق ۴
             </Button>
           </div>
         </Surface>
@@ -324,9 +330,12 @@ export function SchedulingView() {
                 <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-300">
                   اتاق ۴ در همین بازه آزاد است و پیانو دارد؛ انتقال یکی از دو کلاس مشکل را حل می‌کند.
                 </p>
-                <Button size="sm" variant="primary" className="mt-3" onClick={() => { setResolved(true); setSelected(null); notify({ tone: "success", title: "تعارض برطرف شد", detail: "کلاس به اتاق ۴ منتقل شد." }); }}>
-                  انتقال به اتاق ۴
-                </Button>
+                {/*
+                  The «انتقال به اتاق ۴» button that used to sit here claimed the
+                  transfer had happened and then closed this drawer, taking the
+                  evidence with it; it wrote nothing (H2). Removed, and the
+                  drawer stays open.
+                */}
               </div>
             )}
             <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11.5px] text-ink-300">

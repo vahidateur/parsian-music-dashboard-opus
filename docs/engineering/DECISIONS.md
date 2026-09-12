@@ -152,7 +152,9 @@ would break the pinned "all collections zero" invariant.
 **Status.** ✅ In force. Known limitation: `clear()` still empties `users` and locks everyone
 out. The M1-specific recovery path is the separate gate-owned `uninitialize` flow; it does not
 change the zero-record invariant or add an account back into the cleared dataset. See
-[OPEN_ITEMS.md](OPEN_ITEMS.md) H5 while the provisional implementation is validated and landed.
+[OPEN_ITEMS.md](OPEN_ITEMS.md) H5, which M1 landed as
+`689a7c15951d690b1ce650a5938e6b1216ca30ed` and which stays in that file as a completed record,
+because I10's zero-record invariant still constrains any future change to it.
 
 ## 9. Production means the API/backend — and it does not exist yet
 
@@ -277,13 +279,25 @@ is to be trusted with children's records and money.
 
 **Enforced by.** `src/__tests__/privacyPosture.test.ts` ("Fixture data shown as real
 measurement — REMOVED"), `src/__tests__/architectureBoundaries.test.ts`,
+`src/__tests__/writeFeedbackHonesty.test.ts`, `src/views/__tests__/noSuccessWithoutWrite.test.tsx`,
+`src/views/__tests__/honestWriteCopy.test.tsx`,
 `docs/architecture/data-layer.md` → "Chat delivery honesty" and "Analytics — every definition
 is explicit", `README.md`.
 
-**Status.** ⚠️ Decision stands, but **violations remain** in the fixture-driven views
-(`src/views/Scheduling.tsx:144`, `src/views/Scheduling.tsx:327`, `src/views/Attendance.tsx:46`,
-`src/views/Finance.tsx:98`, `src/views/Finance.tsx:285`) and in the dashboard insight panels.
-These are the top CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md).
+**Status.** ⚠️ Decision stands. The two violations M2 was scoped to remove are **removed**: none of
+the seven fake-success sites (**H2**) claims a write any more — each now reports honestly in `info`,
+performs a truthful navigation, or is gone — and the five demo-mislabelled real writes (**H3**) take
+their wording from `useIsDemoEnvironment()`, so a customer's own record is no longer announced as
+demo data. Both are now enforced rather than merely decided: a view that cannot reach a repository
+may not report success at all, and a confirmation may not hardcode the demo label outside an
+explicitly tracked exception list.
+
+**Violations that remain,** all recorded with evidence in [OPEN_ITEMS.md](OPEN_ITEMS.md): the
+dashboard insight panels presenting fabricated text as measurement (**H4**); three Settings panels
+still hardcoding the demo label on a real write (**H7**, found after H3 landed and deliberately left
+outside M2's approved scope); edit dialogs that open with an empty draft and can silently overwrite
+a stored record (**H6**); and the attendance «ثبت نهایی» wording, deferred to the attendance wiring
+by explicit decision (**I12**).
 
 ## 16. Protected domains and the no-regression principle
 
@@ -353,8 +367,11 @@ rule in `src/__tests__/privacyPosture.test.ts`.
 
 **Status.** ✅ In force. The M1-specific recovery path is gate-owned and reachable from the
 unauthenticated branch outside the signed-in shell for local EMPTY/DEMO environments; API mode
-has no local recovery affordance. The implementation and its lockout/way-back tests remain
-provisional until the M1 validation and phase checkpoint are complete.
+has no local recovery affordance. M1 landed as `689a7c15951d690b1ce650a5938e6b1216ca30ed` with its
+lockout/way-back tests green — recorded in [PHASES.md](PHASES.md) and validated in
+[PROJECT_STATE.md](PROJECT_STATE.md) §4 — so the recovery path is no longer provisional. What is
+still open is everything it deliberately did not touch: `clear()` semantics and the zero-record
+invariant (**I10**).
 
 ---
 

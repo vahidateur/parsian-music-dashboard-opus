@@ -40,6 +40,35 @@ drift — re-grep before editing.
   - `src/views/Finance.tsx:98` — «یادآوری ارسال شد · پیامک برای …»
   - `src/views/Finance.tsx:285` — «یادآوری گروهی ارسال شد · N پیام در صف ارسال قرار گرفت»
   - `src/views/Classes.tsx:234` — «پیشنهاد بازهٔ جدید ثبت شد · برای بررسی به برنامه‌ریزی ارسال شد»
+- **Status: ✅ LANDED by M2** (its commit SHA is registered in [PHASES.md](PHASES.md) by the *next*
+  commit, per the no-self-referential-SHA rule). Kept visible as a completed record, because the
+  "not fake" list below is still the guidance for anyone touching these views. The line numbers
+  above are the **pre-M2** ones: the sites themselves no longer exist.
+- **What landed, and the rule that decided each shape.** None of these four views can write —
+  scheduling and attendance have real domains the views do not use yet, finance has none — so no
+  site could become "the result of an awaited repository call". Each therefore became an honest
+  `info` in the sanctioned "requires a server" shape, a truthful navigation, or nothing at all.
+  Where no truthful action existed the control was **removed rather than disabled**, on the owner's
+  explicit decision: a disabled button still advertises a capability the product does not have.
+  - `src/views/Scheduling.tsx` — both «انتقال به اتاق ۴» buttons are gone, together with the local
+    `resolved` flag whose only real effect was hiding the warning. The conflict card and the
+    drawer's overlap evidence stay on screen until a real `rescheduleSession` resolves them, the
+    drawer no longer closes on a claimed write, and «مشاهده در تقویم» still navigates.
+  - `src/views/Attendance.tsx` — «همه حاضر» keeps its genuine on-screen convenience, relabelled
+    «همه حاضر (موقت)», and now says in `info` that no attendance has been recorded; a real
+    `bulkRecord` needs a domain session id and an authenticated `recordedByUserId` this view does
+    not have. The «پیگیری» button, which claimed a student **and their guardian** had been
+    notified, is removed; the row still opens that student's real profile.
+  - `src/views/Finance.tsx` — both reminders now say in `info` that an SMS service is required and
+    that nothing was sent or queued. The invented «N پیام در صف ارسال قرار گرفت» count is gone.
+  - `src/views/Classes.tsx` — the waitlist button no longer claims a suggestion was filed with
+    scheduling (no such record exists anywhere); it opens the schedule, the one truthful action
+    available before session generation lands.
+- **Enforced by** `src/__tests__/writeFeedbackHonesty.test.ts` (a view may only report success where
+  it can reach a repository, and the four fixture-driven views may contain no success toast at all —
+  for them the absence is a proof, not a convention) and
+  `src/views/__tests__/noSuccessWithoutWrite.test.tsx` (each site's new behaviour, driven through
+  the real view in DEMO and in a customer's EMPTY environment).
 - **Not fake (verified — do not "fix" these):** `src/views/Classes.tsx:118` (archive, with a
   real `catch` → `tone: "danger"` at :121), `Classes.tsx:279` / `:291` (dialog `onSaved` /
   `onEnrolled` after real writes), `Students.tsx:136/628/755`, `Teachers.tsx:126/365`,
@@ -50,8 +79,31 @@ drift — re-grep before editing.
   `src/views/DesignSystemView.tsx:178` is the design-system showcase, not a product surface.
 - **Done when:** every success toast is the result of an awaited repository call with an honest
   failure path, and a test asserts that no success notification can fire without a write.
+  **Satisfied at M2**, in the second of those two forms and in the only form these views can
+  currently reach: no success notification *can* fire from them, because none exists in their source
+  and `src/__tests__/writeFeedbackHonesty.test.ts` fails the suite if one is added. The first form
+  needs the awaited repository calls that M4 (scheduling) and M5 (attendance) bring; the sites that
+  already wrote for real keep satisfying it and are the "not fake" list below.
 
 ### H3. Real writes are labelled "demo data" in domain views (found while writing these docs, 2026-09-08)
+- **Status: ✅ LANDED by M2** for the five audited sites (its commit SHA is registered in
+  [PHASES.md](PHASES.md) by the *next* commit). All five now take their wording from
+  `useIsDemoEnvironment()` (`src/domains/demo/useDataLifecycle.ts`) — the seam `DemoDataPanel` and
+  `DemoNote` already used — so a customer's EMPTY environment reads «تغییرات در داده‌ها ذخیره شد.»
+  while DEMO keeps saying «تغییرات در دادهٔ دمو ذخیره شد.» No view branches on where data lives; it
+  asks. `src/views/Students.tsx` mounted its dialog twice and carried **two copies** of the literal,
+  which is how it survived review, so both now share one confirmation.
+- **Pinned in both directions,** because "EMPTY must not say demo" on its own would also pass if
+  someone deleted the demo label from the product: `src/views/__tests__/honestWriteCopy.test.tsx`
+  asserts the EMPTY *and* the DEMO wording for all five sites through the real dialogs and real
+  repositories; `src/views/__tests__/emptyEnvironment.test.tsx` gained a write case («دمو» cannot
+  appear after a real write in EMPTY) and
+  `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx` the branding one;
+  `src/__tests__/writeFeedbackHonesty.test.ts` fails the suite if any of the four stops deriving its
+  copy from the seam.
+- **The same defect survives in three Settings panels,** found after this landed — recorded as
+  **H7** below rather than folded in here, because those files were not part of the audited five and
+  M2's scope was fixed before they were found.
 - **What:** five success toasts describe a **real** repository write as demo storage, so in a
   customer's EMPTY environment the app tells the customer their own data is demo data:
   `src/views/Students.tsx:630` · `src/views/Students.tsx:757` · `src/views/Teachers.tsx:367` ·
@@ -69,12 +121,15 @@ drift — re-grep before editing.
   the passphrase is still visible and the bootstrap account still signs in, because that account is
   the only way into an EMPTY environment. Pinned by
   `src/views/__tests__/loginEmptyEnvironment.test.tsx`; api-mode isolation is unchanged and still
-  pinned by `src/views/__tests__/loginDemoIsolation.test.tsx`. The five toast labels above remain
-  **open**.
+  pinned by `src/views/__tests__/loginDemoIsolation.test.tsx`. The five toast labels above were
+  landed by M2; the three Settings panels in **H7** were not part of that audit and are still open.
 - **Done when:** the copy is derived from `isDemoEnvironment()` via
   `src/domains/demo/useDataLifecycle.ts` (no direct store imports in views — the boundary test
   enforces that), and `src/views/__tests__/emptyEnvironment.test.tsx` asserts the word «دمو»
-  cannot appear after a real write in EMPTY.
+  cannot appear after a real write in EMPTY. **Satisfied at M2** for the five audited sites, through
+  `useIsDemoEnvironment()` — the hook form of the same seam, so no view touches the store and
+  `src/__tests__/architectureBoundaries.test.ts` stays green. H7 carries the three that were not in
+  this audit.
 
 ### H4. Dashboard insight panels present fabricated text as measurement
 - **What:** `src/components/panels/Intelligence.tsx`, `BusinessIntelligence.tsx`,
@@ -122,6 +177,49 @@ drift — re-grep before editing.
   `src/domains/demo/__tests__/useDemoData.test.tsx`,
   `src/domains/demo/__tests__/dataLifecycle.test.ts`,
   `src/components/settings/__tests__/DemoDataPanel.test.tsx`).
+
+### H6. Every edit dialog opens with an empty draft, so "edit" means retype-or-erase (found 2026-09-12, while writing M2's H3 tests)
+- **What:** `useEntityForm` seeds its draft with `useState(initial)`
+  (`src/domains/shared/useEntityForm.ts`) and nothing ever re-syncs it. The dialogs stay mounted
+  while closed — `if (!open) return null` runs *after* the hooks — no parent keys them by record,
+  and none of them calls the `reset()` the hook already exposes. So when a view sets `editing` and
+  opens the dialog, the operator is shown the empty create-draft defaults instead of the record.
+- **Evidence (reproduced in DEMO, 2026-09-12):** editing `st1` («سارا محمدی») shows an empty name,
+  national ID and teacher; editing `t5` («بهرام نیک‌نژاد») shows an empty name, title and phone;
+  editing `cl5` («آواز · تکنیک صدا») shows an empty title, teacher and room. Mount points:
+  `src/views/Students.tsx` (two), `src/views/Teachers.tsx`, `src/views/Classes.tsx`; dialogs
+  `src/domains/students/StudentFormDialog.tsx`, `src/domains/teachers/TeacherFormDialog.tsx`,
+  `src/domains/classes/ClassFormDialog.tsx`.
+- **Why HIGH and not cosmetic:** `editing` is still true, so submitting calls
+  `repository.update(id, …)` with whatever was retyped. Saving after a partial retyping silently
+  overwrites the stored record with blanks — data loss reached through a form rather than a toast,
+  and invisible to the operator, who believes they were editing.
+- **Why no test caught it:** the CRUD suites mount each dialog with its record already present
+  (`src/views/__tests__/DomainCrud.test.tsx`, `src/views/__tests__/StudentCrud.test.tsx`), which is
+  the one path that works. `src/views/__tests__/honestWriteCopy.test.tsx` documents the workaround
+  it had to use — fill every field — rather than depending on the bug's presence or absence, so it
+  stays valid after the fix.
+- **Fix direction (one boundary, not four):** re-sync the draft when the record or the open
+  transition changes, inside `useEntityForm` or at each dialog's own mount, so no view has to key its
+  dialog and no new form can inherit the defect. **Not attempted in M2:** M2 is copy and control
+  flow, and this changes form state.
+
+### H7. Three Settings panels still call a real write "demo data" (found 2026-09-12, after H3 landed)
+- **What:** the identical H3 defect in the panels that live inside Settings rather than on a route of
+  their own. `src/domains/instruments/InstrumentsPanel.tsx`,
+  `src/domains/progress/RepertoirePanel.tsx` and `src/domains/rooms/RoomsPanel.tsx` each confirm an
+  awaited repository write with a hardcoded «تغییرات در دادهٔ دمو ذخیره شد.», so in a customer's
+  EMPTY environment their own instrument, piece and room are announced as demo data.
+- **Why it was missed:** H3's audit enumerated the domain *views* plus branding. These three are
+  domain components rendered by `src/views/Settings.tsx`, outside the audited set, and each has a
+  real `catch` → `tone: "danger"` path beside the mislabel, so it reads as honest at a glance.
+- **Status: OPEN — deliberately not fixed in M2.** M2's approved scope was the seven H2 sites and
+  the five H3 sites; widening it mid-milestone is how a reviewed diff becomes an unreviewed one. The
+  fix is the same one-line seam (`useIsDemoEnvironment()`) in each file, and the shape is proven by
+  `src/domains/branding/BrandingPanel.tsx`.
+- **Ratcheted so it can only shrink:** `src/__tests__/writeFeedbackHonesty.test.ts` asserts that the
+  set of files carrying a hardcoded demo label is *exactly* these three. Fixing one fails that test
+  until its entry is removed here, and a fourth offender fails it immediately.
 
 ---
 
@@ -251,6 +349,23 @@ recovery and the zero-record tests both remaining green.
   state its callers assert on. A helper that waits for a title, a heading, or merely "something
   rendered" turns every assertion in the file into a coin toss under load — and makes absence
   assertions lie.
+
+### I12. Attendance's «ثبت نهایی» toast reports a local state change as a demo recording (raised during M2, deferred to M5 by decision)
+- **What:** `submit()` in `src/views/Attendance.tsx` marks the roster `recorded` in React state,
+  attributes it to a hardcoded fixture teacher («آرمان احمدی»), and reports «حضور و غیاب در دمو ثبت
+  شد». Its tone is `info` and it does say that permanent recording needs a server, which is why H2's
+  verified "not fake" list blesses it — but two claims in it are still not true: nothing is recorded
+  anywhere, and in an EMPTY environment the word «دمو» mislabels the customer's own session exactly
+  as H3 describes.
+- **Decision (2026-09-12, owner):** explicitly **not** changed in M2. It sits on H2's do-not-fix
+  list, M2's scope was fixed before this reading of it was raised, and changing a blessed site
+  mid-milestone would make the reviewed diff and the approved scope disagree. It belongs with the
+  attendance wiring, where a real call replaces the local mutation and the wording stops being a
+  question at all.
+- **Done when:** M5 wires the view to `src/domains/attendance` and this toast becomes the result of
+  an awaited `record`/`bulkRecord` with an honest failure path — at which point `recordedBy` must
+  come from the authenticated user rather than a fixture name, and the demo wording must come from
+  `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ---
 

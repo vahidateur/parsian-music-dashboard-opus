@@ -7,6 +7,7 @@ import { TODAY_INDEX, WEEKDAYS, classById, classes as academyClasses, paymentLab
 import { useStudentList } from "@/domains/students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { getStudentRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { faNum, faPercent, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -538,6 +539,7 @@ function StudentDetail({ student, onEdit }: { student: Student; onEdit: () => vo
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
   const { filter, detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
@@ -563,6 +565,22 @@ export function StudentsView() {
     setEditing(undefined);
     setFormOpen(true);
   };
+
+  /**
+   * One confirmation for both places the dialog is mounted (list and detail),
+   * so the copy cannot drift between them again — the duplicated literal is how
+   * the demo label survived review in the first place.
+   *
+   * The dialog awaited a real repository write before calling this, so the only
+   * environment-dependent part is the label: in an EMPTY environment these are
+   * the academy's own students, not demo data (H3).
+   */
+  const savedToast = (saved: Student, mode: "create" | "edit") =>
+    notify({
+      tone: "success",
+      title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+    });
 
   const list = useMemo(
     () =>
@@ -623,13 +641,7 @@ export function StudentsView() {
           open={formOpen}
           student={editing}
           onClose={() => setFormOpen(false)}
-          onSaved={(saved, mode) =>
-            notify({
-              tone: "success",
-              title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-              detail: "تغییرات در دادهٔ دمو ذخیره شد.",
-            })
-          }
+          onSaved={savedToast}
         />
       </>
     );
@@ -750,13 +762,7 @@ export function StudentsView() {
         open={formOpen}
         student={editing}
         onClose={() => setFormOpen(false)}
-        onSaved={(saved, mode) =>
-          notify({
-            tone: "success",
-            title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
-          })
-        }
+        onSaved={savedToast}
       />
     </div>
   );

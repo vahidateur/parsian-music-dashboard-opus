@@ -14,6 +14,7 @@ import { useClasses } from "@/domains/classes/useClasses";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
 import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
 import { getClassRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { paymentBadge } from "./Students";
 import { cn } from "@/utils/cn";
@@ -231,8 +232,17 @@ function ClassDetail({
           </Panel>
           {c.waitlist > 0 && (
             <Panel title="لیست انتظار" kicker={`${faNum(c.waitlist)} نفر منتظر بازهٔ خالی`}>
-              <Button size="sm" variant="subtle" className="w-full" onClick={() => notify({ tone: "success", title: "پیشنهاد بازهٔ جدید ثبت شد", detail: "برای بررسی به برنامه‌ریزی ارسال شد." })}>
-                ایجاد بازهٔ جدید
+              {/*
+                There is no "new slot suggestion" to record — nothing in the
+                product persists one and nothing routes to scheduling — so the
+                button no longer claims either (H2). It now performs the only
+                truthful action available: opening the schedule, where a free
+                slot can actually be looked for. Real session generation
+                (`previewGeneration` / `generateSessions`) arrives with the
+                scheduling wiring.
+              */}
+              <Button size="sm" variant="subtle" className="w-full" onClick={() => navigate({ view: "schedule" })}>
+                <CalendarDays className="size-3.5" /> بررسی در برنامه‌ریزی
               </Button>
             </Panel>
           )}
@@ -245,6 +255,7 @@ function ClassDetail({
 /* ------------------------------------------------------------------ */
 export function ClassesView() {
   const { detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<InstrumentId | "all">("all");
   // Filter chips enumerate the live instrument catalogue, so an academy's own
@@ -278,7 +289,10 @@ export function ClassesView() {
           notify({
             tone: "success",
             title: mode === "create" ? `${saved.title} ساخته شد` : `${saved.title} به‌روزرسانی شد`,
-            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+            // The dialog awaited a real repository write, so the confirmation
+            // may only name it demo data where it is demo data. In an EMPTY
+            // environment these are the academy's own classes (H3).
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

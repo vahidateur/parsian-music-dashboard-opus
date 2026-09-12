@@ -16,8 +16,9 @@ be derived, it is marked **not recorded** rather than guessed.
 | Phase 1 — library, media, profile/messages regression | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` | ✅ yes | **COMPLETE** |
 | Phase 2 — explicit data lifecycle + empty-state audit | `33b10311f0d3a38745b4d0c00f22e4f63665888d` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M0 (spec + decision register) | `f2ebc09822d03dde8ce06307221e303721ed9c2e` | ✅ yes | **COMPLETE** (documents only) |
-| Product-feature phase M1 — recovery & lifecycle UX | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
-| Product-feature phase | — | — | remaining milestones M2–M11 ❌ **NOT STARTED** |
+| Product-feature phase — M1 (recovery & lifecycle UX) | `689a7c15951d690b1ce650a5938e6b1216ca30ed` | ✅ yes | **COMPLETE** |
+| Product-feature phase — M2 (honest write feedback) | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
+| Product-feature phase | — | — | remaining milestones M3–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -146,11 +147,11 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0), IMPLEMENTATION NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1 and M2 LANDED; M3–M11 NOT STARTED
 
-**Durable SHA:** none — M0 changes documents only, and a documentation checkpoint is not a phase
-(see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
-implementation ❌ **not started, not authorized**.
+**Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
+not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
+M1 ✅ landed `689a7c1` · M2 ✅ landed (this commit) · M3–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -163,9 +164,9 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 | Milestone | Closes | Status |
 |---|---|---|
 | M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ landed `f2ebc09` (documents only) |
-| M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ **landed this commit** |
-| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ❌ not started — next |
-| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started |
+| M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ landed `689a7c1` |
+| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ **landed this commit** |
+| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started — next |
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
@@ -182,32 +183,43 @@ backup-envelope relabelling (I8), and all backend work. Deferral is recorded in
 [DECISIONS.md](DECISIONS.md) §19 and in [OPEN_ITEMS.md](OPEN_ITEMS.md) — never silently, and never
 as completion.
 
-**Precondition to start M1** (unchanged in substance from the rule that was here before): explicit
+**Precondition to start M1, as it was met** (kept because the rule is the one M3 inherits): explicit
 authorization, **D3 and D4 recorded first** (H5's own done-when requires the decision before the
 code), a clean tree, and a re-verified baseline — `npm run typecheck`, `npm test`,
 `git diff --check` — reported in the shape the spec's §10 requires rather than as a bare number.
 Begin from the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md); the spec sequences them.
 
+**Precondition to start M3** (the next milestone): the same rule, with two differences the spec
+states. M3 gates on **no decision** — "Dependencies. None — the contract is complete" — so nothing
+has to be recorded before the code. But it **must triage the I11 `LearningPanel` flake first**,
+because M3 touches the same domain and the same suites, and a green run there is the precondition
+for trusting any new one. M2's findings **H6** and **H7** are HIGH items in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) and should be triaged alongside it: H6 is silent data loss through
+the edit dialogs, H7 is the demo mislabel M2 removed elsewhere.
+
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the
 same commit.
 
-**Not done in this pass, recorded so it is not forgotten:** the documentation-checkpoint table below
-still names `77b019ef` as the latest, and the pass after it (the retired test-harness race, the I11
-record, the gate growing from 45 to 52 checks) is described in prose without its SHA. Registering it
-belongs to the commit that follows, because a ledger entry never carries its own SHA — and because
-every 40-hex SHA quoted here must be a real commit reachable from `HEAD`, which
-`src/__tests__/projectState.test.ts` enforces. Advancing the two documentation-checkpoint rows in
-[PROJECT_STATE.md](PROJECT_STATE.md) §2 belongs in the same edit.
+**Done by the M2 commit, which is what this paragraph asked for:** the documentation-checkpoint
+table below now names `f1fe114b667558bec1ffbc4e7506e3e310ce9735` — the pass that retired the
+test-harness race, recorded it under I11 and grew the gate from 45 to 52 checks — and the two
+documentation-checkpoint rows in [PROJECT_STATE.md](PROJECT_STATE.md) §2 advanced in the same edit.
+Registering it could only happen here, because a ledger entry never carries its own SHA; and every
+40-hex SHA quoted in these documents must be a real commit reachable from `HEAD`, which
+`src/__tests__/projectState.test.ts` enforces.
 
 ---
 
 ## Product phase — M1 — recovery & lifecycle UX (**H5**)
 
-**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA),
-so `git log --oneline -- src/components/lifecycle docs/engineering` is the authority for it.
-**Base:** M0 `f2ebc09822d03dde8ce06307221e303721ed9c2e`. **Pushed** ✅ to
-`arena/01a07c61-parsian-music-dashboard-opus`.
+**Commit:** `689a7c15951d690b1ce650a5938e6b1216ca30ed` · *feat: implement M1 lifecycle recovery UX* ·
+2026-09-12 13:08 +0330 · author `vahidateur` · **pushed** ✅ to
+`arena/01a07c61-parsian-music-dashboard-opus`, and that branch's tip when M2 began.
+**Size (from `git show --stat`):** 16 files, 707 insertions, 152 deletions.
+Registered here by the M2 commit, per the no-self-referential-SHA rule — the M1 revision of this
+ledger could not quote its own SHA, so it named `git log` as the authority instead.
+**Base:** M0 `f2ebc09822d03dde8ce06307221e303721ed9c2e`.
 
 **Purpose.** `clear()` empties every collection including `users`, so an environment it clears can
 no longer be signed into, and Settings — where "restore a backup" lives — is behind that login. M1
@@ -266,7 +278,101 @@ stay green **unchanged**.
 
 **Rule for whoever reads this next:** register this commit's SHA in the ledger table and in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3 in the *following* commit — a ledger entry never carries
-its own SHA.
+its own SHA. **Done:** the M2 commit registered it in the ledger table above and in
+[PROJECT_STATE.md](PROJECT_STATE.md) §3.
+
+---
+
+## Product phase — M2 — honest write feedback (**H2** + **H3**)
+
+**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA), so
+`git log --oneline -- src/views docs/engineering` is the authority for it.
+**Base:** M1 `689a7c15951d690b1ce650a5938e6b1216ca30ed`. **Pushed** ✅ to
+`arena/01a07c61-parsian-music-dashboard-opus`.
+
+**Purpose.** Stop the panel claiming things it did not do. Seven controls reported a write or a
+delivery that never happened (**H2**), and five confirmations described a *real* write as demo data
+in every environment, including a customer's own (**H3**). Both are copy and control flow: no data
+source changed, and demo and `api` mode behave identically before and after.
+
+**What landed — H2, the seven fake-success sites.** None of the four views can write (scheduling and
+attendance have real domains the views do not use; finance has none), so no site could become "the
+result of an awaited repository call". The rule applied instead: **where a truthful action exists,
+do it; where one does not, remove the control** — never disable it, because a disabled button still
+advertises a capability the product does not have.
+
+- `src/views/Scheduling.tsx` — both «انتقال به اتاق ۴» buttons removed, with the local `resolved`
+  flag whose only real effect was hiding the warning. The conflict card and the drawer's overlap
+  evidence stay visible until a real `rescheduleSession` resolves them, the drawer no longer closes
+  on a claimed write, and «مشاهده در تقویم» still navigates. The removed toast also claimed a teacher
+  and a student had been notified — a capability that does not exist at all, and which M2 could only
+  delete, never implement.
+- `src/views/Attendance.tsx` — «همه حاضر» keeps its genuine on-screen convenience, relabelled
+  «همه حاضر (موقت)», and reports in `info` that nothing has been recorded; a real `bulkRecord` needs
+  a domain session id and an authenticated `recordedByUserId` that this fixture-driven view does not
+  have (M5). The «پیگیری» button, which claimed a student **and their guardian** had been notified,
+  is removed; the row still opens that student's real profile.
+- `src/views/Finance.tsx` — both reminders now use the sanctioned honest `info` shape the same file
+  already had for its export button, and say that nothing was sent or queued. The invented
+  «N پیام در صف ارسال قرار گرفت» count is gone, and the group reminder is no longer styled as the
+  surface's primary action, since it performs none.
+- `src/views/Classes.tsx` — the waitlist button no longer claims a suggestion was filed with
+  scheduling (no such record exists anywhere in the product); it opens the schedule, the one truthful
+  action available before session generation lands (M4).
+
+**What landed — H3, the five mislabelled real writes.** `src/views/Students.tsx` (both mounts of its
+dialog), `src/views/Teachers.tsx`, `src/views/Classes.tsx` and
+`src/domains/branding/BrandingPanel.tsx` now take the confirmation's wording from
+`useIsDemoEnvironment()` (`src/domains/demo/useDataLifecycle.ts`) — the seam `DemoDataPanel` and
+`DemoNote` already used — so EMPTY reads «تغییرات در داده‌ها ذخیره شد.» and DEMO keeps
+«تغییرات در دادهٔ دمو ذخیره شد.». No view branches on where data lives; it asks, and
+`src/__tests__/architectureBoundaries.test.ts` still passes because no view touches the store.
+`Students.tsx` carried **two copies** of the literal, one per dialog mount, which is how it survived
+review; both now share one confirmation.
+
+**Explicitly unchanged (protected).** Every site on H2's verified "not fake" list, including
+`Attendance.tsx`'s «ثبت نهایی» `info` toast — raised during M2 as arguably still dishonest, and
+**deferred to M5 by the owner's explicit decision** rather than changed inside a blessed site (now
+**I12**). No domain model, repository, hook, fixture, lifecycle or backup-envelope change; no new
+dependency; no notification abstraction; `Toast`'s contract (`danger` reserved for genuine failures,
+§37) untouched. The fabricated *content* of these views — the scheduling conflict card's hardcoded
+room and time, the finance panel's «۱۲ روز از سررسید» — is **H4/M4/M9** work and was deliberately
+left alone: M2 removed false claims about writes, it did not make these surfaces truthful overall.
+
+**Findings recorded and deliberately not fixed.** Two new items and one deferral went into
+[OPEN_ITEMS.md](OPEN_ITEMS.md) instead of into this diff, because M2's scope was approved before
+they were found and widening it mid-milestone is how a reviewed diff becomes an unreviewed one:
+**H6** — every edit dialog opens with an empty draft (`useEntityForm` seeds `useState(initial)` once,
+the dialogs stay mounted while closed, nothing re-syncs), so "edit" means retype-or-erase and a
+partial save silently overwrites the stored record; **H7** — three Settings panels
+(`InstrumentsPanel`, `RepertoirePanel`, `RoomsPanel`) carry the identical H3 mislabel; **I12** — the
+attendance wording above.
+
+**Validation (measured this pass).** `npm run typecheck` clean; `npm run build` clean (the >500 kB
+chunk warning is the known **I6** code-splitting item); `git diff --check` clean; full suite green —
+see [PROJECT_STATE.md](PROJECT_STATE.md) §4 for the definitive counts. Every new case was also
+**mutation-checked**: with the seven source files reverted to their pre-M2 content, 14 of the 18 new
+behavioural cases fail and the structural gate fails on exactly the reverted file, which is the
+evidence that they detect the defects rather than restating the code.
+
+**Tests added/changed.** New: `src/views/__tests__/honestWriteCopy.test.tsx` (H3 in EMPTY *and*
+DEMO for all five sites, through the real dialogs and repositories — both directions, so the fix
+cannot be "delete the demo label"), `src/views/__tests__/noSuccessWithoutWrite.test.tsx` (each H2
+site's new behaviour, driven through the real view, plus an EMPTY sweep of all three fixture-driven
+views), `src/__tests__/writeFeedbackHonesty.test.ts` (the structural gate: a view may report success
+only where it can reach a repository, the four fixture-driven views may report none at all, and the
+set of files hardcoding the demo label is *exactly* the three tracked under H7 — a ratchet that can
+only shrink). Extended: `src/views/__tests__/emptyEnvironment.test.tsx` (H3's done-when — «دمو»
+cannot appear after a real write in EMPTY) and
+`src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx` (the branding write). No existing
+assertion was weakened or removed; the 13 sites on H2's do-not-fix list keep their coverage.
+
+**Rule for whoever reads this next:** register this commit's SHA in the ledger table above and in
+[PROJECT_STATE.md](PROJECT_STATE.md) §2/§3 in the *following* commit — a ledger entry never carries
+its own SHA. Note the constraint that keeps §2's phase-checkpoint row where it is: the gate in
+`src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from*
+the recorded phase checkpoint, so that row can only advance once a documentation checkpoint has been
+pushed after it.
 
 ---
 
@@ -283,7 +389,8 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | Documentation checkpoint | Contents | Product behaviour | Pushed? |
 |---|---|---|---|
 | `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` (29 checks) | none | ✅ |
-| `77b019ef07f99817da985e1602dd11365b4b9365` | **Latest recorded.** The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
+| `77b019ef07f99817da985e1602dd11365b4b9365` | The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
+| `f1fe114b667558bec1ffbc4e7506e3e310ce9735` | **Latest recorded.** The retired test-harness race: `src/views/__tests__/emptyEnvironment.test.tsx` waits for the design system's in-flight marker instead of the view title, so its data-derived assertions measure loaded records rather than a placeholder; the race and one deliberately uninvestigated flake are recorded in I11 — and the gate grew from 45 to 52 checks | none (test code and documents only) | ✅ |
 
 **The `77b019ef` pass** holds the one exception to "no product behaviour", and it is a narrow one:
 it changed *labels only* on the login credential panel in an EMPTY environment, so a customer's own
@@ -293,7 +400,8 @@ passphrase, the account list, one-tap fill and real sign-in all still work — a
 untouched. It is pinned in both directions by `src/views/__tests__/loginEmptyEnvironment.test.tsx`
 (8 gates) and recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3.
 
-**The pass after it** (test and documentation only — no product source) did two things. It retired a
+**The pass after it** — `f1fe114b667558bec1ffbc4e7506e3e310ce9735`, test code and documents only, no
+product source — did two things. It retired a
 harness race inherited from Phase 2: `src/views/__tests__/emptyEnvironment.test.tsx` now waits for
 the design system's in-flight marker instead of the view title, so its data-derived assertions
 measure loaded records rather than a loading placeholder. And it recorded that race honestly —

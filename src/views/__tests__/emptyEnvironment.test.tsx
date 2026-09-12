@@ -27,7 +27,7 @@ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepo
 import { DemoUserRepository } from "@/domains/auth/userRepository";
 import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+import { getTeacherRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToEmptyEnvironment } from "@/test/demoEnvironment";
 
@@ -274,4 +274,43 @@ describe("settings over zero records", () => {
     expect(container.textContent).not.toContain("تغییر محیط داده");
     expect(container.textContent).not.toContain("تبدیل به دمو");
   });
+});
+
+describe("a real write in an EMPTY environment", () => {
+  /**
+   * The confirmation may not call the academy's own record demo data.
+   *
+   * Every other case in this file reads; this one writes, through the real
+   * dialog and the real repository, because the wording is only a lie about
+   * something that actually happened. The teacher form is the write with no
+   * prerequisites — a class needs a teacher and a room, a student needs a
+   * teacher — so it is the one an EMPTY academy can perform first.
+   *
+   * Asserting "no «دمو»" here is only half a contract, and the other half is
+   * deliberate: `honestWriteCopy.test.tsx` pins the DEMO wording too, so this
+   * cannot be satisfied by deleting the demo label from the product.
+   */
+  it("confirms a saved teacher as the academy's own data, never as demo data", async () => {
+    await renderView("teachers");
+
+    fireEvent.click(screen.getAllByRole("button", { name: /افزودن مدرس/ })[0]);
+    fireEvent.change(await screen.findByLabelText(/نام و نام خانوادگی/), {
+      target: { value: "مدرس محیط خالی" },
+    });
+    fireEvent.change(screen.getByLabelText(/عنوان \/ تخصص/), { target: { value: "مدرس پیانو" } });
+    fireEvent.change(screen.getByLabelText(/شمارهٔ تماس/), { target: { value: "09129990003" } });
+    fireEvent.change(screen.getByLabelText(/ساعت قرارداد/), { target: { value: "20" } });
+    // The header action and the dialog submit share a label; scope to the dialog.
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "افزودن مدرس" }));
+
+    // `Toasts` marks its region `aria-live="polite"` (ActionSheet.tsx).
+    const toast = () => document.querySelector('[aria-live="polite"]')?.textContent ?? "";
+    await waitFor(() => expect(toast()).toContain("تغییرات در داده‌ها ذخیره شد."), { timeout: 8000 });
+    expect(toast()).not.toContain("دمو");
+    expect(toast()).toContain("مدرس محیط خالی افزوده شد");
+
+    // And it really is a write, which is what makes the wording a claim at all.
+    const page = await getTeacherRepository().list({ per_page: 200 });
+    expect(page.data.some((t) => t.name === "مدرس محیط خالی")).toBe(true);
+  }, 20_000);
 });
