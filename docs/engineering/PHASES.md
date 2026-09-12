@@ -221,12 +221,19 @@ was written, and **has now landed and been validated at `bcea26c`**: the call re
 with `LINK_INVALID` and writes nothing, and leaves every pre-existing behaviour unchanged. Its
 evidence is the same shape as Checkpoint 1's — 6 consecutive full-suite runs (101 files / 1399 passed
 / 0 failed / 0 skipped each, `dist/` built), build, typecheck, documentation gates, and a reversion
-check that fails 7 of the 15 new tests plus the compile pin. Still open and **not** part of either
-pass: **I13 Checkpoint 3** (five
-hand-rolled readers with the same shape, none reachable in shipped UI today, not authorized), and
+check that fails 7 of the 15 new tests plus the compile pin. **I13 Checkpoint 3A** followed and has
+**landed and been validated at `57c1dfb`**: `useDerived`, the boundary behind `useStudentPlacement`
+and `useEligibleContent` and the only one of the five hand-rolled readers with a real consumer, now
+carries its key and derives what it exposes at render. Its evidence is the same shape again — the
+exposure **reproduced deterministically before the fix** (a dedicated suite failing 4 of 8 against the
+unmodified hook), 6 consecutive full-suite runs (102 files / 1407 passed / 0 failed / 0 skipped each,
+`dist/` built), 2 contention samples, build, typecheck, documentation gates, and a reversion check
+that fails the same 4 and no others. Still open and **not** part of any pass: the **remaining four
+readers of I13 Checkpoint 3** (`useStudentList`, `useStudentProgress`, `useDerivedRead`,
+`useSessionAttendance` — none reachable in shipped UI today, not authorized), and
 **I14** (`paginate`
-clamps `per_page: 0` to one row) — assessed for M3 relevance and **deferred**, because M3's
-assignment surface never reads through a `per_page: 0` query.
+clamps `per_page: 0` to one row) — assessed for M3 relevance and **explicitly deferred**, not closed,
+because M3's assignment surface never reads through a `per_page: 0` query.
 
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the

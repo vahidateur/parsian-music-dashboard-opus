@@ -211,17 +211,19 @@ Product work since those three is the product phase itself, described above and 
 `689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1 `73b40d9`
 (the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels).
 
-Five further commits landed outside that milestone sequence and are registered here so that
+Six further commits landed outside that milestone sequence and are registered here so that
 `git log` shows nothing this ledger does not explain. Three of them are **documentation
 checkpoints** by the definition in §2 and are listed in [PHASES.md](PHASES.md): `2972a99` (closing
 **I11** — one test file and four documents, no product behaviour), `ea890ae` (I13 Checkpoint 1's
 measured validation recorded and M3's gate discharged) and `be75ac6` (I13 Checkpoint 2 recorded as
 authorized and in progress *before* its code was written). Each was registered by a later commit,
-because no entry may carry its own SHA. The other two are **product source**, so they are neither
+because no entry may carry its own SHA. The other three are **product source**, so they are neither
 milestones nor documentation checkpoints and they advance no row above: `289e080` is **I13
 Checkpoint 1** — the shared list hook plus the six consumers that ignored `loading`, with three new
 test files, and the commit that discharged M3's I13 gate (§9); `bcea26c` is **I13 Checkpoint 2** —
-the `attachContent` intent guard, with its adversarial suite. Both are recorded in
+the `attachContent` intent guard, with its adversarial suite; `57c1dfb` is **I13 Checkpoint 3A** —
+`useDerived` carrying its key so a student switch cannot expose the previous student's placement or
+eligible content, with the suite that reproduced the frame before the fix. All three are recorded in
 [OPEN_ITEMS.md](OPEN_ITEMS.md) I13 and in §7 item 12.
 
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
@@ -409,7 +411,9 @@ I13 or I14, and neither is reported as fixed. I13 matters before M3 specifically
 `loading` — was subsequently authorized, implemented and **validated** at `289e080` (6 consecutive
 full-suite runs green, 4 contention samples green, build, typecheck, 68 documentation gates, and a
 reversion check on each half).
-**I14 is untouched**, and so is I13's Checkpoint 3 (five hand-rolled readers with the same shape).
+**I14 is untouched and explicitly deferred**, and so are the four remaining hand-rolled readers of
+I13's Checkpoint 3; its fifth, `useDerived` — the one with a real consumer — was fixed as
+**Checkpoint 3A** at `57c1dfb` after the exposure was reproduced deterministically.
 **Checkpoint 2** — the `attachContent` intent guard — was authorized the same day as its own pass,
 recorded as in progress before its code was written, and has since **landed and been validated** at
 `bcea26c`. See §7 item 12 and [OPEN_ITEMS.md](OPEN_ITEMS.md) I13.
@@ -507,7 +511,16 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     a required `AttachContentIntent { programId }` from the caller and refuses a level that does not
     belong to it — `LINK_INVALID`, nothing written, no placed student's derived eligibility changed —
     so a row left over from another query cannot become a write into a ladder nobody is looking at.
-    **Still open:** five hand-rolled readers keep the old shape (Checkpoint 3, not authorized, none of
+    **Checkpoint 3A is implemented and validated too** (`57c1dfb`): `useDerived`, the one boundary
+    behind `useStudentPlacement` and `useEligibleContent`, now carries the key it answers and derives
+    what it exposes at render, so a student switch cannot show one student's placement or unlocked
+    content under another's name. It was **reproduced deterministically before being fixed** — the
+    dedicated suite failed 4 of 8 against the unmodified hook — and its reachability is recorded
+    honestly: the frame was *not* observable through the app's own navigation, because `src/App.tsx`
+    keys the view subtree on `detailId` and so remounts the panel; the hook's correctness should not
+    depend on an ancestor's key, and any consumer that switched students in place would have
+    inherited the exposure. **Still open:** the four remaining hand-rolled readers keep the old shape
+    (rest of Checkpoint 3, not authorized; none of
     them reachable in shipped UI today); `useLibraryFile` can offer the previous item's bytes under a
     new title; `useMediaObjectUrl` exposes the previous object URL for one frame. `paginate` still
     turns `per_page: 0` — three call sites' way of saying "load nothing" — into one row (**I14**,
@@ -566,7 +579,16 @@ writes through, with one honest caveat recorded in
 [OPEN_ITEMS.md](OPEN_ITEMS.md) I13: no signature can stop a caller passing the target's own
 `programId` back as its intent, which makes the comparison a tautology — only review can, and the
 test file names that failure mode. The second, **Checkpoint 3**, is five hand-rolled readers with the
-same shape, none of them reachable in shipped UI today, **not authorized and not started**. **I14** (`paginate` clamps `per_page: 0` to one
+same shape. Its first slice, **Checkpoint 3A**, was authorized and has **landed and been validated at
+`57c1dfb`**: `useDerived`, the boundary behind `useStudentPlacement` and `useEligibleContent`, was
+the one with a real consumer, and it was **reproduced deterministically before being fixed** — a
+dedicated suite failed 4 of 8 against the unmodified hook, then passed 8 of 8 after it, and restoring
+the old hook fails the same 4 and no others. That discharges the condition this section placed on M3:
+a student-scoped derived read can now be rendered by M3's surface without exposing one student's
+placement or unlocked content under another's name. **The remaining four readers are not authorized
+and not started** — `useStudentList`, `useStudentProgress`, `useDerivedRead` and
+`useSessionAttendance`, none of them reachable in shipped UI today (tests only, or constant params),
+becoming reachable at M6/M7. **I14** (`paginate` clamps `per_page: 0` to one
 row) was assessed for M3 relevance and **deferred**: M3's assignment surface never reads through a
 `per_page: 0` query, since that is only the not-yet-selected branch of three call sites. The two
 findings that M2
@@ -626,7 +648,7 @@ These come from the product owner and survive every session.
 |---|---|
 | Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
 | Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
-| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence was not enough when the query's params could change:** the frame between a params change and the effect that re-set `loading` carried no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**). Since I13's Checkpoint 1 the hook itself upholds that: a page is exposed only for the params it was loaded for, so a params change shows an in-flight state rather than another query's rows. **The data-derived wait stays the rule anyway** — it is what makes a test independent of which half is holding, and the five hand-rolled readers of I13 Checkpoint 3 do not uphold it yet. And never wait on `loading === false` as the *sole* proof: that is the flag under test, so such a wait can be satisfied by the very frame being asserted against |
+| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence was not enough when the query's params could change:** the frame between a params change and the effect that re-set `loading` carried no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**). Since I13's Checkpoint 1 the hook itself upholds that: a page is exposed only for the params it was loaded for, so a params change shows an in-flight state rather than another query's rows. **The data-derived wait stays the rule anyway** — it is what makes a test independent of which half is holding, and the five hand-rolled readers of I13 Checkpoint 3 — of which `useDerived` is fixed as Checkpoint 3A and four are not — do not all uphold it yet. And never wait on `loading === false` as the *sole* proof: that is the flag under test, so such a wait can be satisfied by the very frame being asserted against |
 | Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
 | Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
 | Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |

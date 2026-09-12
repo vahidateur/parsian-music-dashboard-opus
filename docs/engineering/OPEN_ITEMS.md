@@ -484,9 +484,10 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
-- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) and Checkpoint 2 implemented and validated;
-  Checkpoint 3 not authorized, not started; I14 untouched. The item is NOT closed and must not be
-  reported as fixed.** The owner authorized **Checkpoint 1 only**: the shared hook
+- **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2 and 3A implemented and validated; the
+  rest of Checkpoint 3 (four hand-rolled readers) not authorized and not started; I14 untouched and
+  explicitly deferred. The item is NOT closed and must not be reported as fixed — not all of its
+  readers are fixed.** The owner authorized **Checkpoint 1 only**: the shared hook
   plus the six dynamic-params consumers that ignored `loading`. It landed as
   `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
   `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
@@ -504,11 +505,17 @@ recovery and the zero-record tests both remaining green.
   recorded as *in progress* in `be75ac6` before any of its code was written: `attachContent` is now
   handed the caller's intent and refuses a level that does not belong to it. It landed as
   `bcea26c38b011907b89ebd4343dbbd862a545282` and its measured validation is recorded under "Done
-  when — Checkpoint 2" below. **This item is nevertheless still open.** **Checkpoint 3** (the
-  hand-rolled readers below) is **not authorized and not started**; the two further exposures below
+  when — Checkpoint 2" below. **Checkpoint 3A followed**: `useDerived`, the boundary behind
+  `useStudentPlacement` and `useEligibleContent`, was investigated, the exposure was **reproduced
+  deterministically before being fixed**, and it landed as
+  `57c1dfb8967a60990021ac9fe59c6ab80045fca3` — see "Done when — Checkpoint 3A" below.
+  **This item is nevertheless still open.** The **rest of Checkpoint 3** (four
+  hand-rolled readers) is **not authorized and not started**; the two further exposures below
   (`useLibraryFile`, `useMediaObjectUrl`) are **not fixed**; and **I14 is not implemented** and
-  remains a separate item. What Checkpoints 1 and 2 together removed is the read-side window and the
-  write-side consequence for the learning ladder — not the whole finding.
+  remains a separate item, **explicitly deferred** rather than closed. What Checkpoints 1, 2 and 3A
+  together removed is the read-side window in every `useResourceList` list, the write-side
+  consequence for the learning ladder, and the read-side window in the one hand-rolled reader that
+  has a real consumer — not the whole finding.
 - **What (as it was, before Checkpoint 1):** `useResourceList`
   (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
   effect**. When the params changed — a new `programId`, a different page, a changed filter — the
@@ -593,18 +600,30 @@ recovery and the zero-record tests both remaining green.
     the target and passes it as its own "intent" — that comparison is a tautology and proves nothing.
     No signature can prevent it; `attachContentIntent.test.ts` pins it as a named failure mode so
     that review has something to point at.
-  - **Checkpoint 3: five hand-rolled readers with the same shape, none of them fixed here** —
+  - **Checkpoint 3: five hand-rolled readers with the same shape — ONE (`useDerived`) is now fixed as
+    Checkpoint 3A, the other four are not authorized and not started.** The five were
     `useStudentList` (`src/domains/students/useStudents.ts:25`), `useDerived`
-    (`src/domains/learning/useLearning.ts:62`, which backs placement and eligible content, both
+    (`src/domains/learning/useLearning.ts`, which backs placement and eligible content, both
     student-scoped), `useStudentProgress` (`src/domains/progress/useProgress.ts:62`), `useDerivedRead`
     (`src/domains/scheduling/useScheduling.ts:66`), `useSessionAttendance`
     (`src/domains/attendance/useAttendance.ts:69`). Three carry doc comments claiming a guarantee
     they do not deliver — "cannot paint the previous session's register", "cannot paint the previous
     student's data": the ticket guard they cite discards a late *response*, it cannot retract an
-    already-committed *state*. Reachability today: `useSessionAttendance`, `useSessionRoster` and
+    already-committed *state*. **`useDerived` was the one with a real consumer**, and it is fixed —
+    see "Done when — Checkpoint 3A" below. **An honest reachability correction, found while
+    investigating it:** the stale frame was *not* observable through the app's own navigation today,
+    because `src/App.tsx` keys the view subtree on `detailId`
+    (`key={\`${view}-${filter ?? ""}-${detailId ?? ""}\`}`), so switching students remounts
+    `StudentLearningPanel` and discards the hook's state. That is an accident of an ancestor's React
+    key, not a property of the hook: any consumer that switched students *in place* — a dialog with a
+    student picker, a "next student" control, or M3's assignment surface reading a student-scoped
+    derived read — would have inherited the exposure immediately, and a hook's correctness should not
+    depend on a wrapper key three levels up. The defect was reproduced deterministically at the
+    boundary rather than claimed from the shipped path. Reachability of the remaining four:
+    `useSessionAttendance`, `useSessionRoster` and
     `useStudentProgress` have **no view consumers** (tests only), so they are not reachable in
     shipped UI and become reachable at M6/M7; every `useStudentList` call site passes constant
-    params, so it is structurally defective but unreachable.
+    params, so it is structurally defective but unreachable. **None of the four was modified.**
   - **`useDomainSearch` was touched**, and only because CommandPalette is one of the authorized six:
     its gate is meaningless while the hook starts `loading: false` and keeps the previous query's
     results across a keystroke. It now carries the same key identity. No other hand-rolled reader was
@@ -661,6 +680,34 @@ recovery and the zero-record tests both remaining green.
   assert: only the now-required intent argument was added at their 11 call sites, each a literal
   naming the program that test had already resolved its level from, never `level.programId`. Repeated
   runs are evidence, not a proof of determinism.
+- **Done when — Checkpoint 3A (MET, and validated):** `useDerived` — the single boundary behind both
+  `useStudentPlacement` and `useEligibleContent` — exposes only the value belonging to the student it
+  was asked about. **Reproduced before being fixed:** the dedicated suite
+  (`src/domains/learning/__tests__/useDerived.test.tsx`, 8 tests) was written against the *unmodified*
+  hook and failed 4 of 8 deterministically, with the frame that proves it — *"a frame asked for st_b
+  exposed st_a's placement (loading=false)"* — plus the previous student's error exposed as the next
+  one's, and the last student's placement still on screen when nobody was selected. The other 4 cases
+  passed before the fix, which is the point: they pin the behaviour the fix had to *keep*. After the
+  fix all 8 pass, and the suite asserts, per committed frame and never by waiting on `loading`:
+  a student A → B switch pairs no frame with A's placement or A's eligible content; both reads of the
+  shared boundary are covered on separate lines, so a fix reaching only one hook fails on its own;
+  every frame that exposes nothing says it is in flight; a same-key refetch (a data-version bump) and
+  `reload()` keep the value they already had; a late response from the previous student cannot land
+  and its request was aborted; and a **superseded same-key** ask answering late with a visibly wrong
+  value cannot land either. The mechanism is Checkpoint 1's, at this boundary: state carries the key
+  it answers and what is exposed is derived at render, so the ticket guard keeps discarding late
+  *responses* while the derived exposure prevents an already-committed *state* being read as the
+  current student's. `SingleState`'s public shape is unchanged, so **no consumer moved** —
+  `StudentLearningPanel` already gates on `placementLoading` and `contentLoading`, which is why this
+  lands as an in-flight state rather than a new false empty.
+  **Measured validation, all on `57c1dfb`:** 6 consecutive full `npm test` runs — 102 files /
+  1407 passed / 0 failed / **0 skipped** each, `dist/` built so the CSP gates ran instead of skipping
+  — plus 2 samples run as two concurrent full suites (LearningPanel 3246/3303 ms under contention
+  against 2226–2669 ms idle), build 3.88 s, `tsc --noEmit` clean, `git diff --check` clean, and 252
+  tests green across the learning, progress and shared suites — including Checkpoint 1's and
+  Checkpoint 2's — before the first full run. **Reversion-checked:** restoring the pre-fix hook fails
+  the same 4 cases and no others, so the suite is pinned to the fix rather than passing either way.
+  No sleep, no retry, no timeout increase, no assertion weakened.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
 - **What:** `src/domains/shared/demoCollection.ts:23` computes

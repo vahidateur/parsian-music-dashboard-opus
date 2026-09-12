@@ -280,7 +280,11 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   exactly why it is its own pass, ahead of this milestone rather than inside it. **Consequence for
   M3's code:** the assignment surface must pass the program it resolved *itself* — the selected
   program from its own query — and must never pass `level.programId` read back off the row it is
-  writing to, which would make the guard a tautology. And **Checkpoint 3**, five hand-rolled
+  writing to, which would make the guard a tautology. **Checkpoint 3A has also landed** (`57c1dfb`):
+  `useDerived`, behind `useStudentPlacement` and `useEligibleContent`, now exposes only the student it
+  was asked about, so this milestone may render a student-scoped derived read — a placement preview,
+  or which students a piece of content reaches — without one student's data appearing under another's
+  name. And the **rest of Checkpoint 3**, four hand-rolled
   readers with the same shape, none reachable in shipped UI today, not authorized and not started. Consequence for M3's own code: a
   write whose target comes from a rendered row must pair it with a parent id from an **independent**
   query, as `StudentLearningPanel` already does — two values from the same stale row cannot
@@ -627,8 +631,10 @@ item downward to make a phase look finished."*
    against); and a consumer must still render an **explicit in-flight state** rather than its empty
    state while a params change is being read, because withholding the old page would otherwise turn
    one lie into another. **I13's Checkpoint 2 has since landed** — `attachContent` now requires the
-   caller's program intent and refuses a level that does not belong to it — **and Checkpoint 3
-   remains open**: five hand-rolled readers still have the pre-fix shape, which is why the
+   caller's program intent and refuses a level that does not belong to it — **and Checkpoint 3A has
+   landed too**: `useDerived`, behind the two student-scoped learning reads, carries its key and
+   exposes only the student it was asked about. **The rest of Checkpoint 3 remains open** — four
+   hand-rolled readers still have the pre-fix shape — which is why the
    data-derived wait stays the rule.
 3. **No assertion is weakened, skipped or deleted to reach green.** Fix the owning boundary
    (§10 of [PROJECT_STATE.md](PROJECT_STATE.md)).
