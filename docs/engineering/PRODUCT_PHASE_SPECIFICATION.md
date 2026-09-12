@@ -272,17 +272,28 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   authorization
   and stay open: **Checkpoint 2**, an intent guard on `attachContent` — which this milestone's surface
   writes through, and which took only `(levelId, contentId)`, so unlike `assignPlacement` it had
-  nothing to compare a level against. The owner **authorized it on 2026-09-13 as its own pass and it
-  is in progress**; it is still **not fixed**, it must not be reported as fixed until its measured
-  validation is recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I13, and it cannot be done inside M3,
-  whose prohibition below forbids editing the learning domain — which is exactly why it is separate.
-  And **Checkpoint 3**, five hand-rolled
+  nothing to compare a level against. The owner **authorized it on 2026-09-13 as its own pass**, it
+  was recorded as in progress before its code was written, and it **has now landed and been
+  validated at `bcea26c`**: `attachContent` requires an `AttachContentIntent { programId }` resolved
+  independently of the target level and refuses a mismatch with `LINK_INVALID`, writing nothing. It
+  could not be done inside M3, whose prohibition below forbids editing the learning domain — which is
+  exactly why it is its own pass, ahead of this milestone rather than inside it. **Consequence for
+  M3's code:** the assignment surface must pass the program it resolved *itself* — the selected
+  program from its own query — and must never pass `level.programId` read back off the row it is
+  writing to, which would make the guard a tautology. And **Checkpoint 3**, five hand-rolled
   readers with the same shape, none reachable in shipped UI today, not authorized and not started. Consequence for M3's own code: a
   write whose target comes from a rendered row must pair it with a parent id from an **independent**
   query, as `StudentLearningPanel` already does — two values from the same stale row cannot
   contradict each other, so a guard built on them proves nothing.
 - **Protected areas.** `src/domains/learning/__tests__/demoRepository.test.ts`,
   `LearningPanel.test.tsx`, `StudentLearningPanel.test.tsx`; DECISIONS.md §10 domain boundaries.
+  *Recorded for honesty, 2026-09-13:* **I13 Checkpoint 2** — a separate authorized pass, not M3
+  work — did modify `demoRepository.test.ts`, because making `attachContent`'s intent argument
+  required leaves a two-argument call uncompilable. The change there is mechanical and nothing else:
+  11 call sites gained the program each test had already resolved its level from (a literal, never
+  `level.programId`), **no assertion was added, weakened or removed**, and all 24 tests pass. The
+  protection above stands unchanged **against M3**: this milestone must not touch those three files,
+  and its own new tests belong in new files.
 - **Demo/API behaviour.** Learning resolves to Demo in **both** modes
   (`src/domains/registry.ts:144`) — the surface must not imply a server; D8's indicator covers it.
 - **Tests.** Assignment persists across a reload; the `CONTENT_ALREADY_LINKED` conflict surfaces as
@@ -615,8 +626,10 @@ item downward to make a phase look finished."*
    proof (that is the flag under test, so such a wait can be satisfied by the frame being asserted
    against); and a consumer must still render an **explicit in-flight state** rather than its empty
    state while a params change is being read, because withholding the old page would otherwise turn
-   one lie into another. **I13's Checkpoints 2 and 3 remain open** — `attachContent` still carries no
-   caller intent, and five hand-rolled readers still have the pre-fix shape.
+   one lie into another. **I13's Checkpoint 2 has since landed** — `attachContent` now requires the
+   caller's program intent and refuses a level that does not belong to it — **and Checkpoint 3
+   remains open**: five hand-rolled readers still have the pre-fix shape, which is why the
+   data-derived wait stays the rule.
 3. **No assertion is weakened, skipped or deleted to reach green.** Fix the owning boundary
    (§10 of [PROJECT_STATE.md](PROJECT_STATE.md)).
 4. **Report the shape, not a bare number:** `N passed` or `(N − 8) passed + 8 skipped` depending on

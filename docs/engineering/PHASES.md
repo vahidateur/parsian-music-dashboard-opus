@@ -213,11 +213,18 @@ reversion check on each half. It is **not** registered as a milestone or as a do
 checkpoint: it is product source, so no row above moves, and §4 of PROJECT_STATE records it under
 "Work landed since the Phase 2 checkpoint" instead. Excluded from that authorization and still open:
 **I13 Checkpoint 2** (`attachContent` took
-only `(levelId, contentId)`, so unlike `assignPlacement` it had nothing to compare a level against) —
-**authorized by the owner on 2026-09-13 as its own change and in progress**, still **not fixed** and
-not to be reported as fixed until its measured validation is recorded; M3's own prohibition forbids
-doing it inside M3, which is why it is its own pass. **I13 Checkpoint 3** (five
-hand-rolled readers with the same shape, none reachable in shipped UI today), and **I14** (`paginate`
+only `(levelId, contentId)`, so unlike `assignPlacement` it had nothing to compare a level against)
+was **authorized by the owner on 2026-09-13 as its own pass** — M3's prohibition forbids doing it
+inside M3, which is exactly why it is separate — recorded as in progress at `be75ac6` before its code
+was written, and **has now landed and been validated at `bcea26c`**: the call requires an
+`AttachContentIntent { programId }` resolved independently of the target level, refuses a mismatch
+with `LINK_INVALID` and writes nothing, and leaves every pre-existing behaviour unchanged. Its
+evidence is the same shape as Checkpoint 1's — 6 consecutive full-suite runs (101 files / 1399 passed
+/ 0 failed / 0 skipped each, `dist/` built), build, typecheck, documentation gates, and a reversion
+check that fails 7 of the 15 new tests plus the compile pin. Still open and **not** part of either
+pass: **I13 Checkpoint 3** (five
+hand-rolled readers with the same shape, none reachable in shipped UI today, not authorized), and
+**I14** (`paginate`
 clamps `per_page: 0` to one row) — assessed for M3 relevance and **deferred**, because M3's
 assignment surface never reads through a `per_page: 0` query.
 
@@ -511,12 +518,22 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `77b019ef07f99817da985e1602dd11365b4b9365` | The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
 | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` | The retired test-harness race: `src/views/__tests__/emptyEnvironment.test.tsx` waits for the design system's in-flight marker instead of the view title, so its data-derived assertions measure loaded records rather than a placeholder; the race and one deliberately uninvestigated flake are recorded in I11 — and the gate grew from 45 to 52 checks | none (test code and documents only) | ✅ |
 | `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` | The M2.1 validation block in [PROJECT_STATE.md](PROJECT_STATE.md) §4 corrected to the definitive run's measured timings (build 4.12 s, full suite 111.3 s) — no count, conclusion or behaviour changed | none (documents only) | ✅ |
-| `9247a17681871c2be39ecf3193c0aded3d0232a0` | **Latest recorded.** M2.1's phase-checkpoint SHA `73b40d9` registered in the ledger, its section, the milestone table and the phase-heading status line, plus PROJECT_STATE §2/§3, the H6/H7 status lines in [OPEN_ITEMS.md](OPEN_ITEMS.md) and DECISIONS §15; the documentation checkpoint advanced to `b3ffffd` | none (documents only) | ✅ |
+| `9247a17681871c2be39ecf3193c0aded3d0232a0` | M2.1's phase-checkpoint SHA `73b40d9` registered in the ledger, its section, the milestone table and the phase-heading status line, plus PROJECT_STATE §2/§3, the H6/H7 status lines in [OPEN_ITEMS.md](OPEN_ITEMS.md) and DECISIONS §15; the documentation checkpoint advanced to `b3ffffd` | none (documents only) | ✅ |
+| `2972a99c447de17af6d3c72d58facb62400bd707` | The **I11 Tier 1** harness fix: `src/domains/learning/__tests__/LearningPanel.test.tsx` waits for the data-derived state instead of a marker's absence, so its assertions measure loaded records; the race's root cause, the contention evidence and the two findings underneath it (I13, I14) recorded in I11 | none (one test file and four documents) | ✅ |
+| `ea890ae5a6d5fa2209049637f8f85ed070e26e25` | **I13 Checkpoint 1's** measured validation recorded — 6 consecutive full-suite runs plus 4 contention samples, the reversion checks, the honest `act()` limitation — and M3's I13 gate marked discharged in PROJECT_STATE §9, in this ledger and in the milestone's own dependency bullet | none (documents only) | ✅ |
+| `be75ac6f99815700f2a65d026f09ee0c3213f019` | **Latest recorded.** **I13 Checkpoint 2** recorded as authorized and in progress, with the authorized contract written down — a required `AttachContentIntent { programId }` on `attachContent`, resolved independently of the target level, following the `assignPlacement` pattern — *before* any of its code existed | none (documents only) | ✅ |
 
-The commit that registered those entries — `9247a17` — is itself documents-only, and is registered
-here by the commit that followed it. The same is true of the **I11 Tier 1 harness fix**: it changes
+The two product-source commits this ledger also has to explain are **not** documentation checkpoints
+and are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §4 instead: `289e080` (I13 Checkpoint 1 —
+the shared list hook and the six consumers that ignored `loading`) and `bcea26c` (I13 Checkpoint 2 —
+the `attachContent` intent guard and its adversarial suite). Neither advances the phase checkpoint
+row, which stays at Phase 2 for the ordering reason recorded in §2.
+
+The commit that registered the entries above `9247a17` — and `9247a17` itself — are documents-only,
+and each is registered by the commit that followed it. The same is true of the **I11 Tier 1 harness
+fix** (`2972a99`): it changes
 one test file and these documents and no product behaviour, so it is a documentation checkpoint by
-the definition above, and the next pushed commit registers its SHA. That gap is the rule working, not
+the definition above, and it is registered here by `ea890ae`. That gap is the rule working, not
 an omission — no entry may carry its own SHA.
 
 **The `77b019ef` pass** holds the one exception to "no product behaviour", and it is a narrow one:

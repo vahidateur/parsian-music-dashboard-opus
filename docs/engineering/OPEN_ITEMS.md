@@ -484,8 +484,9 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
-- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented and validated; Checkpoint 2
-  authorized the same day and now IN PROGRESS; Checkpoint 3 not authorized, not started.** The owner authorized **Checkpoint 1 only**: the shared hook
+- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) and Checkpoint 2 implemented and validated;
+  Checkpoint 3 not authorized, not started; I14 untouched. The item is NOT closed and must not be
+  reported as fixed.** The owner authorized **Checkpoint 1 only**: the shared hook
   plus the six dynamic-params consumers that ignored `loading`. It landed as
   `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
   `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
@@ -499,15 +500,15 @@ recovery and the zero-record tests both remaining green.
   were **reversion-checked** so that neither test is vacuous: reverting the hook to its pre-fix
   version fails the new hook suite (2 cases), and reverting the `GalleryPanel` gate alone — with the
   hook fix in place — fails the gallery gate on a false empty state. Repeated runs are evidence, not
-  a proof of determinism. **This item is nevertheless still open.** On the same day the owner
-  authorized **Checkpoint 2** — the `attachContent` intent guard — as a separate change, and it is
-  **IN PROGRESS**: the contract, the demo implementation and its adversarial tests are being written
-  now, and nothing about it may be reported as fixed until its own validation is recorded here.
-  **Checkpoint 3** (the hand-rolled readers below) is **not authorized and not started**, and
-  **I14 is not implemented** and remains a separate item. As of Checkpoint 1's push, `attachContent`
-  was **not** fixed: Checkpoint 1 removed the window in which a stale row could be *read* as the
-  current query's row, which lowered but did not eliminate the risk that a surface attaches content
-  to a level it did not mean.
+  a proof of determinism. **Checkpoint 2 followed on the same day**, authorized separately and
+  recorded as *in progress* in `be75ac6` before any of its code was written: `attachContent` is now
+  handed the caller's intent and refuses a level that does not belong to it. It landed as
+  `bcea26c38b011907b89ebd4343dbbd862a545282` and its measured validation is recorded under "Done
+  when — Checkpoint 2" below. **This item is nevertheless still open.** **Checkpoint 3** (the
+  hand-rolled readers below) is **not authorized and not started**; the two further exposures below
+  (`useLibraryFile`, `useMediaObjectUrl`) are **not fixed**; and **I14 is not implemented** and
+  remains a separate item. What Checkpoints 1 and 2 together removed is the read-side window and the
+  write-side consequence for the learning ladder — not the whole finding.
 - **What (as it was, before Checkpoint 1):** `useResourceList`
   (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
   effect**. When the params changed — a new `programId`, a different page, a changed filter — the
@@ -568,8 +569,10 @@ recovery and the zero-record tests both remaining green.
   harness only, in one file. This changes a hook every list depends on and needed its own
   authorization, its own suite, and the six-run evidence rule in §10.1 — which is what Checkpoint 1
   then did.
-- **Not done in Checkpoint 1, deliberately — still open:**
-  - **Checkpoint 2: `attachContent` carried no caller intent — AUTHORIZED 2026-09-13, IN PROGRESS.**
+- **Not done in Checkpoint 1, deliberately — Checkpoint 2 has since landed as its own pass, the rest
+  is still open:**
+  - **Checkpoint 2: `attachContent` carried no caller intent — DONE, `bcea26c` (kept here for
+    continuity; it is no longer an open sub-item).**
     It took `(levelId, contentId)`, so there was nothing for it to compare a level against;
     `assignPlacement` can refuse a cross-program level only because it is handed a `programId` as
     well. It was not implemented inside Checkpoint 1 because M3's own prohibition ("no edit to the
@@ -579,9 +582,17 @@ recovery and the zero-record tests both remaining green.
     level, which would make the comparison a tautology), compared against `level.programId` and
     refused with a validation error when they disagree. No schema change, no `programId` on
     `LearningContent`, no redesign of the learning domain, and every existing behaviour — including
-    `CONTENT_ALREADY_LINKED` and one content item serving several levels — preserved. **Not
-    implemented at the time of this sentence being written; it is recorded as in progress until its
-    own measured validation lands.**
+    `CONTENT_ALREADY_LINKED` and one content item serving several levels — preserved. **That is what
+    shipped**, as a required third argument (`AttachContentIntent`), so omission is a compile error
+    rather than a runtime default: an optional parameter would have left the hole open for every
+    caller written before the guard and the first one M3 writes in a hurry. The mismatch is checked
+    *before* the duplicate check, so a write the caller did not mean is refused (`LINK_INVALID`)
+    rather than excused as already-done, and an intent naming a program that does not exist answers
+    `PROGRAM_NOT_FOUND` instead of being flattened into a mismatch. **One limitation is recorded
+    rather than hidden:** the repository cannot detect a caller that reads `level.programId` back off
+    the target and passes it as its own "intent" — that comparison is a tautology and proves nothing.
+    No signature can prevent it; `attachContentIntent.test.ts` pins it as a named failure mode so
+    that review has something to point at.
   - **Checkpoint 3: five hand-rolled readers with the same shape, none of them fixed here** —
     `useStudentList` (`src/domains/students/useStudents.ts:25`), `useDerived`
     (`src/domains/learning/useLearning.ts:62`, which backs placement and eligible content, both
@@ -618,8 +629,38 @@ recovery and the zero-record tests both remaining green.
   the offending frame under `act()`, because a `fireEvent` flushes effects before sampling can start;
   it asserts the reachable invariant (no delete is ever armed against a non-selected album, and the
   armed delete targets the selected album's image) and the frame itself is pinned by the hook suite's
-  render-phase log. **Still outstanding, so this item stays open:** Checkpoint 2 and Checkpoint 3
-  above.
+  render-phase log. **Still outstanding at that point:** Checkpoint 2 — since landed, see below — and
+  Checkpoint 3 above.
+- **Done when — Checkpoint 2 (MET, and validated):** `attachContent` cannot be called without the
+  caller's program intent, and a level that does not belong to that intent is refused with nothing
+  written. All of it is pinned in
+  `src/domains/learning/__tests__/attachContentIntent.test.ts` (15 tests): a matching intent links
+  exactly as before, including appending `sortOrder` and never copying the content row; a mismatched
+  intent is refused with `LINK_INVALID` (validation, Persian message, `fields.levelId`) **and writes
+  no link**; the refusal leaves every placed student's derived `eligibleContent` byte-identical, which
+  is the harm that made this more than a stray row; the exact I13 window is refused — a level row from
+  the program the user navigated away from, against the program they navigated to; the mismatch
+  outranks the duplicate, so a stale row that happens to be linked already still tells the caller it
+  was pointing at the wrong program; `LEVEL_NOT_FOUND`, `CONTENT_NOT_FOUND` and
+  `CONTENT_ALREADY_LINKED` are unchanged; an unknown intent program answers `PROGRAM_NOT_FOUND`; one
+  content item still serves levels of two different programs when each call states its own intent, so
+  the guard refuses a *wrong* intent without forbidding the model's many-to-many sharing; and the
+  guard adds exactly one comparison, pinned by an inactive level still being attachable
+  (`assignPlacement` refuses one, `attachContent` never did, and this pass was not authorized to
+  change that). Omission is enforced by `tsc`, with a `@ts-expect-error` pin in that file which fails
+  the build if a future signature change makes the two-argument call legal again.
+  **Measured validation, all on `bcea26c`:** 6 consecutive full `npm test` runs — 101 files /
+  1399 passed / 0 failed / **0 skipped** each, `dist/` built so the CSP gates ran instead of skipping
+  — build 2.71 s, `tsc --noEmit` clean, `git diff --check` clean, and 306 tests green across the
+  learning, progress, instruments, services and shared suites before the first full run.
+  **Reversion-checked, so the suite is not vacuous:** with the guard reverted to its
+  pre-Checkpoint-2 state, 7 of the 15 new tests fail — every adversarial case — and `tsc` reports 31
+  errors including `TS2578 Unused '@ts-expect-error' directive` on the omission pin, i.e. the compile
+  guard fails *closed*; the 8 that still pass are exactly the unchanged-behaviour assertions, which is
+  what they are for. The 24 pre-existing `demoRepository.test.ts` tests pass unmodified in what they
+  assert: only the now-required intent argument was added at their 11 call sites, each a literal
+  naming the program that test had already resolved its level from, never `level.programId`. Repeated
+  runs are evidence, not a proof of determinism.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
 - **What:** `src/domains/shared/demoCollection.ts:23` computes
