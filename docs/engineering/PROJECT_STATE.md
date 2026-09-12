@@ -26,10 +26,10 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed` and M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` — and §3 carries the current phase |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b` — and §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` — the retired test-harness race: the EMPTY audit waits for loaded data instead of a view title, and the race is recorded in I11 |
-| Previous documentation checkpoint | `77b019ef07f99817da985e1602dd11365b4b9365` — the audit-correction pass: these documents, their validation gate, and the EMPTY login labels |
+| **Documentation checkpoint (pushed)** | `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` — the M2.1 validation block's measured timings corrected to the definitive run; documents only, no behaviour |
+| Previous documentation checkpoint | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` — the retired test-harness race: the EMPTY audit waits for loaded data instead of a view title, and the race is recorded in I11 |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -38,14 +38,15 @@
 - A **phase checkpoint** is a durable *application* milestone: a reviewed, approved and pushed
   commit that ends a phase of product work. The row above names the latest one the
   documentation-checkpoint ordering rule permits — still `33b1031` (Phase 2) — while the product
-  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, M2 `c42f274`, and M2.1, this commit) are
+  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, M2 `c42f274` and M2.1 `73b40d9`) are
   registered in [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Three exist so far: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Four exist so far: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
-  truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3) and
-  `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11). They
+  truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
+  `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11) and
+  `b3ffffd` (the M2.1 validation block's measured timings). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -89,12 +90,12 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 | Field | Value |
 |---|---|
 | Current phase | **Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels: H6 + H7)** |
-| Phase status | ✅ **COMPLETE** — landed this commit on top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch. This commit's own SHA is registered by the next commit (§2: no self-referential SHA); `git log --oneline -- src/domains docs/engineering` is the authority for it |
+| Phase status | ✅ **COMPLETE** — landed as `73b40d970816f174b56d37addc21f106a472359b` on top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch and registered by the commit that followed it (§2: no self-referential SHA) |
 | Next phase | Product-feature phase — **M3 (learning-content assignment UI, I3 — UI only)** — ❌ **NOT STARTED**, not authorized yet |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
 M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
-(`c42f274`, honest write feedback) and M2.1 (this commit, the two defects M2 found and recorded
+(`c42f274`, honest write feedback) and M2.1 (`73b40d9`, the two defects M2 found and recorded
 rather than fixed) are the product phase's milestones so far. **M2.1 is not in the M0
 specification:** it is **H6** and **H7** from [OPEN_ITEMS.md](OPEN_ITEMS.md), inserted between M2 and
 M3 by the owner's explicit decision after a read-only triage, and the spec's M0–M11 sequence is
@@ -203,7 +204,7 @@ test-harness fix, **no product feature work**:
 
 Product work since those three is the product phase itself, described above and ledgered in
 [PHASES.md](PHASES.md): M0 `f2ebc09` (specification and decision register — documents only), M1
-`689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1, this commit
+`689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1 `73b40d9`
 (the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels).
 
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this

@@ -299,7 +299,7 @@ which M5 owns).
 
 **Closed since M2:** the three Settings panels that hardcoded the demo label on a real write
 (**H7**) and the edit dialogs that opened with an empty draft and could silently overwrite a stored
-record (**H6**) both landed in **M2.1**. The honesty ratchet in
+record (**H6**) both landed in **M2.1** (`73b40d9`). The honesty ratchet in
 `src/__tests__/writeFeedbackHonesty.test.ts` therefore tracks **zero** files carrying a hardcoded
 demo label, and pins all eight surfaces that derive their copy from the environment seam — so this
 decision now has no known violation left in the write-feedback path it governs.

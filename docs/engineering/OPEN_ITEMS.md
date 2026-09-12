@@ -179,9 +179,9 @@ drift — re-grep before editing.
   `src/components/settings/__tests__/DemoDataPanel.test.tsx`).
 
 ### H6. Every edit dialog opens with an empty draft, so "edit" means retype-or-erase (found 2026-09-12, while writing M2's H3 tests)
-- **Status: ✅ LANDED by M2.1** (its commit SHA is registered in [PHASES.md](PHASES.md) by the *next*
-  commit). Kept visible as a completed record, with the evidence, because the shape of the defect is
-  what makes the regression tests worth reading.
+- **Status: ✅ LANDED by M2.1** — `73b40d970816f174b56d37addc21f106a472359b`, registered in
+  [PHASES.md](PHASES.md). Kept visible as a completed record, with the evidence, because the shape of
+  the defect is what makes the regression tests worth reading.
 - **What:** `useEntityForm` seeded its draft with `useState(initial)`
   (`src/domains/shared/useEntityForm.ts`) and nothing ever re-synced it. The dialogs stay mounted
   while closed — `if (!open) return null` runs *after* the hooks — no parent keys them by record,
@@ -254,8 +254,8 @@ drift — re-grep before editing.
 - **Why it was missed:** H3's audit enumerated the domain *views* plus branding. These three are
   domain components rendered by `src/views/Settings.tsx`, outside the audited set, and each has a
   real `catch` → `tone: "danger"` path beside the mislabel, so it reads as honest at a glance.
-- **Status: ✅ LANDED by M2.1** (its commit SHA is registered in [PHASES.md](PHASES.md) by the *next*
-  commit). All three now derive the confirmation from `useIsDemoEnvironment()`
+- **Status: ✅ LANDED by M2.1** — `73b40d970816f174b56d37addc21f106a472359b`, registered in
+  [PHASES.md](PHASES.md). All three now derive the confirmation from `useIsDemoEnvironment()`
   (`src/domains/demo/useDataLifecycle.ts`) exactly as `src/domains/branding/BrandingPanel.tsx` does:
   EMPTY reads «تغییرات در داده‌ها ذخیره شد.» and DEMO keeps «تغییرات در دادهٔ دمو ذخیره شد.». The
   awaited write, the `catch` and the `danger` path are untouched — only the label changed, and no

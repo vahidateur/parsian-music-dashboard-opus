@@ -18,7 +18,7 @@ be derived, it is marked **not recorded** rather than guessed.
 | Product-feature phase — M0 (spec + decision register) | `f2ebc09822d03dde8ce06307221e303721ed9c2e` | ✅ yes | **COMPLETE** (documents only) |
 | Product-feature phase — M1 (recovery & lifecycle UX) | `689a7c15951d690b1ce650a5938e6b1216ca30ed` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2 (honest write feedback) | `c42f274ac10d4087f9280e3bf7b47141d0672e32` | ✅ yes | **COMPLETE** |
-| Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
+| Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | `73b40d970816f174b56d37addc21f106a472359b` | ✅ yes | **COMPLETE** |
 | Product-feature phase | — | — | remaining milestones M3–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
@@ -152,7 +152,7 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
-M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed (this commit) · M3–M11 ❌ **not
+M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3–M11 ❌ **not
 started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
@@ -168,7 +168,7 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 | M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ landed `f2ebc09` (documents only) |
 | M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ landed `689a7c1` |
 | M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
-| M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ **landed this commit** |
+| M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ landed `73b40d9` |
 | M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started — next |
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
@@ -387,8 +387,9 @@ and both landed in the next section rather than waiting for M3.
 
 ## Product phase — M2.1 — edit-form draft integrity + the three Settings panels (**H6** + **H7**)
 
-**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA), so
-`git log --oneline -- src/domains docs/engineering` is the authority for it.
+**Commit:** `73b40d970816f174b56d37addc21f106a472359b` · *fix: implement M2.1 edit-form draft
+integrity and honest Settings copy (H6 + H7)* — registered by the following commit, per § "No
+self-referential checkpoint SHA".
 **Base:** M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`. **Pushed** ✅ to
 `arena/01a07c61-parsian-music-dashboard-opus`.
 
@@ -486,7 +487,12 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 |---|---|---|---|
 | `68b4fe339582211c23c422befe527a98203031ef` | The four `docs/engineering/` recovery documents plus their gate `src/__tests__/projectState.test.ts` (29 checks) | none | ✅ |
 | `77b019ef07f99817da985e1602dd11365b4b9365` | The 18 audit corrections: checkpoint terminology and the two kinds of checkpoint, a verification rule in place of a hardcoded remote SHA, an accurate account of the (non-existent) in-product recovery path plus the new H5, `npm ci` instead of `npm install`, the boot-chain decision (§18), a README entry point, evidence and wording fixes — and the gate growing from 29 to 45 checks | *labels only*, see below | ✅ |
-| `f1fe114b667558bec1ffbc4e7506e3e310ce9735` | **Latest recorded.** The retired test-harness race: `src/views/__tests__/emptyEnvironment.test.tsx` waits for the design system's in-flight marker instead of the view title, so its data-derived assertions measure loaded records rather than a placeholder; the race and one deliberately uninvestigated flake are recorded in I11 — and the gate grew from 45 to 52 checks | none (test code and documents only) | ✅ |
+| `f1fe114b667558bec1ffbc4e7506e3e310ce9735` | The retired test-harness race: `src/views/__tests__/emptyEnvironment.test.tsx` waits for the design system's in-flight marker instead of the view title, so its data-derived assertions measure loaded records rather than a placeholder; the race and one deliberately uninvestigated flake are recorded in I11 — and the gate grew from 45 to 52 checks | none (test code and documents only) | ✅ |
+| `b3ffffd2a70e50173c3ccbd2d9c498cd1ed891f1` | **Latest recorded.** The M2.1 validation block in [PROJECT_STATE.md](PROJECT_STATE.md) §4 corrected to the definitive run's measured timings (build 4.12 s, full suite 111.3 s) — no count, conclusion or behaviour changed | none (documents only) | ✅ |
+
+The commit that registered those last two entries — M2.1's phase checkpoint `73b40d9` and the
+documentation checkpoint `b3ffffd` — is itself documents-only and is registered by the next pushed
+commit. That gap is the rule working, not an omission: no entry may carry its own SHA.
 
 **The `77b019ef` pass** holds the one exception to "no product behaviour", and it is a narrow one:
 it changed *labels only* on the login credential panel in an EMPTY environment, so a customer's own
