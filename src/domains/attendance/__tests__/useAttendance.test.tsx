@@ -170,8 +170,16 @@ describe("useSessionAttendance", () => {
     // Switch before the slow request resolves.
     rerender({ id: FAST });
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.attendance?.sessionId).toBe(FAST);
+    // Wait on the DATA's identity, never on `loading === false` alone. The flag
+    // is the thing under test, so a wait keyed to it can be satisfied by the
+    // very frame being asserted against — which is how I11's harness passed
+    // vacuously and how I13 stayed invisible for so long. Note that
+    // `useSessionAttendance` is one of the hand-rolled readers that still has
+    // the pre-fix shape (I13, Checkpoint 3, open): under act() the frame is
+    // flushed before a test can observe it, so this case asserts the outcome
+    // rather than pretending to pin the frame.
+    await waitFor(() => expect(result.current.attendance?.sessionId).toBe(FAST));
+    expect(result.current.loading).toBe(false);
 
     // Now let the slow response land. The ticket guard must discard it.
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -190,9 +198,13 @@ describe("useSessionAttendance", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     rerender({ id: sessions[1].id });
-    await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.attendance?.sessionId).toBe(sessions[1].id);
+    // Data identity first; the flag only as a consequence of it. Waiting for
+    // `loading === false` here would have passed on the frame that still held
+    // session[0]'s register.
+    await waitFor(() => expect(result.current.attendance?.sessionId).toBe(sessions[1].id));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.attendance?.sessionId).not.toBe(sessions[0].id);
   });
 });
 

@@ -72,7 +72,10 @@ export function StudentProgressPanel({
   const [assignOpen, setAssignOpen] = useState(false);
 
   // The timeline is a bounded, paginated read — never the whole log.
-  const { items: timeline } = useProgressEvents({ studentId, per_page: 15 });
+  // `timelineLoading` is read, not ignored: its params carry `studentId`, so
+  // switching students would otherwise render the previous student's events
+  // under this student's name (I13).
+  const { items: timeline, loading: timelineLoading } = useProgressEvents({ studentId, per_page: 15 });
 
   const insightByAssignment = useMemo(
     () => new Map((overview?.insights ?? []).map((i) => [i.assignmentId, i])),
@@ -253,7 +256,11 @@ export function StudentProgressPanel({
 
       {/* Timeline */}
       <Panel title="سابقهٔ پیشرفت" kicker="رویدادها به ترتیب زمان، بدون بازنویسی">
-        {timeline.length === 0 ? (
+        {timelineLoading ? (
+          // Events are expected for a student with a history; this read is in
+          // flight, not absent. «سابقه‌ای ثبت نشده» here would be a false empty.
+          <LoadingState label="در حال بارگذاری سابقهٔ پیشرفت…" />
+        ) : timeline.length === 0 ? (
           <EmptyState title="سابقه‌ای ثبت نشده" description="پس از نخستین ثبت پیشرفت، تاریخچه اینجا دیده می‌شود." />
         ) : (
           <ul className="space-y-2">

@@ -71,7 +71,10 @@ export function CommandPalette() {
   }, [paletteOpen]);
 
   // Repository-backed record search; empty query returns nothing.
-  const { results: records } = useDomainSearch(query);
+  // `searching` is read, not ignored: the query changes on every keystroke, and
+  // every result carries a navigation target, so a previous query's results
+  // presented as this one's would navigate to the wrong record (I13).
+  const { results: records, loading: searching } = useDomainSearch(query);
 
   const groups = useMemo<Group[]>(() => {
     const q = normalize(query);
@@ -218,10 +221,23 @@ export function CommandPalette() {
           {result ? (
             <ResultView cmd={result} onOpen={() => navigate(result.target)} onBack={() => { setResult(null); setQuery(""); inputRef.current?.focus(); }} />
           ) : flat.length === 0 ? (
-            <div className="px-4 py-10 text-center">
-              <p className="text-sm text-ink-200">چیزی پیدا نشد</p>
-              <p className="mt-1.5 text-xs text-ink-400">می‌توانید فرمان بنویسید؛ مثلاً «کلاس‌های خالی سه‌شنبه را پیدا کن»</p>
-            </div>
+            /*
+             * A search in flight is not "nothing found". With the query's own
+             * results withheld until they belong to it (I13), the record groups
+             * are absent while the repositories are still being read, so the
+             * honest state here is in-flight — otherwise the palette asserts a
+             * negative it has not established.
+             */
+            searching ? (
+              <div className="px-4 py-10 text-center">
+                <p className="text-sm text-ink-200">در حال جستجو…</p>
+              </div>
+            ) : (
+              <div className="px-4 py-10 text-center">
+                <p className="text-sm text-ink-200">چیزی پیدا نشد</p>
+                <p className="mt-1.5 text-xs text-ink-400">می‌توانید فرمان بنویسید؛ مثلاً «کلاس‌های خالی سه‌شنبه را پیدا کن»</p>
+              </div>
+            )
           ) : (
             groups.map((g) => (
               <div key={g.label} className="mb-1">

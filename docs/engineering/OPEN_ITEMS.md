@@ -484,6 +484,15 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
+- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented, validation not yet complete.**
+  The owner authorized **Checkpoint 1 only**: the shared hook plus the six dynamic-params consumers
+  that ignored `loading`. That code is written and green in focused runs and in one full-suite run
+  (100 files / 1384 passed / 0 skipped) at the time of writing, but the six-run evidence rule of
+  §10.1, the repeated build and the documentation gates are still being recorded — so **this item is
+  not closed and must not be reported as fixed**. **Checkpoint 2** (the `attachContent` intent guard)
+  and **Checkpoint 3** (the hand-rolled readers below) are **not implemented**; **I14 is not
+  implemented** and remains a separate item. `attachContent` is **not** fixed and is **not** claimed
+  to be.
 - **What:** `useResourceList` (`src/domains/shared/useResource.ts:35`) keeps its page in state and
   sets `loading` **inside an effect** (`src/domains/shared/useResource.ts:53`). When the params change — a new `programId`, a different page,
   a changed filter — the render that follows carries the *previous* query's page with
@@ -511,20 +520,73 @@ recovery and the zero-record tests both remaining green.
   why this is recorded **before M3** rather than after it.
 - **Blast radius:** every list in the product — 12 domain hook modules call `useResourceList`
   (attendance, chat, classes, enrollments, gallery, instruments, learning, library, progress, rooms,
-  scheduling, teachers), and `paginate` has 13 callers. There is **no direct suite** for either
-  `useResource.ts` or `paginate`.
+  scheduling, teachers), and `paginate` has 13 callers. Of the 18 `useResourceList` call sites, 10
+  take params that change at runtime, and **6 of those 10 read only `items` and ignored `loading`** —
+  for those the window was not one frame but the whole refetch. `paginate` still has **no direct
+  suite**; `useResource.ts` had none either, which is how this survived, and now has
+  `src/domains/shared/__tests__/useResource.test.tsx`.
+- **Demonstrated destructively during the read-only triage (2026-09-12):** `GalleryPanel` rendered
+  the previous album's thumbnails under a newly selected album, each «حذف» closing over its own
+  `image`; a probe clicked one and captured `removeImage` being called with an image of the album the
+  user had navigated *away* from, while `aria-current` already marked the new one. Measured window
+  41 ms uncontended. The write was intercepted, not performed. `LearningPanel`'s «حذف» and move
+  buttons take their target from the same stale-capable list, and pass a *single* id —
+  `deleteLevel(level.id)` — so no repository guard can detect the mismatch; only not presenting the
+  row can.
+- **Implemented as (Checkpoint 1):** the state now carries the key it answers
+  (`{ key, page, loading, error }`) and what the hook exposes is **derived at render** from
+  `state.key === key`, rather than set in an effect. This is stronger than the render-phase
+  `setState` the triage proposed: it also removes the second exposure the triage found — a frame with
+  `loading === true` that still held the previous query's rows, which defeats any consumer that
+  renders rows without gating. A **same-key refetch keeps its rows**, which is the boundary that
+  stops every list in the product flickering empty on each global data-version bump.
 - **Smallest owning boundary:** `useResourceList` itself — clear the page and set `loading` during
   the render in which the serialized params change (React's documented "adjust state when a prop
   changes" pattern) instead of only in the effect. Then "no marker ⇒ the rows on screen are the rows
   for these params" becomes true app-wide and §10.2's rule holds as written.
-- **Not done, deliberately:** the I11 Tier 1 pass was authorized for the test harness only, in one
-  file. This changes a hook every list depends on and needs its own authorization, its own suite, and
-  the six-run evidence rule in §10.1.
-- **Done when:** a params change cannot be observed with the previous page and `loading === false`; a
-  new suite for the hook — there is none today, which is how this survived — pins it (params change ⇒
-  the same commit exposes an empty page and `loading: true`; a refetch of the *same* params still
-  exposes the marker), living beside `src/domains/shared/__tests__/entityFormDraft.test.tsx`; and the
-  §10.2 / §4 wording is re-checked against the new behaviour.
+- **Not done in the I11 pass, deliberately (historical):** that pass was authorized for the test
+  harness only, in one file. This changes a hook every list depends on and needed its own
+  authorization, its own suite, and the six-run evidence rule in §10.1 — which is what Checkpoint 1
+  is now doing.
+- **Not done in Checkpoint 1, deliberately — still open:**
+  - **Checkpoint 2: `attachContent` carries no caller intent.** It takes `(levelId, contentId)`, so
+    there is nothing for it to compare a level against; `assignPlacement` can refuse a cross-program
+    level only because it is handed a `programId` as well. **`attachContent` is not fixed and no
+    cross-program guard exists.** It was not implemented here because M3's own prohibition ("no edit
+    to the learning domain") means it has to be a separate authorized change, and its tests live in a
+    file M3 protects.
+  - **Checkpoint 3: five hand-rolled readers with the same shape, none of them fixed here** —
+    `useStudentList` (`src/domains/students/useStudents.ts:25`), `useDerived`
+    (`src/domains/learning/useLearning.ts:62`, which backs placement and eligible content, both
+    student-scoped), `useStudentProgress` (`src/domains/progress/useProgress.ts:62`), `useDerivedRead`
+    (`src/domains/scheduling/useScheduling.ts:66`), `useSessionAttendance`
+    (`src/domains/attendance/useAttendance.ts:69`). Three carry doc comments claiming a guarantee
+    they do not deliver — "cannot paint the previous session's register", "cannot paint the previous
+    student's data": the ticket guard they cite discards a late *response*, it cannot retract an
+    already-committed *state*. Reachability today: `useSessionAttendance`, `useSessionRoster` and
+    `useStudentProgress` have **no view consumers** (tests only), so they are not reachable in
+    shipped UI and become reachable at M6/M7; every `useStudentList` call site passes constant
+    params, so it is structurally defective but unreachable.
+  - **`useDomainSearch` was touched**, and only because CommandPalette is one of the authorized six:
+    its gate is meaningless while the hook starts `loading: false` and keeps the previous query's
+    results across a keystroke. It now carries the same key identity. No other hand-rolled reader was
+    modified.
+  - **Two further exposures, neither a `useResourceList` consumer, neither in the authorized six,
+    neither fixed:** `useLibraryFile` (`src/domains/library/useLibrary.ts:77`) does not reset
+    `asset`/`blob` when `mediaId` changes to another non-empty id, so the drawer can offer the
+    *previous* item's bytes under the new item's title; `useMediaObjectUrl`
+    (`src/domains/media/useMedia.ts:24`) exposes the previous object URL for one frame. The library
+    one is the more serious and should be scoped in its own right.
+- **Done when — Checkpoint 1 (met in code, validation pending):** a params change cannot be observed
+  with the previous page and `loading === false`, pinned by a **render-phase log of every committed
+  frame** rather than by waiting on the flag under test
+  (`src/domains/shared/__tests__/useResource.test.tsx`); a same-key refetch keeps its rows; a
+  previous key's error is never exposed as this key's; the six consumers show an explicit in-flight
+  state and never a false empty (`src/domains/shared/__tests__/staleQueryGates.test.tsx`); an album
+  switch arms no delete against the previous album
+  (`src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx`); and the §10.2 / §4 wording is
+  re-checked against the new behaviour. **Still outstanding:** the six consecutive full-suite runs
+  for this change, and Checkpoints 2 and 3 above. **I13 stays open until those are recorded.**
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
 - **What:** `src/domains/shared/demoCollection.ts:23` computes

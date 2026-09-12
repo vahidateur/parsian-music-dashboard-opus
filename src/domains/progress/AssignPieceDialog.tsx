@@ -38,27 +38,54 @@ export function AssignPieceDialog({
   onAssigned: (piece: Piece, assignment: PieceAssignment) => void;
 }) {
   const [instrumentId, setInstrumentId] = useState<string | undefined>(undefined);
+  /**
+   * Whether the student's instrument is known yet — resolved, or the lookup
+   * failed and the documented fallback (show every piece) applies.
+   *
+   * Until then the query is *unfiltered*, so the picker is in flight rather
+   * than offering every piece in the academy under the dialog's own claim that
+   * «قطعه‌ها بر اساس ساز هنرجو فیلتر شده‌اند». `assignPiece` re-checks what it
+   * can, but instrument is not one of the things it can check.
+   */
+  const [instrumentResolved, setInstrumentResolved] = useState(false);
 
   // Resolve the student's instrument so the picker is relevant.
   useEffect(() => {
     let cancelled = false;
+    setInstrumentResolved(false);
     void getStudentRepository()
       .get(studentId)
       .then((student) => {
-        if (!cancelled) setInstrumentId(student.instrument);
+        if (cancelled) return;
+        setInstrumentId(student.instrument);
+        setInstrumentResolved(true);
       })
       .catch(() => {
         // Fall back to showing every piece rather than an empty picker.
-        if (!cancelled) setInstrumentId(undefined);
+        if (cancelled) return;
+        setInstrumentId(undefined);
+        setInstrumentResolved(true);
       });
     return () => {
       cancelled = true;
     };
   }, [studentId]);
 
-  const { items: pieces } = usePieces({ per_page: 200, activeOnly: true, instrumentId });
+  // `piecesLoading` is read, not ignored: the params change the moment the
+  // student's instrument resolves, and the rows rendered before that belong to
+  // the unfiltered query (I13).
+  const { items: pieces, loading: piecesLoading } = usePieces({ per_page: 200, activeOnly: true, instrumentId });
 
-  const options = useMemo(() => [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa")), [pieces]);
+  /** In flight until the filter is known AND that filter's page has arrived. */
+  const pickerLoading = !instrumentResolved || piecesLoading;
+
+  // An empty `options` while loading is not a false empty: the control below is
+  // disabled and says it is loading, which is the explicit in-flight state the
+  // invariant asks for instead of another query's rows.
+  const options = useMemo(
+    () => (pickerLoading ? [] : [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa"))),
+    [pieces, pickerLoading],
+  );
 
   const form = useEntityForm<AssignDraft, PieceAssignment>({
     initial: { pieceId: "", status: "learning", targetDate: "", notes: "" },
@@ -120,10 +147,10 @@ export function AssignPieceDialog({
               {...control}
               className={inputCls}
               value={form.draft.pieceId}
-              disabled={busy}
+              disabled={busy || pickerLoading}
               onChange={(e) => form.set("pieceId", e.target.value)}
             >
-              <option value="">— انتخاب کنید —</option>
+              <option value="">{pickerLoading ? "در حال بارگذاری قطعه‌های این ساز…" : "— انتخاب کنید —"}</option>
               {options.map((piece) => (
                 <option key={piece.id} value={piece.id}>
                   {`${piece.title} — ${piece.composer}`}

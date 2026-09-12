@@ -13,7 +13,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LearningPanel } from "../LearningPanel";
-import { getLearningRepository, resetRegistry } from "@/domains/registry";
+import { getLearningRepository, resetRegistry, setLearningRepository } from "@/domains/registry";
+import type { Page } from "@/api/types";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { faNum } from "@/lib/format";
 import type { LearningLevel } from "../types";
@@ -289,5 +290,94 @@ describe("levels", () => {
 
     fireEvent.click(within(row).getByRole("button", { name: "حذف" }));
     await waitFor(() => expect(screen.queryByText(/سطح موقت/)).toBeNull());
+  });
+});
+
+/**
+ * I13, at the product rather than at the harness.
+ *
+ * `waitForPanel()` above had to become data-derived because the panel could
+ * present one program's levels under another program's heading with nothing on
+ * screen to wait for. The hook now withholds a page that does not belong to the
+ * current params, and the panel reads `levelsLoading`, so the same switch shows
+ * an in-flight state instead. These cases pin that — the harness fix and the
+ * product fix are separate guarantees, and only this one is visible to a user.
+ */
+describe("I13 — a program switch presents no levels but the new program's", () => {
+  /** Holds one program's levels read open, so the window needs no racing. */
+  function holdLevelsFor(programId: string, held: Promise<Page<LearningLevel>>): void {
+    const real = getLearningRepository();
+    setLearningRepository(
+      new Proxy(real, {
+        get(target, prop, receiver) {
+          if (prop === "listLevels") {
+            return (params?: { programId?: string }, signal?: AbortSignal) =>
+              params?.programId === programId ? held : target.listLevels(params, signal);
+          }
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === "function" ? (value as (...a: unknown[]) => unknown).bind(target) : value;
+        },
+      }) as typeof real,
+    );
+  }
+
+  it("shows an in-flight state — no rows, no count, no armed delete — for the new program", async () => {
+    const repository = getLearningRepository();
+    const programs = (await repository.listPrograms({ per_page: 200 })).data;
+    const [first, second] = programs;
+    const firstLevels = (await repository.listLevels({ programId: first.id, per_page: 200 })).data;
+    const secondPage = await repository.listLevels({ programId: second.id, per_page: 200 });
+    expect(firstLevels.length).toBeGreaterThan(0);
+    expect(secondPage.data.length).toBeGreaterThan(0);
+
+    let release!: (page: Page<LearningLevel>) => void;
+    holdLevelsFor(second.id, new Promise<Page<LearningLevel>>((resolve) => { release = resolve; }));
+
+    renderPanel();
+    const settled = await waitForPanel();
+    expect(settled.programId).toBe(first.id);
+
+    fireEvent.click(screen.getByText(second.name));
+
+    await waitFor(() => expect(screen.getByText("در حال بارگذاری سطوح…")).toBeDefined());
+
+    // The heading names the new program already — it comes from the programs
+    // query — so it must not carry a count from a page that is not this
+    // program's, and the rows must not be the previous program's.
+    expect(levelsHeading().textContent).toContain(second.name);
+    expect(levelsHeading().textContent).not.toContain("سطح");
+    expect(rowsOf(levelsHeading())).toHaveLength(0);
+    expect(screen.queryAllByRole("button", { name: "حذف" })).toHaveLength(0);
+    expect(screen.queryByText("این دوره هنوز سطحی ندارد")).toBeNull();
+
+    // And it settles on the new program's own rows, in the repository's order.
+    release(secondPage);
+    const settledSecond = await waitForPanel();
+    expect(settledSecond.programId).toBe(second.id);
+    expect(settledSecond.levels.map((level) => level.id)).toEqual(secondPage.data.map((level) => level.id));
+    expect(levelsHeading().textContent).toContain(`${faNum(secondPage.data.length)} سطح`);
+  });
+
+  it("keeps the levels it already has when the same program is re-read", async () => {
+    renderPanel();
+    const settled = await waitForPanel();
+    expect(settled.levels.length).toBeGreaterThan(0);
+
+    // Any persisted write anywhere bumps the global data version and re-runs
+    // every list effect with the SAME params. The rows must survive that rather
+    // than blanking, or the fix would trade a stale frame for a flicker.
+    await getLearningRepository().createLevel({
+      programId: settled.programId,
+      name: "سطح بازخوانی",
+      description: "",
+      objectives: [],
+      active: true,
+    });
+
+    const after = await waitForPanel();
+    expect(after.programId).toBe(settled.programId);
+    expect(after.levels.length).toBe(settled.levels.length + 1);
+    // Never observed empty in between: the settled row count only ever grew.
+    expect(rowsOf(levelsHeading()).length).toBe(settled.levels.length + 1);
   });
 });

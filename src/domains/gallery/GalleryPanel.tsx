@@ -62,7 +62,12 @@ export function GalleryPanel() {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const selected: GalleryAlbum | undefined = albums.find((a) => a.id === selectedId) ?? albums[0];
-  const { items: images } = useGalleryImages(selected ? { albumId: selected.id, per_page: 200 } : { per_page: 0 });
+  // `imagesLoading` is read, not ignored: every thumbnail's «حذف» closes over
+  // its own `image`, so rendering the previous album's thumbnails under a new
+  // selection offered a delete that destroyed another album's image (I13).
+  const { items: images, loading: imagesLoading } = useGalleryImages(
+    selected ? { albumId: selected.id, per_page: 200 } : { per_page: 0 },
+  );
 
   const createAlbum = async () => {
     const title = albumTitle.trim();
@@ -217,7 +222,12 @@ export function GalleryPanel() {
                 </Button>
               </div>
 
-              {images.length === 0 ? (
+              {imagesLoading ? (
+                // An album is selected, so images are expected: this read is in
+                // flight, not empty. «این آلبوم خالی است» here would be a false
+                // empty — and the grid it replaces is a delete surface.
+                <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
+              ) : images.length === 0 ? (
                 <EmptyState title="این آلبوم خالی است" description="اولین تصویر را اضافه کنید." />
               ) : (
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">

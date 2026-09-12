@@ -98,7 +98,11 @@ export function MessagesView() {
     [role, query],
   );
   const { items: threads, loading, error, reload } = useConversations(listParams);
-  const { items: messages } = useMessages(activeId ?? undefined);
+  // `messagesLoading` is read, not ignored: the params carry the active thread,
+  // so switching threads would otherwise show the previous thread's messages
+  // under this thread's header — with the composer below still writing to the
+  // newly selected one (I13).
+  const { items: messages, loading: messagesLoading } = useMessages(activeId ?? undefined);
 
   // Select the first thread once the list arrives, without clobbering a manual
   // choice or re-selecting after the user filters it away.
@@ -286,7 +290,11 @@ export function MessagesView() {
               </header>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
-                {messages.length === 0 ? (
+                {messagesLoading ? (
+                  // This thread exists and its messages are being read: in
+                  // flight, not «هنوز پیامی رد و بدل نشده».
+                  <LoadingState className="m-2" label="در حال بارگذاری این گفتگو…" />
+                ) : messages.length === 0 ? (
                   <EmptyState
                     className="m-2"
                     title="هنوز پیامی رد و بدل نشده"

@@ -171,8 +171,14 @@ describe("useSessionRoster", () => {
     // Switch before the slow one resolves.
     rerender({ id: fast.id });
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.data?.[0].studentId).toBe("st_fast");
+    // Data identity, not the loading flag: the flag is what is under test, so a
+    // wait keyed to it can be satisfied by the frame being asserted against
+    // (I11's vacuous wait, I13's invisible frame). `useDerivedRead` is a
+    // hand-rolled reader that still carries the pre-fix shape — I13 Checkpoint 3,
+    // open — and under act() the frame is flushed before a test can observe it,
+    // so this asserts the outcome rather than claiming to pin the frame.
+    await waitFor(() => expect(result.current.data?.[0].studentId).toBe("st_fast"));
+    expect(result.current.loading).toBe(false);
 
     // Give the slow response time to land; it must be discarded.
     await new Promise((resolve) => setTimeout(resolve, 80));

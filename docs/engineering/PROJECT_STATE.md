@@ -388,6 +388,13 @@ rely on it meaning "nothing"). Tier 1 closes I11 as a *test reliability* defect;
 I13 or I14, and neither is reported as fixed. I13 matters before M3 specifically because
 `attachContent` has no cross-program guard, unlike `assignPlacement`.
 
+*Superseded in part on 2026-09-13, and left here as the record of that pass rather than rewritten:*
+**I13's Checkpoint 1** — the shared hook plus the six dynamic-params consumers that ignored
+`loading` — was subsequently authorized, implemented and is **in progress through validation**.
+**I14 is untouched**, and so are I13's Checkpoint 2 (`attachContent` still carries no caller intent)
+and Checkpoint 3 (five hand-rolled readers with the same shape). See §7 item 12 and
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I13.
+
 ## 5. Browser QA status
 
 ❌ **NOT VERIFIED — unchanged, and must not be reported as passed.**
@@ -462,16 +469,23 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
 10. **No code-splitting** — one main chunk > 500 kB (build warning).
 11. **No backend.** `api` mode is an architectural seam pointing at a server that does not
     exist. See `docs/production-handoff.md` and `docs/security.md` §8.
-12. **A list can show the previous query's rows and claim nothing is loading.** `useResourceList`
-    sets `loading` inside an effect, so when a query's params change one committed frame still holds
-    the previous page with no in-flight marker of any kind — measured on `LearningPanel`: a single
-    unrelated level under a heading claiming «۱ سطح» for a fifteen-level program, and on a program
-    switch piano's heading over violin's rows with their delete and move buttons enabled.
-    `StudentLearningPanel` renders «سطح نامشخص از ۱ سطح این دوره» in the same window for a placed
-    student. `paginate` compounds it by turning `per_page: 0` — three call sites' way of saying "load
-    nothing" — into one row. The test harness no longer trusts that frame (**I11**, fixed); the
-    behaviour itself is **I13** and **I14**, both open, and I13 is worth deciding before M3 attaches
-    content to a level row.
+12. **A list could show the previous query's rows and claim nothing was loading — being closed, not
+    yet closed.** `useResourceList` set `loading` inside an effect, so when a query's params changed
+    one committed frame still held the previous page with no in-flight marker of any kind — measured
+    on `LearningPanel`: a single unrelated level under a heading claiming «۱ سطح» for a fifteen-level
+    program, and on a program switch piano's heading over violin's rows with their delete and move
+    buttons enabled; and demonstrated destructively on `GalleryPanel`, where a «حذف» offered under a
+    newly selected album targeted an image of the album the user had navigated away from.
+    `StudentLearningPanel` rendered «سطح نامشخص از ۱ سطح این دوره» in the same window for a placed
+    student. **I13's Checkpoint 1 is implemented and in progress through validation**: the state now
+    carries the query identity it answers and what the hook exposes is derived at render, so a page
+    belonging to another query cannot be exposed at all, and the six consumers that ignored `loading`
+    now show an in-flight state instead of a false empty. **Still open:** `attachContent` carries no
+    caller intent (Checkpoint 2); five hand-rolled readers keep the old shape (Checkpoint 3, none of
+    them reachable in shipped UI today); `useLibraryFile` can offer the previous item's bytes under a
+    new title. `paginate` still turns `per_page: 0` — three call sites' way of saying "load nothing"
+    — into one row (**I14**, untouched, and not an M3 blocker). The test harness stopped trusting
+    that frame earlier (**I11**, fixed).
 
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
@@ -503,12 +517,21 @@ invented content bytes, honest unavailable states where media is missing.
 **M3's own spec named one precondition, and it is now discharged:** the **I11** `LearningPanel`
 flake has been reproduced, root-caused and fixed in the test harness, so the suites M3 touches are
 trustworthy again — and the triage answered the spec's question honestly: it was *not* an artefact of
-running two suites on one machine. What I11's triage found underneath is **not** discharged: **I13**
-(a list hook publishes the previous query's rows with no loading marker when its params change —
-every list in the product, and `attachContent` has no cross-program guard to catch it) and **I14**
-(`paginate` clamps `per_page: 0` to one row). **Decide I13 before M3 writes an assignment surface**,
-because that surface will render level rows through the same hook and attach content to whichever
-level a row happens to hold. The two findings that M2
+running two suites on one machine. What I11's triage found underneath has now been **decided**:
+**I13** (a list hook published the previous query's rows with no loading marker when its params
+change — every list in the product) was authorized as **Checkpoint 1 (A′)** on 2026-09-13 and is
+implemented: the shared hook derives what it exposes from the query identity its state answers, and
+the six dynamic-params consumers that ignored `loading` now show an in-flight state instead of a
+false empty. **M3 stays blocked until Checkpoint 1 has finished validation** — the six consecutive
+full-suite runs of §10.1, the build and the documentation gates — and it is recorded as *in
+progress*, not fixed, until then. Two parts of I13 were **deliberately left out** of that
+authorization and remain open: **Checkpoint 2**, the `attachContent` intent guard (`attachContent`
+still takes only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a
+level against — it is **not** fixed), and **Checkpoint 3**, five hand-rolled readers with the same
+shape, none of them reachable in shipped UI today. **I14** (`paginate` clamps `per_page: 0` to one
+row) was assessed for M3 relevance and **deferred**: M3's assignment surface never reads through a
+`per_page: 0` query, since that is only the not-yet-selected branch of three call sites. The two
+findings that M2
 recorded and M2.1 fixed (**H6**, **H7**) no longer block anything; what M2.1 leaves behind is the
 knowledge that `RepertoirePanel` and `PieceFormDialog` are now safe to build on — a piece's
 `programId`, `rangeUnit` and `active` flag survive an edit, which is exactly what M3's assignment
@@ -565,7 +588,7 @@ These come from the product owner and survive every session.
 |---|---|
 | Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
 | Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
-| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence is not enough when the query's params can change:** the frame between a params change and the effect that re-sets `loading` carries no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**, and the open **I13**) |
+| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence was not enough when the query's params could change:** the frame between a params change and the effect that re-set `loading` carried no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**). Since I13's Checkpoint 1 the hook itself upholds that: a page is exposed only for the params it was loaded for, so a params change shows an in-flight state rather than another query's rows. **The data-derived wait stays the rule anyway** — it is what makes a test independent of which half is holding, and the five hand-rolled readers of I13 Checkpoint 3 do not uphold it yet. And never wait on `loading === false` as the *sole* proof: that is the flag under test, so such a wait can be satisfied by the very frame being asserted against |
 | Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
 | Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
 | Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |

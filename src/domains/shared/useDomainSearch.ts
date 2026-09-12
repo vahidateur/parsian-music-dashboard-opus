@@ -45,8 +45,21 @@ export function useDomainSearch(query: string): {
 } {
   const dataVersion = useDataVersion();
   const trimmed = query.trim();
-  const [results, setResults] = useState<DomainSearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
+  /**
+   * Results plus the query they answer, under the same invariant as
+   * `useResourceList` (OPEN_ITEMS I13): what is exposed must belong to the
+   * query on screen, or be an explicit in-flight state. The palette changes
+   * this query on every keystroke, so a previous query's results presented as
+   * this one's would navigate to the wrong record.
+   *
+   * `loading` starts true whenever a query is present — it used to start false,
+   * which rendered "nothing found" for a search that had not been run yet.
+   */
+  const [state, setState] = useState<{ key: string; results: DomainSearchResult[]; loading: boolean }>(() => ({
+    key: trimmed,
+    results: [],
+    loading: trimmed.length > 0,
+  }));
 
   const repositories = useMemo(
     () => ({
@@ -60,14 +73,16 @@ export function useDomainSearch(query: string): {
 
   useEffect(() => {
     if (trimmed.length === 0) {
-      setResults([]);
-      setLoading(false);
+      setState({ key: trimmed, results: [], loading: false });
       return;
     }
 
     const controller = new AbortController();
     let cancelled = false;
-    setLoading(true);
+    // Another query's results are dropped; the same query refreshing keeps them.
+    setState((current) =>
+      current.key === trimmed ? { ...current, loading: true } : { key: trimmed, results: [], loading: true },
+    );
 
     // `search` is part of every list contract, so the repository (or a future
     // backend) does the filtering; the extra client-side match only refines
@@ -111,15 +126,12 @@ export function useDomainSearch(query: string): {
             target: { view: "settings", filter: "operations" } satisfies Target,
           })),
         ];
-        setResults(out);
+        setState({ key: trimmed, results: out, loading: false });
       })
       .catch(() => {
         // A failed search shows no results rather than a stale list; the
         // palette's other groups (navigation, actions) still work.
-        if (!cancelled) setResults([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setState((current) => ({ ...current, key: trimmed, results: [], loading: false }));
       });
 
     return () => {
@@ -128,5 +140,13 @@ export function useDomainSearch(query: string): {
     };
   }, [trimmed, dataVersion, repositories]);
 
-  return { results, loading };
+  // Derived at render, not stored in an effect: the keystroke that changes the
+  // query is the same render that must stop exposing the previous results.
+  return useMemo(() => {
+    const answers = state.key === trimmed;
+    return {
+      results: answers ? state.results : [],
+      loading: !answers || state.loading,
+    };
+  }, [state, trimmed]);
 }

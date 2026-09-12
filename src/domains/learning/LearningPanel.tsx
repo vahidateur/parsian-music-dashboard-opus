@@ -257,7 +257,14 @@ export function LearningPanel() {
               <div className="mb-2 flex items-center gap-2">
                 <GraduationCap className="size-3.5 text-gold-400" aria-hidden />
                 <h3 className="text-[11px] font-medium text-ink-400">
-                  سطوح «{selected.name}» — {faNum(levels.length)} سطح
+                  {/*
+                    The count is withheld while the levels read is in flight.
+                    `levels` is the *current query's* page (I13), so mid-switch it
+                    is legitimately empty — and «۰ سطح» for a program that has
+                    twelve is the same false count, in a new shape, as the
+                    «۱ سطح» heading that made I11's harness lie.
+                  */}
+                  سطوح «{selected.name}»{levelsLoading ? "" : ` — ${faNum(levels.length)} سطح`}
                 </h3>
               </div>
 

@@ -29,7 +29,13 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
   const [busy, setBusy] = useState(false);
 
   const programId = placement?.programId;
-  const { items: levels } = useLevels(programId ? { programId, per_page: 200 } : { per_page: 0 });
+  // `levelsLoading` is read, not ignored: the ladder is a write surface («انتقال
+  // به این سطح» moves the student), and both the rows and the count below come
+  // from this query. Rendering it while another program's page is still in hand
+  // is what I13 was about.
+  const { items: levels, loading: levelsLoading } = useLevels(
+    programId ? { programId, per_page: 200 } : { per_page: 0 },
+  );
 
   const currentLevel = useMemo(
     () => levels.find((level) => level.id === placement?.levelId),
@@ -96,6 +102,11 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
               )}
             </Field>
           </>
+        ) : levelsLoading ? (
+          // Not an empty state: the placement names a program, so a ladder is
+          // expected and this read is simply still in flight. Claiming «۰ سطح»
+          // here would be a false empty, and «سطح نامشخص» a false unknown.
+          <LoadingState label="در حال بارگذاری سطوح این دوره…" />
         ) : (
           <>
             <ol className="relative space-y-3">

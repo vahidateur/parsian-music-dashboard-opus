@@ -200,11 +200,19 @@ there is what makes any new run trustworthy. That precondition has been **discha
 rather than inside it**: I11 was reproduced, root-caused and fixed in the test harness, and its
 recorded conclusion is that contention was an amplifier, not the cause. M2's findings **H6** and
 **H7** were likewise triaged before M3 rather than alongside it, and landed as **M2.1** — see that
-section below. What I11's triage found underneath the harness is still open — **I13** (a list hook
-publishes the previous query's rows with no loading marker when its params change) and **I14**
-(`paginate` clamps `per_page: 0` to one row) — and I13 is worth deciding before M3 writes an
-assignment surface, because `attachContent` has no cross-program guard. Whether it becomes a formal
-M3 dependency is the owner's call and is not recorded here as one.
+section below. What I11's triage found underneath the harness has since been **decided rather than
+left open**: **I13** (a list hook published the previous query's rows with no loading marker when its
+params change) was authorized as **Checkpoint 1 (A′)** on 2026-09-13 and is implemented — the shared
+hook derives what it exposes from the query identity its state answers, and the six dynamic-params
+consumers that ignored `loading` render an in-flight state instead of a false empty. **It is a
+recorded gate on M3, and M3 does not start until its validation is complete** (the six consecutive
+full-suite runs, the build, the documentation gates); until then it is recorded as *in progress*, not
+fixed. Excluded from that authorization and still open: **I13 Checkpoint 2** (`attachContent` takes
+only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a level against —
+**not fixed**, and M3's own prohibition forbids doing it inside M3), **I13 Checkpoint 3** (five
+hand-rolled readers with the same shape, none reachable in shipped UI today), and **I14** (`paginate`
+clamps `per_page: 0` to one row) — assessed for M3 relevance and **deferred**, because M3's
+assignment surface never reads through a `per_page: 0` query.
 
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the

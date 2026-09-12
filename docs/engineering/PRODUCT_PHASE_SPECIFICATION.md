@@ -255,13 +255,24 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   Today **only tests call them**.
 - **Prohibition (I3, verbatim).** *"This is a UI and workflow gap, **not a schema redesign**."* No
   new field, no model change, no edit to the learning domain.
-- **Dependencies.** None — the contract is complete. I11's `LearningPanel` flake was named as a
-  precondition of this milestone and has been **discharged before it** — reproduced, root-caused and
-  fixed in the test harness; see [OPEN_ITEMS.md](OPEN_ITEMS.md) I11. What that triage left open is
-  **I13**: a list hook can render the previous query's rows with no loading marker when its params
-  change, and `attachContent` — which this milestone's surface writes through — has no cross-program
-  guard that would catch it. Recording that here is not a decision: whether I13 becomes a dependency
-  of M3 is the owner's call, and it is deliberately not made in this document.
+- **Dependencies.** None from the contract, which is complete — but **one recorded gate, decided
+  2026-09-13**. I11's `LearningPanel` flake was named as a precondition of this milestone and was
+  **discharged before it** — reproduced, root-caused and fixed in the test harness; see
+  [OPEN_ITEMS.md](OPEN_ITEMS.md) I11. What that triage found underneath was **I13**, and the owner
+  has now decided it rather than leaving it open: **I13 Checkpoint 1 (A′) is a gate on this
+  milestone** — the shared list hook derives what it exposes from the query identity its state
+  answers, and the six dynamic-params consumers that ignored `loading` render an in-flight state
+  instead of a false empty. **M3 does not start until Checkpoint 1 has finished validation** (the six
+  consecutive full-suite runs of §10.1, the build, the documentation gates); it is recorded as *in
+  progress*, not fixed, until then. Two parts were **deliberately excluded** from that authorization
+  and stay open: **Checkpoint 2**, an intent guard on `attachContent` — which this milestone's surface
+  writes through, and which today takes only `(levelId, contentId)`, so unlike `assignPlacement` it
+  has nothing to compare a level against (**not fixed**, and it cannot be done inside M3, whose
+  prohibition below forbids editing the learning domain); and **Checkpoint 3**, five hand-rolled
+  readers with the same shape, none reachable in shipped UI today. Consequence for M3's own code: a
+  write whose target comes from a rendered row must pair it with a parent id from an **independent**
+  query, as `StudentLearningPanel` already does — two values from the same stale row cannot
+  contradict each other, so a guard built on them proves nothing.
 - **Protected areas.** `src/domains/learning/__tests__/demoRepository.test.ts`,
   `LearningPanel.test.tsx`, `StudentLearningPanel.test.tsx`; DECISIONS.md §10 domain boundaries.
 - **Demo/API behaviour.** Learning resolves to Demo in **both** modes
@@ -582,13 +593,22 @@ item downward to make a phase look finished."*
    `src/components/ds/states.tsx`), queried **by role, not by its Persian label**, so a copy change
    cannot silently turn the wait into a no-op. Never a title, never a sleep, never a retry.
    **Correction (2026-09-12, from I11's triage):** the marker is sufficient for a refetch of the
-   *same* query and **insufficient when the query's params change**. `useResourceList` sets `loading`
-   inside an effect, so the frame between a params change and that effect carries the previous
+   *same* query and **insufficient when the query's params change**. `useResourceList` set `loading`
+   inside an effect, so the frame between a params change and that effect carried the previous
    query's rows with `loading === false` and no marker at all — measured `role="status"` count 0.
    Where a list's params can change (a selected parent, a page, a filter), the helper must wait for
    the data-derived state itself: the rows on screen are the rows the repository holds for what the
-   screen claims to be showing. The marker check stays, as necessary but not sufficient. The
-   underlying hook behaviour is **I13**, open.
+   screen claims to be showing. The marker check stays, as necessary but not sufficient.
+   **Since I13's Checkpoint 1 (2026-09-13, in progress through validation)** the hook upholds that
+   invariant itself — state carries the query identity it answers and what is exposed is derived at
+   render, so another query's page cannot be exposed at all, and a same-key refetch keeps its rows so
+   a data-version bump cannot blank every list. Two rules survive the fix and must not be relaxed
+   because of it: a test still waits on **data identity**, never on `loading === false` as its sole
+   proof (that is the flag under test, so such a wait can be satisfied by the frame being asserted
+   against); and a consumer must still render an **explicit in-flight state** rather than its empty
+   state while a params change is being read, because withholding the old page would otherwise turn
+   one lie into another. **I13's Checkpoints 2 and 3 remain open** — `attachContent` still carries no
+   caller intent, and five hand-rolled readers still have the pre-fix shape.
 3. **No assertion is weakened, skipped or deleted to reach green.** Fix the owning boundary
    (§10 of [PROJECT_STATE.md](PROJECT_STATE.md)).
 4. **Report the shape, not a bare number:** `N passed` or `(N − 8) passed + 8 skipped` depending on
