@@ -262,9 +262,14 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   has now decided it rather than leaving it open: **I13 Checkpoint 1 (A′) is a gate on this
   milestone** — the shared list hook derives what it exposes from the query identity its state
   answers, and the six dynamic-params consumers that ignored `loading` render an in-flight state
-  instead of a false empty. **M3 does not start until Checkpoint 1 has finished validation** (the six
-  consecutive full-suite runs of §10.1, the build, the documentation gates); it is recorded as *in
-  progress*, not fixed, until then. Two parts were **deliberately excluded** from that authorization
+  instead of a false empty. **That gate is now discharged:** Checkpoint 1 landed as `289e080` with the
+  full evidence set §10.1 of [PROJECT_STATE.md](PROJECT_STATE.md) requires — 6 consecutive
+  full-suite runs (100 files / 1384 passed / 0 failed / 0 skipped each, `dist/` built so nothing
+  skipped), 4 samples as two concurrent full suites, build, typecheck, documentation gates — plus a
+  reversion check on each half, so neither the hook fix nor the consumer gates rest on a test that
+  would pass without them. **M3 is therefore no longer held by I13 Checkpoint 1**; it remains NOT
+  STARTED and awaits the owner's authorization. Two parts were **deliberately excluded** from that
+  authorization
   and stay open: **Checkpoint 2**, an intent guard on `attachContent` — which this milestone's surface
   writes through, and which today takes only `(levelId, contentId)`, so unlike `assignPlacement` it
   has nothing to compare a level against (**not fixed**, and it cannot be done inside M3, whose
@@ -599,7 +604,7 @@ item downward to make a phase look finished."*
    Where a list's params can change (a selected parent, a page, a filter), the helper must wait for
    the data-derived state itself: the rows on screen are the rows the repository holds for what the
    screen claims to be showing. The marker check stays, as necessary but not sufficient.
-   **Since I13's Checkpoint 1 (2026-09-13, in progress through validation)** the hook upholds that
+   **Since I13's Checkpoint 1 (2026-09-13, implemented and validated at `289e080`)** the hook upholds that
    invariant itself — state carries the query identity it answers and what is exposed is derived at
    render, so another query's page cannot be exposed at all, and a same-key refetch keeps its rows so
    a data-version bump cannot blank every list. Two rules survive the fix and must not be relaxed

@@ -484,21 +484,35 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
-- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented, validation not yet complete.**
-  The owner authorized **Checkpoint 1 only**: the shared hook plus the six dynamic-params consumers
-  that ignored `loading`. That code is written and green in focused runs and in one full-suite run
-  (100 files / 1384 passed / 0 skipped) at the time of writing, but the six-run evidence rule of
-  §10.1, the repeated build and the documentation gates are still being recorded — so **this item is
-  not closed and must not be reported as fixed**. **Checkpoint 2** (the `attachContent` intent guard)
-  and **Checkpoint 3** (the hand-rolled readers below) are **not implemented**; **I14 is not
-  implemented** and remains a separate item. `attachContent` is **not** fixed and is **not** claimed
-  to be.
-- **What:** `useResourceList` (`src/domains/shared/useResource.ts:35`) keeps its page in state and
-  sets `loading` **inside an effect** (`src/domains/shared/useResource.ts:53`). When the params change — a new `programId`, a different page,
-  a changed filter — the render that follows carries the *previous* query's page with
-  `loading === false`, and the effect that re-sets `loading` runs only after that commit. So there is
-  a committed frame in which the component shows rows that do not belong to the params it was called
-  with, and reports that nothing is in flight.
+- **Status (2026-09-13): IN PROGRESS — Checkpoint 1 (A′) implemented and validated; Checkpoints 2
+  and 3 not authorized, not started.** The owner authorized **Checkpoint 1 only**: the shared hook
+  plus the six dynamic-params consumers that ignored `loading`. It landed as
+  `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
+  `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
+  and `git ls-remote` returned the same SHA as local `HEAD` after the push.
+  **Measured validation, all on that tree:** 6 consecutive full `npm test` runs — 100 files /
+  1384 passed / 0 failed / 0 skipped each, with `dist/` built so the CSP gates ran instead of
+  skipping — plus 4 samples run as two concurrent full suites, the contention condition that
+  historically amplified this area, all green: `LearningPanel.test.tsx` measured 2758–2824 ms under
+  contention against 1885–2080 ms idle, so the contention was real and still did not break it. Build
+  3.29 s, `tsc --noEmit` clean, documentation gates 68 green, `git diff --check` clean. Both halves
+  were **reversion-checked** so that neither test is vacuous: reverting the hook to its pre-fix
+  version fails the new hook suite (2 cases), and reverting the `GalleryPanel` gate alone — with the
+  hook fix in place — fails the gallery gate on a false empty state. Repeated runs are evidence, not
+  a proof of determinism. **This item is nevertheless still open:** **Checkpoint 2** (the
+  `attachContent` intent guard) and **Checkpoint 3** (the hand-rolled readers below) are **not
+  implemented**, and **I14 is not implemented** and remains a separate item. `attachContent` is
+  **not** fixed and is **not** claimed to be — Checkpoint 1 removed the window in which a stale row
+  could be read as the current query's row, which lowers but does not eliminate the risk that a
+  surface attaches content to a level it did not mean.
+- **What (as it was, before Checkpoint 1):** `useResourceList`
+  (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
+  effect**. When the params changed — a new `programId`, a different page, a changed filter — the
+  render that followed carried the *previous* query's page with `loading === false`, and the effect
+  that re-set `loading` ran only after that commit. So there was a committed frame in which the
+  component showed rows that did not belong to the params it was called with, and reported that
+  nothing was in flight. The line numbers the triage quoted pointed into the pre-fix file and are no
+  longer meaningful; the fixed hook derives what it exposes at render (see "Implemented as").
 - **Why it matters beyond tests:** in that frame there is **no in-flight marker of any kind** —
   measured on the real component: `role="status"` count 0, `aria-busy` count 0, no loading string.
   Two consequences. (1) It falsifies the assumption written into
@@ -540,14 +554,17 @@ recovery and the zero-record tests both remaining green.
   `loading === true` that still held the previous query's rows, which defeats any consumer that
   renders rows without gating. A **same-key refetch keeps its rows**, which is the boundary that
   stops every list in the product flickering empty on each global data-version bump.
-- **Smallest owning boundary:** `useResourceList` itself — clear the page and set `loading` during
-  the render in which the serialized params change (React's documented "adjust state when a prop
-  changes" pattern) instead of only in the effect. Then "no marker ⇒ the rows on screen are the rows
-  for these params" becomes true app-wide and §10.2's rule holds as written.
+- **Smallest owning boundary (what the triage proposed, now superseded by the implementation):**
+  `useResourceList` itself — clear the page and set `loading` during the render in which the
+  serialized params change (React's documented "adjust state when a prop changes" pattern) instead of
+  only in the effect. Then "no marker ⇒ the rows on screen are the rows for these params" becomes
+  true app-wide and §10.2's rule holds as written. **What shipped is strictly stronger** — see
+  "Implemented as": deriving the exposed values removes the second exposure too, and keeps rows on a
+  same-key refetch, which the proposed `setState` alone would have emptied.
 - **Not done in the I11 pass, deliberately (historical):** that pass was authorized for the test
   harness only, in one file. This changes a hook every list depends on and needed its own
   authorization, its own suite, and the six-run evidence rule in §10.1 — which is what Checkpoint 1
-  is now doing.
+  then did.
 - **Not done in Checkpoint 1, deliberately — still open:**
   - **Checkpoint 2: `attachContent` carries no caller intent.** It takes `(levelId, contentId)`, so
     there is nothing for it to compare a level against; `assignPlacement` can refuse a cross-program
@@ -577,7 +594,7 @@ recovery and the zero-record tests both remaining green.
     *previous* item's bytes under the new item's title; `useMediaObjectUrl`
     (`src/domains/media/useMedia.ts:24`) exposes the previous object URL for one frame. The library
     one is the more serious and should be scoped in its own right.
-- **Done when — Checkpoint 1 (met in code, validation pending):** a params change cannot be observed
+- **Done when — Checkpoint 1 (MET, and validated):** a params change cannot be observed
   with the previous page and `loading === false`, pinned by a **render-phase log of every committed
   frame** rather than by waiting on the flag under test
   (`src/domains/shared/__tests__/useResource.test.tsx`); a same-key refetch keeps its rows; a
@@ -585,8 +602,14 @@ recovery and the zero-record tests both remaining green.
   state and never a false empty (`src/domains/shared/__tests__/staleQueryGates.test.tsx`); an album
   switch arms no delete against the previous album
   (`src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx`); and the §10.2 / §4 wording is
-  re-checked against the new behaviour. **Still outstanding:** the six consecutive full-suite runs
-  for this change, and Checkpoints 2 and 3 above. **I13 stays open until those are recorded.**
+  re-checked against the new behaviour. All six are met, and the evidence rule is satisfied: 6
+  consecutive full-suite runs plus 4 contention samples, all green (see the status bullet).
+  One **honest limitation** is recorded rather than glossed: `GalleryAlbumSwitch.test.tsx` cannot pin
+  the offending frame under `act()`, because a `fireEvent` flushes effects before sampling can start;
+  it asserts the reachable invariant (no delete is ever armed against a non-selected album, and the
+  armed delete targets the selected album's image) and the frame itself is pinned by the hook suite's
+  render-phase log. **Still outstanding, so this item stays open:** Checkpoint 2 and Checkpoint 3
+  above.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
 - **What:** `src/domains/shared/demoCollection.ts:23` computes

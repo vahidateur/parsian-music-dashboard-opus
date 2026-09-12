@@ -208,6 +208,16 @@ Product work since those three is the product phase itself, described above and 
 `689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1 `73b40d9`
 (the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels).
 
+Two further commits landed outside that milestone sequence and are registered here so that
+`git log` shows nothing this ledger does not explain. `2972a99` closed **I11** — one test file and
+four documents, no product behaviour, and it was not recorded as a documentation checkpoint above
+because that row may only ever name a commit already pushed before the edit that names it.
+`289e080` is **I13 Checkpoint 1**: the shared list hook plus the six consumers that ignored
+`loading`, with three new test files. It is **product source**, so it is neither a milestone nor a
+documentation checkpoint, and it does not advance any row above; it is recorded in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I13 and in §7 item 12, and it is the commit that discharged M3's I13
+gate (§9).
+
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
 file never records the SHA of the commit carrying the edit (§2).
 
@@ -390,7 +400,9 @@ I13 or I14, and neither is reported as fixed. I13 matters before M3 specifically
 
 *Superseded in part on 2026-09-13, and left here as the record of that pass rather than rewritten:*
 **I13's Checkpoint 1** — the shared hook plus the six dynamic-params consumers that ignored
-`loading` — was subsequently authorized, implemented and is **in progress through validation**.
+`loading` — was subsequently authorized, implemented and **validated** at `289e080` (6 consecutive
+full-suite runs green, 4 contention samples green, build, typecheck, 68 documentation gates, and a
+reversion check on each half).
 **I14 is untouched**, and so are I13's Checkpoint 2 (`attachContent` still carries no caller intent)
 and Checkpoint 3 (five hand-rolled readers with the same shape). See §7 item 12 and
 [OPEN_ITEMS.md](OPEN_ITEMS.md) I13.
@@ -477,7 +489,9 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     buttons enabled; and demonstrated destructively on `GalleryPanel`, where a «حذف» offered under a
     newly selected album targeted an image of the album the user had navigated away from.
     `StudentLearningPanel` rendered «سطح نامشخص از ۱ سطح این دوره» in the same window for a placed
-    student. **I13's Checkpoint 1 is implemented and in progress through validation**: the state now
+    student. **I13's Checkpoint 1 is implemented and validated** (6 consecutive full-suite runs
+    green, 4 contention samples green, build, typecheck, documentation gates, and a reversion check
+    on each half): the state now
     carries the query identity it answers and what the hook exposes is derived at render, so a page
     belonging to another query cannot be exposed at all, and the six consumers that ignored `loading`
     now show an in-flight state instead of a false empty. **Still open:** `attachContent` carries no
@@ -519,12 +533,15 @@ flake has been reproduced, root-caused and fixed in the test harness, so the sui
 trustworthy again — and the triage answered the spec's question honestly: it was *not* an artefact of
 running two suites on one machine. What I11's triage found underneath has now been **decided**:
 **I13** (a list hook published the previous query's rows with no loading marker when its params
-change — every list in the product) was authorized as **Checkpoint 1 (A′)** on 2026-09-13 and is
-implemented: the shared hook derives what it exposes from the query identity its state answers, and
-the six dynamic-params consumers that ignored `loading` now show an in-flight state instead of a
-false empty. **M3 stays blocked until Checkpoint 1 has finished validation** — the six consecutive
-full-suite runs of §10.1, the build and the documentation gates — and it is recorded as *in
-progress*, not fixed, until then. Two parts of I13 were **deliberately left out** of that
+change — every list in the product) was authorized as **Checkpoint 1 (A′)** on 2026-09-13, implemented and
+**validated at `289e080`**: the shared hook derives what it exposes from the query identity its state
+answers, and the six dynamic-params consumers that ignored `loading` now show an in-flight state
+instead of a false empty. The evidence is the full set §10.1 requires — 6 consecutive full-suite runs
+(100 files / 1384 passed / 0 failed / 0 skipped each, `dist/` built so nothing skipped), 4 samples as
+two concurrent full suites, build, typecheck and 68 documentation gates — plus a reversion check on
+each half, so neither the hook fix nor the consumer gates are pinned by a test that would pass
+without them. **That gate is discharged; M3 is no longer held by I13 Checkpoint 1.** Two parts of I13
+were **deliberately left out** of that
 authorization and remain open: **Checkpoint 2**, the `attachContent` intent guard (`attachContent`
 still takes only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a
 level against — it is **not** fixed), and **Checkpoint 3**, five hand-rolled readers with the same

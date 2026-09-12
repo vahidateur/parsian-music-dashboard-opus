@@ -204,10 +204,15 @@ section below. What I11's triage found underneath the harness has since been **d
 left open**: **I13** (a list hook published the previous query's rows with no loading marker when its
 params change) was authorized as **Checkpoint 1 (A′)** on 2026-09-13 and is implemented — the shared
 hook derives what it exposes from the query identity its state answers, and the six dynamic-params
-consumers that ignored `loading` render an in-flight state instead of a false empty. **It is a
-recorded gate on M3, and M3 does not start until its validation is complete** (the six consecutive
-full-suite runs, the build, the documentation gates); until then it is recorded as *in progress*, not
-fixed. Excluded from that authorization and still open: **I13 Checkpoint 2** (`attachContent` takes
+consumers that ignored `loading` render an in-flight state instead of a false empty. **It was a
+recorded gate on M3, and that gate is now discharged:** Checkpoint 1 landed as `289e080` with the
+full evidence set §10.1 of [PROJECT_STATE.md](PROJECT_STATE.md) requires — 6 consecutive full-suite
+runs (100 files / 1384 passed / 0 failed / 0 skipped each, `dist/` built so nothing skipped), 4
+samples as two concurrent full suites, build 3.29 s, typecheck, 68 documentation gates — plus a
+reversion check on each half. It is **not** registered as a milestone or as a documentation
+checkpoint: it is product source, so no row above moves, and §4 of PROJECT_STATE records it under
+"Work landed since the Phase 2 checkpoint" instead. Excluded from that authorization and still open:
+**I13 Checkpoint 2** (`attachContent` takes
 only `(levelId, contentId)`, so unlike `assignPlacement` it has nothing to compare a level against —
 **not fixed**, and M3's own prohibition forbids doing it inside M3), **I13 Checkpoint 3** (five
 hand-rolled readers with the same shape, none reachable in shipped UI today), and **I14** (`paginate`
