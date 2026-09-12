@@ -217,8 +217,8 @@ file never records the SHA of the commit carrying the edit (§2).
 |---|---|
 | `npm ci` | ✅ exit 0 (no install script; `npm install` is never run, in CI or locally) |
 | `npm run typecheck` | ✅ clean (`tsc --noEmit`, zero output, exit 0) |
-| `npm test` (full suite) | ✅ **97 files / 1369 passed / 0 failed / 0 skipped**, with `dist/` present so the 8 CSP gates ran (single definitive run, 109.5 s) |
-| `npm run build` | ✅ exit 0, `built in 4.51s`; pre-existing warning: main chunk > 500 kB (no code-splitting yet — **I6**) |
+| `npm test` (full suite) | ✅ **97 files / 1369 passed / 0 failed / 0 skipped**, with `dist/` present so the 8 CSP gates ran (single definitive run, 111.3 s, taken after every document edit) |
+| `npm run build` | ✅ exit 0, `built in 4.12s`; pre-existing warning: main chunk > 500 kB (no code-splitting yet — **I6**) |
 | `git diff --check` | ✅ clean (no whitespace errors, no conflict markers) |
 | Baseline before any M2.1 edit | ✅ **1345 tests** at M2 `c42f274`, measured in a `git worktree` of this clone: 1336 passed / 8 skipped / 1 failed. Both non-green parts are artifacts of *that* worktree, not of the code — it has no `dist/`, so the 8 CSP gates skip on the absent build artifact, and it is a detached HEAD, so `projectState.test.ts`'s "the recorded working branch is the branch actually checked out" fails by construction. The arithmetic is auditable: `1345 + 18 (new suite) + 6 (added to honestWriteCopy) = 1369` |
 | Mutation check on the new tests | ✅ two independent reverts, each restored byte-exactly (`sha256sum`) and re-run. Reverting **the hook alone** fails all 18 new cases *and* the strengthened panel case, which reports `expected '' to be 'ساز زهی مضرابی؛ کلاسیک، پاپ و فلامنکو.'` — the erasure itself. Reverting **the three panels alone** fails the 3 new EMPTY cases and both ratchet cases, naming exactly those files, while the 3 DEMO cases still pass — correctly, since DEMO's copy was never wrong. This is the evidence that the new tests detect the defects instead of restating the code |
