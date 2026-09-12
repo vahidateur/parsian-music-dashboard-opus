@@ -20,6 +20,7 @@ import { Field, ListRow, Panel, inputCls } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getLearningRepository } from "@/domains/registry";
 import { useInstruments } from "@/domains/instruments/useInstruments";
+import { LevelContentPanel } from "./LevelContentPanel";
 import { useLevels, usePrograms } from "./useLearning";
 import type { LearningLevel, LearningProgram } from "./types";
 import { cn } from "@/utils/cn";
@@ -103,6 +104,38 @@ export function LearningPanel() {
   const { items: levels, loading: levelsLoading } = useLevels(
     selected ? { programId: selected.id, per_page: 200 } : { per_page: 0 },
   );
+
+  /**
+   * Which level's content is being assigned (M3). The id is stored, but the
+   * level is *derived* from the current query's rows, so a selection made under
+   * another program resolves to nothing here instead of rendering a row that no
+   * longer belongs to the selection — and the assignment surface below is
+   * rendered only from that derived value.
+   */
+  const [contentLevelId, setContentLevelId] = useState<string | null>(null);
+  const contentLevel = useMemo(
+    () => levels.find((level) => level.id === contentLevelId),
+    [levels, contentLevelId],
+  );
+
+  /**
+   * The assignment surface belongs to the selected program, so its level
+   * selection is dropped when the program changes instead of being carried
+   * over: a level of the previous program is not a valid target under the new
+   * one.
+   *
+   * This is selection semantics, not a stale-read workaround — it suppresses
+   * and fabricates nothing, and it is not what makes a crossing impossible.
+   * `LevelContentPanel` takes `programId` from the programs query while
+   * `levelId` comes from the rendered row, and `attachContent` refuses an intent
+   * that does not own the level (I13 Checkpoint 2); that is the invariant. This
+   * only stops the surface from naming one program while listing another's
+   * level during the frame in which the levels query still holds the previous
+   * program's page.
+   */
+  useEffect(() => {
+    setContentLevelId(null);
+  }, [selected?.id]);
 
   const instrumentName = (id: string) =>
     instruments.find((i) => i.id === id)?.name ?? id;
@@ -280,6 +313,7 @@ export function LearningPanel() {
                   {levels.map((level, index) => (
                     <li key={level.id}>
                       <ListRow
+                        active={contentLevelId === level.id}
                         title={`${faNum(level.order)}. ${level.name}`}
                         meta={
                           level.objectives.length > 0
@@ -299,6 +333,19 @@ export function LearningPanel() {
                               tone={level.active ? "ok" : "neutral"}
                               label={level.active ? "فعال" : "غیرفعال"}
                             />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-pressed={contentLevelId === level.id}
+                              disabled={busy}
+                              onClick={() =>
+                                setContentLevelId(
+                                  contentLevelId === level.id ? null : level.id,
+                                )
+                              }
+                            >
+                              منابع
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -354,6 +401,25 @@ export function LearningPanel() {
           )}
         </div>
       </div>
+
+      {/*
+        M3's assignment surface, rendered OUTSIDE the levels column on purpose:
+        the rows it lists are content, not levels, and mixing them into that
+        column would make the level list claim rows it does not own.
+
+        `programId` is the program this panel selected — resolved from the
+        programs query — while `levelId` comes from the rendered level row. The
+        two are independent, which is the only reason `attachContent`'s intent
+        check can mean anything (I13 Checkpoint 2).
+      */}
+      {selected && contentLevel && (
+        <LevelContentPanel
+          levelId={contentLevel.id}
+          levelName={contentLevel.name}
+          programId={selected.id}
+          programName={selected.name}
+        />
+      )}
     </Panel>
   );
 }
