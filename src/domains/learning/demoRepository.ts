@@ -6,6 +6,7 @@
  *  - level `order` is 1-based, contiguous and unique within its program
  *  - a level cannot be deleted while content is linked to it
  *  - a placement's level must belong to the placement's program
+ *  - a link's level must belong to the program the caller resolved it from
  *  - one active placement per student
  *  - attaching content twice to the same level is a no-op conflict, not a copy
  */
@@ -16,6 +17,7 @@ import { resolveEligibleContent, resolveEligibleStudentIds } from "./eligibility
 import type { LearningRepository } from "./repository";
 import type {
   AssignPlacementInput,
+  AttachContentIntent,
   CreateContentInput,
   CreateLevelInput,
   CreateProgramInput,
@@ -235,9 +237,27 @@ export class DemoLearningRepository implements LearningRepository {
     return levelId ? rows.filter((row) => row.levelId === levelId) : rows;
   }
 
-  async attachContent(levelId: string, contentId: string): Promise<LevelContentLink> {
-    await this.getLevel(levelId);
+  async attachContent(
+    levelId: string,
+    contentId: string,
+    intent: AttachContentIntent,
+  ): Promise<LevelContentLink> {
+    const level = await this.getLevel(levelId);
     await this.getContent(contentId);
+    await this.getProgram(intent.programId);
+
+    // I13 Checkpoint 2: the caller states which program it resolved this level
+    // from, so a row left over from another query cannot become a write into a
+    // ladder nobody is looking at. The same comparison assignPlacement has
+    // always made, for the same reason — eligibility is derived from links, so a
+    // link into the wrong program silently changes what its placed students can
+    // open. Checked BEFORE the duplicate check: refusing a write the caller did
+    // not mean outranks reporting that it already happened.
+    if (level.programId !== intent.programId) {
+      throw validationError("LINK_INVALID", "سطح انتخاب‌شده به این برنامه تعلق ندارد.", {
+        levelId: ["با برنامه هم‌خوان نیست"],
+      });
+    }
 
     const existing = this.store.levelContent
       .all()

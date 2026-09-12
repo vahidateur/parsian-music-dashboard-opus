@@ -188,6 +188,32 @@ export interface LevelContentLink {
   sortOrder: number;
 }
 
+/**
+ * The caller's own answer to "which program is that level in?", handed to
+ * `attachContent` alongside the level so the repository has something to compare
+ * the level against.
+ *
+ * WHY IT EXISTS (I13 Checkpoint 2). A surface renders level rows from a list
+ * query. `attachContent(levelId, contentId)` checked only that both ids existed,
+ * so if the row on screen belonged to a program the user had navigated away
+ * from, the write still succeeded: content landed on a ladder nobody was looking
+ * at, and because eligibility is derived from links, it silently changed what
+ * every placed student of *that* program could open. `assignPlacement` never had
+ * this hole, because it is handed a `programId` as well as a `levelId` and
+ * refuses the pair when they disagree. This is the same contract, no larger.
+ *
+ * THE VALUE MUST BE RESOLVED INDEPENDENTLY of the level being written to — it
+ * comes from the program the caller selected and read its own context from,
+ * never from `level.programId` read back off the target. A caller that passes
+ * the target's own program makes the comparison a tautology and the guard
+ * proves nothing, which is the same reason two values taken from one stale row
+ * cannot contradict each other.
+ */
+export interface AttachContentIntent {
+  /** Program the caller resolved the target level to belong to. */
+  programId: string;
+}
+
 /* ------------------------------------------------------------------ */
 /* Student placement                                                   */
 /* ------------------------------------------------------------------ */

@@ -1,6 +1,7 @@
 import type { Page } from "@/api/types";
 import type {
   AssignPlacementInput,
+  AttachContentIntent,
   CreateContentInput,
   CreateLevelInput,
   CreateProgramInput,
@@ -54,7 +55,16 @@ export interface LearningRepository {
 
   /* level ↔ content links */
   listLinks(levelId?: string, signal?: AbortSignal): Promise<LevelContentLink[]>;
-  attachContent(levelId: string, contentId: string): Promise<LevelContentLink>;
+  /**
+   * Links content to a level.
+   *
+   * `intent` is the caller's independently resolved program — the one it read
+   * its own context from, not one read back off the target level. A level that
+   * does not belong to it is refused (`LINK_INVALID`) rather than silently
+   * written, so a row left over from another query cannot become a write into a
+   * ladder nobody is looking at. Same contract `assignPlacement` has always had.
+   */
+  attachContent(levelId: string, contentId: string, intent: AttachContentIntent): Promise<LevelContentLink>;
   detachContent(levelId: string, contentId: string): Promise<void>;
 
   /* placement */

@@ -123,13 +123,20 @@ describe("level lifecycle", () => {
   });
 });
 
+/**
+ * Every `attachContent` call below passes the program its own query already
+ * resolved the level from — a literal, deliberately never `level.programId`.
+ * Reading the intent back off the target would make the check a tautology, which
+ * is the whole reason the parameter exists (I13 Checkpoint 2). These calls are
+ * unchanged in what they assert; only the now-required intent was added.
+ */
 describe("content links", () => {
   it("attaches content to a level without copying the record", async () => {
     const content = (await repo.listContent({ per_page: 5 })).data[0];
     const level = (await repo.listLevels({ programId: "pg_theory", per_page: 100 })).data[0];
     const totalBefore = (await repo.listContent({ per_page: 500 })).meta.total;
 
-    await repo.attachContent(level.id, content.id);
+    await repo.attachContent(level.id, content.id, { programId: "pg_theory" });
 
     // One more link, but not one more content row.
     expect((await repo.listContent({ per_page: 500 })).meta.total).toBe(totalBefore);
@@ -140,15 +147,17 @@ describe("content links", () => {
   it("refuses to attach the same content to a level twice", async () => {
     const content = (await repo.listContent({ per_page: 5 })).data[0];
     const level = (await repo.listLevels({ programId: "pg_theory", per_page: 100 })).data[0];
-    await repo.attachContent(level.id, content.id);
-    expect(await codeOf(repo.attachContent(level.id, content.id))).toBe("CONTENT_ALREADY_LINKED");
+    await repo.attachContent(level.id, content.id, { programId: "pg_theory" });
+    expect(await codeOf(repo.attachContent(level.id, content.id, { programId: "pg_theory" }))).toBe(
+      "CONTENT_ALREADY_LINKED",
+    );
   });
 
   it("allows one content item to serve several levels", async () => {
     const content = (await repo.listContent({ per_page: 5 })).data[0];
     const levels = (await repo.listLevels({ programId: "pg_theory", per_page: 100 })).data;
-    await repo.attachContent(levels[0].id, content.id);
-    await repo.attachContent(levels[1].id, content.id);
+    await repo.attachContent(levels[0].id, content.id, { programId: "pg_theory" });
+    await repo.attachContent(levels[1].id, content.id, { programId: "pg_theory" });
 
     const links = await repo.listLinks();
     expect(links.filter((l) => l.contentId === content.id).length).toBeGreaterThanOrEqual(2);
@@ -157,7 +166,7 @@ describe("content links", () => {
   it("detaching removes the link, not the content", async () => {
     const content = (await repo.listContent({ per_page: 5 })).data[0];
     const level = (await repo.listLevels({ programId: "pg_theory", per_page: 100 })).data[0];
-    await repo.attachContent(level.id, content.id);
+    await repo.attachContent(level.id, content.id, { programId: "pg_theory" });
     await repo.detachContent(level.id, content.id);
 
     expect(await repo.getContent(content.id)).toBeDefined();
@@ -168,7 +177,7 @@ describe("content links", () => {
   it("deleting content detaches it everywhere rather than leaving orphan links", async () => {
     const content = (await repo.listContent({ per_page: 5 })).data[0];
     const level = (await repo.listLevels({ programId: "pg_theory", per_page: 100 })).data[0];
-    await repo.attachContent(level.id, content.id);
+    await repo.attachContent(level.id, content.id, { programId: "pg_theory" });
 
     await repo.deleteContent(content.id);
     const links = await repo.listLinks();
@@ -210,8 +219,8 @@ describe("student placement and eligibility", () => {
   it("changing a student's level immediately changes eligible content", async () => {
     // Attach known content to violin levels 1 and 4.
     const content = (await repo.listContent({ per_page: 10 })).data;
-    await repo.attachContent("lv_violin_1", content[0].id);
-    await repo.attachContent("lv_violin_4", content[1].id);
+    await repo.attachContent("lv_violin_1", content[0].id, { programId: "pg_violin" });
+    await repo.attachContent("lv_violin_4", content[1].id, { programId: "pg_violin" });
 
     await placeViolin(1);
     const atOne = await repo.eligibleContent("st1");
@@ -230,7 +239,7 @@ describe("student placement and eligibility", () => {
     const before = await repo.eligibleContent("st1");
     expect(before.map((e) => e.content.id)).not.toContain(content.id);
 
-    await repo.attachContent("lv_violin_2", content.id);
+    await repo.attachContent("lv_violin_2", content.id, { programId: "pg_violin" });
     const after = await repo.eligibleContent("st1");
     expect(after.map((e) => e.content.id)).toContain(content.id);
   });
@@ -238,7 +247,7 @@ describe("student placement and eligibility", () => {
   it("reports which students a content item reaches", async () => {
     await placeViolin(5);
     const content = (await repo.listContent({ per_page: 10 })).data[3];
-    await repo.attachContent("lv_violin_3", content.id);
+    await repo.attachContent("lv_violin_3", content.id, { programId: "pg_violin" });
 
     const ids = await repo.eligibleStudentIds(content.id);
     expect(ids).toContain("st1");
