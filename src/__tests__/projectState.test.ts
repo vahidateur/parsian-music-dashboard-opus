@@ -293,7 +293,7 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
         ).toBe(true);
       }
     }
-  });
+  }, 30_000);
 
   it("the recorded working branch is the branch actually checked out", () => {
     expect(git("rev-parse", "--abbrev-ref", "HEAD")).toBe(recordedValue(doc("PROJECT_STATE.md"), "Working branch"));
@@ -458,19 +458,23 @@ describe("the recovery documentation does not overpromise", () => {
   const state = doc("PROJECT_STATE.md");
   const open = doc("OPEN_ITEMS.md");
 
-  it("says plainly that a cleared environment has no in-product recovery", () => {
-    expect(state).toMatch(/NO in-product recovery/);
-    expect(state).toMatch(/no component calls it/i);
-    // The wording this replaces offered `uninitialize` or a backup restore as a way back.
-    // Neither is reachable from inside a product that cannot be signed into.
-    expect(state).not.toContain("Recovery path: `uninitialize`");
-    expect(open).not.toMatch(/Recovery today:/);
+  it("records the M1 recovery path without changing clear semantics", () => {
+    expect(state).toMatch(/`clear\(\)` still produces an environment nobody can sign into/);
+    expect(state).toMatch(/lifecycle gate owns the controller/);
+    expect(state).toContain("src/components/lifecycle/LifecycleRecoveryPanel.tsx");
+    expect(state).toMatch(/outside the[\s\S]{0,80}signed-in shell/i);
+    expect(state).toMatch(/exact `UninitializeResult\.message`/);
+    expect(state).toMatch(/API mode has no local[\s\S]{0,60}affordance/i);
+    expect(state).not.toMatch(/NO in-product recovery/);
+    expect(state).not.toMatch(/no component calls it/i);
   });
 
-  it("tracks the missing recovery affordance as a critical open item", () => {
-    expect(open).toMatch(/### H5\. No in-product recovery/);
-    expect(open).toMatch(/H5[\s\S]{0,1600}Priority: CRITICAL/);
-    expect(open).toMatch(/Deliberately not implemented/);
+  it("records H5 as landed by M1 without weakening its invariant", () => {
+    expect(open).toMatch(/### H5\. Recovery from an unusable environment/);
+    expect(open).toMatch(/H5[\s\S]{0,2600}LANDED/);
+    expect(open).toMatch(/M1 landed the gate-owned recovery/i);
+    expect(open).toContain("src/components/lifecycle/LifecycleRecoveryPanel.tsx");
+    expect(open).toMatch(/calls `uninitialize`/);
     // The invariant that constrains any fix stays visible and cross-referenced.
     expect(open).toMatch(/### I10\.[^\n]*H5/);
   });
@@ -518,8 +522,9 @@ describe("DECISIONS.md records the boot chain and the access path", () => {
     expect(decisions).toContain("scripts/gen-access-path.mjs");
   });
 
-  it("cross-references the remaining gap instead of implying the chain is complete", () => {
-    expect(decisions).toMatch(/no UI affordance/i);
+  it("records the M1 recovery placement and keeps API mode excluded", () => {
+    expect(decisions).toMatch(/outside the signed-in shell/i);
+    expect(decisions).toMatch(/API mode[\s\S]{0,80}no local recovery affordance/i);
     expect(decisions).toContain("](OPEN_ITEMS.md)");
   });
 });

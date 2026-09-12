@@ -88,24 +88,40 @@ drift — re-grep before editing.
   input set is empty (via `src/lib/stats.ts` + `NO_DATA`), and a test renders the dashboard in
   EMPTY asserting no fabricated figure or sentence survives.
 
-### H5. No in-product recovery from an unusable environment — `clear()` is a one-way door
-- **What:** `clear()` empties every collection including `users`, so no account remains and sign-in
-  becomes impossible. The lifecycle marker survives, so
+### H5. Recovery from an unusable environment — `clear()` remains a one-way door for records
+- **What:** `clear()` still empties every collection including `users`, so no account remains and
+  sign-in becomes impossible. The lifecycle marker survives, so
   `src/components/lifecycle/DataLifecycleGate.tsx` stays transparent and parks the visitor on a
-  login screen that cannot succeed. Settings — and therefore "restore a backup" — sits *behind*
-  that login, so it is unreachable too. `uninitializeEnvironment()` exists
-  (`src/domains/demo/lifecycle.ts`) and is exposed as `demoDataManager.uninitialize()`
-  (`src/domains/demo/demoDataManager.ts`), but **no component calls it**: `src/domains/demo/useDemoData.ts`
-  wires only `reset | clear | import-seed | restore-backup`.
-- **Priority: CRITICAL.** One confirmed click can render a customer's environment unrecoverable from
-  inside the product. [PROJECT_STATE.md](PROJECT_STATE.md) §7 used to claim a recovery path existed;
-  that claim has been corrected, and I10 now records the invariant any fix must respect.
-- **Deliberately not implemented** in the documentation pass — a recovery affordance is product work.
-- **Done when:** either `clear()` warns with the real consequence and offers an escape, or an
-  explicit "start over / choose the environment again" affordance exists **outside** the signed-in
-  shell (on the login screen or in the gate itself) and calls `uninitialize` — with tests covering
-  both the lockout and the way back out. Record the chosen shape as a decision in
-  [DECISIONS.md](DECISIONS.md) §8 and §18 first.
+  login screen that cannot succeed. Settings — and therefore "restore a backup" — remains
+  *behind* that login. The destructive operation itself is intentionally unchanged; recovery is
+  the separate `uninitializeEnvironment()` path
+  (`src/domains/demo/lifecycle.ts`), exposed through `demoDataManager.uninitialize()`
+  (`src/domains/demo/demoDataManager.ts`).
+- **Status: ✅ LANDED by M1** (this milestone; its commit SHA is registered in
+  [PHASES.md](PHASES.md) by the *next* commit, per the no-self-referential-SHA rule). Kept visible
+  here as a completed record rather than deleted, because I10's invariant below still constrains any
+  future change and the entry is the cross-reference for it.
+- **M1 landed the gate-owned recovery.** `src/components/lifecycle/DataLifecycleGate.tsx` owns the
+  recovery controller and publishes it through `src/components/lifecycle/LifecycleRecoveryContext.ts`;
+  `src/components/lifecycle/LifecycleRecoveryPanel.tsx` is rendered by `src/views/Login.tsx` outside
+  `Shell`/Settings only for local initialized EMPTY and DEMO environments, and is absent in API
+  mode. The existing destructive-action seam (`src/domains/demo/useDemoData.ts`) provides a two-step
+  request/confirm flow, displays `manager.stats()` counts, awaits `uninitialize`, and surfaces the
+  exact `UninitializeResult.message` including a blob-cleanup failure clause. After the reset, the
+  gate returns to `FirstRunChooser`, which blocks the choices until async cleanup ends.
+- **Priority: CRITICAL** (historical). A confirmed `clear()` could render a customer's environment
+  unusable; that is why M1 was sequenced first. The M1-specific decisions are recorded in
+  [DECISIONS.md](DECISIONS.md) §19 (D3/D4) and reflected in §8 and §18; I10 preserves the
+  zero-record invariant.
+- **Clear semantics remain unchanged:** M1 did not re-add a bootstrap account or alter the meaning
+  of `clear()`; `uninitialize` removes the environment itself, including stored binaries.
+- **Verified when it landed:** the "start over / choose the environment again" affordance is
+  **outside** the signed-in shell, calls `uninitialize`, and tests cover the lockout, cancellation,
+  successful transition, verbatim blob-failure propagation and the way back to both EMPTY and DEMO
+  (`src/components/lifecycle/__tests__/DataLifecycleGate.test.tsx`,
+  `src/domains/demo/__tests__/useDemoData.test.tsx`,
+  `src/domains/demo/__tests__/dataLifecycle.test.ts`,
+  `src/components/settings/__tests__/DemoDataPanel.test.tsx`).
 
 ---
 
@@ -195,15 +211,15 @@ reachable the moment H4 lands. **Done when:** both guard empty input and render 
 
 ### I10. The "all collections zero" invariant constrains any fix for H5
 `clear()` empties every collection including `users`, so no account remains and login is impossible
-— see **H5** for the full account, including the fact that there is **no in-product recovery**. An
-earlier revision of this entry offered `uninitialize` or a backup restore as recovery paths; that
-was wrong, because neither is reachable from inside a locked-out product. Pre-existing behaviour.
-`src/domains/demo/__tests__/seed.test.ts` pins that an empty dataset keeps every collection at zero
-— correctly, since a dataset that quietly contains an account is not empty. That is why the
-bootstrap administrator lives at the lifecycle layer (`createEmptyEnvironment()`,
-`src/domains/demo/lifecycle.ts`) and why `clear()` cannot simply re-add one. **Done when:** the H5
-fix lands without weakening that invariant, or a recorded decision in [DECISIONS.md](DECISIONS.md)
-§8 changes the invariant first.
+— see **H5** for the full account. M1 does **not** weaken that invariant: it does not re-add a
+bootstrap account or change what `clear()` means. The separate `uninitialize` recovery path removes
+the environment itself and returns to the lifecycle chooser, where a new EMPTY environment may
+create its lifecycle-layer bootstrap administrator. Pre-existing behaviour remains pinned by
+`src/domains/demo/__tests__/seed.test.ts`, which correctly keeps every collection at zero in the
+empty dataset. That is why the bootstrap administrator lives at the lifecycle layer
+(`createEmptyEnvironment()`, `src/domains/demo/lifecycle.ts`) and why `clear()` cannot simply
+re-add one. **Done when:** the H5 fix lands without weakening this invariant, with the gate-owned
+recovery and the zero-record tests both remaining green.
 
 ### I11. Test-harness races — one retired at its boundary, one observed and not investigated
 - **Retired in this pass:** `src/views/__tests__/emptyEnvironment.test.tsx` carried a harness race

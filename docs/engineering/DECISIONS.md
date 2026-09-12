@@ -150,7 +150,9 @@ would break the pinned "all collections zero" invariant.
 `src/domains/demo/__tests__/seed.test.ts`, `docs/architecture/auth.md` → bootstrap account.
 
 **Status.** ✅ In force. Known limitation: `clear()` still empties `users` and locks everyone
-out (recovery is `uninitialize` or restoring a backup) — see [OPEN_ITEMS.md](OPEN_ITEMS.md).
+out. The M1-specific recovery path is the separate gate-owned `uninitialize` flow; it does not
+change the zero-record invariant or add an account back into the cleared dataset. See
+[OPEN_ITEMS.md](OPEN_ITEMS.md) H5 while the provisional implementation is validated and landed.
 
 ## 9. Production means the API/backend — and it does not exist yet
 
@@ -349,9 +351,10 @@ literal would publish it to Git and to every clone.
 `src/components/lifecycle/__tests__/DataLifecycleGate.test.tsx`, and the "hardcodes no access path"
 rule in `src/__tests__/privacyPosture.test.ts`.
 
-**Status.** ✅ In force. Gap: once an environment exists there is **no UI affordance** that returns
-the visitor to `DataLifecycleGate`, so a wrong first choice cannot be undone from inside the
-product — see [OPEN_ITEMS.md](OPEN_ITEMS.md) H5.
+**Status.** ✅ In force. The M1-specific recovery path is gate-owned and reachable from the
+unauthenticated branch outside the signed-in shell for local EMPTY/DEMO environments; API mode
+has no local recovery affordance. The implementation and its lockout/way-back tests remain
+provisional until the M1 validation and phase checkpoint are complete.
 
 ---
 
@@ -368,8 +371,8 @@ it blocks. An open decision is **not** an invitation to implement — it is a st
 |---|---|---|---|
 | D1 | Student / guardian role in this panel, or a separate app | **DEFERRED** | M-none (I5, I4) |
 | D2 | Branding as the source of truth for the academy identity | **OPEN** | M8 |
-| D3 | Where the environment-recovery affordance lives | **OPEN** | M1 |
-| D4 | `clear()` semantics against the zero-record invariant | **OPEN** | M1 |
+| D3 | Where the environment-recovery affordance lives | **DECIDED — M1-specific** | M1 |
+| D4 | `clear()` semantics against the zero-record invariant | **DECIDED — M1-specific** | M1 |
 | D5 | Shape of the fixture / type / seed separation | **OPEN** | M10 |
 | D6 | Creating the finance and reports domains in this phase | **DEFERRED** | M-none (I2) |
 | D7 | How accessibility is enforced | **OPEN** | M11 |
@@ -426,11 +429,10 @@ definitions in `src/index.css` plus a test asserting the saved identity is the r
 
 ### D3. Placement of the environment-recovery affordance
 
-**Decision.** To be recorded before M1: where the "start over / choose the environment again"
-affordance lives — on the login screen, or inside `src/components/lifecycle/DataLifecycleGate.tsx`
-itself. [OPEN_ITEMS.md](OPEN_ITEMS.md) H5 requires it to be **outside the signed-in shell**,
-because after `clear()` there is no account to sign in with and Settings — where "restore a backup"
-lives — sits behind that login.
+**Decision.** For M1, recovery/uninitialization is owned by the lifecycle gate and is reachable
+outside the signed-in shell. The gate-owned controller may hand the visible affordance to the
+unauthenticated branch, but it must never render recovery controls inside `Shell` or `Settings`.
+It is available only for initialized local EMPTY/DEMO environments; API mode remains transparent.
 
 **Why.** §18 forbids mounting anything above a gate whose decision it depends on. Recovery changes
 the lifecycle state, so it must render **at or below** `DataLifecycleGate` in the boot chain
@@ -442,15 +444,14 @@ failure §5 and §6 were written to prevent.
 (`uninitializeEnvironment`), `src/__tests__/routeProtection.test.tsx`, and the gate tests in
 `src/components/lifecycle/__tests__`.
 
-**Status.** 🔶 Open. Blocks M1. In api mode the gate is transparent, so no local recovery
-affordance may render at all — there is no local environment to recover.
+**Status.** ✅ M1-specific decision. This does not generalize to backend or production
+architecture. API mode has no local environment to recover and exposes no affordance.
 
 ### D4. `clear()` keeps its meaning; recovery is `uninitialize`
 
-**Decision.** To be recorded before M1, and the recommended shape is: `clear()` continues to empty
-every collection including `users`, and the way back is **`uninitialize`**, not a re-added account.
-Any alternative — having `clear()` re-bootstrap an administrator — changes §8 and must be written
-down here *first*.
+**Decision.** For M1, existing `clear()` semantics remain unchanged: it continues to empty every
+collection including `users`. The recovery/uninitialization path is **`uninitialize`**, not a
+re-added bootstrap account.
 
 **Why.** §8 and [OPEN_ITEMS.md](OPEN_ITEMS.md) I10 pin the invariant: an empty dataset keeps every
 collection at zero, and the single bootstrap administrator is added at the **lifecycle** layer
@@ -463,9 +464,9 @@ and §16 forbids that trade.
 `src/domains/demo/useDemoData.ts` (whose `DESTRUCTIVE_LABELS` must state the real consequence), and
 the lockout/recovery tests M1 adds.
 
-**Status.** 🔶 Open. Blocks M1. The distinction the copy must preserve is the one
-`src/domains/demo/lifecycle.ts` already documents: clearing removes **records** and keeps the
-environment and its mode; `uninitialize` removes **the environment itself**, binaries included.
+**Status.** ✅ M1-specific decision. This does not generalize to backend or production
+architecture. Clearing removes **records** and keeps the environment and its mode;
+uninitializing removes **the environment itself**, binaries included.
 
 ### D5. Fixtures have three roles; only one of them is a defect
 

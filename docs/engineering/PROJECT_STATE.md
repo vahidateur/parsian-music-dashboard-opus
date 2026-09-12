@@ -84,13 +84,14 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 
 | Field | Value |
 |---|---|
-| Current phase | **Phase 2 — data lifecycle (UNINITIALIZED / EMPTY / DEMO)** |
-| Phase status | ✅ **COMPLETE**, committed as `33b1031`, pushed to the working branch |
-| Next phase | Product-feature phase — ❌ **NOT STARTED**, not authorized yet |
+| Current phase | **Product-feature phase — M1 (recovery & lifecycle UX)** |
+| Phase status | ✅ **COMPLETE** — landed this commit on top of M0 `f2ebc09`, pushed to the working branch. This commit's own SHA is registered by the next commit (§2: no self-referential SHA); `git log --oneline -- src/components/lifecycle` is the authority for it |
+| Next phase | Product-feature phase — **M2 (honest write feedback)** — ❌ **NOT STARTED**, not authorized yet |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
-Nothing here is advanced by a documentation checkpoint (§2): only a reviewed, approved and pushed
-*phase* moves "Current phase", which is why it still reads Phase 2 after the audit pass.
+M0 (`f2ebc09`, spec + decision register, documents only) and M1 (this commit, the recovery UX) are
+the product phase's first two milestones. M2–M11 have not started; the ledger in
+[PHASES.md](PHASES.md) marks the product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
 
@@ -106,6 +107,26 @@ surfaces fixed three real `NaN` bugs and one lying hint at the computation bound
 (`src/lib/stats.ts`, `src/lib/format.ts`, `src/views/Classes.tsx`, `src/views/Teachers.tsx`)
 and removed demo labelling from a customer EMPTY environment
 (`src/components/settings/DemoDataPanel.tsx`).
+
+### Last completed work (M1, in one paragraph)
+
+`clear()` empties every collection including `users`, so it can lock a customer out of an
+environment whose Settings (and therefore backup restore) sit behind the login. M1 adds a way back
+**without changing `clear()`**. `uninitializeEnvironment()` (`src/domains/demo/lifecycle.ts`,
+unchanged) is now reachable through the existing destructive-action seam:
+`src/domains/demo/useDemoData.ts` adds `"uninitialize"` to `DestructiveAction`/`DESTRUCTIVE_LABELS`
+and awaits `manager.uninitialize({ confirm: true })`. `src/components/lifecycle/DataLifecycleGate.tsx`
+owns the recovery controller and publishes it through
+`src/components/lifecycle/LifecycleRecoveryContext.ts`, wrapping both gate branches so the awaited
+blob-cleanup result survives the store reset that returns the boot chain to
+`src/components/lifecycle/FirstRunChooser.tsx`. The visible affordance
+(`src/components/lifecycle/LifecycleRecoveryPanel.tsx`) renders only from the unauthenticated
+`src/views/Login.tsx` branch, only for a local `empty`/`demo` environment, never in `api` mode; it
+is two-step, shows `manager.stats()` counts, and warns truthfully about account deletion, lockout,
+stored binaries and irreversibility. A blob-store failure is surfaced verbatim, never swallowed. D3
+and D4 are recorded in [DECISIONS.md](DECISIONS.md) §19 as M1-specific decisions; **H5** in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) is landed and I10's zero-record invariant is preserved (no bootstrap
+account is re-added to a cleared dataset).
 
 ### Work landed since the Phase 2 checkpoint
 
@@ -128,6 +149,27 @@ The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation c
 file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
+
+### M1 validation (measured this pass, on top of M0 `f2ebc09`)
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | ✅ clean (`tsc --noEmit`, zero output, exit 0) |
+| `npm test` (full suite) | ✅ **1320 passed / 0 failed / 0 skipped** across all test files (JSON reporter, single definitive run) |
+| `git diff --check` | ✅ clean (no whitespace errors, no conflict markers) |
+| Focused M1 suites | ✅ `dataLifecycle.test.ts` 28 · `useDemoData.test.tsx` 4 · `DataLifecycleGate.test.tsx` 10 · `FirstRunChooser.test.tsx` 9 · `DemoDataPanel.test.tsx` 5 · `projectState.test.ts` 52 |
+
+The full number is **1320** (not the 1 315 quoted for the pre-M1 tree) because M1 added five focused
+tests: the verbatim blob-failure propagation case in `dataLifecycle.test.ts`, the awaited
+`uninitialize` pending/result and cancellation cases in `useDemoData.test.tsx`, and the
+lockout/way-back cases in `DataLifecycleGate.test.tsx`, offset by the `projectState.test.ts` H5 guard
+edits (same count, rewritten). This run had `dist/` present, so the 8 CSP tests ran rather than
+skipping (see the `dist/` note below). Earlier full-suite attempts in this session reported failures
+**only** in `projectState.test.ts` "recorded checkpoints are real Git objects" — the **L5**
+graft-boundary state, not a regression — and cleared once `HEAD` was the real branch tip `f2ebc09`;
+the definitive run above is green.
+
+### Phase 2 baseline (kept for audit)
 
 Measured at the Phase 2 checkpoint `33b1031`; re-run them before trusting them (see §8).
 
@@ -255,16 +297,19 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
    `arena-demo-backup-*.json` — even for a customer's EMPTY data. Round-trip is lossless; the
    labels are wrong. Fixing it is a versioned format change touching the `WRONG_ENVIRONMENT`
    validation rule.
-5. **`clear()` produces an environment nobody can sign into, and there is NO in-product recovery.**
+5. **`clear()` still produces an environment nobody can sign into; M1 adds a local recovery path.**
    It empties `users`, so no account remains, while the lifecycle marker survives — so
    `DataLifecycleGate` stays transparent and the visitor lands on a login screen that cannot
-   succeed. Settings, and therefore "restore a backup", sits *behind* that login and is unreachable
-   too. `uninitializeEnvironment()` exists (`src/domains/demo/lifecycle.ts`) and is exposed as
-   `demoDataManager.uninitialize()`, but **no component calls it**: the Settings panel wires only
-   `reset | clear | import-seed | restore-backup` (`src/domains/demo/useDemoData.ts:29`). The only
-   recovery today is from outside the product — deleting the `ava:demo:*` keys by hand, or calling
-   the manager from a dev console. Pre-existing behaviour, deliberately unchanged here; tracked as
-   **H5** in [OPEN_ITEMS.md](OPEN_ITEMS.md).
+   succeed. Settings, and therefore "restore a backup", remains *behind* that login. This
+   `clear()` behaviour is deliberately unchanged; `uninitializeEnvironment()` is the separate
+   recovery operation. In local EMPTY/DEMO mode, the lifecycle gate owns the controller and
+   `src/views/Login.tsx` renders `src/components/lifecycle/LifecycleRecoveryPanel.tsx` outside the
+   signed-in shell. It calls `uninitialize` only after the second confirmation, shows truthful
+   counts, waits for blob cleanup, and surfaces the exact `UninitializeResult.message` (including
+   any blob-failure clause) before the chooser offers EMPTY or DEMO again. API mode has no local
+   recovery affordance. The M1 implementation is present in the current working tree but remains
+   provisional until validation and a durable phase checkpoint; see **H5** in
+   [OPEN_ITEMS.md](OPEN_ITEMS.md) and I10 below.
 6. **Latent DS crashes**: `Sparkline` with `data={[]}` and `BusinessIntelligence` with an empty
    series. Not reachable today (static fixtures only) — must be guarded before those panels go live.
 7. **Command-palette natural-language matching is substring-loose** (`q.includes(keyword)`).
@@ -286,21 +331,22 @@ was dropped.
 
 ## 9. Immediate next action
 
-**The product-feature phase — NOT STARTED, and it requires explicit authorization plus its
-spec before any code is written.**
+**M1 (recovery & lifecycle UX, H5) is COMPLETE and landed** on top of M0 `f2ebc09`, pushed to the
+working branch. The next milestone is **M2 — honest write feedback (H2 + H3)**, and it is **NOT
+STARTED** and not yet authorized.
 
 When authorized, the first step is *not* implementation: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md),
 confirm the recorded checkpoints against Git (§2, and the recovery contract at the end of this
-file), re-run the validation commands in §4 to establish a green baseline, and only then start from
-the CRITICAL/HIGH items — wiring the Scheduling and Attendance views to their existing domains and
-removing fake-success UX (`src/views/Scheduling.tsx:144`, `src/views/Scheduling.tsx:327`,
-`src/views/Attendance.tsx:46`, `src/views/Finance.tsx:98`, `src/views/Finance.tsx:285`).
+file), re-establish a green baseline (`npm ci` if `node_modules` is absent, then `npm run
+typecheck`, `npm test`, `git diff --check`, `npm run build`), and only then start M2 from the
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M2 scope: the seven fake-success
+sites (**H2**) and the five demo-mislabelled real writes (**H3**), each becoming the result of an
+awaited repository call or losing its success claim, with a test that no success toast can fire
+without a write.
 
-Among those items, **H5** — no in-product recovery from an environment `clear()` has made unusable —
-is the one that can cost a customer their data. Sequence it first, or defer it explicitly and in
-writing inside [OPEN_ITEMS.md](OPEN_ITEMS.md).
-
-Until that authorization arrives: **do not start it.**
+Do **not** reopen M1: `clear()` semantics, the zero-record invariant (§8 / I10) and the api-mode
+transparency of the gate are settled and pinned by tests. The M1 evidence lives in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) H5 (now landed) and [DECISIONS.md](DECISIONS.md) §8/§18/§19 (D3/D4).
 
 ## 10. DO NOT — standing constraints
 

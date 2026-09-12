@@ -389,6 +389,29 @@ describe("uninitializeEnvironment", () => {
     expect(await getBlobStore().get(DEMO_LIBRARY_ASSET_ID)).toBeFalsy();
   });
 
+  it("preserves a blob cleanup failure verbatim while reporting the environment reset", async () => {
+    const { storage, store } = createEnvironment();
+    initializeEmptyEnvironment(store);
+
+    const blobStore = createMemoryBlobStore();
+    blobStore.clear = async () => {
+      throw new Error("blob cleanup unavailable");
+    };
+    setBlobStore(blobStore);
+
+    const result = await uninitializeEnvironment({ confirm: true }, store);
+
+    expect(result).toEqual({
+      ok: true,
+      state: "uninitialized",
+      changed: true,
+      message:
+        "محیط حذف شد و هیچ داده‌ای باقی نمانده است. دادهٔ محیط حذف شد، اما پاک‌کردن فایل‌های ذخیره‌شده ناموفق بود: blob cleanup unavailable",
+    });
+    expect(writtenKeys(storage)).toEqual([]);
+    expect(readLifecycleState(store)).toBe("uninitialized");
+  });
+
   it("is honest when there was no environment to remove", async () => {
     const { store } = createEnvironment();
 

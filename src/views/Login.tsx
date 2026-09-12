@@ -5,6 +5,8 @@ import { useAuth } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
 import { isDemoMode } from "@/api/config";
 import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryContext";
+import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecoveryPanel";
 import { roleLabels } from "@/domains/auth/permissions";
 import stageImage from "@/assets/login-stage.jpg";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
@@ -54,6 +56,7 @@ export function LoginView() {
   // EMPTY environment the accounts on screen are the visitor's own, so labelling
   // them demo data is the same dishonesty in the opposite direction.
   const demoEnvironment = useIsDemoEnvironment();
+  const lifecycleRecovery = useLifecycleRecovery();
 
   useEffect(() => {
     emailRef.current?.focus();
@@ -292,7 +295,7 @@ export function LoginView() {
               setPassword(DEMO_PASSPHRASE);
               clearError();
             }} />}
-          </div>
+            {lifecycleRecovery && <LifecycleRecoveryPanel controller={lifecycleRecovery} />}          </div>
         </section>
       </div>
     </main>

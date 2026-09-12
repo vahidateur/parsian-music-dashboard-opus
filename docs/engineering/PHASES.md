@@ -15,7 +15,9 @@ be derived, it is marked **not recorded** rather than guessed.
 | Baseline (inherited repository) | `292b8b86ce7dd328b3a1510047f994e39c443a4e` | yes (shallow-clone graft boundary) | superseded |
 | Phase 1 — library, media, profile/messages regression | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` | ✅ yes | **COMPLETE** |
 | Phase 2 — explicit data lifecycle + empty-state audit | `33b10311f0d3a38745b4d0c00f22e4f63665888d` | ✅ yes | **COMPLETE** |
-| Product-feature phase | — | — | ❌ **NOT STARTED** |
+| Product-feature phase — M0 (spec + decision register) | `f2ebc09822d03dde8ce06307221e303721ed9c2e` | ✅ yes | **COMPLETE** (documents only) |
+| Product-feature phase M1 — recovery & lifecycle UX | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
+| Product-feature phase | — | — | remaining milestones M2–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -160,9 +162,9 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 
 | Milestone | Closes | Status |
 |---|---|---|
-| M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ this pass (documents only) |
-| M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ❌ not started |
-| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ❌ not started |
+| M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ landed `f2ebc09` (documents only) |
+| M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ **landed this commit** |
+| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ❌ not started — next |
 | M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started |
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
@@ -197,6 +199,74 @@ belongs to the commit that follows, because a ledger entry never carries its own
 every 40-hex SHA quoted here must be a real commit reachable from `HEAD`, which
 `src/__tests__/projectState.test.ts` enforces. Advancing the two documentation-checkpoint rows in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2 belongs in the same edit.
+
+---
+
+## Product phase — M1 — recovery & lifecycle UX (**H5**)
+
+**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA),
+so `git log --oneline -- src/components/lifecycle docs/engineering` is the authority for it.
+**Base:** M0 `f2ebc09822d03dde8ce06307221e303721ed9c2e`. **Pushed** ✅ to
+`arena/01a07c61-parsian-music-dashboard-opus`.
+
+**Purpose.** `clear()` empties every collection including `users`, so an environment it clears can
+no longer be signed into, and Settings — where "restore a backup" lives — is behind that login. M1
+gives the product a way back **without changing what `clear()` does**: the already-implemented,
+already-tested `uninitializeEnvironment()` is now reachable from the unauthenticated lifecycle-gate
+path, and `clear()`'s warning finally names the account deletion and the lockout.
+
+**What landed.**
+- **Destructive-action seam (no new abstraction).** `src/domains/demo/useDemoData.ts` adds
+  `"uninitialize"` to `DestructiveAction` and to `DESTRUCTIVE_LABELS`, and `confirm()` now awaits
+  `manager.uninitialize({ confirm: true })` for that one action (the others stay synchronous). A
+  small `normalizeUninitializeResult()` maps the `UninitializeResult` onto the existing
+  `DemoActionResult` shape so `lastResult`/`issues`/`stats` are unchanged for every other caller.
+- **`demoDataManager.uninitialize()`** already existed and is unchanged; it delegates to
+  `uninitializeEnvironment()` in `src/domains/demo/lifecycle.ts`, also unchanged — confirm-gated,
+  synchronous `store.reset()` then awaited `getBlobStore().clear()`, blob failure appended to
+  `UninitializeResult.message`, never swallowed.
+- **Gate owns the controller.** `src/components/lifecycle/DataLifecycleGate.tsx` builds the
+  controller with `useDemoData()` and publishes it through the new
+  `src/components/lifecycle/LifecycleRecoveryContext.ts`. The provider wraps **both** gate branches,
+  so the awaited blob-cleanup result survives the store reset that unmounts the login branch and
+  re-renders `FirstRunChooser`. In `api` mode the gate is transparent and the context is `null`.
+- **The visible affordance is outside the shell.** `src/components/lifecycle/LifecycleRecoveryPanel.tsx`
+  renders only for a local `empty`/`demo` environment, and only from the unauthenticated
+  `LoginView` branch (`src/views/Login.tsx`), gated on `useLifecycleRecovery()` being non-null.
+  Two-step: a "start over" button, then a confirmation showing `manager.stats()` counts (records,
+  access accounts, students, media) and a truthful warning about account deletion, lockout,
+  binaries and irreversibility.
+- **`FirstRunChooser`** shows an in-flight `role="status"` notice while the awaited cleanup runs and
+  surfaces the exact returned message afterward.
+- **Copy.** `clear()`'s warning now states that the access accounts are removed and sign-in becomes
+  impossible, and points at "start over".
+
+**Explicitly unchanged (protected).** `clear()` semantics (still empties every collection, keeps the
+mode); the zero-record invariant (DECISIONS §8, OPEN_ITEMS I10) — no bootstrap account is re-added
+to a cleared dataset; `createEmptyDataset()`/`seed.ts`; the backup envelope (I8); the bearer/cookie
+architecture; deployment and production-handoff docs; dependencies. No parallel lifecycle, recovery,
+destructive-action, notification or storage abstraction was introduced.
+
+**Decisions.** **D3** (placement) and **D4** (`clear()` vs the zero-record invariant) are recorded
+in [DECISIONS.md](DECISIONS.md) §19 as **M1-specific** decisions, and §8/§18 statuses were updated
+to match. They do not generalize to backend or production architecture.
+
+**Validation (measured this pass).** `npm run typecheck` clean; `git diff --check` clean; focused
+M1 suites green — `dataLifecycle.test.ts` (28), `useDemoData.test.tsx` (4),
+`DataLifecycleGate.test.tsx` (10), `FirstRunChooser.test.tsx` (9), `DemoDataPanel.test.tsx` (5),
+`projectState.test.ts` (52). Full-suite result is recorded in
+[PROJECT_STATE.md](PROJECT_STATE.md) §4.
+
+**Tests added/changed.** New coverage: lockout → recovery → chooser → EMPTY/DEMO way-back and the
+api-mode exclusion (`DataLifecycleGate.test.tsx`); awaited `uninitialize` pending/busy/result and
+cancellation (`useDemoData.test.tsx`); verbatim blob-failure message propagation
+(`dataLifecycle.test.ts`); the truthful `clear()` warning (`DemoDataPanel.test.tsx`); and the H5
+state/decision guards (`projectState.test.ts`). `loginEmptyEnvironment` and `loginDemoIsolation`
+stay green **unchanged**.
+
+**Rule for whoever reads this next:** register this commit's SHA in the ledger table and in
+[PROJECT_STATE.md](PROJECT_STATE.md) §2/§3 in the *following* commit — a ledger entry never carries
+its own SHA.
 
 ---
 

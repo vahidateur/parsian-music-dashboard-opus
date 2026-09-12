@@ -105,6 +105,9 @@ describe("in a customer's EMPTY environment", () => {
 
     await waitFor(() => expect(screen.getByText("پاک‌کردن کامل داده‌ها")).toBeTruthy());
     expect(container.textContent).toContain("همهٔ رکوردهای این محیط");
+    expect(container.textContent).toContain("حساب‌های کاربری");
+    expect(container.textContent).toContain("ورود ممکن نخواهد بود");
+    expect(container.textContent).toContain("شروع دوباره");
     expect(container.textContent).not.toContain("رکوردهای دمو");
   });
 

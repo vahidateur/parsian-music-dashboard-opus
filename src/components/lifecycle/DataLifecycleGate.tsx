@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
 import { isDemoMode } from "@/api/config";
 import { useDataLifecycle } from "@/domains/demo/useDataLifecycle";
+import { useDemoData } from "@/domains/demo/useDemoData";
 import { FirstRunChooser } from "./FirstRunChooser";
+import { LifecycleRecoveryContext, type LifecycleRecoveryController } from "./LifecycleRecoveryContext";
+import type { ReactNode } from "react";
 
 /**
  * The application's data-lifecycle boundary.
@@ -19,21 +21,26 @@ import { FirstRunChooser } from "./FirstRunChooser";
  *
  * With `VITE_DATA_SOURCE` set to a real backend there is no local environment to
  * choose — the data source is already decided by configuration — so the gate is
- * transparent in `api` mode.
+ * transparent in `api` mode and provides no local recovery controller.
  */
 export function DataLifecycleGate({ children }: { children: ReactNode }) {
   if (!isDemoMode()) return <>{children}</>;
   return <LifecycleGate>{children}</LifecycleGate>;
 }
 
-/** Split out so the hook is never called conditionally. */
+/** Split out so the lifecycle hook is never called conditionally. */
 function LifecycleGate({ children }: { children: ReactNode }) {
   const { state } = useDataLifecycle();
+  const data = useDemoData();
+  const recovery: LifecycleRecoveryController = { state, ...data };
 
   // Nothing is rendered behind this branch: mounting the app while the state is
-  // unknown would let a read happen before the choice, which is exactly what the
-  // lifecycle boundary exists to prevent.
-  if (state === "uninitialized") return <FirstRunChooser />;
-
-  return <>{children}</>;
+  // unknown would let a read happen before the choice, which is exactly what
+  // the lifecycle boundary exists to prevent. The provider stays mounted so a
+  // completed uninitialize can report its awaited blob-cleanup result here.
+  return (
+    <LifecycleRecoveryContext.Provider value={recovery}>
+      {state === "uninitialized" ? <FirstRunChooser /> : children}
+    </LifecycleRecoveryContext.Provider>
+  );
 }

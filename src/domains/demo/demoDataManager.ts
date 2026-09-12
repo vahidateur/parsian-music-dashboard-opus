@@ -41,7 +41,14 @@ import type { DataLifecycleMode, DataLifecycleState, DemoDataset, DemoDatasetSta
 /** Destructive operations require an explicit, typed confirmation. */
 export type { ConfirmedRequest };
 
-export type DemoOperation = "initialize" | "reset" | "clear" | "import-seed" | "import-dataset" | "restore-backup";
+export type DemoOperation =
+  | "initialize"
+  | "reset"
+  | "clear"
+  | "import-seed"
+  | "import-dataset"
+  | "restore-backup"
+  | "uninitialize";
 
 export interface DemoOperationSuccess {
   ok: true;
