@@ -293,11 +293,16 @@ may not report success at all, and a confirmation may not hardcode the demo labe
 explicitly tracked exception list.
 
 **Violations that remain,** all recorded with evidence in [OPEN_ITEMS.md](OPEN_ITEMS.md): the
-dashboard insight panels presenting fabricated text as measurement (**H4**); three Settings panels
-still hardcoding the demo label on a real write (**H7**, found after H3 landed and deliberately left
-outside M2's approved scope); edit dialogs that open with an empty draft and can silently overwrite
-a stored record (**H6**); and the attendance «ثبت نهایی» wording, deferred to the attendance wiring
-by explicit decision (**I12**).
+dashboard insight panels presenting fabricated text as measurement (**H4**, which M9 owns), and the
+attendance «ثبت نهایی» wording, deferred to the attendance wiring by explicit decision (**I12**,
+which M5 owns).
+
+**Closed since M2:** the three Settings panels that hardcoded the demo label on a real write
+(**H7**) and the edit dialogs that opened with an empty draft and could silently overwrite a stored
+record (**H6**) both landed in **M2.1**. The honesty ratchet in
+`src/__tests__/writeFeedbackHonesty.test.ts` therefore tracks **zero** files carrying a hardcoded
+demo label, and pins all eight surfaces that derive their copy from the environment seam — so this
+decision now has no known violation left in the write-feedback path it governs.
 
 ## 16. Protected domains and the no-regression principle
 

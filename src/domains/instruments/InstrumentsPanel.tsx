@@ -15,12 +15,14 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getInstrumentRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { InstrumentFormDialog } from "./InstrumentFormDialog";
 import { useInstruments } from "./useInstruments";
 import type { InstrumentRecord } from "./types";
 
 export function InstrumentsPanel() {
   const { notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   // Inactive instruments are included: this is where they are managed.
   const { items, loading, error, reload } = useInstruments({ per_page: 200 });
   const [formOpen, setFormOpen] = useState(false);
@@ -169,7 +171,11 @@ export function InstrumentsPanel() {
               mode === "create"
                 ? `${saved.name} افزوده شد`
                 : `${saved.name} به‌روزرسانی شد`,
-            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+            // The dialog awaited a real repository write, so the confirmation
+            // may only call it demo data where it is demo data: in an EMPTY
+            // environment this is the academy's own instrument catalogue (H7 —
+            // the defect M2 fixed in the five domain views, in Settings too).
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

@@ -26,7 +26,7 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed` — and §3 carries the current phase |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed` and M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` — and §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
 | **Documentation checkpoint (pushed)** | `f1fe114b667558bec1ffbc4e7506e3e310ce9735` — the retired test-harness race: the EMPTY audit waits for loaded data instead of a view title, and the race is recorded in I11 |
 | Previous documentation checkpoint | `77b019ef07f99817da985e1602dd11365b4b9365` — the audit-correction pass: these documents, their validation gate, and the EMPTY login labels |
@@ -38,8 +38,9 @@
 - A **phase checkpoint** is a durable *application* milestone: a reviewed, approved and pushed
   commit that ends a phase of product work. The row above names the latest one the
   documentation-checkpoint ordering rule permits — still `33b1031` (Phase 2) — while the product
-  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, and M2, this commit) are registered in
-  [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current phase" in §3.
+  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, M2 `c42f274`, and M2.1, this commit) are
+  registered in [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
+  phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
   but no product behaviour. Three exist so far: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
@@ -87,15 +88,18 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 
 | Field | Value |
 |---|---|
-| Current phase | **Product-feature phase — M2 (honest write feedback: H2 + H3)** |
-| Phase status | ✅ **COMPLETE** — landed this commit on top of M1 `689a7c15951d690b1ce650a5938e6b1216ca30ed`, pushed to the working branch. This commit's own SHA is registered by the next commit (§2: no self-referential SHA); `git log --oneline -- src/views docs/engineering` is the authority for it |
+| Current phase | **Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels: H6 + H7)** |
+| Phase status | ✅ **COMPLETE** — landed this commit on top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch. This commit's own SHA is registered by the next commit (§2: no self-referential SHA); `git log --oneline -- src/domains docs/engineering` is the authority for it |
 | Next phase | Product-feature phase — **M3 (learning-content assignment UI, I3 — UI only)** — ❌ **NOT STARTED**, not authorized yet |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
-M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX) and M2
-(this commit, honest write feedback) are the product phase's first three milestones. M3–M11 have not
-started; the ledger in [PHASES.md](PHASES.md) marks the product-feature phase's remaining milestones
-NOT STARTED.
+M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
+(`c42f274`, honest write feedback) and M2.1 (this commit, the two defects M2 found and recorded
+rather than fixed) are the product phase's milestones so far. **M2.1 is not in the M0
+specification:** it is **H6** and **H7** from [OPEN_ITEMS.md](OPEN_ITEMS.md), inserted between M2 and
+M3 by the owner's explicit decision after a read-only triage, and the spec's M0–M11 sequence is
+unchanged by it. M3–M11 have not started; the ledger in [PHASES.md](PHASES.md) marks the
+product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
 
@@ -158,6 +162,28 @@ identical demo mislabel) and **I12**. All three are in [OPEN_ITEMS.md](OPEN_ITEM
 and H7 is ratcheted by `src/__tests__/writeFeedbackHonesty.test.ts` so the set of offenders can only
 shrink.
 
+### Last completed work (M2.1, in one paragraph)
+
+The two defects M2 recorded instead of fixing are fixed. **H6** was silent, durable data loss:
+`useEntityForm` seeded its draft with `useState(initial)` and nothing ever re-synced it, the six edit
+dialogs stay mounted while closed, and no parent keyed them by record — so a dialog opened on record
+B still held the empty create defaults, or whatever had been typed for record A before a cancel, and
+submitting wrote that onto B's id. Because `demoStore`'s update is a spread merge and its `clone` is
+`structuredClone`, an explicit `undefined` in the payload *erased* the stored field: a student's
+photo and guardian, a teacher's biography, a piece's programme link. The defaults were the dangerous
+part — «piano», «active», «17:00», capacity 6 all look like data — and two of them reversed
+documented rules, since an edit silently re-activated a deactivated instrument, room or piece and
+silently un-archived a class. The fix sits at the hook boundary: `EntityFormOptions` gained `open`,
+the draft is rebuilt from the newest `initial` whenever the surface opens, and the six dialogs pass
+the prop they already had. **H7** was the identical mislabel M2 removed from the five domain
+surfaces, in the three Settings panels that audit did not enumerate (`InstrumentsPanel`,
+`RepertoirePanel`, `RoomsPanel`); each now derives its confirmation from `useIsDemoEnvironment()`
+exactly as `BrandingPanel` does, so the `writeFeedbackHonesty` ratchet's tracked debt is **empty**
+and the three panels joined the list of surfaces pinned as deriving their copy. Nothing else moved:
+no repository, store or merge semantics, no domain model, no fixture, no dependency — and the two
+dialogs that were already correct (`AssignPieceDialog` and `RecordProgressDialog`, which their panel
+mounts conditionally) were deliberately left alone.
+
 ### Work landed since the Phase 2 checkpoint
 
 Three documentation checkpoints first — documents, validation gates, one labelling fix and one
@@ -177,14 +203,35 @@ test-harness fix, **no product feature work**:
 
 Product work since those three is the product phase itself, described above and ledgered in
 [PHASES.md](PHASES.md): M0 `f2ebc09` (specification and decision register — documents only), M1
-`689a7c1` (recovery and lifecycle UX) and M2, this commit (honest write feedback).
+`689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1, this commit
+(the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels).
 
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
 file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
 
-### M2 validation (measured this pass, on top of M1 `689a7c1`)
+### M2.1 validation (measured this pass, on top of M2 `c42f274`)
+
+| Check | Result |
+|---|---|
+| `npm ci` | ✅ exit 0 (no install script; `npm install` is never run, in CI or locally) |
+| `npm run typecheck` | ✅ clean (`tsc --noEmit`, zero output, exit 0) |
+| `npm test` (full suite) | ✅ **97 files / 1369 passed / 0 failed / 0 skipped**, with `dist/` present so the 8 CSP gates ran (single definitive run, 109.5 s) |
+| `npm run build` | ✅ exit 0, `built in 4.51s`; pre-existing warning: main chunk > 500 kB (no code-splitting yet — **I6**) |
+| `git diff --check` | ✅ clean (no whitespace errors, no conflict markers) |
+| Baseline before any M2.1 edit | ✅ **1345 tests** at M2 `c42f274`, measured in a `git worktree` of this clone: 1336 passed / 8 skipped / 1 failed. Both non-green parts are artifacts of *that* worktree, not of the code — it has no `dist/`, so the 8 CSP gates skip on the absent build artifact, and it is a detached HEAD, so `projectState.test.ts`'s "the recorded working branch is the branch actually checked out" fails by construction. The arithmetic is auditable: `1345 + 18 (new suite) + 6 (added to honestWriteCopy) = 1369` |
+| Mutation check on the new tests | ✅ two independent reverts, each restored byte-exactly (`sha256sum`) and re-run. Reverting **the hook alone** fails all 18 new cases *and* the strengthened panel case, which reports `expected '' to be 'ساز زهی مضرابی؛ کلاسیک، پاپ و فلامنکو.'` — the erasure itself. Reverting **the three panels alone** fails the 3 new EMPTY cases and both ratchet cases, naming exactly those files, while the 3 DEMO cases still pass — correctly, since DEMO's copy was never wrong. This is the evidence that the new tests detect the defects instead of restating the code |
+| Protected suites | ✅ unchanged and green: `architectureBoundaries.test.ts` (9), `privacyPosture.test.ts` (22), `projectState.test.ts` (52), `writeFeedbackHonesty.test.ts` (5), `noSuccessWithoutWrite.test.tsx` (8), `emptyEnvironment.test.tsx` (22), `emptyEnvironmentPanels.test.tsx` (10), `DomainCrud` (12), `StudentCrud` (5), and every Group A/Group D domain suite |
+| Scope of the diff | ✅ 18 files: 1 hook, 6 dialogs, 3 panels, 3 existing test files, 1 new test file, 4 documents. No repository, `demoStore`, domain model, fixture, dependency, view or router change; `AssignPieceDialog` and `RecordProgressDialog` untouched |
+
+The M2.1 workspace was a **fresh clone of the branch at `c42f274`**, verified before any edit
+(`git rev-parse HEAD`, `git status --porcelain` empty, full history — 24 commits — so the Git-object
+gates ran rather than skipping). The earlier M2 workspace was lost to sandbox recycling mid-milestone
+and was re-cloned; nothing was carried over except the documented decisions. The sandbox clone that
+started this session is stale at the `292b8b8` graft and was left untouched, as instructed.
+
+### M2 validation (measured at M2, on top of M1 `689a7c1` — kept for audit)
 
 | Check | Result |
 |---|---|
@@ -374,19 +421,10 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
 10. **No code-splitting** — one main chunk > 500 kB (build warning).
 11. **No backend.** `api` mode is an architectural seam pointing at a server that does not
     exist. See `docs/production-handoff.md` and `docs/security.md` §8.
-12. **Edit dialogs open with an empty draft (M2 finding, H6).** `useEntityForm` seeds its draft once
-    and nothing re-syncs it, the dialogs stay mounted while closed, and no parent keys them by
-    record — so opening a student, teacher or class for editing shows blank fields, and submitting
-    calls `update(id, …)` with whatever was retyped. A partial save silently overwrites the stored
-    record. This is data loss reached through a form rather than a toast, and it is the most severe
-    unresolved defect in the product. Evidence and fix direction in
-    [OPEN_ITEMS.md](OPEN_ITEMS.md) H6.
-13. **Three Settings panels still call a real write "demo data" (M2 finding, H7).**
-    `src/domains/instruments/InstrumentsPanel.tsx`, `src/domains/progress/RepertoirePanel.tsx` and
-    `src/domains/rooms/RoomsPanel.tsx` carry the same hardcoded demo label M2 removed from the five
-    domain views. They were outside the audited set and were deliberately not fixed inside M2's
-    approved scope; the set is ratcheted by `src/__tests__/writeFeedbackHonesty.test.ts`. See
-    [OPEN_ITEMS.md](OPEN_ITEMS.md) H7.
+*Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
+entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
+called a real write demo data (**H7**). Both are recorded as landed in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) and ledgered in [PHASES.md](PHASES.md).*
 
 ## 8. Deferred work
 
@@ -397,10 +435,10 @@ was dropped.
 
 ## 9. Immediate next action
 
-**M2 (honest write feedback, H2 + H3) is COMPLETE and landed** on top of M1
-`689a7c15951d690b1ce650a5938e6b1216ca30ed`, pushed to the working branch. The next milestone is
-**M3 — learning-content assignment UI (I3, UI only)**, and it is **NOT STARTED** and not yet
-authorized.
+**M2.1 (edit-form draft integrity + the three Settings panels, H6 + H7) is COMPLETE and landed** on
+top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch. The next
+milestone is **M3 — learning-content assignment UI (I3, UI only)**, and it is **NOT STARTED** and not
+yet authorized.
 
 When authorized, the first step is *not* implementation: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md),
 confirm the recorded checkpoints against Git (§2, and the recovery contract at the end of this
@@ -410,18 +448,24 @@ typecheck`, `npm test`, `git diff --check`, `npm run build`), and only then star
 UI over the learning-content repository that already exists — **UI only**, no new domain, no
 invented content bytes, honest unavailable states where media is missing.
 
-**Before adding features, triage the two M2 findings** (§7 items 12–13): **H6** is silent data loss
-through the edit dialogs, and **H7** is the same demo mislabel M2 removed elsewhere, in three
-Settings panels. Both are small, both are now recorded with evidence, and both are worse than the
-next feature. Also re-check the **I11** LearningPanel flake, which was left uninvestigated on
-purpose.
+**M3's own spec makes one thing a precondition rather than a courtesy:** the still-open **I11**
+`LearningPanel` flake must be triaged in that milestone, because M3 touches the same domain and the
+same suites and a green run there is what makes any new run trustworthy. The two findings that M2
+recorded and M2.1 fixed (**H6**, **H7**) no longer block anything; what M2.1 leaves behind is the
+knowledge that `RepertoirePanel` and `PieceFormDialog` are now safe to build on — a piece's
+`programId`, `rangeUnit` and `active` flag survive an edit, which is exactly what M3's assignment
+surface reads.
 
 Do **not** reopen M1: `clear()` semantics, the zero-record invariant (§8 / I10) and the api-mode
 transparency of the gate are settled and pinned by tests. The M1 evidence lives in
 [OPEN_ITEMS.md](OPEN_ITEMS.md) H5 (now landed) and [DECISIONS.md](DECISIONS.md) §8/§18/§19 (D3/D4).
 Do **not** reopen M2 either: the seven H2 sites and the five H3 sites are settled and pinned by
 `src/__tests__/writeFeedbackHonesty.test.ts`, and the shapes chosen there were the owner's explicit
-decision (remove a control that has no truthful action; never disable it into a promise).
+decision (remove a control that has no truthful action; never disable it into a promise). M2.1 is
+settled the same way: the draft re-sync belongs to `useEntityForm`, not to six dialogs or seven
+mount sites, and `demoStore`'s merge semantics were deliberately **not** hardened to ignore explicit
+`undefined` — that would change repository behaviour for every caller and destroy the legitimate
+"clear this optional field" intent.
 
 ## 10. DO NOT — standing constraints
 

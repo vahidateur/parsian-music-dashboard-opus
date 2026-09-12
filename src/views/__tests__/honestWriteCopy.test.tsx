@@ -1,15 +1,21 @@
 // @vitest-environment jsdom
 /**
- * H3 — a real write must not be announced as demo data in a customer's own
+ * H3 + H7 — a real write must not be announced as demo data in a customer's own
  * environment.
  *
- * All five confirmations below sit after a genuine, awaited repository write, so
+ * All eight confirmations below sit after a genuine, awaited repository write, so
  * their titles were always true and only the `detail` lied: it read «تغییرات در
  * دادهٔ دمو ذخیره شد» in *every* environment, including EMPTY, where the record
  * belongs to the academy that just signed in. The copy is now derived from the
  * sanctioned environment seam (`useIsDemoEnvironment`, the one `DemoDataPanel`
- * already used for backups and `DemoNote` uses for demo labels), so no view
+ * already used for backups and `DemoNote` uses for demo labels), so no surface
  * branches on where data lives — it asks.
+ *
+ * Five of the eight are the domain surfaces H3 audited in M2 (students, teachers,
+ * classes, branding, and the student detail branch). The other three are the
+ * Settings panels H7 found afterwards — instruments, repertoire, rooms — which
+ * the M2 audit missed because it enumerated views rather than the domain
+ * components `Settings.tsx` renders; they landed in M2.1 through the same seam.
  *
  * WHY BOTH DIRECTIONS ARE ASSERTED
  *
@@ -32,9 +38,14 @@ import { BrandingPanel } from "@/domains/branding/BrandingPanel";
 import { ClassesView } from "@/views/Classes";
 import { StudentsView } from "@/views/Students";
 import { TeachersView } from "@/views/Teachers";
+// H7: the three Settings panels that carried the identical hardcoded label.
+import { InstrumentsPanel } from "@/domains/instruments/InstrumentsPanel";
+import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
+import { RoomsPanel } from "@/domains/rooms/RoomsPanel";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import {
   getInstrumentRepository,
+  getProgressRepository,
   getRoomRepository,
   getStudentRepository,
   getTeacherRepository,
@@ -330,13 +341,12 @@ describe("student save copy", () => {
   /**
    * Opens a student's profile and saves an edit from the dialog mounted there.
    *
-   * The form has to be filled in full, because the edit dialog currently opens
-   * with an EMPTY draft: `useEntityForm` seeds `useState(initial)` once, the
-   * dialogs stay mounted while closed, and nothing re-syncs the draft when the
-   * record prop changes. That is a pre-existing bug of its own, recorded in
-   * OPEN_ITEMS and deliberately not fixed here — M2 is copy and control flow.
-   * Filling every field also keeps this case valid after that bug is fixed,
-   * since each value simply overwrites a prefilled one.
+   * The form is filled in full. That was a *workaround* while the edit dialog
+   * opened with an empty draft (H6): each value simply overwrote a blank one. H6
+   * is fixed — the draft is rebuilt from the record whenever the dialog opens —
+   * so these fields now overwrite prefilled ones with the same values, and the
+   * case reads as what it always should have: an edit that changes the national
+   * ID and touches nothing else.
    *
    * The national ID differs per case and is checksum-valid, so the update cannot
    * collide with the record the create cases make.
@@ -396,6 +406,136 @@ describe("student save copy", () => {
       resetToDemoEnvironment();
       resetRegistry();
       await editStudentFromDetail("2000535674");
+      await expectSavedDetail(DEMO_DETAIL);
+    },
+    FLOW_TIMEOUT,
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* H7 — the three Settings panels M2's audit missed                    */
+/* ------------------------------------------------------------------ */
+/*
+  Same defect, same seam, same two-directional proof as above. These are domain
+  components rendered by `Settings.tsx` rather than views with a route of their
+  own, which is why the M2 audit — which enumerated the domain views plus
+  branding — did not reach them. Each is rendered on its own here, which is also
+  how `emptyEnvironmentPanels.test.tsx` renders them; that file carries the EMPTY
+  "no demo artefacts at all" sweep, and this one carries the copy.
+
+  All three create rather than edit, because the confirmation is shared by both
+  modes and a create needs no pre-existing record: in EMPTY there is nothing to
+  open. Each case also reads the record back, so the wording is asserted about a
+  write that demonstrably happened.
+*/
+describe("instrument panel save copy", () => {
+  async function createInstrument() {
+    renderWithToasts(<InstrumentsPanel />);
+    await settled();
+    // The panel action and the dialog submit share a label; the panel's comes
+    // first, and in EMPTY it is the empty state's action.
+    fireEvent.click(screen.getAllByRole("button", { name: /افزودن ساز/ })[0]);
+    fireEvent.change(await screen.findByLabelText(/نام ساز/), { target: { value: "سه‌تار" } });
+    fireEvent.change(screen.getByLabelText(/شناسه/, { selector: "input" }), { target: { value: "setar" } });
+    fireEvent.click(dialogButton("افزودن ساز"));
+  }
+
+  it(
+    "in EMPTY names the academy's own catalogue, never demo data",
+    async () => {
+      resetToEmptyEnvironment();
+      resetRegistry();
+      await createInstrument();
+      await expectSavedDetail(OWN_DETAIL);
+      expect(toastText()).not.toContain("دمو");
+      const page = await getInstrumentRepository().list({ per_page: 200 });
+      expect(page.data.some((instrument) => instrument.slug === "setar")).toBe(true);
+    },
+    FLOW_TIMEOUT,
+  );
+
+  it(
+    "in DEMO still says plainly that the data is demo data",
+    async () => {
+      resetToDemoEnvironment();
+      resetRegistry();
+      await createInstrument();
+      await expectSavedDetail(DEMO_DETAIL);
+    },
+    FLOW_TIMEOUT,
+  );
+});
+
+describe("room panel save copy", () => {
+  async function createRoom() {
+    renderWithToasts(<RoomsPanel />);
+    await settled();
+    fireEvent.click(screen.getAllByRole("button", { name: /افزودن اتاق/ })[0]);
+    fireEvent.change(await screen.findByLabelText(/نام اتاق/), { target: { value: "اتاق تمرین ۲" } });
+    fireEvent.click(dialogButton("افزودن اتاق"));
+  }
+
+  it(
+    "in EMPTY names the academy's own rooms, never demo data",
+    async () => {
+      resetToEmptyEnvironment();
+      resetRegistry();
+      await createRoom();
+      await expectSavedDetail(OWN_DETAIL);
+      expect(toastText()).not.toContain("دمو");
+      const page = await getRoomRepository().list({ per_page: 200 });
+      expect(page.data.some((room) => room.name === "اتاق تمرین ۲")).toBe(true);
+    },
+    FLOW_TIMEOUT,
+  );
+
+  it(
+    "in DEMO still says plainly that the data is demo data",
+    async () => {
+      resetToDemoEnvironment();
+      resetRegistry();
+      await createRoom();
+      await expectSavedDetail(DEMO_DETAIL);
+    },
+    FLOW_TIMEOUT,
+  );
+});
+
+describe("repertoire panel save copy", () => {
+  async function createPiece() {
+    renderWithToasts(<RepertoirePanel />);
+    await settled();
+    fireEvent.click(screen.getAllByRole("button", { name: /افزودن قطعه/ })[0]);
+    fireEvent.change(await screen.findByLabelText(/عنوان/), { target: { value: "قطعهٔ تأیید شده" } });
+    // A piece must belong to an instrument, and the picker starts on its
+    // «— انتخاب کنید —» placeholder. Anchored: «آهنگساز» also contains «ساز».
+    await pickOption(/^ساز/);
+    fireEvent.click(dialogButton("افزودن قطعه"));
+  }
+
+  it(
+    "in EMPTY names the academy's own repertoire, never demo data",
+    async () => {
+      resetToEmptyEnvironment();
+      resetRegistry();
+      // EMPTY holds no instruments, so the piece form would have nothing to
+      // select: seeded through the real repository, as the other cases do.
+      await seedEmptyPrerequisites();
+      await createPiece();
+      await expectSavedDetail(OWN_DETAIL);
+      expect(toastText()).not.toContain("دمو");
+      const page = await getProgressRepository().listPieces({ per_page: 200 });
+      expect(page.data.some((piece) => piece.title === "قطعهٔ تأیید شده")).toBe(true);
+    },
+    FLOW_TIMEOUT,
+  );
+
+  it(
+    "in DEMO still says plainly that the data is demo data",
+    async () => {
+      resetToDemoEnvironment();
+      resetRegistry();
+      await createPiece();
       await expectSavedDetail(DEMO_DETAIL);
     },
     FLOW_TIMEOUT,

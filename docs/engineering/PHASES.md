@@ -17,7 +17,8 @@ be derived, it is marked **not recorded** rather than guessed.
 | Phase 2 — explicit data lifecycle + empty-state audit | `33b10311f0d3a38745b4d0c00f22e4f63665888d` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M0 (spec + decision register) | `f2ebc09822d03dde8ce06307221e303721ed9c2e` | ✅ yes | **COMPLETE** (documents only) |
 | Product-feature phase — M1 (recovery & lifecycle UX) | `689a7c15951d690b1ce650a5938e6b1216ca30ed` | ✅ yes | **COMPLETE** |
-| Product-feature phase — M2 (honest write feedback) | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
+| Product-feature phase — M2 (honest write feedback) | `c42f274ac10d4087f9280e3bf7b47141d0672e32` | ✅ yes | **COMPLETE** |
+| Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | **this commit** — SHA registered by the next one (§ no self-referential SHA) | pushed with this commit | **COMPLETE** |
 | Product-feature phase | — | — | remaining milestones M3–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
@@ -147,11 +148,12 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0); M1 and M2 LANDED; M3–M11 NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1, M2 and M2.1 LANDED; M3–M11 NOT STARTED
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
-M1 ✅ landed `689a7c1` · M2 ✅ landed (this commit) · M3–M11 ❌ **not started, not authorized**.
+M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed (this commit) · M3–M11 ❌ **not
+started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -165,7 +167,8 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 |---|---|---|
 | M0 — spec, decision register, ledger entry | the §9 precondition "its spec" | ✅ landed `f2ebc09` (documents only) |
 | M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ landed `689a7c1` |
-| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ **landed this commit** |
+| M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
+| M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ **landed this commit** |
 | M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started — next |
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
@@ -193,9 +196,8 @@ Begin from the CRITICAL/HIGH items in [OPEN_ITEMS.md](OPEN_ITEMS.md); the spec s
 states. M3 gates on **no decision** — "Dependencies. None — the contract is complete" — so nothing
 has to be recorded before the code. But it **must triage the I11 `LearningPanel` flake first**,
 because M3 touches the same domain and the same suites, and a green run there is the precondition
-for trusting any new one. M2's findings **H6** and **H7** are HIGH items in
-[OPEN_ITEMS.md](OPEN_ITEMS.md) and should be triaged alongside it: H6 is silent data loss through
-the edit dialogs, H7 is the demo mislabel M2 removed elsewhere.
+for trusting any new one. M2's findings **H6** and **H7** were triaged before M3 rather than
+alongside it, and landed as **M2.1** — see that section below.
 
 **Rule for whoever lands it:** add its row here with the real SHA, mark it pushed only after
 `git ls-remote` confirms it, and update [PROJECT_STATE.md](PROJECT_STATE.md) §2/§3/§9 in the
@@ -285,8 +287,8 @@ its own SHA. **Done:** the M2 commit registered it in the ledger table above and
 
 ## Product phase — M2 — honest write feedback (**H2** + **H3**)
 
-**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA), so
-`git log --oneline -- src/views docs/engineering` is the authority for it.
+**Commit:** `c42f274ac10d4087f9280e3bf7b47141d0672e32` · *feat: implement M2 honest write feedback
+(H2 + H3)* — registered by the next commit (M2.1), per § "No self-referential checkpoint SHA".
 **Base:** M1 `689a7c15951d690b1ce650a5938e6b1216ca30ed`. **Pushed** ✅ to
 `arena/01a07c61-parsian-music-dashboard-opus`.
 
@@ -362,7 +364,7 @@ site's new behaviour, driven through the real view, plus an EMPTY sweep of all t
 views), `src/__tests__/writeFeedbackHonesty.test.ts` (the structural gate: a view may report success
 only where it can reach a repository, the four fixture-driven views may report none at all, and the
 set of files hardcoding the demo label is *exactly* the three tracked under H7 — a ratchet that can
-only shrink). Extended: `src/views/__tests__/emptyEnvironment.test.tsx` (H3's done-when — «دمو»
+only shrink, and one M2.1 retired to an empty list). Extended: `src/views/__tests__/emptyEnvironment.test.tsx` (H3's done-when — «دمو»
 cannot appear after a real write in EMPTY) and
 `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx` (the branding write). No existing
 assertion was weakened or removed; the 13 sites on H2's do-not-fix list keep their coverage.
@@ -372,7 +374,101 @@ assertion was weakened or removed; the 13 sites on H2's do-not-fix list keep the
 its own SHA. Note the constraint that keeps §2's phase-checkpoint row where it is: the gate in
 `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from*
 the recorded phase checkpoint, so that row can only advance once a documentation checkpoint has been
-pushed after it.
+pushed after it. *(Done: the SHA above was registered by M2.1, the next section, and §2's
+phase-checkpoint row stayed at `33b1031` for exactly the reason this paragraph gives.)*
+
+M2 also recorded two HIGH findings rather than fixing them, because widening an approved scope
+mid-milestone is how a reviewed diff stops being reviewed: **H6** (every edit dialog opens with an
+empty draft, so a partial save silently overwrites the stored record) and **H7** (three Settings
+panels still call a real write demo data). Both are in [OPEN_ITEMS.md](OPEN_ITEMS.md) with evidence,
+and both landed in the next section rather than waiting for M3.
+
+---
+
+## Product phase — M2.1 — edit-form draft integrity + the three Settings panels (**H6** + **H7**)
+
+**Commit:** *this commit* — its SHA is registered by the next commit (§ no self-referential SHA), so
+`git log --oneline -- src/domains docs/engineering` is the authority for it.
+**Base:** M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`. **Pushed** ✅ to
+`arena/01a07c61-parsian-music-dashboard-opus`.
+
+**Why this milestone exists.** M2 recorded H6 and H7 instead of fixing them, because widening an
+approved scope mid-milestone is how a reviewed diff stops being reviewed. Both were HIGH, and H6 was
+the most severe defect anywhere in the product — silent, durable data loss reached through a form.
+The owner authorized a **read-only triage first**, then a milestone scoped strictly to those two
+items. **M2.1 is not in the M0 specification**: it sits between M2 and M3, which is why the ledger
+and the milestone table above both say so instead of implying the spec listed it. The spec's M0–M11
+sequence is unchanged.
+
+**What landed — H6, at one boundary rather than six.** `src/domains/shared/useEntityForm.ts` gained
+an optional `open` in `EntityFormOptions`, and the hook rebuilds its draft from the newest `initial`
+whenever the surface opens. `initial` is held in a ref and is deliberately *not* an effect
+dependency: callers build it inline (`toDraft(record)`), so it is a fresh object on every render and
+depending on it would wipe what the operator is typing on each keystroke. `reset()` has a stable
+identity for the same reason. The six affected dialogs pass the `open` prop they already had —
+`students/StudentFormDialog.tsx`, `teachers/TeacherFormDialog.tsx`, `classes/ClassFormDialog.tsx`,
+`instruments/InstrumentFormDialog.tsx`, `rooms/RoomFormDialog.tsx`,
+`progress/PieceFormDialog.tsx`. No mount site changed, no view has to key its dialog, and no new form
+can inherit the defect without opting out.
+
+The triage widened the affected set from the three dialogs originally recorded to **six dialogs
+across seven mount sites**, and established that `AssignPieceDialog` and `RecordProgressDialog` were
+never affected — `StudentProgressPanel.tsx` mounts them conditionally, so React remounts them with
+fresh state, which is the pattern already correct in this repository. Those two were left alone.
+`toDraft` ↔ payload symmetry was audited field by field for all six; every field sent on update is
+prefilled, so closing the prefill closes every erasure path (a class's `status` maps from the draft's
+`archived`; an instrument's `slug` is intentionally not sent on edit).
+
+**Deliberately *not* done:** hardening `src/services/demoStore.ts`'s `update` to ignore an explicit
+`undefined`. That was the tempting fix and it would have stopped the erasure, but it changes
+repository semantics for every caller and destroys the legitimate "clear this optional field" intent.
+The wrong boundary was the form, not the store.
+
+**What landed — H7, the same seam in three files.** `src/domains/instruments/InstrumentsPanel.tsx`,
+`src/domains/rooms/RoomsPanel.tsx` and `src/domains/progress/RepertoirePanel.tsx` now derive their
+confirmation from `useIsDemoEnvironment()` (`src/domains/demo/useDataLifecycle.ts`) exactly as
+`src/domains/branding/BrandingPanel.tsx` does: EMPTY reads «تغییرات در داده‌ها ذخیره شد.», DEMO keeps
+«تغییرات در دادهٔ دمو ذخیره شد.». The awaited write, the `catch` and the `danger` path are
+untouched, and no panel branches on where data lives. H7 was done *with* H6 rather than after it
+because H6's affected panels are these three files — fixing them separately would have touched the
+same files twice and left the honesty ratchet non-empty in between.
+
+**Tests added/changed.** New: `src/domains/shared/__tests__/entityFormDraft.test.tsx` (18 cases —
+three per entity across all six dialogs: opens on the record's own values; changing one field
+preserves every other field **in the store**, read back through the repository rather than from the
+draft; record A → cancel → record B cannot carry A's draft into B. Each drives the production
+sequence — mount closed with no record, *then* open on one — which is the path the older suites never
+exercised). Strengthened: `src/domains/instruments/__tests__/InstrumentsPanel.test.tsx` "saves a
+renamed instrument" now reads the record first, asserts the dialog prefills `description` and
+`active`, and asserts `description` / `active` / `slug` all survive the save — previously it asserted
+only the field it had typed, which is why the erasure went unnoticed. Extended:
+`src/views/__tests__/honestWriteCopy.test.tsx` (+6: an EMPTY and a DEMO case per H7 panel, each
+driving a real create through the real panel and reading the record back, so the wording is asserted
+about a write that demonstrably happened). Retired: the hardcoded-demo-label ratchet in
+`src/__tests__/writeFeedbackHonesty.test.ts` is now an **empty** list kept as a tripwire, and the
+three panels joined the surfaces pinned as *deriving* their copy — eight in total. No existing
+assertion was weakened or removed.
+
+**How it was verified** (all green at this commit; full table in
+[PROJECT_STATE.md](PROJECT_STATE.md) §4). `npm ci` exit 0 · `npm run typecheck` clean ·
+`npm test` **97 files / 1369 passed / 0 failed / 0 skipped** with `dist/` present so the 8 CSP gates
+ran · `npm run build` exit 0 · `git diff --check` clean. Baseline at `c42f274` measured in a
+`git worktree` of this clone: **1345** tests, so `1345 + 18 + 6 = 1369` and every test is accounted
+for; that worktree's 8 skips (no `dist/`) and 1 failure (detached HEAD vs. the branch-identity gate)
+are artifacts of the worktree, not of the code. **Mutation-verified twice:** reverting the hook alone
+fails all 18 new cases and the strengthened panel case, reporting `expected '' to be 'ساز زهی مضرابی؛
+کلاسیک، پاپ و فلامنکو.'`; reverting the three panels alone fails the 3 new EMPTY cases and both
+ratchet cases while the DEMO cases still pass, correctly. Each revert was restored byte-exactly
+(`sha256sum`) and re-run.
+
+**Findings recorded, deliberately not fixed.** None new. The items this milestone touched are either
+now landed (H6, H7) or already recorded and unchanged (**I11**, the `LearningPanel` flake, still M3's
+precondition). The symmetry audit found no further defect.
+
+**Rule for whoever reads this next:** M3 is *not* authorized by M2.1 landing. What M2.1 leaves M3 is
+a safe foundation — a piece's `programId`, `rangeUnit` and `active` flag now survive an edit instead
+of being reset to defaults, which is exactly what an assignment surface reads — and one still-open
+precondition, I11.
 
 ---
 

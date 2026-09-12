@@ -58,6 +58,7 @@ export function InstrumentFormDialog({
 
   const form = useEntityForm<InstrumentDraft, InstrumentRecord>({
     initial: toDraft(instrument),
+    open, // H6: rebuild the draft from this record whenever the dialog opens
     validate: (draft) => validate(draft, editing),
     submit: async (draft) => {
       if (editing) {

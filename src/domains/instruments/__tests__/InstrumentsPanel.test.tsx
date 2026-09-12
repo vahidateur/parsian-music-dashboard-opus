@@ -107,8 +107,23 @@ describe("editing", () => {
     renderPanel();
     await waitForList();
 
+    // Read the record first: the point of this case is that an edit touching one
+    // field leaves the others alone, which needs something to lose. The seeded
+    // guitar really does have a description (catalogue.ts).
+    const before = await getInstrumentRepository().get("guitar");
+    expect(before.description.length, "the fixture needs a description to lose").toBeGreaterThan(0);
+
     const row = (await screen.findByText("گیتار")).closest("li") as HTMLElement;
     fireEvent.click(within(row).getByRole("button", { name: "ویرایش" }));
+
+    // The form opens on the record, not on empty create defaults (H6). Asserted
+    // here at panel level, through the real click path, because the dialog is
+    // mounted closed and only the panel reproduces that sequence.
+    const description = (await screen.findByLabelText(/توضیح کوتاه/)) as HTMLTextAreaElement;
+    expect(description.value).toBe(before.description);
+    expect(
+      within(screen.getByRole("dialog")).getByRole("switch", { name: /وضعیت ساز/ }).getAttribute("aria-checked"),
+    ).toBe(String(before.active));
 
     fireEvent.change(await screen.findByLabelText(/نام ساز/), { target: { value: "گیتار کلاسیک" } });
     const dialog = screen.getByRole("dialog");
@@ -117,6 +132,17 @@ describe("editing", () => {
     await screen.findByText("گیتار کلاسیک");
     const persisted = await getInstrumentRepository().get("guitar");
     expect(persisted.name).toBe("گیتار کلاسیک");
+    /*
+      Before H6 was fixed this case passed while the save erased the record: the
+      dialog opened on an empty draft, so the payload carried `description: ""`
+      and `active: true` from the create defaults, and the only assertion here
+      looked at the name. Every field the edit did not touch is now checked.
+    */
+    expect(persisted.description, "an edit to the name must not erase the description").toBe(
+      before.description,
+    );
+    expect(persisted.active, "an edit must not re-activate a deactivated instrument").toBe(before.active);
+    expect(persisted.slug, "the slug is immutable and is not sent on edit").toBe(before.slug);
   });
 });
 

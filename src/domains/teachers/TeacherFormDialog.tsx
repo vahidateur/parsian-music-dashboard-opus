@@ -89,6 +89,7 @@ export function TeacherFormDialog({
 
   const form = useEntityForm<TeacherDraft, Teacher>({
     initial: toDraft(teacher),
+    open, // H6: rebuild the draft from this record whenever the dialog opens
     validate,
     submit: async (draft) => {
       const payload = {

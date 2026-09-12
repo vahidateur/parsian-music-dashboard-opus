@@ -58,6 +58,7 @@ export function RoomFormDialog({
 
   const form = useEntityForm<RoomDraft, Room>({
     initial: toDraft(room),
+    open, // H6: rebuild the draft from this record whenever the dialog opens
     validate,
     submit: async (draft) => {
       const payload = {

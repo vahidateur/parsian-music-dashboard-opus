@@ -78,6 +78,7 @@ export function PieceFormDialog({
 
   const form = useEntityForm<PieceDraft, Piece>({
     initial: toDraft(piece, activeInstruments[0]?.id ?? ""),
+    open, // H6: rebuild the draft from this record whenever the dialog opens
     validate,
     submit: async (draft) => {
       const payload = {

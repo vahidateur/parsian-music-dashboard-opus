@@ -111,23 +111,22 @@ describe("the demo label is derived, not asserted", () => {
   const asksTheEnvironment = (file: string) => /useIsDemoEnvironment/.test(code(readFileSync(file, "utf8")));
 
   /**
-   * The five sites H3 covered now derive their copy from the environment seam.
-   * Three Settings panels were found carrying the identical hardcoded label
-   * after the same kind of real, awaited write; they are recorded in
-   * `docs/engineering/OPEN_ITEMS.md` and are outside M2's approved scope, so
-   * they are listed here rather than silently passing.
+   * Empty — and deliberately kept as a list rather than deleted.
    *
-   * The list is asserted exactly, in both directions: fixing one of them fails
-   * this test until the entry is removed, and a new offender fails it too. That
-   * is the point — the debt can only shrink, and only in the open.
+   * It used to name the three Settings panels (instruments, repertoire, rooms)
+   * that carried the identical hardcoded label after a real, awaited write; they
+   * were recorded in `docs/engineering/OPEN_ITEMS.md` H7 when M2's approved scope
+   * ended at the five domain surfaces, and listed here so the debt stayed visible
+   * instead of passing quietly. H7 landed in M2.1, so the tracked debt is zero.
+   *
+   * The case stays as a tripwire: the list is asserted exactly, in both
+   * directions, so the first file that hardcodes the demo label on a write fails
+   * the suite, and taking on a future debt again means editing this list in the
+   * open, in the same commit as the code that needs it.
    */
-  const TRACKED_DEMO_LABEL_DEBT = [
-    "domains/instruments/InstrumentsPanel.tsx",
-    "domains/progress/RepertoirePanel.tsx",
-    "domains/rooms/RoomsPanel.tsx",
-  ];
+  const TRACKED_DEMO_LABEL_DEBT: string[] = [];
 
-  it("every hardcoded demo label left is a tracked debt", () => {
+  it("no source file hardcodes the demo label on a write", () => {
     const offenders = all
       .filter((file) => labelsWriteAsDemo(file) && !asksTheEnvironment(file))
       .map(rel)
@@ -135,12 +134,20 @@ describe("the demo label is derived, not asserted", () => {
     expect(offenders).toEqual([...TRACKED_DEMO_LABEL_DEBT].sort());
   });
 
-  it("the surfaces H3 fixed still ask the environment which one they are in", () => {
+  it("every surface H3 and H7 fixed still asks the environment which one it is in", () => {
     const fixed = [
+      // H3 (M2): the five demo-mislabelled real writes. `views/Students.tsx`
+      // mounts its dialog twice and carried two copies of the literal, which is
+      // why it is the one that survived review.
       "domains/branding/BrandingPanel.tsx",
       "views/Classes.tsx",
       "views/Students.tsx",
       "views/Teachers.tsx",
+      // H7 (M2.1): the three Settings panels with the identical label, found
+      // after H3 landed because the audit enumerated views, not panels.
+      "domains/instruments/InstrumentsPanel.tsx",
+      "domains/progress/RepertoirePanel.tsx",
+      "domains/rooms/RoomsPanel.tsx",
     ];
     const offenders = fixed.filter((file) => {
       const full = join(SRC, file);

@@ -13,12 +13,14 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getRoomRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { useRooms } from "./useRooms";
 import type { Room } from "./types";
 
 export function RoomsPanel() {
   const { notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   // Include inactive rooms: this is the screen where they are managed.
   const { items: rooms, loading, error, reload } = useRooms({ per_page: 200 });
   const [formOpen, setFormOpen] = useState(false);
@@ -114,7 +116,11 @@ export function RoomsPanel() {
           notify({
             tone: "success",
             title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+            // The dialog awaited a real repository write, so the confirmation
+            // may only call it demo data where it is demo data: in an EMPTY
+            // environment these are the academy's own rooms (H7 — the defect M2
+            // fixed in the five domain views, in Settings too).
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

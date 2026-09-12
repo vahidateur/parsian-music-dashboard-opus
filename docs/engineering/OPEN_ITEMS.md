@@ -179,30 +179,71 @@ drift — re-grep before editing.
   `src/components/settings/__tests__/DemoDataPanel.test.tsx`).
 
 ### H6. Every edit dialog opens with an empty draft, so "edit" means retype-or-erase (found 2026-09-12, while writing M2's H3 tests)
-- **What:** `useEntityForm` seeds its draft with `useState(initial)`
-  (`src/domains/shared/useEntityForm.ts`) and nothing ever re-syncs it. The dialogs stay mounted
+- **Status: ✅ LANDED by M2.1** (its commit SHA is registered in [PHASES.md](PHASES.md) by the *next*
+  commit). Kept visible as a completed record, with the evidence, because the shape of the defect is
+  what makes the regression tests worth reading.
+- **What:** `useEntityForm` seeded its draft with `useState(initial)`
+  (`src/domains/shared/useEntityForm.ts`) and nothing ever re-synced it. The dialogs stay mounted
   while closed — `if (!open) return null` runs *after* the hooks — no parent keys them by record,
-  and none of them calls the `reset()` the hook already exposes. So when a view sets `editing` and
-  opens the dialog, the operator is shown the empty create-draft defaults instead of the record.
-- **Evidence (reproduced in DEMO, 2026-09-12):** editing `st1` («سارا محمدی») shows an empty name,
-  national ID and teacher; editing `t5` («بهرام نیک‌نژاد») shows an empty name, title and phone;
-  editing `cl5` («آواز · تکنیک صدا») shows an empty title, teacher and room. Mount points:
-  `src/views/Students.tsx` (two), `src/views/Teachers.tsx`, `src/views/Classes.tsx`; dialogs
-  `src/domains/students/StudentFormDialog.tsx`, `src/domains/teachers/TeacherFormDialog.tsx`,
-  `src/domains/classes/ClassFormDialog.tsx`.
-- **Why HIGH and not cosmetic:** `editing` is still true, so submitting calls
-  `repository.update(id, …)` with whatever was retyped. Saving after a partial retyping silently
-  overwrites the stored record with blanks — data loss reached through a form rather than a toast,
-  and invisible to the operator, who believes they were editing.
+  and none of them called the `reset()` the hook already exposed. So when a view set `editing` and
+  opened the dialog, the operator was shown the empty create-draft defaults instead of the record.
+- **Correction to this record, made during the M2.1 triage:** it originally named three dialogs
+  (student, teacher, class). The affected set is **six dialogs across seven mount sites** — also
+  `src/domains/instruments/InstrumentFormDialog.tsx`,
+  `src/domains/rooms/RoomFormDialog.tsx` and
+  `src/domains/progress/PieceFormDialog.tsx`, mounted by `InstrumentsPanel.tsx`, `RoomsPanel.tsx`
+  and `RepertoirePanel.tsx`. Two dialogs were **never** affected and were left alone:
+  `AssignPieceDialog` and `RecordProgressDialog`, because `StudentProgressPanel.tsx` mounts them
+  conditionally (`{recording && …}`), so React remounts them with fresh state — the correct pattern,
+  already in the repository.
+- **Two paths to loss, not one.** (1) *Blank-on-open:* the title read «ویرایش سارا محمدی» while the
+  fields held create defaults, and submitting wrote those defaults over the stored record. (2)
+  *Cross-record contamination:* open A, type, cancel, open B — B's form still held **A's typed
+  values**, so saving wrote A's data onto B's id. Cancel kept the typing because nothing reset it.
+  Navigation was the one escape: `src/App.tsx` renders a single view at a time, so leaving the view
+  unmounted the dialog.
+- **Why the defaults were the dangerous part:** required-field validation blocked a wholly blank
+  save, so the operator had to retype those — but every field whose `toDraft(undefined)` default is
+  *plausible* passed validation silently and overwrote the record: instrument → «piano», status →
+  «active», class time → «17:00», capacity → 6, tuition → 3000000, piece `rangeUnit` → «measure».
+  Two of them reversed documented rules: an edit **re-activated** a deactivated instrument, room or
+  piece (the panels instruct «به‌جای حذف آن را غیرفعال کنید») and **un-archived** an archived class.
+  Erasure was durable, not cosmetic: `src/services/demoStore.ts` merges `{ …row, …clone(patch) }`
+  and its `clone` is `structuredClone`, which preserves an explicit `undefined` — so a payload's
+  `photoMediaId: undefined` deleted a student's photo, `guardian` deleted the guardian, and a
+  teacher's `bio` and a piece's `programId` went the same way. Persisted to localStorage, so it
+  survived reload.
+- **Evidence it was already happening (not hypothetical):**
+  `src/domains/instruments/__tests__/InstrumentsPanel.test.tsx` → "saves a renamed instrument"
+  clicked ویرایش on گیتار, changed only the name, saved, and asserted the name — while the payload
+  carried `description: ""`, erasing «ساز زهی مضرابی؛ کلاسیک، پاپ و فلامنکو.»
+  (`src/domains/instruments/catalog.ts`) on every run of the suite. No test anywhere read a prefilled
+  value: `getByDisplayValue`/`toHaveValue` had zero matches in `src`.
 - **Why no test caught it:** the CRUD suites mount each dialog with its record already present
   (`src/views/__tests__/DomainCrud.test.tsx`, `src/views/__tests__/StudentCrud.test.tsx`), which is
-  the one path that works. `src/views/__tests__/honestWriteCopy.test.tsx` documents the workaround
-  it had to use — fill every field — rather than depending on the bug's presence or absence, so it
-  stays valid after the fix.
-- **Fix direction (one boundary, not four):** re-sync the draft when the record or the open
-  transition changes, inside `useEntityForm` or at each dialog's own mount, so no view has to key its
-  dialog and no new form can inherit the defect. **Not attempted in M2:** M2 is copy and control
-  flow, and this changes form state.
+  the one path that works, and the panel suite rendered the panel but only asserted the field it had
+  typed. `src/views/__tests__/honestWriteCopy.test.tsx` documented the workaround it had to use —
+  fill every field — rather than depending on the bug's presence or absence, so it stayed valid
+  across the fix (its comment now says so in the past tense).
+- **What landed:** `EntityFormOptions` gained an optional `open`, and the hook rebuilds the draft
+  from the newest `initial` whenever the surface opens — `initial` is held in a ref and is
+  deliberately **not** an effect dependency, because callers build it inline (`toDraft(record)`) so it
+  is a fresh object every render and depending on it would wipe typing on each keystroke. `reset()`
+  now has a stable identity for the same reason. The six dialogs pass the `open` prop they already
+  had; no mount site changed, and no new form can inherit the defect without opting out.
+  **Not changed, deliberately:** `demoStore`'s merge semantics. Hardening `update` to ignore an
+  explicit `undefined` would change repository behaviour for every caller and destroy the legitimate
+  "clear this optional field" intent — the wrong boundary was the form, not the store.
+- **Audited while fixing:** `toDraft` ↔ payload symmetry for all six dialogs, mechanically. Every
+  field sent on update is prefilled, so the prefill closes every erasure path (a class's `status`
+  maps from the draft's `archived`; an instrument's `slug` is intentionally not sent on edit).
+- **Pinned by** `src/domains/shared/__tests__/entityFormDraft.test.tsx` — 18 cases, three per entity
+  (opens on the record's own values; changing one field preserves every other field **in the store**;
+  A → cancel → B cannot carry A's draft into B), each driving the production sequence of mounting
+  closed with no record and *then* opening on one. Plus the strengthened panel case above, which now
+  asserts the description, `active` and `slug` survive a name edit. **Mutation-verified:** reverting
+  the hook fails all 18 and the panel case, with the panel case reporting `expected '' to be 'ساز زهی
+  مضرابی؛ کلاسیک، پاپ و فلامنکو.'` — the erasure itself.
 
 ### H7. Three Settings panels still call a real write "demo data" (found 2026-09-12, after H3 landed)
 - **What:** the identical H3 defect in the panels that live inside Settings rather than on a route of
@@ -213,13 +254,26 @@ drift — re-grep before editing.
 - **Why it was missed:** H3's audit enumerated the domain *views* plus branding. These three are
   domain components rendered by `src/views/Settings.tsx`, outside the audited set, and each has a
   real `catch` → `tone: "danger"` path beside the mislabel, so it reads as honest at a glance.
-- **Status: OPEN — deliberately not fixed in M2.** M2's approved scope was the seven H2 sites and
-  the five H3 sites; widening it mid-milestone is how a reviewed diff becomes an unreviewed one. The
-  fix is the same one-line seam (`useIsDemoEnvironment()`) in each file, and the shape is proven by
-  `src/domains/branding/BrandingPanel.tsx`.
-- **Ratcheted so it can only shrink:** `src/__tests__/writeFeedbackHonesty.test.ts` asserts that the
-  set of files carrying a hardcoded demo label is *exactly* these three. Fixing one fails that test
-  until its entry is removed here, and a fourth offender fails it immediately.
+- **Status: ✅ LANDED by M2.1** (its commit SHA is registered in [PHASES.md](PHASES.md) by the *next*
+  commit). All three now derive the confirmation from `useIsDemoEnvironment()`
+  (`src/domains/demo/useDataLifecycle.ts`) exactly as `src/domains/branding/BrandingPanel.tsx` does:
+  EMPTY reads «تغییرات در داده‌ها ذخیره شد.» and DEMO keeps «تغییرات در دادهٔ دمو ذخیره شد.». The
+  awaited write, the `catch` and the `danger` path are untouched — only the label changed, and no
+  panel branches on where data lives.
+- **Why it was worth doing with H6 rather than after it:** H6's affected panels *are* these three
+  files. Fixing H7 separately would have touched the same three files twice and left the ratchet
+  non-empty in between.
+- **Ratchet retired, not removed:** `src/__tests__/writeFeedbackHonesty.test.ts` asserted that the
+  set of files carrying a hardcoded demo label was *exactly* these three. That list is now **empty**
+  and stays in the file as a tripwire — the first source file that hardcodes the label on a write
+  fails the suite — and the three panels joined the list of surfaces pinned as *deriving* their copy,
+  so removing the seam from any of them fails too.
+- **Pinned in both directions by** `src/views/__tests__/honestWriteCopy.test.tsx`, which gained an
+  EMPTY and a DEMO case per panel (six cases) driving a real create through the real panel and
+  reading the record back, so the wording is asserted about a write that demonstrably happened.
+  **Mutation-verified:** reverting the three panels fails the three EMPTY cases and both ratchet
+  cases, naming exactly those files, while the DEMO cases still pass — correctly, since DEMO's copy
+  was never wrong.
 
 ---
 

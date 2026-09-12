@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Chip, ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getProgressRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { PieceFormDialog } from "./PieceFormDialog";
 import { usePieces } from "./useProgress";
@@ -22,6 +23,7 @@ import { RANGE_UNIT_LABEL, type Piece } from "./types";
 
 export function RepertoirePanel() {
   const { notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const catalog = useInstrumentCatalog();
   const [instrumentId, setInstrumentId] = useState<string | "all">("all");
   const { items, loading, error, reload } = usePieces({
@@ -152,7 +154,11 @@ export function RepertoirePanel() {
           notify({
             tone: "success",
             title: mode === "create" ? `«${saved.title}» افزوده شد` : `«${saved.title}» به‌روزرسانی شد`,
-            detail: "تغییرات در دادهٔ دمو ذخیره شد.",
+            // The dialog awaited a real repository write, so the confirmation
+            // may only call it demo data where it is demo data: in an EMPTY
+            // environment this is the academy's own repertoire (H7 — the defect
+            // M2 fixed in the five domain views, in Settings too).
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />
