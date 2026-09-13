@@ -209,8 +209,18 @@ bucketed or range-queried.
 `conflicts.ts`, `generation.ts`, `dateBridge.ts`, and 211 tests across
 `src/domains/scheduling/__tests__/` (**Group A**).
 
-**Status.** ✅ Domain complete and protected. ❌ The view still renders fixtures and fakes
-success — see [OPEN_ITEMS.md](OPEN_ITEMS.md).
+**Status.** ✅ Domain complete and protected — 211 **Group A** tests, plus a further suite in the same
+directory that is **not** Group A (`src/domains/scheduling/__tests__/useDerivedRead.test.tsx`, 9
+tests): I13 **Checkpoint 3B** (`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`) made `useDerivedRead`
+carry its query key, so the three derived reads behind `useSessionRoster`, `useGenerationPreview` and
+`useConflictCheck` expose only the session they were asked about, and `Paged<SessionListParams>`
+(`7e72887761f07f48e115160611a9785bfaae9060`) makes omitting `per_page` a compile error at the call
+site. ❌ **The view still renders fixtures** — `src/views/Scheduling.tsx:5` reads
+`weekSessions`/`rooms`/`TODAY_INDEX` from `src/data/records.ts` — **but it no longer fakes success:**
+M2 (`c42f274ac10d4087f9280e3bf7b47141d0672e32`) *removed* both «انتقال به اتاق ۴» controls rather
+than wiring them, so what remains is fabricated **content** (a hardcoded room, weekday and occupancy
+narrative), not a claimed write. Wiring the view is **M4** — see
+[OPEN_ITEMS.md](OPEN_ITEMS.md) **H1**.
 
 ## 12. Attendance and progress are append-only; corrections require a reason
 
@@ -382,12 +392,16 @@ invariant (**I10**).
 
 ## 19. Product-phase decision register (D1–D12)
 
-Nine decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D9** to
+Twelve decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D12** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Two are already decided (both by deferral); seven are open, and each open entry names the milestone
-it blocks. An open decision is **not** an invitation to implement — it is a stop sign with a reason.
+Five are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's), two are
+settled by deferral (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
+each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
+— it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
+documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
+was right and the table was not.
 
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
@@ -400,6 +414,9 @@ it blocks. An open decision is **not** an invitation to implement — it is a st
 | D7 | How accessibility is enforced | **OPEN** | M11 |
 | D8 | How the api-mode hybrid is disclosed | **OPEN** | M11 |
 | D9 | Bundle budget | **OPEN — measure first** | M11 |
+| D10 | A write target taken from a rendered row is paired with a parent resolved independently | **DECIDED — landed with M3** | M3 |
+| D11 | An assignment surface renders outside the list it assigns to, and derives its own selection | **DECIDED — landed with M3** | M3 |
+| D12 | A failed secondary read is reported as a failure, never as an empty list | **DECIDED — landed with M3's F1 fix** | M3 |
 
 ### D1. Student role — deferred, not designed
 

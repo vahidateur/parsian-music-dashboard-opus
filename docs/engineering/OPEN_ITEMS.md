@@ -26,6 +26,32 @@ drift — re-grep before editing.
   invisible to the user.
 - **Deferred because:** Phase 2 was scoped to the data lifecycle; re-wiring two views is a
   product-phase change with its own UX decisions.
+- **Status (2026-09-13): OPEN — H1a (scheduling) is M4's, H1b (attendance) is M5's, and neither has
+  landed. Do not report this item as closed until BOTH views are wired.** One distinction matters,
+  because two different defects are easy to conflate:
+  - **The fake-success half of the scheduling view is already gone, and M2 removed it rather than
+    wiring it.** `c42f274ac10d4087f9280e3bf7b47141d0672e32` deleted both «انتقال به اتاق ۴» controls
+    and the local `resolved` flag whose only real effect was hiding the conflict warning, kept the
+    evidence on screen, and left the one truthful action («مشاهده در تقویم»). **No scheduling write
+    exists in any view today**, and nothing in `src/views/Scheduling.tsx` claims one — so no document
+    may describe this view as still "faking success". It is pinned by
+    `src/views/__tests__/noSuccessWithoutWrite.test.tsx` and
+    `src/__tests__/writeFeedbackHonesty.test.ts`.
+  - **What remains is the fixture-driven view:** `src/views/Scheduling.tsx:5` still imports
+    `TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions, GridSession` from
+    `src/data/records.ts`, renders a frozen weekday as "today", and carries fabricated room,
+    occupancy and free-slot narrative (**H4**'s shape inside this view). That is
+    the scheduling half of this item, and it is exactly what M4 closes — by introducing the first real
+    scheduling operation (`rescheduleSession` guarded by `checkConflicts`) and real generation
+    (`previewGeneration` / `generateSessions`), not by re-adding a claim.
+  - **Attendance is untouched:** `src/views/Attendance.tsx:31` still keeps rosters in local React
+    state (`useState(todayAttendance)`), and the setters below it — `setMark`, `markAllPresent` and
+    `submit`, down to line 58 — write only to that state. The fixture is keyed by legacy `g*` session
+    ids, and its «ثبت نهایی» wording is
+    **I12**, deferred to M5 by the owner's explicit decision.
+  - Group A has since grown one suite that is **not** part of the protected six:
+    `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` (9 tests, I13 Checkpoint 3B), so the
+    scheduling `__tests__` directory holds 220 tests while **Group A itself remains 211**.
 - **Done when:** both views read exclusively through `useScheduling` / `useAttendance`, the
   fixture imports are gone, `src/__tests__/architectureBoundaries.test.ts` still passes, and
   new suites assert that fixture records do **not** appear when the repository returns
@@ -508,10 +534,30 @@ recovery and the zero-record tests both remaining green.
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
-- **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2 and 3A implemented and validated; the
-  rest of Checkpoint 3 (four hand-rolled readers) not authorized and not started; I14 untouched and
-  explicitly deferred. The item is NOT closed and must not be reported as fixed — not all of its
-  readers are fixed.** **M3 landed (`e5b0a57d8f33dc04838670a2cd4158a88dd34022`) and is now COMPLETE — `3bec881` closed the
+- **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2, 3A and 3B implemented and validated;
+  the rest of Checkpoint 3 (**three** hand-rolled readers) not authorized and not started; I14
+  untouched and explicitly deferred. The item is NOT closed and must not be reported as fixed — not all
+  of its readers are fixed.** **Checkpoint 3B — the scheduling derived read — landed as
+  `fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`**, one of the two pre-M4 remediation commits the owner
+  authorized after M3's acceptance audit: `useDerivedRead`
+  (`src/domains/scheduling/useScheduling.ts:115`), the single boundary behind `useSessionRoster`,
+  `useGenerationPreview` and `useConflictCheck`, now carries its query key in state and derives what it
+  exposes at render, exactly as Checkpoints 1 and 3A did at theirs — a new key reports in flight with no
+  value and no error, a same-key refetch keeps the value it already has, and a query nobody issued is
+  reported as *not* in flight. The public `DerivedState<T>` shape, the ticket guard, the AbortController
+  and the "cancelled is not a failure" rule are unchanged, and no scheduling domain contract, repository
+  behaviour or view was touched. Its evidence is the same discipline as 3A's: a **new** suite in a
+  **new** file (`src/domains/scheduling/__tests__/useDerivedRead.test.tsx`, 9 cases) that records every
+  committed frame from inside the render body, and a **reversion check** — with the pre-fix hook
+  restored from HEAD, 4 of the 9 fail on *identity* (a frame asked for `ses_b` exposed `ses_a`'s roster,
+  plan and report with `loading === false`; session A's error exposed as B's; the last session's data
+  still on screen when nobody is selected), while the 5 cases pinning the pre-existing
+  ticket/abort/refetch contract pass either way. Group A stayed untouched and green
+  (`useScheduling.test.tsx` 14/14 among 211). **The 6 consecutive full-suite runs at 105 files /
+  1435 tests / 0 failed / 0 skipped were measured on the tree after the second remediation commit
+  (`7e72887761f07f48e115160611a9785bfaae9060`), which contains both**, not on `fba826f` alone —
+  recorded that way rather than claimed per-commit. Repeated runs are evidence, not a proof of
+  determinism. **M3 landed (`e5b0a57d8f33dc04838670a2cd4158a88dd34022`) and is now COMPLETE — `3bec881` closed the
   acceptance audit's one product finding — as Checkpoint 2's first real caller, and it did not weaken
   the caveat, it pinned it:** the assignment surface takes its level from a rendered
   row and its `AttachContentIntent.programId` from the programs query, and
@@ -551,13 +597,15 @@ recovery and the zero-record tests both remaining green.
   `useStudentPlacement` and `useEligibleContent`, was investigated, the exposure was **reproduced
   deterministically before being fixed**, and it landed as
   `57c1dfb8967a60990021ac9fe59c6ab80045fca3` — see "Done when — Checkpoint 3A" below.
-  **This item is nevertheless still open.** The **rest of Checkpoint 3** (four
-  hand-rolled readers) is **not authorized and not started**; the two further exposures below
+  **This item is nevertheless still open.** The **rest of Checkpoint 3** (three
+  hand-rolled readers — `useStudentList`, `useStudentProgress`, `useSessionAttendance`) is **not
+  authorized and not started**; the two further exposures below
   (`useLibraryFile`, `useMediaObjectUrl`) are **not fixed**; and **I14 is not implemented** and
-  remains a separate item, **explicitly deferred** rather than closed. What Checkpoints 1, 2 and 3A
+  remains a separate item, **explicitly deferred** rather than closed. What Checkpoints 1, 2, 3A and 3B
   together removed is the read-side window in every `useResourceList` list, the write-side
-  consequence for the learning ladder, and the read-side window in the one hand-rolled reader that
-  has a real consumer — not the whole finding.
+  consequence for the learning ladder, and the read-side window in the two hand-rolled readers that
+  matter next — learning's `useDerived` (3A, a real consumer today) and scheduling's `useDerivedRead`
+  (3B, whose three consumers M4 makes reachable) — not the whole finding.
 - **What (as it was, before Checkpoint 1):** `useResourceList`
   (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
   effect**. When the params changed — a new `programId`, a different page, a changed filter — the
@@ -646,18 +694,24 @@ recovery and the zero-record tests both remaining green.
     the target and passes it as its own "intent" — that comparison is a tautology and proves nothing.
     No signature can prevent it; `attachContentIntent.test.ts` pins it as a named failure mode so
     that review has something to point at.
-  - **Checkpoint 3: five hand-rolled readers with the same shape — ONE (`useDerived`) is now fixed as
-    Checkpoint 3A, the other four are not authorized and not started.** The five were
+  - **Checkpoint 3: five hand-rolled readers with the same shape — TWO are now fixed (`useDerived` as
+    Checkpoint 3A, scheduling's `useDerivedRead` as Checkpoint 3B), the other three are not authorized
+    and not started.** The five were
     `useStudentList` (`src/domains/students/useStudents.ts:25`), `useDerived`
     (`src/domains/learning/useLearning.ts`, which backs placement and eligible content, both
     student-scoped), `useStudentProgress` (`src/domains/progress/useProgress.ts:62`), `useDerivedRead`
-    (`src/domains/scheduling/useScheduling.ts:66`), `useSessionAttendance`
-    (`src/domains/attendance/useAttendance.ts:69`). Three carry doc comments claiming a guarantee
-    they do not deliver — "cannot paint the previous session's register", "cannot paint the previous
+    (`src/domains/scheduling/useScheduling.ts:115` — the `:66` this line first quoted was its pre-fix
+    location), `useSessionAttendance`
+    (`src/domains/attendance/useAttendance.ts:69`). Three carried doc comments claiming a guarantee
+    they did not deliver — "cannot paint the previous session's register", "cannot paint the previous
     student's data": the ticket guard they cite discards a late *response*, it cannot retract an
     already-committed *state*. **`useDerived` was the one with a real consumer**, and it is fixed —
-    see "Done when — Checkpoint 3A" below. **An honest reachability correction, found while
-    investigating it:** the stale frame was *not* observable through the app's own navigation today,
+    see "Done when — Checkpoint 3A" below; **`useDerivedRead` was the one whose three consumers M4 is
+    about to create**, and it is fixed as **Checkpoint 3B** (`fba826f`, see the status bullet above) —
+    hardened *before* the view exists rather than after, which is the order Checkpoint 1 established.
+    `useSessionAttendance`'s comment still claims the guarantee it does not deliver, and that is M5's
+    exposure to face, not M4's. **An honest reachability correction, found while
+    investigating 3A:** the stale frame was *not* observable through the app's own navigation today,
     because `src/App.tsx` keys the view subtree on `detailId`
     (`key={\`${view}-${filter ?? ""}-${detailId ?? ""}\`}`), so switching students remounts
     `StudentLearningPanel` and discards the hook's state. That is an accident of an ancestor's React
@@ -665,11 +719,15 @@ recovery and the zero-record tests both remaining green.
     student picker, a "next student" control, or M3's assignment surface reading a student-scoped
     derived read — would have inherited the exposure immediately, and a hook's correctness should not
     depend on a wrapper key three levels up. The defect was reproduced deterministically at the
-    boundary rather than claimed from the shipped path. Reachability of the remaining four:
-    `useSessionAttendance`, `useSessionRoster` and
-    `useStudentProgress` have **no view consumers** (tests only), so they are not reachable in
-    shipped UI and become reachable at M6/M7; every `useStudentList` call site passes constant
-    params, so it is structurally defective but unreachable. **None of the four was modified.**
+    boundary rather than claimed from the shipped path. **The same reasoning is what made 3B
+    necessary:** a scheduling view selects sessions *in place* (a drawer over one list, no remounting
+    key), so `useSessionRoster`, `useGenerationPreview` and `useConflictCheck` become reachable in
+    shipped UI at **M4** — not at M6/M7 as this paragraph previously stated. Reachability of the
+    remaining three:
+    `useSessionAttendance` has **no view consumer** (tests only) and becomes reachable at **M5**;
+    `useStudentProgress` has none and becomes reachable at **M6/M7**; every `useStudentList` call site
+    passes constant params, so it is structurally defective but unreachable. **None of the three was
+    modified.**
   - **`useDomainSearch` was touched**, and only because CommandPalette is one of the authorized six:
     its gate is meaningless while the hook starts `loading: false` and keeps the previous query's
     results across a keystroke. It now carries the same key identity. No other hand-rolled reader was
@@ -754,6 +812,26 @@ recovery and the zero-record tests both remaining green.
   Checkpoint 2's — before the first full run. **Reversion-checked:** restoring the pre-fix hook fails
   the same 4 cases and no others, so the suite is pinned to the fix rather than passing either way.
   No sleep, no retry, no timeout increase, no assertion weakened.
+- **Done when — Checkpoint 3B (MET, and validated):** `useDerivedRead` — the single boundary behind
+  `useSessionRoster`, `useGenerationPreview` and `useConflictCheck`
+  (`src/domains/scheduling/useScheduling.ts:115`) — exposes only the value belonging to the query it
+  was asked about: a session switch pairs no committed frame with the previous session's roster, plan
+  or conflict report, the previous query's error is never exposed as the next one's, and nothing is
+  exposed at all when no session is selected. **Reproduced before being fixed:** the dedicated suite
+  (`src/domains/scheduling/__tests__/useDerivedRead.test.tsx`, 9 tests, a **new** file — no protected
+  suite touched) was written against the *unmodified* hook and 4 of the 9 fail deterministically on
+  identity, per committed frame and never by waiting on `loading`; the other 5 pin the behaviour the
+  fix had to *keep* (ticket guard, abort, "cancelled is not a failure", same-key refetch, `reload()`).
+  The mechanism is Checkpoint 1's, at this boundary: state carries the key it answers and what is
+  exposed is derived at render. `DerivedState<T>`'s public shape is unchanged, so **no consumer moved**
+  and the scheduling domain contract, repository, generation, conflict engine and date bridge were not
+  touched. **Reversion-checked:** restoring the pre-fix hook fails the same 4 and no others, and the
+  fix was then restored byte-identically. Group A stayed green and unweakened (211 tests across its six
+  files). Measured on the tree that also carries the second remediation commit: **6 consecutive full
+  `npm test` runs — 105 files / 1435 passed / 0 failed / 0 skipped each** (`dist/` built so the CSP
+  gates ran instead of skipping), build clean, `tsc --noEmit` clean, `git diff --check` clean.
+  **This does not close I13:** three hand-rolled readers and the two further exposures below remain,
+  and I14 is untouched.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
 - **What:** `src/domains/shared/demoCollection.ts:23` computes
@@ -841,8 +919,35 @@ recovery and the zero-record tests both remaining green.
   design-system feature.
 - **Done when:** a list that means "everything" either pages or says it truncated, and every count a
   user reads comes from `total`.
-- **Status:** recorded 2026-09-13, **deferred, not authorized, not started**. Distinct from **I14**
+- **Status:** recorded 2026-09-13, **deferred, not authorized, not started — and still OPEN after
+  M4's mitigation below.** Distinct from **I14**
   (`per_page: 0` meaning "load nothing"), which is untouched and still deferred.
+- **What C2 changed (2026-09-13, `7e72887761f07f48e115160611a9785bfaae9060`).** Omitting `per_page`
+  is now a **compile error** for two hooks, because their params are `Paged<…>`
+  (`src/domains/shared/useResource.ts:48`): `useSessions`
+  (`src/domains/scheduling/useScheduling.ts:49`) and `useAttendanceRecords`
+  (`src/domains/attendance/useAttendance.ts:36`). Two cases in
+  `src/__tests__/architectureBoundaries.test.ts` pin those signatures and reject an inline params
+  object without `per_page`, both mutation-checked. **That is a guarantee about *stating* a ceiling,
+  not about the ceiling being high enough** — this item is unchanged in substance.
+  `useClasses`, `useRooms` and `useTeachers` are **not** `Paged<>`, so M4's supporting reads (chips,
+  pickers) must pass `per_page` explicitly and the gate will not catch an omission.
+- **M4's mitigation, recorded so it is not mistaken for closing this item.** A calendar is the surface
+  where a silent ceiling is most dangerous, so the scheduling view is required to: bound every session
+  read with an explicit `from`/`to` window (never an unbounded "everything" read); state `per_page`
+  explicitly, sized above the window's plausible maximum rather than above today's data; consume
+  `Page.meta.total`, which `paginate` sets from the **filtered** row count
+  (`src/domains/shared/demoCollection.ts:27`) and `useResourceList` exposes
+  (`src/domains/shared/useResource.ts:53`); and surface truncation explicitly whenever
+  `items.length < total` instead of rendering a calendar that looks complete. **No pager is introduced
+  and no global pagination redesign is performed** — the roughly twenty other sites, and the
+  `items.length`-based counts elsewhere, stay exactly as they are. Scale for the window arithmetic,
+  derived from the seed's own inputs (`src/domains/demo/schedulingSeed.ts` over the ten `classes` rows
+  and their `days`, in the fixed ±28-day window `2026-08-04 → 2026-09-29`): **137** sessions in the
+  whole seeded window, at most **16** in any 7-day window and **9** on the busiest date — against
+  `DEFAULT_PER_PAGE = 25`, so a week view at the default would already be one busy week away from
+  truncating. Group A's own whole-window read uses `per_page: 500`
+  (`src/domains/scheduling/__tests__/registry.test.ts:190`).
 
 ### I17. Level-content link order is written and honoured for students but invisible to the operator (found 2026-09-13 during M3's acceptance audit)
 - **What:** `attachContent` appends with `sortOrder: siblings.length`
@@ -870,9 +975,14 @@ recovery and the zero-record tests both remaining green.
   repository-backed result honesty (it already reports «چیزی پیدا نشد» rather than inventing rows).
 - **L2. Dead code:** `TeacherNote` is declared at `src/data/records.ts:31` and never used
   anywhere. Delete it or land the feature that needs it.
-- **L3. Domain README stubs contradict the code:** `src/domains/scheduling/README.md` and
-  `src/domains/attendance/README.md` both still say "Planned domain — **not implemented in
-  Phase A**" while the domains are implemented and protected by 290 tests.
+- **L3. Domain README stubs contradict the code — half retired.** `src/domains/scheduling/README.md`
+  said "Planned domain — **not implemented in Phase A**" while the domain was implemented and
+  protected, and sketched a contract that does not exist (`POST /sessions/{id}/move`, a version-checked
+  `409 SCHEDULE_VERSION_CONFLICT`); it was **rewritten to describe the real domain** in M4's CP0
+  documentation reconciliation, because M4's implementer reads that file before touching the view.
+  `src/domains/attendance/README.md` **still carries the same false stub** and is deliberately left to
+  M5, which is the milestone that wires that domain — retiring it here would have widened CP0 into a
+  second domain's documentation.
 - **L4. No browser QA has ever run** — see [PROJECT_STATE.md](PROJECT_STATE.md) §5 for the exact
   manual checklist. This is a permanent gap until a human or a browser-capable environment
   performs it.

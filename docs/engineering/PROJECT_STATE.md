@@ -6,7 +6,11 @@
 > Sibling documents: [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md)
 >
-> **Last state update: 2026-09-13.**
+> **Last state update: 2026-09-13** — M3 complete and accepted; two **pre-M4 remediation** commits
+> landed after it (`fba826f` I13 Checkpoint 3B, `7e72887` C2, the compile-time `per_page`
+> guarantee, which is also M4's effective safe rollback boundary); this pass is **M4's CP0
+> documentation reconciliation** — documents only, no product source — and **M4 itself has not
+> started**.
 
 ---
 
@@ -26,10 +30,10 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` — and §3 carries the current phase |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, and two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — and §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed` — the detach exposure M3's surface introduced, recorded in I13 and in the M3 section rather than hidden; documents only, no behaviour |
-| Previous documentation checkpoint | `df3db2f18718ae0d6d3cf4b13050ea0774833864` — M3 recorded as in progress at its first checkpoint, with D10/D11 added to the decision register; documents only |
+| **Documentation checkpoint (pushed)** | `eab30d3bfa2476b8d995f7cdb942497afce25238` — F3's correction of its own recorded evidence: the M3-completion row in §4 quoted F1's diff as "64 insertions / 10 deletions", which was never measured, so it now carries the measured `--numstat` (148/55) and `-w` (38/6) figures with their commands; documents only, no behaviour |
+| Previous documentation checkpoint | `1f98228e0b6a5cf289d7d96bb012194fe4d71b3b` — M3's acceptance-audit findings **F2** and **F3** recorded (the rollback boundary corrected to two numbers, the six-run evidence, M3 marked complete); documents only |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -43,7 +47,7 @@
   [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Twelve exist so far: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Fourteen exist so far: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
   truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
   `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11),
@@ -55,7 +59,9 @@
   `49fb499` (I13 Checkpoint 2 recorded as landed and validated),
   `85530b4` (I13 Checkpoint 3A recorded as landed and validated),
   `df3db2f` (M3 recorded as in progress at its first checkpoint) and
-  `db5ec24` (the detach exposure M3 introduced, recorded rather than hidden). They
+  `db5ec24` (the detach exposure M3 introduced, recorded rather than hidden),
+  `1f98228` (M3's audit findings F2 and F3 recorded, M3 marked complete) and
+  `eab30d3` (F3's recorded diff scope corrected to the measured numbers). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -104,14 +110,21 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
 M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
-(`c42f274`, honest write feedback) and M2.1 (`73b40d9`, the two defects M2 found and recorded
-rather than fixed) are the product phase's completed milestones. **M3 (`e5b0a57`, the
-learning-content assignment UI) is in progress**: its surface, its wiring and its 16 tests are
-pushed, and what remains is owner acceptance and browser QA, which §5 records as NOT VERIFIED for
-every milestone alike. **M2.1 is not in the M0
+(`c42f274`, honest write feedback), M2.1 (`73b40d9`, the two defects M2 found and recorded
+rather than fixed) and **M3** (implemented at `e5b0a57`, completed at `3bec881` — the
+learning-content assignment UI) are the product phase's completed milestones. M3's surface, its
+wiring and its 16 tests are pushed, it went through a formal acceptance audit and it was **accepted
+with recorded limitations**; what is *not* true of it — or of any milestone — is browser QA, which
+§5 records as NOT VERIFIED for every milestone alike. **M2.1 is not in the M0
 specification:** it is **H6** and **H7** from [OPEN_ITEMS.md](OPEN_ITEMS.md), inserted between M2 and
 M3 by the owner's explicit decision after a read-only triage, and the spec's M0–M11 sequence is
-unchanged by it. **M3 is complete**, so M2.1 is no longer the last completed milestone. M4–M11 have
+unchanged by it. **After M3, two pre-M4 remediation commits landed** at the owner's explicit
+authorization following that audit — `fba826f` (**C1 / I13 Checkpoint 3B**, scheduling's
+`useDerivedRead` carrying its query key) and `7e72887` (**C2**, `useSessions` and
+`useAttendanceRecords` taking `Paged<…>` so omitting `per_page` is a compile error). **Neither is a
+milestone** and neither advances a row above; both were done *ahead of* M4 rather than inside it, and
+`7e72887` is M4's effective safe rollback boundary. **M4 itself has not started**: its CP0
+documentation reconciliation changes documents only and no product source. M4–M11 have
 not started; the ledger in [PHASES.md](PHASES.md) marks the product-feature phase's remaining
 milestones NOT STARTED.
 
@@ -265,22 +278,32 @@ Product work since those three is the product phase itself, described above and 
 M3 — implemented at `e5b0a57`, completed at `3bec881` (the learning-content assignment UI, described
 above).
 
-Ten further commits landed outside that milestone sequence and are registered here so that
-`git log` shows nothing this ledger does not explain. Seven of them are **documentation
+Fourteen further commits landed outside that milestone sequence and are registered here so that
+`git log` shows nothing this ledger does not explain. Nine of them are **documentation
 checkpoints** by the definition in §2 and are listed in [PHASES.md](PHASES.md): `2972a99` (closing
 **I11** — one test file and four documents, no product behaviour), `ea890ae` (I13 Checkpoint 1's
 measured validation recorded and M3's gate discharged), `be75ac6` (I13 Checkpoint 2 recorded as
 authorized and in progress *before* its code was written), `49fb499` (I13 Checkpoint 2 recorded as
 landed and validated), `85530b4` (I13 Checkpoint 3A recorded as landed and validated), `df3db2f` (M3
-recorded as in progress at its first checkpoint) and `db5ec24` (the detach exposure M3 introduced).
-Each was registered by a later commit, because no entry may carry its own SHA. The other three are **product source**, so they are neither
+recorded as in progress at its first checkpoint), `db5ec24` (the detach exposure M3 introduced),
+`1f98228` (M3's acceptance-audit findings **F2** and **F3** recorded — the two-number rollback
+boundary, the six-run evidence — and M3 marked complete) and `eab30d3` (F3's correction of its own
+recorded diff scope to the measured numbers).
+Each was registered by a later commit, because no entry may carry its own SHA. The other five are **product source**, so they are neither
 milestones nor documentation checkpoints and they advance no row above: `289e080` is **I13
 Checkpoint 1** — the shared list hook plus the six consumers that ignored `loading`, with three new
 test files, and the commit that discharged M3's I13 gate (§9); `bcea26c` is **I13 Checkpoint 2** —
 the `attachContent` intent guard, with its adversarial suite; `57c1dfb` is **I13 Checkpoint 3A** —
 `useDerived` carrying its key so a student switch cannot expose the previous student's placement or
-eligible content, with the suite that reproduced the frame before the fix. All three are recorded in
-[OPEN_ITEMS.md](OPEN_ITEMS.md) I13 and in §7 item 12.
+eligible content, with the suite that reproduced the frame before the fix; `fba826f` is **I13
+Checkpoint 3B** — scheduling's `useDerivedRead` carrying its key, the first of the two **pre-M4
+remediation** commits the owner authorized after M3's acceptance audit, landed because M4 is what
+makes its three readers reachable in shipped UI; and `7e72887` is **C2** — `useSessions` and
+`useAttendanceRecords` take `Paged<…>`, so omitting `per_page` is a compile error rather than a
+review habit — which is also **M4's effective safe rollback boundary** (the M4 milestone's
+**Checkpoint & rollback** field in [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md)).
+All five are recorded in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) I13/I16 and in §7 item 12.
 
 The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints"; this
 file never records the SHA of the commit carrying the edit (§2).
@@ -335,6 +358,37 @@ so nothing skipped for want of a build artifact.
 spec's boundary is `c42f274ac10d4087f9280e3bf7b47141d0672e32` (**M2**), the effective safe boundary is `85530b40c66db63b10769537c2dc6cb24609842d`, and
 `289e080`, `bcea26c` and `57c1dfb` — accepted work between them — **must survive any M3 rollback**.
 No history was rewritten, reset or rebased to make the documents agree.
+
+### Pre-M4 remediation validation (measured at `7e72887761f07f48e115160611a9785bfaae9060`, the tree that contains both remediation commits)
+
+Two commits landed after M3's completion and before M4, at the owner's explicit authorization
+following M3's acceptance audit: **C1 / I13 Checkpoint 3B**
+(`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`) and **C2** (`7e72887761f07f48e115160611a9785bfaae9060`).
+**Neither is a milestone**; their substance is recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I13
+(Checkpoint 3B) and I16 (what C2 changed), and this table keeps the run evidence in one place so §3's
+ledger and the [PHASES.md](PHASES.md) rows agree with it. The six-run evidence is measured on the tree
+that contains **both** commits, not on `fba826f` alone — recorded that way rather than claimed
+per commit.
+
+| Check | Result |
+|---|---|
+| Dependencies | ✅ none added, removed or changed — `package.json` and `package-lock.json` are untouched by both diffs, so the dependency set these runs measured against is the one M3 was accepted on, installed by `npm ci` from that lockfile (`npm install` is never run, in CI or locally) |
+| `npm run typecheck` | ✅ clean (`tsc --noEmit`, zero output, exit 0) — which is part of C2's evidence rather than a formality: with `useSessions` and `useAttendanceRecords` taking `Paged<…>`, an omitted `per_page` fails here instead of in review |
+| `npm run build` | ✅ exit 0; the pre-existing warning is unchanged — main chunk > 500 kB, no code-splitting (**I6**) |
+| `npm test` (full suite) | ✅ **6 consecutive full-suite runs at `7e72887761f07f48e115160611a9785bfaae9060`: 105 files / 1435 passed / 0 failed / 0 skipped on every run**, with `dist/` built so the CSP gates ran instead of skipping, and `git diff --check` clean. The arithmetic against M3's completion record is auditable: `1424 + 9` (the new `useDerivedRead` suite) `+ 2` (C2's two architecture-boundary cases) `= 1435`, and `104 + 1 = 105` files — one new test file, and no existing file's cases removed, re-timed or weakened |
+| Group A (protected) | ✅ untouched and green — the six pre-existing files in `src/domains/scheduling/__tests__/` (**211** tests, `useScheduling.test.tsx` 14/14) are unchanged by both commits; the only file added to that directory is the new 9-case suite, which is **not** Group A |
+| Views (protected) | ✅ `src/views/Scheduling.tsx` and `src/views/Attendance.tsx` are untouched by both commits — the remediation hardened the *hooks*, not the views, which is exactly why **H1 stays OPEN** |
+| Reversion / mutation checks | ✅ C1: restoring the pre-fix `useDerivedRead` from `HEAD` fails **4 of the 9** new cases on *identity* and no others, and the fix was then restored byte-identically. C2: both new cases in `src/__tests__/architectureBoundaries.test.ts` are recorded as mutation-checked in I16 |
+| Scope of the diffs | ✅ C1 = 2 files, **669 insertions / 15 deletions** (the new suite 587/0, `src/domains/scheduling/useScheduling.ts` 82/15); C2 = 3 files, **135 insertions / 15 deletions** (`src/__tests__/architectureBoundaries.test.ts` 96/2, `src/domains/attendance/useAttendance.ts` 17/6, `useScheduling.ts` 22/7). Combined product source = 4 files, **804 / 30**. The only pre-existing test file either commit edited is `architectureBoundaries.test.ts`, which is not Group A and not a protected milestone suite |
+| Documents | ✅ the two documentation checkpoints between M3's completion and C1 carry no product source: `1f98228e0b6a5cf289d7d96bb012194fe4d71b3b` (369/87 across the five `docs/engineering/` files) and `eab30d3bfa2476b8d995f7cdb942497afce25238` (1/1, one corrected row in §4) |
+| Browser QA | ❌ NOT VERIFIED (§5) — unchanged for every milestone, and unchanged by this remediation |
+
+**What this evidence does not say.** Repeated runs are evidence, not a proof of determinism. **I13 is
+not closed** — three hand-rolled readers and two further exposures remain, and I14 is untouched. **I16
+is not closed** — C2 guarantees that a ceiling is *stated* at the call site, not that the ceiling is
+high enough, and `useClasses`, `useRooms` and `useTeachers` are not `Paged<>`, so M4's supporting reads
+(chips, pickers) must pass `per_page` explicitly with no gate to catch an omission. **H1 is not
+closed** — the scheduling view still renders fixtures.
 
 ### M2.1 validation (measured at M2.1, on top of M2 `c42f274` — kept for audit)
 
@@ -535,7 +589,13 @@ rendering, RTL layout at tablet/mobile breakpoints, real audio playback, real fi
 file-download paths, and the first-run lifecycle chooser on a genuinely fresh browser
 profile. **M3 adds one more:** the learning-content assignment surface
 (`src/domains/learning/LevelContentPanel.tsx`) has never been opened in a browser — its four states,
-its picker, its toasts and its keyboard path are jsdom-verified only. See
+its picker, its toasts and its keyboard path are jsdom-verified only. **M4 will add another, and it is
+written down now rather than after the fact:** the scheduling calendar has never been opened in a
+browser either — today `src/views/Scheduling.tsx` renders fixtures, and once M4 wires it to
+`useSessions`, `useGenerationPreview` and `useConflictCheck`, its week navigation, its Jalali date
+rendering, its reschedule/cancel/generate flows and its conflict states will be jsdom-verified only
+until this checklist is performed. The two pre-M4 remediation commits changed no view, so they add nothing to
+this list — and they do not shorten it. See
 `docs/production-handoff.md` → "NOT verified".
 
 ## 6. Protected domains and invariants
@@ -544,7 +604,7 @@ These are pinned by tests. Changing them is a regression, not a refactor.
 
 | Area | Pinned by |
 |---|---|
-| **Group A — scheduling** (Session model, conflict engine, generation, Jalali date bridge) | `src/domains/scheduling/__tests__/conflicts.test.ts` · `generation.test.ts` · `dateBridge.test.ts` · `demoRepository.test.ts` · `registry.test.ts` · `useScheduling.test.tsx` |
+| **Group A — scheduling** (Session model, conflict engine, generation, Jalali date bridge) | `src/domains/scheduling/__tests__/conflicts.test.ts` · `generation.test.ts` · `dateBridge.test.ts` · `demoRepository.test.ts` · `registry.test.ts` · `useScheduling.test.tsx` — **211** tests. `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` sits in the same directory but is **not** Group A: it pins I13's Checkpoint 3B, was added by `fba826f`, and is equally off-limits to weakening |
 | **Group D — attendance** (append-only corrections, roster) | `src/domains/attendance/__tests__/demoRepository.test.ts` · `roster.test.ts` · `useAttendance.test.tsx` |
 | Library + real media bytes (Phase 1) | `src/views/__tests__/Library.test.tsx` · `src/domains/library/__tests__/useLibrary.test.tsx` · `demoRepository.test.ts` · `apiRepository.test.ts` · `AudioMessagePlayer.test.tsx` · `src/domains/media/__tests__/media.test.ts` |
 | Student profile + messages regressions (Phase 1) | `src/views/__tests__/studentProfileRegression.test.tsx` · `messagesDatasetRegression.test.tsx` |
@@ -596,7 +656,10 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
 9. **Documentation drift**: `docs/gap-matrix.md` is a stale Phase 0 audit; parts of
    `docs/architecture/data-layer.md` still claim scheduling/attendance/messages/library have no
    domain layer; `docs/production-handoff.md` still quotes "38 files / 340 tests"; the
-   `scheduling` and `attendance` README stubs say "not implemented in Phase A".
+   `attendance` README stub still says "not implemented in Phase A" (the `scheduling` README's
+   identical stub, and its invented `POST /sessions/{id}/move` contract, was corrected in M4's CP0
+   documentation reconciliation — see [OPEN_ITEMS.md](OPEN_ITEMS.md) **L3**; the rest of this drift
+   stays M10's).
 10. **No code-splitting** — one main chunk > 500 kB (build warning).
 11. **No backend.** `api` mode is an architectural seam pointing at a server that does not
     exist. See `docs/production-handoff.md` and `docs/security.md` §8.
@@ -627,12 +690,21 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     honestly: the frame was *not* observable through the app's own navigation, because `src/App.tsx`
     keys the view subtree on `detailId` and so remounts the panel; the hook's correctness should not
     depend on an ancestor's key, and any consumer that switched students in place would have
-    inherited the exposure. **Still open:** the four remaining hand-rolled readers keep the old shape
+    inherited the exposure. **Checkpoint 3B is implemented and validated too** (`fba826f`, the first
+    of the two pre-M4 remediation commits): `useDerivedRead` — scheduling's boundary, behind
+    `useSessionRoster`, `useGenerationPreview` and `useConflictCheck` — carries its query key with the
+    same shape, reproduced before being fixed by a new 9-case suite and checked by a reversion that
+    fails 4 of the 9 on identity. It was hardened ahead of **M4** rather than inside it because M4 is
+    what makes those three readers reachable in shipped UI. **Still open:** the three remaining
+    hand-rolled readers keep the old shape
     (rest of Checkpoint 3, not authorized; none of
     them reachable in shipped UI today); `useLibraryFile` can offer the previous item's bytes under a
     new title; `useMediaObjectUrl` exposes the previous object URL for one frame. `paginate` still
     turns `per_page: 0` — three call sites' way of saying "load nothing" — into one row (**I14**,
-    untouched, and not an M3 blocker). The test harness stopped trusting that frame earlier (**I11**,
+    untouched and not an M3 blocker; neither remediation commit closes it, because **C2** makes
+    *omitting* `per_page` a compile error at the call site, which is not the same as making `0` mean
+    nothing). The test harness stopped
+    trusting that frame earlier (**I11**,
     fixed).
 
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
@@ -670,14 +742,23 @@ single-persistence-authority code path; **D8's api-mode indicator does not exist
 **browser QA has never run and is NOT VERIFIED** (§5). Completion says the contract now has a tested,
 honest UI — not that a human has used it in a browser.
 
-**Do not start M4.** The next milestone — **M4, scheduling *view* wiring (H1a, domain frozen)** — is
-**NOT STARTED** and not authorized. When it is authorized, the first step is *not* implementation:
+**M4 is NOT STARTED, and this pass did not start it.** The next milestone — **M4, scheduling *view*
+wiring (H1a, domain frozen)** — is **NOT STARTED** and is not authorized beyond the documentation
+reconciliation recorded here. What *has* happened is **CP0**: the five `docs/engineering/` documents
+and `src/domains/scheduling/README.md` were reconciled with the tree at
+`7e72887761f07f48e115160611a9785bfaae9060` — documents only, **no product source, no test, no
+dependency, no build**, and no claim in them upgraded. CP0's own rule is that it stops there:
+**CP1 (implementation) is not authorized by CP0 landing**, and a reader who finds these documents
+reconciled must not infer that the view was wired. When CP1 *is* authorized, the first step is still
+*not* implementation:
 re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded checkpoints against Git (§2, and the
 recovery contract at the end of this file), re-establish a green baseline (`npm ci` if
 `node_modules` is absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run
 build`), and only then start from the
 [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M4 scope, with Groups A and D
-frozen exactly as §6 records.
+frozen exactly as §6 records — together with the 9-case
+`src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, which is *not* Group A and is no
+less off-limits.
 
 **M3's own spec named one precondition, and it is now discharged:** the **I11** `LearningPanel`
 flake has been reproduced, root-caused and fixed in the test harness, so the suites M3 touches are
@@ -719,10 +800,18 @@ a student-scoped derived read can now be rendered by M3's surface without exposi
 placement or unlocked content under another's name. **M3 chose not to render one** — the spec made
 the student-scoped read optional and the slice stayed tight — so `useDerived`'s fix is landed,
 validated and *unused by M3*. That is recorded as unused rather than claimed as a dependency
-satisfied; M6/M7 are what will consume it. **The remaining four readers are not authorized
-and not started** — `useStudentList`, `useStudentProgress`, `useDerivedRead` and
-`useSessionAttendance`, none of them reachable in shipped UI today (tests only, or constant params),
-becoming reachable at M6/M7. **I14** (`paginate` clamps `per_page: 0` to one
+satisfied; M6/M7 are what will consume it. Its second slice, **Checkpoint 3B**, landed after M3 as the
+first of the two pre-M4 remediation commits at `fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`: scheduling's
+`useDerivedRead` — the boundary behind `useSessionRoster`, `useGenerationPreview` and
+`useConflictCheck` — carries its query key with the same evidence shape (a new 9-case suite that
+reproduced the crossed frame before the fix; reverting only the fix fails 4 of the 9 on identity).
+It was hardened ahead of M4 rather than inside it because **M4 is what makes those three readers
+reachable in shipped UI**. **The remaining three readers are not authorized
+and not started** — `useStudentList`, `useStudentProgress` and
+`useSessionAttendance`, none of them reachable in shipped UI today: `useSessionAttendance` has no view
+consumer at all and becomes reachable at **M5**, `useStudentProgress` has none and becomes reachable
+at **M6/M7**, and every `useStudentList` call site passes constant params, so it is structurally
+defective but unreachable. **I14** (`paginate` clamps `per_page: 0` to one
 row) was assessed for M3 relevance and **deferred**, and M3's landing changes nothing about it: the
 assignment surface never reads through a `per_page: 0` query, since that is only the
 not-yet-selected branch of three call sites — and M3 added no fourth, because its surface renders
@@ -789,7 +878,7 @@ These come from the product owner and survive every session.
 |---|---|
 | Test environment | `vite.config.ts` sets `environment: "node"`, so **every** `.test.tsx` file must begin with `// @vitest-environment jsdom`. Without it the failure is a baffling `document is not defined` |
 | Shared lifecycle harness | `src/test/demoEnvironment.ts` exports `resetToDemoEnvironment()`, `resetToEmptyEnvironment()` and `resetToUninitialized()`. `demoStore.reset()` seeds nothing, so every test must say out loud which environment it wants |
-| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence was not enough when the query's params could change:** the frame between a params change and the effect that re-set `loading` carried no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**). Since I13's Checkpoint 1 the hook itself upholds that: a page is exposed only for the params it was loaded for, so a params change shows an in-flight state rather than another query's rows. **The data-derived wait stays the rule anyway** — it is what makes a test independent of which half is holding, and the five hand-rolled readers of I13 Checkpoint 3 — of which `useDerived` is fixed as Checkpoint 3A and four are not — do not all uphold it yet. And never wait on `loading === false` as the *sole* proof: that is the flag under test, so such a wait can be satisfied by the very frame being asserted against |
+| Waiting for a view in tests | Wait for the design system's in-flight marker — `role="status"`, from `BreathingWave` in `src/components/ds/states.tsx` — to disappear, **not** for the view title. The shell renders titles immediately while `useResourceList` may still have a read in flight, which is how I11's race worked. Query by role, never by the Persian label, so a copy change cannot turn the wait into a no-op. **Marker absence was not enough when the query's params could change:** the frame between a params change and the effect that re-set `loading` carried no marker at all, so wait for the data-derived state — the rows on screen are the rows the repository holds for what the screen claims to be showing (**I11**). Since I13's Checkpoint 1 the hook itself upholds that: a page is exposed only for the params it was loaded for, so a params change shows an in-flight state rather than another query's rows. **The data-derived wait stays the rule anyway** — it is what makes a test independent of which half is holding, and the five hand-rolled readers of I13 Checkpoint 3 — of which `useDerived` is fixed as Checkpoint 3A, scheduling's `useDerivedRead` as Checkpoint 3B, and three are not — do not all uphold it yet. And never wait on `loading === false` as the *sole* proof: that is the flag under test, so such a wait can be satisfied by the very frame being asserted against |
 | Running a single file | `npx vitest run <path>` — the whole suite takes ~100 s |
 | Blob store | `blobStore.put(id, bytes, mimeType)` takes three arguments and an `ArrayBuffer`, **not** a `Blob` |
 | Dependencies | `npm ci` only. Never `npm install` — it can rewrite `package-lock.json`, which is an unauthorized dependency change and dirties an otherwise clean tree |

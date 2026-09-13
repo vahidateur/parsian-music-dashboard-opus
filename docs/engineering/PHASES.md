@@ -154,13 +154,16 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
 M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3 ✅ **complete**
-(implemented `e5b0a57`, closed `3bec881`) · M4–M11 ❌ **not started, not authorized**.
+(implemented `e5b0a57`, closed `3bec881`) · two **pre-M4 remediation** commits landed and accepted
+(**C1 / I13 Checkpoint 3B** `fba826f`, **C2 / the `Paged` page-size guarantee** `7e72887`, which is
+also M4's effective safe rollback boundary) · M4–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
 scope, dependencies, protected areas, Demo/API behaviour, tests, acceptance, out-of-scope and a
 checkpoint boundary, with `file:line` evidence. The decisions that gate it are recorded in
-[DECISIONS.md](DECISIONS.md) §19 as **D1–D9**.
+[DECISIONS.md](DECISIONS.md) §19 as **D1–D12** (D10–D12 were added by M3's landing and its
+acceptance audit).
 
 **Milestone order (M0 … M11).**
 
@@ -171,7 +174,7 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 | M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
 | M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ landed `73b40d9` |
 | M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ✅ complete — implemented `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted by audit, closed `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`; **I3 closed**, limitations recorded (I13/I15/I16/I17), browser QA NOT VERIFIED |
-| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started — next |
+| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started — next. Two pre-M4 remediation commits (**C1** `fba826f`, **C2** `7e72887`) landed ahead of it and are *not* M4; its pre-implementation documentation reconciliation (CP0) changes documents only and is registered by the commit that follows it, per the no-self-referential-SHA rule |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
 | M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ❌ not started |
@@ -229,8 +232,14 @@ carries its key and derives what it exposes at render. Its evidence is the same 
 exposure **reproduced deterministically before the fix** (a dedicated suite failing 4 of 8 against the
 unmodified hook), 6 consecutive full-suite runs (102 files / 1407 passed / 0 failed / 0 skipped each,
 `dist/` built), 2 contention samples, build, typecheck, documentation gates, and a reversion check
-that fails the same 4 and no others. Still open and **not** part of any pass: the **remaining four
-readers of I13 Checkpoint 3** (`useStudentList`, `useStudentProgress`, `useDerivedRead`,
+that fails the same 4 and no others. **Checkpoint 3B followed after M3, as one of the two pre-M4
+remediation commits the owner authorized**, and landed as
+`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`: scheduling's `useDerivedRead` — the boundary behind
+`useSessionRoster`, `useGenerationPreview` and `useConflictCheck` — carries its key too, with a new
+9-case suite that reproduced the crossed frame before the fix and a reversion check failing 4 of the 9
+on identity. It was hardened **before** M4 rather than inside it, because M4 is what makes those three
+readers reachable in shipped UI. Still open and **not** part of any pass: the **remaining three
+readers of I13 Checkpoint 3** (`useStudentList`, `useStudentProgress`,
 `useSessionAttendance` — none reachable in shipped UI today, not authorized), and
 **I14** (`paginate`
 clamps `per_page: 0` to one row) — assessed for M3 relevance and **explicitly deferred**, not closed,
@@ -658,8 +667,16 @@ modes.
 
 **Rule for whoever reads this next:** M4 is *not* authorized by M3 landing. What M3 leaves M4 is the
 proven pattern — a surface over a complete contract, writing through the repository, with the
-independent-intent rule pinned by an adversarial test — and one open hardening item, **I13**, whose
-remaining readers are still not authorized and still not started.
+independent-intent rule pinned by an adversarial test — and one open hardening item, **I13**, of
+which **Checkpoint 3B has since landed** (`fba826f`, scheduling's `useDerivedRead`, the boundary M4 is
+about to make reachable); the three readers that remain — `useStudentList`, `useStudentProgress`,
+`useSessionAttendance` — are still not authorized and still not started. Also landed after M3 is **C2**
+(`7e72887`), which makes the page-size contract compile-time: `useSessions` and `useAttendanceRecords`
+take `Paged<…>`, so M4 cannot call the scheduling list without declaring its page. That commit is M4's
+**effective safe rollback boundary**, and it is *not* the number the spec's convention would name —
+that convention ("M4's is M3's") points at `3bec881`, M3's completion, and rolling back there would
+destroy both remediation commits. Same shape as the F2 correction above, one milestone later; see the milestone's
+own "Checkpoint & rollback" field.
 
 ---
 
@@ -686,17 +703,28 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `49fb49949feea4bb8c85957a317243d470b20c7a` | **I13 Checkpoint 2** recorded as landed and validated at `bcea26c`: the guard's contract, its adversarial suite, the measured runs, and the caveat that no signature can stop a caller passing the target's own `programId` back as its intent | none (documents only) | ✅ |
 | `85530b40c66db63b10769537c2dc6cb24609842d` | **I13 Checkpoint 3A** recorded as landed and validated at `57c1dfb`: `useDerived` carrying its key, the suite that reproduced the crossed frame before the fix, and I13's status bullet stating outright that the item is **not** closed and that I14 is untouched and deferred | none (documents only) | ✅ |
 | `df3db2f18718ae0d6d3cf4b13050ea0774833864` | **M3 recorded as in progress** at its first checkpoint: PROJECT_STATE §2–§5 and §9, this ledger's M3 section and rows, **I3** landed-but-not-closed, **I13** with M3 as Checkpoint 2's first real caller, **I14** still deferred, and **D10**/**D11** added to the decision register | none (documents only) | ✅ |
-| `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed` | **Latest recorded.** The detach exposure M3's surface introduced, recorded in I13 and in the M3 section rather than hidden: `detachContent` is a single-id write, so no guard can detect a crossed context | none (documents only) | ✅ |
+| `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed` | The detach exposure M3's surface introduced, recorded in I13 and in the M3 section rather than hidden: `detachContent` is a single-id write, so no guard can detect a crossed context | none (documents only) | ✅ |
+| `1f98228e0b6a5cf289d7d96bb012194fe4d71b3b` | **M3's acceptance-audit findings F2 and F3 recorded:** the rollback boundary corrected to two numbers (the spec's `c42f274` and the effective safe `85530b4`, because rolling back to M2 would destroy M2.1 and the three accepted I13 checkpoints), the six-run evidence recorded, and **M3 marked COMPLETE** across all five documents | none (documents only) | ✅ |
+| `eab30d3bfa2476b8d995f7cdb942497afce25238` | **Latest recorded.** F3's correction of its own evidence: the M3-completion row in [PROJECT_STATE.md](PROJECT_STATE.md) §4 quoted F1's diff as "64 insertions / 10 deletions", which was never measured — `git diff --numstat` reports 148/55 and `-w` reports 38/6 in the component, so the row now carries both figures with their commands | none (documents only) | ✅ |
 
 The product-source commits this ledger also has to explain are **not** documentation checkpoints and
 are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4 instead: `289e080` (I13 Checkpoint 1 —
 the shared list hook and the six consumers that ignored `loading`), `bcea26c` (I13 Checkpoint 2 — the
 `attachContent` intent guard and its adversarial suite), `57c1dfb` (I13 Checkpoint 3A — `useDerived`
-carrying its key), `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (**M3's implementation checkpoint**, the assignment surface) and `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`
-(**M3's completion checkpoint** — the F1 catalogue-error fix and its regression case). The last two
-are milestone commits, so they are registered in the milestone table and in the M3 section above.
+carrying its key), `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (**M3's implementation checkpoint**, the assignment surface), `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`
+(**M3's completion checkpoint** — the F1 catalogue-error fix and its regression case), and the two
+**pre-M4 remediation** commits the owner authorized after M3's acceptance audit:
+`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807` (**C1 / I13 Checkpoint 3B** — scheduling's `useDerivedRead`
+carrying its query key, with the 9-case suite that reproduced the crossed frame before the fix) and
+`7e72887761f07f48e115160611a9785bfaae9060` (**C2** — `useSessions` and `useAttendanceRecords` take
+`Paged<…>`, so omitting `per_page` is a compile error, with two mutation-checked boundary cases). The
+milestone commits among them
+are registered in the milestone table and in the M3 section above.
 None of them advances the phase checkpoint row, which stays at Phase 2 for the ordering reason
-recorded in §2.
+recorded in §2. **`7e72887761f07f48e115160611a9785bfaae9060` is nevertheless the effective safe
+rollback boundary for M4** — see the milestone's own "Checkpoint & rollback" field in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md), and the F2 correction in the M3
+section above that established why one number is not enough.
 
 Two rows above — `49fb49949feea4bb8c85957a317243d470b20c7a` and `85530b40c66db63b10769537c2dc6cb24609842d` — were pushed before this ledger recorded them, which is the
 self-reference rule working rather than an omission: each documentation checkpoint is registered by a
