@@ -4,7 +4,8 @@
 [PROJECT_STATE.md](PROJECT_STATE.md) §9. **Implementation has not started.** Only M0 (this
 document, the decision register and the ledger entry) is documentation work; every milestone
 from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
-M1, M2 and M2.1 have since landed and **M3 is in progress** — the live status of every milestone is
+M1, M2, M2.1 and **M3** have since landed — M3 complete, accepted with recorded limitations — and
+**M4 onward has not started** — the live status of every milestone is
 in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
@@ -248,14 +249,25 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 
 ### M3 — Learning content assignment UI (**I3**) — UI only
 
-> **Status (2026-09-13): 🚧 IN PROGRESS — authorized by the owner and implemented at
-> `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, pushed to the working branch.** Scope, prohibition, protected areas, Demo/API
-> behaviour, tests and out-of-scope below are unchanged and were honoured as written; the milestone
-> is *not* complete until the owner accepts the surface and browser QA exists (§5 of
-> [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED). What landed, the measured validation
-> and the mutation checks are recorded in [PHASES.md](PHASES.md) → "Product phase — M3" and
-> [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4. This note and the correction of one stale sentence
-> below are the only edits M3 made to this section; **no future milestone's status was touched.**
+> **Status (2026-09-13): ✅ COMPLETE — authorized by the owner, implemented at
+> `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted through a formal audit of this section, and
+> completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, all pushed to the working branch.** Scope,
+> prohibition, protected areas, Demo/API behaviour, tests and out-of-scope below are unchanged and
+> were honoured as written. The audit answered every clause below PASS / PARTIAL / FAIL / NOT
+> VERIFIABLE against file-and-line evidence and found one product defect (**F1**: the catalogue read
+> discarded `error`, so a failed read rendered as «منبعی برای اتصال باقی نمانده» — fixed, with a
+> regression case and a reversion check, and now **D12** of
+> [DECISIONS.md](DECISIONS.md)), one contradiction with the rollback field below (**F2**) and one
+> shortfall against the Tests clause (**F3**); both documentation findings are annotated on the
+> fields they concern. **I3 is closed with it.** What completion does *not* claim: **browser QA has
+> never run and is NOT VERIFIED** (§5 of [PROJECT_STATE.md](PROJECT_STATE.md)), and four limitations
+> are recorded rather than absorbed — the unguarded detach half (**I13**, open), `per_page: 200`
+> ceilings (**I16**), fourteen other consumers that discard `error` (**I15**) and link order being
+> invisible to the operator (**I17**), all in [OPEN_ITEMS.md](OPEN_ITEMS.md). What landed, the
+> measured validation and the mutation checks are recorded in [PHASES.md](PHASES.md) → "Product phase
+> — M3" and [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4. This note, the two field annotations below and
+> the correction of one stale sentence are the only edits M3 made to this section; **no future
+> milestone's status was touched, and M4 has not started.**
 
 - **Scope.** An assignment surface — I3 names it: *"in Settings → Programs & levels (or the
   learning workspace)"* — that writes through the contract which already exists and is already
@@ -316,11 +328,28 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   an honest refusal; detach removes the link; EMPTY renders «داده‌ای نیست», never a fixture; the
   previously flaky `LearningPanel` cases pass on repeated runs — six consecutive full-suite runs,
   the count §10.1 requires of a file that has ever flaked.
+  *Recorded for honesty, 2026-09-13 (**F3**):* the milestone's first record claimed **three**
+  consecutive full runs, below this clause, and that claim was being quoted as the milestone's
+  evidence. Six-run evidence now exists at two checkpoints — at `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed`
+  (104 files / 1423 passed / 0 failed / 0 skipped, `LearningPanel.test.tsx` 11/11 every run) and at
+  `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` (104 / **1424** / 0 / 0, 11/11 every run; `1423 + 1` is
+  the F1 regression case). The authoritative table is [PROJECT_STATE.md](PROJECT_STATE.md) §4 →
+  "M3 completion validation"; the three-run row is kept there, labelled superseded, and must not be
+  quoted.
 - **Acceptance.** I3's done-when: *"an assignment surface exists …, writes through that existing
   contract, and is covered by a test."*
 - **Out of scope.** Any change to `Piece` / `LearningContent` / placement / eligibility models;
   recommendations logic; progress grants (§12 append-only).
 - **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M2's SHA.
+  *Recorded for honesty, 2026-09-13 (**F2**):* this field is correct as written — M2's SHA is
+  `c42f274ac10d4087f9280e3bf7b47141d0672e32` — and it is the ledger that contradicted it, by naming
+  M3's *own* checkpoint as the boundary. The ledger now records **both** numbers, because one of them
+  is wrong in a way the field cannot express: between M2 and M3 sit five separately authorized and
+  accepted commits — M2.1 `73b40d9` and the three I13 checkpoints `289e080`, `bcea26c`, `57c1dfb`
+  with their documentation checkpoints — which **must survive any M3 rollback**, so the effective safe
+  base for abandoning M3 alone is `85530b40c66db63b10769537c2dc6cb24609842d`. Rolling back to M2's
+  SHA would destroy them. See [PHASES.md](PHASES.md) → "Product phase — M3" → "Rollback". No history
+  was rewritten, reset or rebased.
 
 ### M4 — Scheduling **view** wiring (**H1a**) — domain frozen
 

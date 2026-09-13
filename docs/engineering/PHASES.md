@@ -19,8 +19,8 @@ be derived, it is marked **not recorded** rather than guessed.
 | Product-feature phase — M1 (recovery & lifecycle UX) | `689a7c15951d690b1ce650a5938e6b1216ca30ed` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2 (honest write feedback) | `c42f274ac10d4087f9280e3bf7b47141d0672e32` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | `73b40d970816f174b56d37addc21f106a472359b` | ✅ yes | **COMPLETE** |
-| Product-feature phase — M3 (learning-content assignment UI) | `e5b0a57d8f33dc04838670a2cd4158a88dd34022` | ✅ yes (pushed) | 🚧 **IN PROGRESS** — code and tests landed; owner acceptance and browser QA outstanding |
-| Product-feature phase | — | — | M3 🚧 **IN PROGRESS** (row above); remaining milestones M4–M11 ❌ **NOT STARTED** |
+| Product-feature phase — M3 (learning-content assignment UI) | `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` | ✅ yes (pushed) | ✅ **COMPLETE** — implemented `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted by audit, closed by `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`; limitations recorded, browser QA NOT VERIFIED |
+| Product-feature phase | — | — | M3 ✅ **COMPLETE** (row above); remaining milestones M4–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -149,12 +149,12 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0); M1, M2 and M2.1 LANDED; M3 IN PROGRESS; M4–M11 NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1, M2, M2.1 and M3 LANDED; M4–M11 NOT STARTED
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
-M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3 🚧 **in progress**
-at `e5b0a57` (pushed, not yet accepted) · M4–M11 ❌ **not started, not authorized**.
+M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3 ✅ **complete**
+(implemented `e5b0a57`, closed `3bec881`) · M4–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -170,7 +170,7 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 | M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ landed `689a7c1` |
 | M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
 | M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ landed `73b40d9` |
-| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | 🚧 in progress — first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022` pushed; owner acceptance + browser QA outstanding |
+| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ✅ complete — implemented `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted by audit, closed `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`; **I3 closed**, limitations recorded (I13/I15/I16/I17), browser QA NOT VERIFIED |
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started — next |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
@@ -510,14 +510,23 @@ precondition, I11.
 
 ---
 
-## Product phase — M3 — learning-content assignment UI (**I3**) — 🚧 IN PROGRESS
+## Product phase — M3 — learning-content assignment UI (**I3**) — ✅ COMPLETE
 
-**First checkpoint:** `e5b0a57d8f33dc04838670a2cd4158a88dd34022` · *feat(learning): M3 checkpoint — assign learning content to a level
-through the UI*. **Base:** I13 Checkpoint 3A's documentation checkpoint `85530b40c66db63b10769537c2dc6cb24609842d`. **Pushed** ✅ to
-`arena/01a07c61-parsian-music-dashboard-opus`. Its documents and measured validation are in the
-commit that follows it, per § "No self-referential checkpoint SHA". **Status: 🚧 IN PROGRESS** —
-the code and tests are landed and green; the milestone is *not* complete until the owner accepts the
-surface and browser QA exists (§5 of [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED).
+**Implementation checkpoint:** `e5b0a57d8f33dc04838670a2cd4158a88dd34022` · *feat(learning): M3 checkpoint — assign learning content to
+a level through the UI*. **Base:** I13 Checkpoint 3A's documentation checkpoint `85530b40c66db63b10769537c2dc6cb24609842d`.
+**Completion checkpoint:** `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` · *fix(learning): M3 F1 — a failed catalogue read is reported, not
+shown as empty*. All pushed ✅ to `arena/01a07c61-parsian-music-dashboard-opus`.
+
+**Status: ✅ COMPLETE (2026-09-13), accepted with recorded limitations.** The milestone was
+implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, documented at `df3db2f18718ae0d6d3cf4b13050ea0774833864` and `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed`, then put through a formal **acceptance
+audit** against the spec's own fields — every MUST enumerated and answered PASS / PARTIAL / FAIL /
+NOT VERIFIABLE with file-and-line evidence. The audit found **one** product defect (**F1**, below),
+**one** documentation contradiction (**F2**, the rollback boundary) and **one** evidence shortfall
+(**F3**, the six-run rule). All three are resolved: F1 at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` with a regression case and a
+reversion check, F2 and F3 in the documentation commit that follows it. Nothing else in the audit
+blocked completion. **Browser QA has never run and is NOT VERIFIED** (§5 of
+[PROJECT_STATE.md](PROJECT_STATE.md)) — completion is a statement about code, tests, evidence and
+documents, not about a human having used this surface in a browser.
 
 **Why this milestone exists.** **I3** was the cheapest possible proof of the phase's central
 pattern: a contract that is complete, tested and called by nothing but tests. `LevelContentLink`,
@@ -553,13 +562,14 @@ levels — opens the surface from that stale row, attaches, and asserts both hal
 handed the independently selected program and therefore refused with `LINK_INVALID`, writing nothing.
 Mutating the wiring to `contentLevel.programId` turns that case red and no other.
 
-**Tests — 16 new cases in two new files, no existing test touched.**
-`src/domains/learning/__tests__/LevelContentPanel.test.tsx` (11) covers the surface in isolation:
+**Tests — 17 new cases in two new files, no existing test touched.**
+`src/domains/learning/__tests__/LevelContentPanel.test.tsx` (12) covers the surface in isolation:
 in-flight with no false empty, honest empty, listing exactly what the repository holds, a failed
-read as an error with retry, valid attach, duplicate refusal in the repository's own words, failed
-attach with no false success, detach without deleting content, the intent handed over, the
-adversarial prop-level crossing, and a level switch that neither exposes the previous level's rows
-nor lets its pick become this level's write target.
+read as an error with retry, **a failed catalogue read reported as unreadable rather than as
+"nothing left to attach" (the F1 regression case, added at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`)**, valid attach, duplicate refusal
+in the repository's own words, failed attach with no false success, detach without deleting content,
+the intent handed over, the adversarial prop-level crossing, and a level switch that neither exposes
+the previous level's rows nor lets its pick become this level's write target.
 `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` (5) covers the flow through
 `LearningPanel`: attach end-to-end and persistence across a remount, the surface closing on a program
 switch, the adversarial crossing above, duplicate refusal through the panel with a deliberately stale
@@ -569,10 +579,18 @@ since that flag is under test. `withStubs` moved to `src/test/repositoryStubs.ts
 one Proxy-based stubber; a spread would drop the prototype verbs.
 
 **Measured validation** is in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M3 validation": typecheck
-clean, build clean, **3 consecutive full-suite runs at 104 files / 1423 tests / 0 failed / 0
-skipped**, **6 consecutive targeted runs at 11 files / 160 tests**, a worktree baseline at `85530b4`
-of 102 files / 1407 tests (so `1407 + 11 + 5 = 1423`), **four mutation checks** each killing only
-the case that pins it, and a diff of 5 files with **1414 insertions and 0 deletions**.
+clean, build clean, and — as the spec's Tests clause requires of a milestone touching a file that has
+ever flaked — **6 consecutive full-suite runs at the completion checkpoint `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`: 104 files / 1424
+tests / 0 failed / 0 skipped on every run, with `LearningPanel.test.tsx` 11/11 each time (1907–2117
+ms)**. The acceptance audit had already measured **6 consecutive full-suite runs at `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed`: 104 /
+1423 / 0 failed / 0 skipped, `LearningPanel.test.tsx` 11/11 each (1927–2086 ms)**; `1423 + 1` (the F1
+regression case) `= 1424`. Earlier in the milestone the record said three consecutive full runs plus
+six targeted ones — below the count the spec demands — and that shortfall (**F3**) is corrected here
+and in §4 rather than left as the authoritative evidence. Also measured: **6 consecutive targeted
+runs at 11 files / 161 tests**, a worktree baseline at `85530b40c66db63b10769537c2dc6cb24609842d` of 102 files / 1407 tests, **five
+mutation checks** (four on the invariant and honesty cases, plus the F1 reversion check, each killing
+only the case that pins it), and a source diff of **1414 insertions and 0 deletions** at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` plus
+F1's **38 insertions / 6 deletions** ignoring the re-indentation of the block it wrapped.
 
 **Protected areas respected.** The spec protects `src/domains/learning/__tests__/demoRepository.test.ts`,
 `src/domains/learning/__tests__/LearningPanel.test.tsx`,
@@ -595,10 +613,48 @@ attach half is guarded and pinned (D10); the detach half is not, and closing it 
 on `detachContent` — a learning-domain change M3's prohibition forbids — or the hook fix itself. It is
 recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I13: not fixed, not authorized, not started.
 
-**Remaining for M3, exactly.** Owner acceptance of the surface, and browser QA (§5 of
-[PROJECT_STATE.md](PROJECT_STATE.md)). Nothing else is known outstanding; if acceptance produces
-changes, they land as a **new** commit on top of `e5b0a57d8f33dc04838670a2cd4158a88dd34022` — never an amend, never a
-force-push. **Rollback boundary:** `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+**F1 — the one product defect the audit found, and its fix (`3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`).** The picker's catalogue read
+destructured `items` and `loading` and discarded `error`, so a failed catalogue was indistinguishable
+from an empty one and rendered «منبعی برای اتصال باقی نمانده» — a false empty of exactly the shape
+I13 Checkpoint 1 removed from six consumers, in a new place. The fix consumes the error the existing
+hook already exposes and replaces **only** the add affordance with an `ErrorState` carrying the
+failure's own message and a retry — the same convention the level's own read already used in this
+component — while the links above stay rendered, because that read answered. `available` is withheld
+while the catalogue is unreadable, deliberately: the hook keeps the previous page across a failed
+*refetch*, and offers beside an error would claim a choice the read cannot justify. With no picker and
+no submit rendered, a write cannot be attempted against a read that has not answered. No new data
+source, no contract or domain change, no dependency, and **the fourteen other consumers with the same
+shape were deliberately left alone** — they are recorded as
+[OPEN_ITEMS.md](OPEN_ITEMS.md) **I15** instead of being cleaned up inside M3.
+
+**What completion does NOT claim — limitations preserved on purpose.** (1) **Detach has no
+stale-context guard** (above, and I13, which stays open). (2) **`per_page: 200` ceilings**: both of
+the surface's reads mean "everything" and stop at 200, and its heading counts `items.length` rather
+than `total` — recorded as **I16**. (3) **The fourteen error-discarding consumers** — **I15**.
+(4) **Link order is invisible here**: `sortOrder` is written and honoured student-side
+(`src/domains/learning/eligibility.ts:104`) but the assignment surface neither shows nor manages it —
+**I17**. (5) **No storage round-trip test**: "assignment persists across a reload" is proven by a
+remount case plus the store's single-persistence-authority code path
+(`src/services/demoStore.ts:315`), not by a re-hydration case. (6) **Browser QA NOT VERIFIED** (§5).
+(7) **D8's api-mode indicator does not exist yet** — OPEN, assigned to M11 — so this surface carries
+no "still local" disclosure; it does imply no server either, since learning resolves to Demo in both
+modes.
+
+**Rollback — two boundaries, because one number would be wrong in one of two directions (F2).**
+- **Spec rollback boundary:** `c42f274ac10d4087f9280e3bf7b47141d0672e32` — **M2**, per the milestone's own
+  [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M3 → "Checkpoint & rollback"
+  ("rollback boundary = M2's SHA") and the convention across the spec (M2's boundary is M1's SHA,
+  M4's is M3's).
+- **Effective safe boundary:** `85530b40c66db63b10769537c2dc6cb24609842d` — the commit M3 was actually built on. **Rolling back to M2
+  would destroy work that was separately authorized, separately reviewed and separately accepted:**
+  M2.1 `73b40d970816f174b56d37addc21f106a472359b`, then the three I13 checkpoints `289e080` (Checkpoint
+  1), `bcea26c` (Checkpoint 2 — the guard M3's surface writes through) and `57c1dfb` (Checkpoint 3A),
+  with their documentation checkpoints in between. **Those must survive any M3 rollback.**
+- So: to abandon M3 and nothing else, return to `85530b40c66db63b10769537c2dc6cb24609842d`; to obey the spec's literal boundary you would
+  also be reverting five accepted commits, which is not what the field is for. Earlier revisions of
+  this section named M3's *own* checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022` as the boundary — wrong in both directions, since
+  rolling back onto it keeps the work being rejected. Corrected here; no history was rewritten, reset
+  or rebased to make the documents agree.
 
 **Rule for whoever reads this next:** M4 is *not* authorized by M3 landing. What M3 leaves M4 is the
 proven pattern — a surface over a complete contract, writing through the repository, with the
@@ -628,15 +684,19 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `ea890ae5a6d5fa2209049637f8f85ed070e26e25` | **I13 Checkpoint 1's** measured validation recorded — 6 consecutive full-suite runs plus 4 contention samples, the reversion checks, the honest `act()` limitation — and M3's I13 gate marked discharged in PROJECT_STATE §9, in this ledger and in the milestone's own dependency bullet | none (documents only) | ✅ |
 | `be75ac6f99815700f2a65d026f09ee0c3213f019` | **I13 Checkpoint 2** recorded as authorized and in progress, with the authorized contract written down — a required `AttachContentIntent { programId }` on `attachContent`, resolved independently of the target level, following the `assignPlacement` pattern — *before* any of its code existed | none (documents only) | ✅ |
 | `49fb49949feea4bb8c85957a317243d470b20c7a` | **I13 Checkpoint 2** recorded as landed and validated at `bcea26c`: the guard's contract, its adversarial suite, the measured runs, and the caveat that no signature can stop a caller passing the target's own `programId` back as its intent | none (documents only) | ✅ |
-| `85530b40c66db63b10769537c2dc6cb24609842d` | **Latest recorded.** **I13 Checkpoint 3A** recorded as landed and validated at `57c1dfb`: `useDerived` carrying its key, the suite that reproduced the crossed frame before the fix, and I13's status bullet stating outright that the item is **not** closed and that I14 is untouched and deferred | none (documents only) | ✅ |
+| `85530b40c66db63b10769537c2dc6cb24609842d` | **I13 Checkpoint 3A** recorded as landed and validated at `57c1dfb`: `useDerived` carrying its key, the suite that reproduced the crossed frame before the fix, and I13's status bullet stating outright that the item is **not** closed and that I14 is untouched and deferred | none (documents only) | ✅ |
+| `df3db2f18718ae0d6d3cf4b13050ea0774833864` | **M3 recorded as in progress** at its first checkpoint: PROJECT_STATE §2–§5 and §9, this ledger's M3 section and rows, **I3** landed-but-not-closed, **I13** with M3 as Checkpoint 2's first real caller, **I14** still deferred, and **D10**/**D11** added to the decision register | none (documents only) | ✅ |
+| `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed` | **Latest recorded.** The detach exposure M3's surface introduced, recorded in I13 and in the M3 section rather than hidden: `detachContent` is a single-id write, so no guard can detect a crossed context | none (documents only) | ✅ |
 
 The product-source commits this ledger also has to explain are **not** documentation checkpoints and
 are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4 instead: `289e080` (I13 Checkpoint 1 —
 the shared list hook and the six consumers that ignored `loading`), `bcea26c` (I13 Checkpoint 2 — the
 `attachContent` intent guard and its adversarial suite), `57c1dfb` (I13 Checkpoint 3A — `useDerived`
-carrying its key) and `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (**M3's first checkpoint**, the assignment surface — a milestone, so it
-is registered in the milestone table and in its own section above). None of them advances the phase
-checkpoint row, which stays at Phase 2 for the ordering reason recorded in §2.
+carrying its key), `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (**M3's implementation checkpoint**, the assignment surface) and `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`
+(**M3's completion checkpoint** — the F1 catalogue-error fix and its regression case). The last two
+are milestone commits, so they are registered in the milestone table and in the M3 section above.
+None of them advances the phase checkpoint row, which stays at Phase 2 for the ordering reason
+recorded in §2.
 
 Two rows above — `49fb49949feea4bb8c85957a317243d470b20c7a` and `85530b40c66db63b10769537c2dc6cb24609842d` — were pushed before this ledger recorded them, which is the
 self-reference rule working rather than an omission: each documentation checkpoint is registered by a

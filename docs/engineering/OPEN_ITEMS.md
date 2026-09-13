@@ -293,32 +293,45 @@ precision, idempotency and gateway behaviour are backend requirements — see
 `docs/production-handoff.md`. **Done when:** both follow the Students pattern with demo *and*
 API implementations, tests, and no fixture imports.
 
-### I3. Learning-content → level assignment UI
+### I3. Learning-content → level assignment UI — ✅ CLOSED (2026-09-13, landed and completed by M3)
 The learning domain models `Piece` vs `LearningContent`, programs, levels, placement history,
 eligibility and deterministic recommendations (`src/domains/learning`,
-`src/domains/progress`, documented in `docs/architecture/data-layer.md`), but there is no UI to
-assign content to a level.
+`src/domains/progress`, documented in `docs/architecture/data-layer.md`), but there ~~is~~ **was** no
+UI to assign content to a level. *(The gap is described as it was found, because that is the record of
+why M3 existed; it no longer holds — see the status below.)*
 
 **Scope clarification — this is a UI and workflow gap, not a schema redesign.** The join entity and
 its repository surface already exist and are already tested: `LevelContentLink` at
 `src/domains/learning/types.ts:183`; the contract methods `listLinks` / `attachContent` at
 `src/domains/learning/repository.ts:56`; the demo implementation, including link ordering and the
 `CONTENT_ALREADY_LINKED` conflict, at `src/domains/learning/demoRepository.ts:233`; and coverage in
-`src/domains/learning/__tests__/demoRepository.test.ts`. Today **only tests call them**.
+`src/domains/learning/__tests__/demoRepository.test.ts`. Today **only tests call them**. *(Kept as
+written because it is the record of the gap; superseded by M3 — see the status below.)*
 
 **Done when:** an assignment surface exists in Settings → Programs & levels (or the learning
 workspace), writes through that existing contract, and is covered by a test.
 
-- **Status (2026-09-13): LANDED by M3 at `e5b0a57`, and M3 is 🚧 IN PROGRESS — this item is not
-  closed yet.** All three of the "done when" conditions are met in code: `LevelContentPanel` renders
-  in Settings → Programs & levels behind a per-level «منابع» toggle, it writes through
+- **Status (2026-09-13): ✅ CLOSED — landed by M3 and accepted complete.** All three "done when"
+  conditions are met and were verified by a formal acceptance audit against this item and the
+  milestone's spec: `LevelContentPanel` renders in Settings → Programs & levels
+  (`src/views/Settings.tsx:368`) behind a per-level «منابع» toggle, it writes through
   `attachContent` / `detachContent` and reads through `listContent` (no new contract, no schema
-  change), and it is covered by 16 tests in
-  `src/domains/learning/__tests__/LevelContentPanel.test.tsx` and
-  `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx`. What is *not* done is the
-  milestone: the owner has not accepted the surface and there is no browser QA (§5 of
-  [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED). Reporting I3 as closed now would be
-  reporting unfinished work as finished, so it stays open until M3 is accepted.
+  change, **1414 insertions and 0 deletions** in source), and it is covered by **17 tests** in
+  `src/domains/learning/__tests__/LevelContentPanel.test.tsx` (12) and
+  `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` (5), each mapping to a clause of
+  the spec, four of them mutation-verified. Implementation checkpoint `e5b0a57`; the audit's one
+  product finding — the picker's catalogue read discarded `error`, so a failed catalogue rendered as
+  «منبعی برای اتصال باقی نمانده» — was fixed at `3bec881` with a regression case and a reversion
+  check. M3 is **COMPLETE**.
+- **What closing I3 does NOT close.** Four limitations survive the milestone and are recorded rather
+  than absorbed into it: the surface's **detach** has no stale-context guard (**I13**, which stays
+  open); lists that mean "everything" stop at `per_page: 200` (**I16**, new); link `sortOrder` is
+  written and honoured student-side but not displayed or manageable in the assignment surface
+  (**I17**, new); and no test performs a storage round-trip, so "persists across a reload" is proven
+  by remount plus the store's single-persistence-authority code path rather than by a re-hydration
+  case. **Browser QA has never run** on this surface and is NOT VERIFIED (§5 of
+  [PROJECT_STATE.md](PROJECT_STATE.md)) — closing I3 is a statement about the contract having a
+  tested UI, not about the UI having been used by a human in a browser.
 
 ### I4. Teacher visual workspace
 No dedicated teacher-facing workspace exists; teachers are managed as records
@@ -498,8 +511,9 @@ recovery and the zero-record tests both remaining green.
 - **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2 and 3A implemented and validated; the
   rest of Checkpoint 3 (four hand-rolled readers) not authorized and not started; I14 untouched and
   explicitly deferred. The item is NOT closed and must not be reported as fixed — not all of its
-  readers are fixed.** **M3 has since landed (`e5b0a57d8f33dc04838670a2cd4158a88dd34022`) as Checkpoint 2's first real caller, and it
-  did not weaken the caveat — it pinned it:** the assignment surface takes its level from a rendered
+  readers are fixed.** **M3 landed (`e5b0a57d8f33dc04838670a2cd4158a88dd34022`) and is now COMPLETE — `3bec881` closed the
+  acceptance audit's one product finding — as Checkpoint 2's first real caller, and it did not weaken
+  the caveat, it pinned it:** the assignment surface takes its level from a rendered
   row and its `AttachContentIntent.programId` from the programs query, and
   `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` reproduces the crossed frame in
   which those two disagree, asserts the repository was handed the independent program and refused the
@@ -766,6 +780,86 @@ recovery and the zero-record tests both remaining green.
   `per_page: 0` read. Nothing in `paginate`, `demoCollection` or the three call sites was touched.
 - **Done when:** `per_page: 0` has one documented meaning, a test in the owning module pins it, and
   the three call sites above agree with it.
+
+### I15. Fourteen list consumers discard `error`, so a failed read is rendered as an empty one (found 2026-09-13 during M3's acceptance audit)
+- **What:** `useResourceList` exposes `error` beside `items`
+  (`src/domains/shared/useResource.ts:55`) and **keeps the previous page when a refetch fails**
+  (`src/domains/shared/useResource.ts:113`). A consumer that destructures only `items` — or `items`
+  and `loading` — therefore cannot distinguish "the read found nothing" from "the read failed", and
+  renders its empty copy, or an empty picker, instead of the failure. This is the *error* half of the
+  same family **I13** fixed for `loading`; I13's Checkpoint 1 does not cover it, and no gate does.
+- **Found where:** M3's assignment surface discarded the catalogue read's error and answered
+  «منبعی برای اتصال باقی نمانده» — a false empty of exactly the shape I13 Checkpoint 1 removed from
+  six consumers, in a new place. **That one is fixed**, at `3bec881`, with a regression case and a
+  reversion check in `src/domains/learning/__tests__/LevelContentPanel.test.tsx`. **Fourteen remain**,
+  none of them touched by that pass, because fixing one of fifteen inside M3 would have been the
+  unrelated cleanup the milestone forbids:
+  `src/domains/learning/LearningPanel.tsx:84` (instruments) and `:104` (levels — a failed levels read
+  renders «این دوره هنوز سطحی ندارد» for a program that has twelve),
+  `src/domains/learning/StudentLearningPanel.tsx:28`, `:36` and `:205`,
+  `src/domains/classes/ClassFormDialog.tsx:104` and `:105`,
+  `src/domains/enrollments/EnrollmentDialog.tsx:35`,
+  `src/domains/gallery/GalleryPanel.tsx:68`,
+  `src/domains/progress/AssignPieceDialog.tsx:77`,
+  `src/domains/progress/PieceFormDialog.tsx:75`,
+  `src/domains/progress/StudentProgressPanel.tsx:78`,
+  `src/domains/students/StudentFormDialog.tsx:109` and
+  `src/views/Messages.tsx:105`.
+- **Why it survived:** the primary read of nearly every view *does* take `error`
+  (`src/domains/gallery/GalleryPanel.tsx:57`, `src/domains/rooms/RoomsPanel.tsx:25`,
+  `src/views/Classes.tsx:268`, `src/views/Teachers.tsx:348`), so the pattern reads as deliberate —
+  and in the demo environment it nearly is: these are secondary and picker reads over repositories
+  whose demo implementations have no throw path for valid params. The exposure becomes real the day
+  any of these domains resolves to an API that can fail.
+- **Smallest owning boundary:** each consumer, one destructure and one branch at a time — or a shared
+  "picker unavailable" affordance in `src/components/ds/patterns.tsx` so fourteen sites do not invent
+  fourteen wordings. **Not** `useResourceList`: the hook is already honest, and I13's remaining
+  readers are a separate, unauthorized item.
+- **Done when:** no consumer renders an empty state or an empty picker for a read that failed, pinned
+  by a gate of the same shape as `src/domains/shared/__tests__/staleQueryGates.test.tsx`.
+- **Status:** recorded 2026-09-13, **not authorized, not started**. M3 fixed its own instance and
+  stopped there, on purpose.
+
+### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
+- **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination
+  UI. `paginate` applies **no upper clamp** (`src/domains/shared/demoCollection.ts:23` computes
+  `Math.max(1, Math.trunc(...))`), so 200 is honoured and the 201st record is silently absent from
+  the list, from any picker built on it, and from any heading count derived from `items.length`
+  rather than `Page.meta.total` (`src/domains/shared/useResource.ts:53`).
+- **Where:** M3's assignment surface reads both of its lists this way
+  (`src/domains/learning/LevelContentPanel.tsx:77` and `:89`) and counts `linked.length` in its
+  heading (`:178`). The convention predates it: `src/domains/learning/LearningPanel.tsx:90` and
+  `:105`, and roughly twenty sites across the views and dialogs.
+- **Why it is not urgent today:** learning resolves to the demo repository in **both** modes
+  (`src/domains/registry.ts:143`), and the demo catalogue is derived from **12** seeded library
+  resources (`src/data/records.ts:622` → `src/domains/demo/learningSeed.ts:137`), so the ceiling is
+  about sixteen times the data that can exist. It becomes real truncation the day a learning API can
+  hold more than 200 active items — with no message, which is the part that matters.
+- **Smallest owning boundary:** either paginate these lists (a pager does not exist in
+  `src/components/ds/patterns.tsx`), or derive counts from `total` and state the truncation when
+  `items.length < total`. The second is a few lines per site and is honest; the first is a
+  design-system feature.
+- **Done when:** a list that means "everything" either pages or says it truncated, and every count a
+  user reads comes from `total`.
+- **Status:** recorded 2026-09-13, **deferred, not authorized, not started**. Distinct from **I14**
+  (`per_page: 0` meaning "load nothing"), which is untouched and still deferred.
+
+### I17. Level-content link order is written and honoured for students but invisible to the operator (found 2026-09-13 during M3's acceptance audit)
+- **What:** `attachContent` appends with `sortOrder: siblings.length`
+  (`src/domains/learning/demoRepository.ts:269`) and the student-facing eligibility list sorts by it
+  (`src/domains/learning/eligibility.ts:104`: level order, then `sortOrder`, then title). The
+  assignment surface shows rows in `listContent` order — the content collection's order — because
+  `listContent` resolves the link table into a filter and does not sort by it
+  (`src/domains/learning/demoRepository.ts:182`), and `listLinks` does not sort either (`:235`). So
+  the order an operator sees while assigning is **not** the order a student sees, and nothing in any
+  UI can change it.
+- **Why M3 did not address it:** the milestone's spec names link ordering as part of the contract it
+  writes through, but requires no ordering UI, and reordering would have meant either a domain change
+  (prohibited: "no new field, no model change, no edit to the learning domain") or a client-side sort
+  that becomes a second source of truth.
+- **Done when:** one read owns the order the product means, the assignment surface shows that order,
+  and an operator can change it — or the product decides order is derived and says so.
+- **Status:** recorded 2026-09-13, **not authorized, not started**.
 
 ---
 

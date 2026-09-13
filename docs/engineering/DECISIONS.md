@@ -380,7 +380,7 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D9)
+## 19. Product-phase decision register (D1–D12)
 
 Nine decisions gate the product-feature phase planned in
 [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D9** to
@@ -638,7 +638,38 @@ the pick is stored raw instead of derived, and the in-flight case, which fails w
 shown while a read is pending) and `src/domains/learning/__tests__/LearningPanel.test.tsx` —
 unchanged and green, which is the evidence that the levels column still counts only levels.
 
-**Status.** ✅ Landed with M3's first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+**Status.** ✅ Landed with M3's implementation checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+
+---
+
+### D12. A failed secondary read is reported as a failure, never as an empty list
+
+**Decision.** When a surface renders more than one read, **each read owns its own error**. A read that
+failed renders an error carrying the failure's own message and a retry, and withholds whatever that
+read would offer — even when another read on the same screen answered honestly. It never renders the
+empty copy, and it never offers choices from a page it cannot currently justify.
+
+**Why.** The shared list hook keeps the previous page when a *refetch* fails
+(`src/domains/shared/useResource.ts:113`) while publishing `error` beside `items`
+(`src/domains/shared/useResource.ts:55`). A consumer that destructures only `items` therefore cannot
+distinguish "the read found nothing" from "the read failed", and renders whichever of two lies is
+handier: an empty copy claiming the data does not exist, or a picker offering writes the read cannot
+support. This is the `error` half of the family **I13** Checkpoint 1 fixed for `loading`, and until
+M3's acceptance audit nothing in the codebase pinned it.
+
+**Enforced by.** `src/domains/learning/LevelContentPanel.tsx` — the catalogue read consumes `error`,
+`available` is withheld while it is set, and only the add affordance is replaced by an `ErrorState`,
+so the links above (whose read answered) stay rendered — and
+`src/domains/learning/__tests__/LevelContentPanel.test.tsx`, whose F1 case makes `listContent` reject
+*only* for the catalogue query and asserts the false-empty copy is absent, that no picker and no
+submit button exist, that the linked row is still shown, and that the retry restores the picker. That
+case fails against the pre-fix component (1 failed / 11 passed), so the rule is pinned by a test that
+detects its violation rather than by this sentence.
+
+**Status.** ✅ Landed with M3's completion checkpoint `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`.
+**Scope is deliberately one surface:** fourteen other consumers still discard `error` — recorded as
+[OPEN_ITEMS.md](OPEN_ITEMS.md) **I15**, not authorized, not started. This decision states the rule the
+product means; it does not claim the codebase obeys it.
 
 ---
 
