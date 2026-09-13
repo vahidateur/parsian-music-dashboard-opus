@@ -1,0 +1,152 @@
+/**
+ * Cross-domain search for the command palette.
+ *
+ * The palette used to read a hand-written `searchIndex` fixture, so records
+ * created at runtime were undiscoverable and deleted ones still appeared. This
+ * hook queries the actual repositories instead — one search index, derived
+ * from the same data the rest of the app reads.
+ *
+ * There is deliberately no separate search store to keep in sync: results are
+ * computed from repository reads, and the data-version bus re-runs them after
+ * any write.
+ *
+ * BACKEND REQUIRED: in API mode this issues one list request per domain and
+ * filters client-side, which is fine for an academy-sized dataset but will not
+ * scale. Production should expose a single `GET /search?q=` endpoint and this
+ * hook should call that instead — the palette itself would not change.
+ */
+import { useEffect, useMemo, useState } from "react";
+import { instrumentName } from "@/domains/instruments/catalog";
+import type { Target } from "@/data/academy";
+import {
+  getClassRepository,
+  getRoomRepository,
+  getStudentRepository,
+  getTeacherRepository,
+} from "@/domains/registry";
+import { useDataVersion } from "./dataVersion";
+
+export type SearchResultKind = "student" | "teacher" | "class" | "room";
+
+export interface DomainSearchResult {
+  id: string;
+  kind: SearchResultKind;
+  title: string;
+  subtitle: string;
+  target: Target;
+}
+
+/** Per-kind cap so one domain cannot crowd out the others. */
+const PER_KIND_LIMIT = 5;
+
+export function useDomainSearch(query: string): {
+  results: DomainSearchResult[];
+  loading: boolean;
+} {
+  const dataVersion = useDataVersion();
+  const trimmed = query.trim();
+  /**
+   * Results plus the query they answer, under the same invariant as
+   * `useResourceList` (OPEN_ITEMS I13): what is exposed must belong to the
+   * query on screen, or be an explicit in-flight state. The palette changes
+   * this query on every keystroke, so a previous query's results presented as
+   * this one's would navigate to the wrong record.
+   *
+   * `loading` starts true whenever a query is present — it used to start false,
+   * which rendered "nothing found" for a search that had not been run yet.
+   */
+  const [state, setState] = useState<{ key: string; results: DomainSearchResult[]; loading: boolean }>(() => ({
+    key: trimmed,
+    results: [],
+    loading: trimmed.length > 0,
+  }));
+
+  const repositories = useMemo(
+    () => ({
+      students: getStudentRepository(),
+      teachers: getTeacherRepository(),
+      classes: getClassRepository(),
+      rooms: getRoomRepository(),
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    if (trimmed.length === 0) {
+      setState({ key: trimmed, results: [], loading: false });
+      return;
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
+    // Another query's results are dropped; the same query refreshing keeps them.
+    setState((current) =>
+      current.key === trimmed ? { ...current, loading: true } : { key: trimmed, results: [], loading: true },
+    );
+
+    // `search` is part of every list contract, so the repository (or a future
+    // backend) does the filtering; the extra client-side match only refines
+    // ordering-independent fields like the instrument label.
+    void Promise.all([
+      repositories.students.list({ search: trimmed, per_page: PER_KIND_LIMIT }, controller.signal),
+      repositories.teachers.list({ search: trimmed, per_page: PER_KIND_LIMIT }, controller.signal),
+      repositories.classes.list({ search: trimmed, per_page: PER_KIND_LIMIT }, controller.signal),
+      repositories.rooms.list({ search: trimmed, per_page: PER_KIND_LIMIT }, controller.signal),
+    ])
+      .then(([students, teachers, classes, rooms]) => {
+        if (cancelled) return;
+        const out: DomainSearchResult[] = [
+          ...students.data.map((student) => ({
+            id: `student-${student.id}`,
+            kind: "student" as const,
+            title: student.name,
+            // Never put the national ID in a search subtitle (§30).
+            subtitle: `${instrumentName(student.instrument)} · ${student.level}`,
+            target: { view: "students", id: student.id } satisfies Target,
+          })),
+          ...teachers.data.map((teacher) => ({
+            id: `teacher-${teacher.id}`,
+            kind: "teacher" as const,
+            title: teacher.name,
+            subtitle: `${instrumentName(teacher.instrument)} · ${teacher.title}`,
+            target: { view: "teachers", id: teacher.id } satisfies Target,
+          })),
+          ...classes.data.map((cls) => ({
+            id: `class-${cls.id}`,
+            kind: "class" as const,
+            title: cls.title,
+            subtitle: `${instrumentName(cls.instrument)} · ${cls.enrolled} از ${cls.capacity}`,
+            target: { view: "classes", id: cls.id } satisfies Target,
+          })),
+          ...rooms.data.map((room) => ({
+            id: `room-${room.id}`,
+            kind: "room" as const,
+            title: room.name,
+            subtitle: `${room.kind} · ظرفیت ${room.capacity}`,
+            target: { view: "settings", filter: "operations" } satisfies Target,
+          })),
+        ];
+        setState({ key: trimmed, results: out, loading: false });
+      })
+      .catch(() => {
+        // A failed search shows no results rather than a stale list; the
+        // palette's other groups (navigation, actions) still work.
+        if (!cancelled) setState((current) => ({ ...current, key: trimmed, results: [], loading: false }));
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [trimmed, dataVersion, repositories]);
+
+  // Derived at render, not stored in an effect: the keystroke that changes the
+  // query is the same render that must stop exposing the previous results.
+  return useMemo(() => {
+    const answers = state.key === trimmed;
+    return {
+      results: answers ? state.results : [],
+      loading: !answers || state.loading,
+    };
+  }, [state, trimmed]);
+}

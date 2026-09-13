@@ -1,0 +1,415 @@
+/**
+ * Demo backup envelope + validation.
+ *
+ * A backup is a portable, versioned snapshot of the DEMO environment only.
+ * It is explicitly not a production database backup and never carries
+ * credentials, tokens or browser/session state.
+ */
+import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset, type DemoDatasetStats } from "./types";
+import { SEED_VERSION } from "./seed";
+import { normalizeNationalId, validateNationalId } from "@/lib/nationalId";
+import { durationMinutes, isIsoDate } from "@/domains/scheduling/dateBridge";
+
+/** Bump only on breaking changes to the envelope/dataset contract. */
+export const BACKUP_SCHEMA_VERSION = "1.1";
+export const BACKUP_ENVIRONMENT = "demo" as const;
+export const BACKUP_KIND = "arena.demo.backup" as const;
+
+export interface DemoBackup {
+  kind: typeof BACKUP_KIND;
+  schemaVersion: string;
+  environment: typeof BACKUP_ENVIRONMENT;
+  /** ISO timestamp. The only intentionally non-deterministic field. */
+  exportedAt: string;
+  app: { name: string; seedVersion: string };
+  stats: DemoDatasetStats;
+  data: DemoDataset;
+}
+
+/**
+ * Keys that must never appear anywhere inside a backup payload.
+ * Note: `sessionId` is deliberately absent — it is a legitimate *class session*
+ * reference in this domain, not a browser session.
+ */
+export const FORBIDDEN_KEYS = [
+  "password",
+  "passwordHash",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "apiKey",
+  "secret",
+  "sessiontoken",
+  "session_token",
+  "cookie",
+  "credentials",
+  "authorization",
+] as const;
+
+const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_KEYS.map((k) => k.toLowerCase()));
+
+/**
+ * Keys that can poison an object's prototype chain.
+ *
+ * `JSON.parse` keeps `__proto__` as a genuine *own* property, and it survives
+ * object spread. Any later `Object.assign(target, row)` then re-points
+ * `target`'s prototype, so an imported backup could smuggle inherited
+ * properties into application objects. These keys are rejected at validation
+ * time and stripped during parsing.
+ */
+export const PROTOTYPE_KEYS = ["__proto__", "constructor", "prototype"] as const;
+const PROTOTYPE_KEY_SET = new Set<string>(PROTOTYPE_KEYS);
+
+/**
+ * Recursively rebuilds parsed JSON without prototype-polluting own properties.
+ * Applied immediately after `JSON.parse`, before any validation or persistence.
+ */
+export function stripPrototypeKeys<T>(value: T): T {
+  const walk = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node === null || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(node as Record<string, unknown>)) {
+      if (PROTOTYPE_KEY_SET.has(key)) continue;
+      out[key] = walk((node as Record<string, unknown>)[key]);
+    }
+    return out;
+  };
+  return walk(value) as T;
+}
+
+export function datasetStats(dataset: DemoDataset): DemoDatasetStats {
+  const counts = {} as Record<DemoCollectionName, number>;
+  let total = 0;
+  for (const name of DEMO_COLLECTIONS) {
+    const size = dataset[name]?.length ?? 0;
+    counts[name] = size;
+    total += size;
+  }
+  return { seedVersion: SEED_VERSION, counts, total };
+}
+
+export function createBackup(dataset: DemoDataset, exportedAt: Date = new Date()): DemoBackup {
+  return {
+    kind: BACKUP_KIND,
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    environment: BACKUP_ENVIRONMENT,
+    exportedAt: exportedAt.toISOString(),
+    app: { name: "Arena — Ava Music Academy (DEMO)", seedVersion: SEED_VERSION },
+    stats: datasetStats(dataset),
+    data: dataset,
+  };
+}
+
+export function backupFileName(date: Date = new Date()): string {
+  const stamp = date.toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  return `arena-demo-backup-${stamp}.json`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Validation                                                          */
+/* ------------------------------------------------------------------ */
+
+export type ValidationCode =
+  | "MALFORMED_JSON"
+  | "NOT_AN_OBJECT"
+  | "UNSUPPORTED_SCHEMA_VERSION"
+  | "WRONG_ENVIRONMENT"
+  | "MISSING_COLLECTION"
+  | "INVALID_COLLECTION"
+  | "MISSING_ID"
+  | "DUPLICATE_ID"
+  | "INVALID_REFERENCE"
+  | "FORBIDDEN_FIELD";
+
+export interface ValidationIssue {
+  code: ValidationCode;
+  message: string;
+  path?: string;
+}
+
+export type ValidationResult =
+  | { ok: true; backup: DemoBackup; warnings: ValidationIssue[] }
+  | { ok: false; issues: ValidationIssue[] };
+
+function issue(code: ValidationCode, message: string, path?: string): ValidationIssue {
+  return { code, message, path };
+}
+
+/** Parses raw JSON text into a validated backup. Never throws. */
+export function parseBackup(text: string): ValidationResult {
+  let parsed: unknown;
+  try {
+    parsed = stripPrototypeKeys(JSON.parse(text) as unknown);
+  } catch {
+    return { ok: false, issues: [issue("MALFORMED_JSON", "فایل پشتیبان یک JSON معتبر نیست.")] };
+  }
+  return validateBackup(parsed);
+}
+
+export function validateBackup(input: unknown): ValidationResult {
+  const issues: ValidationIssue[] = [];
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return { ok: false, issues: [issue("NOT_AN_OBJECT", "ساختار فایل پشتیبان معتبر نیست.")] };
+  }
+  const candidate = input as Partial<DemoBackup>;
+
+  if (candidate.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+    issues.push(
+      issue(
+        "UNSUPPORTED_SCHEMA_VERSION",
+        `نسخهٔ ساختار پشتیبان پشتیبانی نمی‌شود (انتظار ${BACKUP_SCHEMA_VERSION}، دریافت ${String(candidate.schemaVersion)}).`,
+        "schemaVersion",
+      ),
+    );
+  }
+  if (candidate.environment !== BACKUP_ENVIRONMENT) {
+    issues.push(issue("WRONG_ENVIRONMENT", "این فایل متعلق به محیط دمو نیست.", "environment"));
+  }
+
+  const data = candidate.data;
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    issues.push(issue("NOT_AN_OBJECT", "بخش data در فایل پشتیبان وجود ندارد.", "data"));
+    return { ok: false, issues };
+  }
+
+  issues.push(...validateDataset(data as DemoDataset));
+  if (issues.length > 0) return { ok: false, issues };
+
+  return { ok: true, backup: candidate as DemoBackup, warnings: [] };
+}
+
+/** Structural + referential integrity checks over a dataset. */
+export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (typeof dataset.organization !== "object" || dataset.organization === null) {
+    issues.push(issue("MISSING_COLLECTION", "تنظیمات آموزشگاه در داده وجود ندارد.", "organization"));
+  }
+
+  for (const name of DEMO_COLLECTIONS) {
+    const value = dataset[name] as unknown;
+    if (value === undefined) {
+      issues.push(issue("MISSING_COLLECTION", `مجموعهٔ «${name}» وجود ندارد.`, name));
+      continue;
+    }
+    if (!Array.isArray(value)) {
+      issues.push(issue("INVALID_COLLECTION", `مجموعهٔ «${name}» باید آرایه باشد.`, name));
+    }
+  }
+  if (issues.length > 0) return issues;
+
+  // Ids: present and unique within each collection.
+  const ids: Partial<Record<DemoCollectionName, Set<string>>> = {};
+  for (const name of DEMO_COLLECTIONS) {
+    const seen = new Set<string>();
+    (dataset[name] as ReadonlyArray<{ id?: unknown }>).forEach((row, index) => {
+      const id = row?.id;
+      if (typeof id !== "string" || id.length === 0) {
+        // `attendance` rosters are keyed by sessionId rather than id.
+        if (name === "attendance") return;
+        issues.push(issue("MISSING_ID", `رکورد بدون شناسه در «${name}».`, `${name}[${index}]`));
+        return;
+      }
+      if (seen.has(id)) issues.push(issue("DUPLICATE_ID", `شناسهٔ تکراری «${id}» در «${name}».`, `${name}[${index}]`));
+      seen.add(id);
+    });
+    ids[name] = seen;
+  }
+
+  const has = (name: DemoCollectionName, id: string) => ids[name]?.has(id) ?? false;
+  const ref = (ok: boolean, path: string, message: string) => {
+    if (!ok) issues.push(issue("INVALID_REFERENCE", message, path));
+  };
+
+  dataset.classes.forEach((cls, i) => {
+    ref(has("teachers", cls.teacherId), `classes[${i}].teacherId`, `کلاس «${cls.id}» به مدرس ناموجود ارجاع دارد.`);
+    ref(has("rooms", cls.roomId), `classes[${i}].roomId`, `کلاس «${cls.id}» به اتاق ناموجود ارجاع دارد.`);
+  });
+
+  dataset.enrollments.forEach((e, i) => {
+    ref(has("students", e.studentId), `enrollments[${i}].studentId`, `ثبت‌نام «${e.id}» به هنرجوی ناموجود ارجاع دارد.`);
+    ref(has("classes", e.classId), `enrollments[${i}].classId`, `ثبت‌نام «${e.id}» به کلاس ناموجود ارجاع دارد.`);
+  });
+
+  dataset.sessions.forEach((s, i) => {
+    ref(has("classes", s.classId), `sessions[${i}].classId`, `جلسهٔ «${s.id}» به کلاس ناموجود ارجاع دارد.`);
+    ref(has("teachers", s.teacherId), `sessions[${i}].teacherId`, `جلسهٔ «${s.id}» به مدرس ناموجود ارجاع دارد.`);
+    ref(has("rooms", s.roomId), `sessions[${i}].roomId`, `جلسهٔ «${s.id}» به اتاق ناموجود ارجاع دارد.`);
+  });
+
+  const sessionIds = new Set(dataset.sessions.map((s) => s.id));
+  dataset.attendance.forEach((roster, i) => {
+    ref(sessionIds.has(roster.sessionId), `attendance[${i}].sessionId`, `حضور و غیاب به جلسهٔ ناموجود ارجاع دارد.`);
+    roster.entries.forEach((entry, j) => {
+      ref(
+        has("students", entry.studentId),
+        `attendance[${i}].entries[${j}].studentId`,
+        `حضور و غیاب به هنرجوی ناموجود ارجاع دارد.`,
+      );
+    });
+  });
+
+  /*
+   * Dated sessions. A session pointing at a class, teacher or room that no
+   * longer exists cannot be rendered on a calendar, and a malformed time range
+   * would break every conflict calculation — so both are hard integrity
+   * errors rather than warnings.
+   *
+   * NOTE: this validates `scheduledSessions` (the scheduling domain). The
+   * legacy `sessions` weekly template is validated separately above and is
+   * removed in task H5.
+   */
+  dataset.scheduledSessions.forEach((session, i) => {
+    ref(
+      has("classes", session.classId),
+      `scheduledSessions[${i}].classId`,
+      `جلسهٔ «${session.id}» به کلاس ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("teachers", session.teacherId),
+      `scheduledSessions[${i}].teacherId`,
+      `جلسهٔ «${session.id}» به مدرس ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("rooms", session.roomId),
+      `scheduledSessions[${i}].roomId`,
+      `جلسهٔ «${session.id}» به اتاق ناموجود ارجاع دارد.`,
+    );
+
+    if (!isIsoDate(session.date)) {
+      issues.push(
+        issue("INVALID_REFERENCE", `تاریخ جلسهٔ «${session.id}» معتبر نیست.`, `scheduledSessions[${i}].date`),
+      );
+    }
+
+    const minutes = durationMinutes(session.startTime, session.endTime);
+    if (minutes === null) {
+      issues.push(
+        issue("INVALID_REFERENCE", `زمان جلسهٔ «${session.id}» معتبر نیست.`, `scheduledSessions[${i}].startTime`),
+      );
+    } else if (minutes <= 0) {
+      issues.push(
+        issue(
+          "INVALID_REFERENCE",
+          `پایان جلسهٔ «${session.id}» باید پس از شروع آن باشد.`,
+          `scheduledSessions[${i}].endTime`,
+        ),
+      );
+    }
+
+    // A reschedule link that points nowhere makes the audit trail unreadable.
+    if (session.rescheduledFromId) {
+      ref(
+        has("scheduledSessions", session.rescheduledFromId),
+        `scheduledSessions[${i}].rescheduledFromId`,
+        `جلسهٔ «${session.id}» به جلسهٔ مبدأ ناموجود ارجاع دارد.`,
+      );
+    }
+    if (session.rescheduledToId) {
+      ref(
+        has("scheduledSessions", session.rescheduledToId),
+        `scheduledSessions[${i}].rescheduledToId`,
+        `جلسهٔ «${session.id}» به جلسهٔ مقصد ناموجود ارجاع دارد.`,
+      );
+    }
+  });
+
+  // Repertoire and progress. A progress event whose assignment vanished would
+  // make a history chart unreadable, so these are hard integrity errors.
+  dataset.pieces.forEach((piece, i) => {
+    ref(
+      has("instruments", piece.instrumentId),
+      `pieces[${i}].instrumentId`,
+      `قطعهٔ «${piece.id}» به ساز ناموجود ارجاع دارد.`,
+    );
+  });
+
+  dataset.pieceAssignments.forEach((assignment, i) => {
+    ref(
+      has("students", assignment.studentId),
+      `pieceAssignments[${i}].studentId`,
+      `تخصیص «${assignment.id}» به هنرجوی ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("pieces", assignment.pieceId),
+      `pieceAssignments[${i}].pieceId`,
+      `تخصیص «${assignment.id}» به قطعهٔ ناموجود ارجاع دارد.`,
+    );
+  });
+
+  dataset.progressEvents.forEach((event, i) => {
+    ref(
+      has("pieceAssignments", event.assignmentId),
+      `progressEvents[${i}].assignmentId`,
+      `رویداد پیشرفت «${event.id}» به تخصیص ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("students", event.studentId),
+      `progressEvents[${i}].studentId`,
+      `رویداد پیشرفت «${event.id}» به هنرجوی ناموجود ارجاع دارد.`,
+    );
+  });
+
+  // national_id: required, valid and unique across the academy (§5/§17).
+  const seenNationalIds = new Map<string, string>();
+  dataset.students.forEach((student, i) => {
+    const raw = (student as { nationalId?: unknown }).nationalId;
+    if (typeof raw !== "string" || raw.length === 0) {
+      issues.push(issue("MISSING_ID", `هنرجوی «${student.id}» کد ملی ندارد.`, `students[${i}].nationalId`));
+      return;
+    }
+    const normalized = normalizeNationalId(raw);
+    if (validateNationalId(normalized) !== null) {
+      issues.push(issue("INVALID_REFERENCE", `کد ملی هنرجوی «${student.id}» معتبر نیست.`, `students[${i}].nationalId`));
+      return;
+    }
+    const owner = seenNationalIds.get(normalized);
+    if (owner) {
+      issues.push(
+        issue("DUPLICATE_ID", `کد ملی تکراری بین «${owner}» و «${student.id}».`, `students[${i}].nationalId`),
+      );
+      return;
+    }
+    seenNationalIds.set(normalized, student.id);
+  });
+
+  dataset.invoices.forEach((inv, i) => {
+    ref(has("students", inv.studentId), `invoices[${i}].studentId`, `فاکتور «${inv.id}» به هنرجوی ناموجود ارجاع دارد.`);
+  });
+  dataset.payments.forEach((p, i) => {
+    ref(has("students", p.studentId), `payments[${i}].studentId`, `پرداخت «${p.id}» به هنرجوی ناموجود ارجاع دارد.`);
+  });
+  dataset.users.forEach((u, i) => {
+    ref(has("roles", u.role), `users[${i}].role`, `کاربر «${u.id}» به نقش ناموجود ارجاع دارد.`);
+    if (u.teacherId !== undefined) {
+      ref(has("teachers", u.teacherId), `users[${i}].teacherId`, `کاربر «${u.id}» به مدرس ناموجود ارجاع دارد.`);
+    }
+  });
+
+  issues.push(...findForbiddenKeys(dataset));
+  return issues;
+}
+
+/** Defensive scan: a backup must never carry credential-like fields. */
+export function findForbiddenKeys(value: unknown, path = "data"): ValidationIssue[] {
+  const found: ValidationIssue[] = [];
+  const walk = (node: unknown, at: string, depth: number): void => {
+    if (depth > 12 || node === null || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      node.forEach((item, i) => walk(item, `${at}[${i}]`, depth + 1));
+      return;
+    }
+    for (const [key, child] of Object.entries(node as Record<string, unknown>)) {
+      if (FORBIDDEN_KEY_SET.has(key.toLowerCase())) {
+        found.push(issue("FORBIDDEN_FIELD", `فیلد حساس «${key}» مجاز نیست.`, `${at}.${key}`));
+      }
+      if (PROTOTYPE_KEY_SET.has(key)) {
+        found.push(issue("FORBIDDEN_FIELD", `کلید «${key}» می‌تواند زنجیرهٔ prototype را آلوده کند.`, `${at}.${key}`));
+      }
+      walk(child, `${at}.${key}`, depth + 1);
+    }
+  };
+  walk(value, path, 0);
+  return found;
+}

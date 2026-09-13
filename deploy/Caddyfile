@@ -1,0 +1,131 @@
+# ---------------------------------------------------------------------------
+# Caddy reference configuration — the simpler alternative to deploy/nginx.conf.
+#
+# Caddy obtains and renews TLS automatically and defaults to a modern cipher
+# suite, so the TLS block that nginx needs is absent here by design.
+#
+# Verify after deploying:
+#   curl -sI https://panel.example.com/ | sort
+# ---------------------------------------------------------------------------
+
+panel.example.com {
+	root * /var/www/panel
+
+	# --- Refuse crawlers at the edge ---------------------------------------
+	# Returns 404 rather than 403: a 403 confirms something is here.
+	# User-Agent is trivially spoofable, so this only stops HONEST bots. The
+	# control that matters is that all data sits behind authentication.
+	@crawlers {
+		header_regexp User-Agent "(?i)(gptbot|oai-searchbot|chatgpt-user|claudebot|claude-user|claude-searchbot|claude-web|anthropic-ai|google-extended|googleother|cloudvertexbot|notebooklm|applebot|meta-external|meta-webindexer|facebookbot|perplexity|bytespider|tiktokspider|ccbot|amazonbot|mistralai|duckassistbot|deepseekbot|kimibot|pangubot|petalbot|youbot|cohere|ai2bot|diffbot|timpibot|omgili|webzio|imagesiftbot|img2dataset|firecrawl|bedrockbot|icc-crawler|sbintuitionsbot|linerbot|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|sogou|ahrefsbot|semrushbot|dataforseobot|mj12bot|dotbot|blexbot|zoominfobot|ia_archiver|archive\.org_bot|scrapy|python-requests|headlesschrome|phantomjs)"
+	}
+	respond @crawlers 404
+
+	# An absent User-Agent is almost always automation.
+	@noagent not header User-Agent *
+	respond @noagent 404
+
+	# --- Security headers on every response --------------------------------
+	header {
+		# Keep the panel out of every index — a header, unlike robots.txt,
+		# cannot simply be ignored by a compliant crawler.
+		X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex, notranslate"
+
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+		# CSP — verified against the real build artifact by
+		# src/__tests__/cspCompatibility.test.ts.
+		#
+		# The build emits hashed EXTERNAL assets (no vite-plugin-singlefile), so
+		# no 'unsafe-inline', no 'unsafe-eval' and no hash allow-list is needed.
+		# style-src-attr is the one narrow exception, for React's style={...}
+		# props; it permits attributes only, never <style> or <script>.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
+
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Permissions-Policy "accelerometer=(), autoplay=(), battery=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=()"
+
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "require-corp"
+
+		X-XSS-Protection "0"
+
+		# Never advertise the server.
+		-Server
+		-X-Powered-By
+	}
+
+	# --- Caching -----------------------------------------------------------
+	# Sensitive HTML must not sit in any shared cache.
+	@html path /index.html /
+	header @html Cache-Control "no-store, no-cache, must-revalidate, private"
+
+	# Vite content-hashes these, so they are safe to cache hard.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+
+	@api path /api/*
+	header @api Cache-Control "no-store, private"
+
+	# --- Hide what should not be reachable ---------------------------------
+	@hidden path /sitemap.xml /.env /.git/* *.map
+	respond @hidden 404
+
+	# --- Rate limiting -----------------------------------------------------
+	# Requires github.com/mholt/caddy-ratelimit (not in the standard build).
+	# Credential stuffing is the likeliest attack; blunt it here.
+	rate_limit {
+		zone login {
+			match {
+				path /api/v1/auth/login
+			}
+			key {remote_host}
+			events 5
+			window 1m
+		}
+		zone app {
+			key {remote_host}
+			events 120
+			window 1m
+		}
+	}
+
+	# --- Backend ------------------------------------------------------------
+	@apiroute path /api/*
+	reverse_proxy @apiroute 127.0.0.1:8080
+
+	# --- Secret access path -------------------------------------------------
+	#
+	# OBSCURITY, NOT AUTHENTICATION. A URL leaks through history, the Referer
+	# header, bookmark sync and screenshots. It removes opportunistic scanners
+	# so the panel never lands in a "hosts running X" dataset. It is NOT a
+	# second factor.
+	#
+	# Enforcing it here matters: the in-app gate still ships the JS bundle to
+	# anyone, and the slug is compiled into that bundle.
+	#
+	# Set ACCESS_PATH in the environment to the SAME value passed to the build
+	# as VITE_ACCESS_PATH. Unlike nginx, Caddy can interpolate it.
+	@under_slug path /{$ACCESS_PATH}/*  /{$ACCESS_PATH}
+	@assets_path path /assets/*
+
+	# Anything that is neither the slug nor an asset looks like an empty server.
+	@outside not path /{$ACCESS_PATH}/* /{$ACCESS_PATH} /assets/* /robots.txt
+	respond @outside 404
+
+	# Hashed assets are referenced by absolute path from index.html, so they
+	# sit outside the slug prefix and must stay reachable.
+	file_server @assets_path
+
+	# SPA fallback for the real entry point.
+	rewrite @under_slug /index.html
+	file_server
+
+	# Do not log query strings: they can carry identifiers.
+	log {
+		output file /var/log/caddy/panel.log
+		format json
+	}
+}

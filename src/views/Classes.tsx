@@ -1,12 +1,21 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Plus, Users } from "lucide-react";
-import { instrumentLabel, type Instrument } from "@/data/academy";
-import { WEEKDAYS, WEEKDAYS_SHORT, classes, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
+import { Archive, CalendarDays, Pencil, Plus, UserPlus, Users } from "lucide-react";
+import type { InstrumentId } from "@/data/academy";
+import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { WEEKDAYS, WEEKDAYS_SHORT, rooms, students, teacherById, weekSessions, type AcademyClass } from "@/data/records";
 import { faNum, faPercent, faTime, faToman } from "@/lib/format";
+import { meanOf, ratioPct, topBy } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, useAsyncView } from "@/components/ds/patterns";
+import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
+import { ErrorState } from "@/components/ds/states";
+import { useClasses } from "@/domains/classes/useClasses";
+import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
+import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
+import { getClassRepository } from "@/domains/registry";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { apiErrorFromThrown } from "@/api/errors";
 import { paymentBadge } from "./Students";
 import { cn } from "@/utils/cn";
 
@@ -85,11 +94,36 @@ function ClassCard({ c, onOpen }: { c: AcademyClass; onOpen: () => void }) {
 }
 
 /* ------------------------------------------------------------------ */
-function ClassDetail({ c }: { c: AcademyClass }) {
-  const { navigate, notify, openSheet } = useApp();
+function ClassDetail({
+  c,
+  onEdit,
+  onEnroll,
+  onArchived,
+}: {
+  c: AcademyClass;
+  onEdit: () => void;
+  onEnroll: () => void;
+  onArchived: () => void;
+}) {
+  const { navigate, notify } = useApp();
+  const [archiveBusy, setArchiveBusy] = useState(false);
   const teacher = teacherById(c.teacherId);
   const room = rooms.find((r) => r.id === c.roomId);
   const roster = students.filter((s) => c.studentIds.includes(s.id));
+
+  /** Archive is non-destructive: history and enrollments are preserved. */
+  const archive = async () => {
+    setArchiveBusy(true);
+    try {
+      await getClassRepository().archive(c.id);
+      notify({ tone: "success", title: `${c.title} بایگانی شد`, detail: "کلاس از فهرست فعال حذف شد اما سوابق آن باقی می‌ماند." });
+      onArchived();
+    } catch (cause) {
+      notify({ tone: "danger", title: "بایگانی انجام نشد", detail: apiErrorFromThrown(cause).message });
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
   const sessions = weekSessions.filter((w) => w.classId === c.id);
   const pct = fullness(c);
 
@@ -97,7 +131,7 @@ function ClassDetail({ c }: { c: AcademyClass }) {
     <div className="mx-auto max-w-5xl">
       <PageHeader
         breadcrumb={[{ label: "کلاس‌ها", onClick: () => navigate({ view: "classes" }) }, { label: c.title }]}
-        kicker={instrumentLabel[c.instrument]}
+        kicker={instrumentName(c.instrument)}
         title={c.title}
         description={`${c.kind === "group" ? "کلاس گروهی" : "کلاس خصوصی"} · ${c.level} · ${faNum(c.duration)} دقیقه در هر جلسه`}
         meta={
@@ -112,8 +146,14 @@ function ClassDetail({ c }: { c: AcademyClass }) {
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "attendance" })}>
               <Users className="size-3.5" /> حضور و غیاب
             </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("student")}>
-              <Plus className="size-3.5" /> افزودن هنرجو
+            <Button size="sm" variant="subtle" onClick={onEdit}>
+              <Pencil className="size-3.5" /> ویرایش
+            </Button>
+            <Button size="sm" variant="subtle" onClick={() => void archive()} disabled={archiveBusy || c.status === "archived"}>
+              <Archive className="size-3.5" /> {c.status === "archived" ? "بایگانی‌شده" : "بایگانی"}
+            </Button>
+            <Button size="sm" variant="primary" onClick={onEnroll}>
+              <UserPlus className="size-3.5" /> ثبت‌نام هنرجو
             </Button>
           </>
         }
@@ -146,7 +186,7 @@ function ClassDetail({ c }: { c: AcademyClass }) {
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
         <Panel title="هنرجویان کلاس" className="lg:col-span-2" aside={<span className="nums text-[11px] text-ink-400">{faNum(roster.length)} نفر</span>}>
           {roster.length === 0 ? (
-            <EmptyState title="هنوز هنرجویی ثبت‌نام نکرده" description="ظرفیت این کلاس کامل خالی است." action="افزودن هنرجو" onAction={() => openSheet("student")} />
+            <EmptyState title="هنوز هنرجویی ثبت‌نام نکرده" description="ظرفیت این کلاس کامل خالی است." action="افزودن هنرجو" onAction={onEnroll} />
           ) : (
             <ul className="space-y-2">
               {roster.map((s) => (
@@ -192,8 +232,17 @@ function ClassDetail({ c }: { c: AcademyClass }) {
           </Panel>
           {c.waitlist > 0 && (
             <Panel title="لیست انتظار" kicker={`${faNum(c.waitlist)} نفر منتظر بازهٔ خالی`}>
-              <Button size="sm" variant="subtle" className="w-full" onClick={() => notify({ tone: "success", title: "پیشنهاد بازهٔ جدید ثبت شد", detail: "برای بررسی به برنامه‌ریزی ارسال شد." })}>
-                ایجاد بازهٔ جدید
+              {/*
+                There is no "new slot suggestion" to record — nothing in the
+                product persists one and nothing routes to scheduling — so the
+                button no longer claims either (H2). It now performs the only
+                truthful action available: opening the schedule, where a free
+                slot can actually be looked for. Real session generation
+                (`previewGeneration` / `generateSessions`) arrives with the
+                scheduling wiring.
+              */}
+              <Button size="sm" variant="subtle" className="w-full" onClick={() => navigate({ view: "schedule" })}>
+                <CalendarDays className="size-3.5" /> بررسی در برنامه‌ریزی
               </Button>
             </Panel>
           )}
@@ -205,27 +254,90 @@ function ClassDetail({ c }: { c: AcademyClass }) {
 
 /* ------------------------------------------------------------------ */
 export function ClassesView() {
-  const { filter, detailId, navigate, openSheet } = useApp();
+  const { detailId, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
   const [query, setQuery] = useState("");
-  const [inst, setInst] = useState<Instrument | "all">("all");
+  const [inst, setInst] = useState<InstrumentId | "all">("all");
+  // Filter chips enumerate the live instrument catalogue, so an academy's own
+  // instruments are filterable and a deactivated one stops offering itself.
+  const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
   const [kind, setKind] = useState<"all" | "group" | "private">("all");
   const [sort, setSort] = useState<"fullness" | "waitlist">("fullness");
-  const state = useAsyncView([filter, detailId]);
+  // Repository-backed. Archived classes are excluded by the repository unless
+  // explicitly requested.
+  const { items: classes, loading, error, reload } = useClasses({ per_page: 200 });
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<AcademyClass | undefined>(undefined);
+  const [enrollFor, setEnrollFor] = useState<string | undefined>(undefined);
 
   const list = useMemo(() => {
     const out = classes.filter(
       (c) => (inst === "all" || c.instrument === inst) && (kind === "all" || c.kind === kind) && (query === "" || c.title.includes(query) || (teacherById(c.teacherId)?.name.includes(query) ?? false)),
     );
     return out.sort((a, b) => (sort === "fullness" ? fullness(b) - fullness(a) : b.waitlist - a.waitlist));
-  }, [inst, kind, query, sort]);
+  }, [classes, inst, kind, query, sort]);
 
   const detail = detailId ? classes.find((c) => c.id === detailId) : undefined;
-  if (state === "loading") return <LoadingState className="py-32" label="در حال چیدن کلاس‌ها…" />;
-  if (detail) return <ClassDetail c={detail} />;
+
+  const dialogs = (
+    <>
+      <ClassFormDialog
+        open={formOpen}
+        academyClass={editing}
+        onClose={() => setFormOpen(false)}
+        onSaved={(saved, mode) =>
+          notify({
+            tone: "success",
+            title: mode === "create" ? `${saved.title} ساخته شد` : `${saved.title} به‌روزرسانی شد`,
+            // The dialog awaited a real repository write, so the confirmation
+            // may only name it demo data where it is demo data. In an EMPTY
+            // environment these are the academy's own classes (H3).
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+          })
+        }
+      />
+      <EnrollmentDialog
+        open={enrollFor !== undefined}
+        classId={enrollFor}
+        onClose={() => setEnrollFor(undefined)}
+        onEnrolled={(enrollment) =>
+          notify({
+            tone: "success",
+            title: enrollment.status === "waitlist" ? "به لیست انتظار افزوده شد" : "ثبت‌نام انجام شد",
+            detail: "ظرفیت کلاس به‌روزرسانی شد.",
+          })
+        }
+      />
+    </>
+  );
+
+  if (loading) return <LoadingState className="py-32" label="در حال چیدن کلاس‌ها…" />;
+  if (error)
+    return <ErrorState className="py-32" title="بارگذاری کلاس‌ها ناموفق بود" description={error.message} onRetry={reload} />;
+  if (detail)
+    return (
+      <>
+        <ClassDetail
+          c={detail}
+          onEdit={() => {
+            setEditing(detail);
+            setFormOpen(true);
+          }}
+          onEnroll={() => setEnrollFor(detail.id)}
+          onArchived={() => navigate({ view: "classes" })}
+        />
+        {dialogs}
+      </>
+    );
 
   const totalSeats = classes.reduce((a, b) => a + b.capacity, 0);
   const taken = classes.reduce((a, b) => a + b.enrolled, 0);
   const waitlist = classes.reduce((a, b) => a + b.waitlist, 0);
+  // Derived from the live rows, never hardcoded: in an environment with no
+  // classes there is no occupancy ratio, no average attendance and no "most
+  // waitlisted" class. Each of those has to read as absent («—», no hint)
+  // rather than as 0٪, «NaN٪» or the name of a record that does not exist.
+  const mostWaitlisted = topBy(classes, (c) => c.waitlist, (c) => c.waitlist > 0);
 
   return (
     <div>
@@ -234,7 +346,14 @@ export function ClassesView() {
         title="کلاس‌ها"
         description="هر کلاس یک واحد زندهٔ آموزشگاه است — ظرفیت، ریتم هفتگی و کیفیت حضور آن را اینجا ببینید."
         actions={
-          <Button size="sm" variant="primary" onClick={() => openSheet("class")}>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              setEditing(undefined);
+              setFormOpen(true);
+            }}
+          >
             <Plus className="size-3.5" /> کلاس جدید
           </Button>
         }
@@ -243,9 +362,9 @@ export function ClassesView() {
       <StatStrip
         stats={[
           { label: "کلاس فعال", value: faNum(classes.length), hint: `${faNum(classes.filter((c) => c.kind === "group").length)} گروهی · ${faNum(classes.filter((c) => c.kind === "private").length)} خصوصی` },
-          { label: "اشغال صندلی", value: faPercent(Math.round((taken / totalSeats) * 100)), delta: 3.4, hint: `${faNum(taken)} از ${faNum(totalSeats)}` },
-          { label: "لیست انتظار", value: faNum(waitlist), tone: "violet", hint: "بیشترین: پیانو" },
-          { label: "میانگین حضور", value: faPercent(Math.round(classes.reduce((a, b) => a + b.attendanceAvg, 0) / classes.length)), delta: 2.1 },
+          { label: "اشغال صندلی", value: faPercent(ratioPct(taken, totalSeats)), delta: 3.4, hint: `${faNum(taken)} از ${faNum(totalSeats)}` },
+          { label: "لیست انتظار", value: faNum(waitlist), tone: "violet", hint: mostWaitlisted ? `بیشترین: ${mostWaitlisted.title}` : undefined },
+          { label: "میانگین حضور", value: faPercent(meanOf(classes, (c) => c.attendanceAvg)), delta: 2.1 },
         ]}
       />
 
@@ -268,8 +387,8 @@ export function ClassesView() {
             <Chip label="گروهی" active={kind === "group"} count={classes.filter((c) => c.kind === "group").length} onClick={() => setKind(kind === "group" ? "all" : "group")} />
             <Chip label="خصوصی" active={kind === "private"} count={classes.filter((c) => c.kind === "private").length} onClick={() => setKind(kind === "private" ? "all" : "private")} />
             <span className="mx-1 h-6 w-px shrink-0 self-center bg-white/[0.08]" />
-            {(["piano", "guitar", "violin", "voice", "drums", "theory"] as Instrument[]).map((k) => (
-              <Chip key={k} tone="violet" label={instrumentLabel[k]} active={inst === k} count={classes.filter((c) => c.instrument === k).length} onClick={() => setInst(inst === k ? "all" : k)} />
+            {instrumentFilters.map((i) => (
+              <Chip key={i.id} tone="violet" label={i.name} active={inst === i.id} count={classes.filter((c) => c.instrument === i.id).length} onClick={() => setInst(inst === i.id ? "all" : i.id)} />
             ))}
           </>
         }
@@ -305,6 +424,8 @@ export function ClassesView() {
           ))}
         </div>
       </Panel>
+
+      {dialogs}
     </div>
   );
 }

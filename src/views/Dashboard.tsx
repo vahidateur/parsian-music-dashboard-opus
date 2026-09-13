@@ -1,4 +1,4 @@
-import { heroStats } from "@/data/academy";
+import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
 import { faNum } from "@/lib/format";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useApp } from "@/context/AppContext";
@@ -9,10 +9,12 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
 import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
+import { DemoNote } from "@/components/ds/states";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 function PulseCard() {
   const { navigate, accent } = useApp();
+  const { stats: heroStats } = useHeroStats();
   return (
     <Surface className="p-5">
       <SectionHeader title="نبض آموزشگاه" kicker="فعالیت امروز · اوج ۱۴:۰۰ تا ۱۵:۰۰ · ۱ نقطهٔ توجه" />
@@ -71,9 +73,19 @@ export function Dashboard() {
         <Intelligence className="h-full" />
       </div>
 
-      {/* 6 · Selective analytics, then secondary tools */}
+      {/*
+        6 · Selective analytics.
+        CURATED DEMO PRESENTATION: 30-day trends, revenue and retention cohorts
+        need server-side aggregation over historical data the client does not
+        hold. The figures below are illustrative, and the note says so rather
+        than letting them pass as live metrics (§8/§37).
+      */}
       <div className="order-7 lg:order-none lg:col-span-12 lg:mt-4">
         <BusinessIntelligence />
+        <DemoNote
+          className="mt-3"
+          text="نمودارهای تحلیلی این بخش نمایشی‌اند و برای محاسبهٔ واقعی به جمع‌بندی سمت سرور روی دادهٔ تاریخی نیاز دارند. شمارنده‌های بالای صفحه اما از دادهٔ واقعی همین محیط محاسبه می‌شوند."
+        />
       </div>
       <div className="order-8 lg:order-none lg:col-span-12">
         <QuickActions />

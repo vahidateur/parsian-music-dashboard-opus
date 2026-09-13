@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ACADEMY_NOW, DAY_END, DAY_START, schedule } from "@/data/academy";
+import { DAY_END, DAY_START, schedule } from "@/data/academy";
+import { academyNowMinutes } from "@/domains/shared/clock";
 import { minutesToFaTime, parseTime, toFa } from "@/lib/format";
 import { accentHex, hexA, type Accent } from "@/lib/theme";
 import { cn } from "@/utils/cn";
@@ -62,7 +63,7 @@ export function PulseWaveform({
   className,
   height = 96,
   showAxis = true,
-  now = ACADEMY_NOW,
+  now = academyNowMinutes(),
   accent = "gold",
 }: {
   className?: string;

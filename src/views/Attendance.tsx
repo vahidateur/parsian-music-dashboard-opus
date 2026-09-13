@@ -4,8 +4,8 @@ import { attendanceByDay, attendanceLabel, attendanceTrend, classById, students,
 import { faNum, faPercent, faTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
-import { Avatar, ListRow, Meter, PageHeader, Panel, ProgressRing, Segmented, StatStrip, Tabs, useAsyncView } from "@/components/ds/patterns";
+import { EmptyState } from "@/components/ds/states";
+import { Avatar, ListRow, Meter, PageHeader, Panel, ProgressRing, Segmented, StatStrip, Tabs } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 
 const MARKS: Exclude<AttendanceMark, null>[] = ["present", "late", "absent", "excused"];
@@ -31,7 +31,6 @@ export function AttendanceView() {
   const [rosters, setRosters] = useState(todayAttendance);
   const [activeId, setActiveId] = useState<string>(todayAttendance.find((r) => r.state === "pending")?.sessionId ?? todayAttendance[0].sessionId);
   const [scope, setScope] = useState<"all" | "pending">(filter === "pending" ? "pending" : "all");
-  const state = useAsyncView([filter]);
 
   const active = rosters.find((r) => r.sessionId === activeId);
   const pendingCount = rosters.filter((r) => r.state === "pending").length;
@@ -42,14 +41,25 @@ export function AttendanceView() {
     );
   };
 
+  /**
+   * Marks the roster on screen only — nothing is recorded.
+   *
+   * A real bulk write is `bulkRecord({ sessionId, entries, recordedByUserId })`,
+   * and this fixture-driven view has neither a domain `sessionId` nor an
+   * authenticated user to attribute the record to, so the write cannot happen
+   * here; it arrives with the attendance wiring. The convenience itself is worth
+   * keeping, so the confirmation is `info` and states plainly that nothing has
+   * been recorded yet, instead of claiming «ثبت شدند» for a state change that
+   * dies on navigation (H2).
+   */
   const markAllPresent = (sessionId: string) => {
     setRosters((prev) => prev.map((r) => (r.sessionId === sessionId ? { ...r, entries: r.entries.map((e) => ({ ...e, mark: "present" as AttendanceMark })) } : r)));
-    notify({ tone: "success", title: "همه حاضر ثبت شدند", detail: "می‌توانید موارد استثنا را جداگانه تغییر دهید." });
+    notify({ tone: "info", title: "همه در همین صفحه حاضر شدند", detail: "هیچ حضوری ثبت نشده است؛ ثبت دائمی با اتصال دامنهٔ حضور و غیاب انجام می‌شود." });
   };
 
   const submit = (sessionId: string) => {
     setRosters((prev) => prev.map((r) => (r.sessionId === sessionId ? { ...r, state: "recorded", recordedBy: "آرمان احمدی" } : r)));
-    notify({ tone: "success", title: "حضور و غیاب ثبت شد", detail: "در پروندهٔ هنرجویان و پنل مدرس به‌روزرسانی شد." });
+    notify({ tone: "info", title: "حضور و غیاب در دمو ثبت شد", detail: "ثبت دائمی و اطلاع‌رسانی به مدرس به سرور نیاز دارد." });
   };
 
   const visibleRosters = useMemo(() => (scope === "pending" ? rosters.filter((r) => r.state === "pending") : rosters), [rosters, scope]);
@@ -62,8 +72,6 @@ export function AttendanceView() {
       pending: all.filter((e) => e.mark === null).length,
     };
   }, [rosters]);
-
-  if (state === "loading") return <LoadingState className="py-32" label="در حال جمع‌آوری حضور امروز…" />;
 
   return (
     <div>
@@ -147,12 +155,12 @@ export function AttendanceView() {
                 aside={<StatusBadge tone={stateMeta[active.state].tone} label={stateMeta[active.state].label} />}
               >
                 {active.state === "cancelled" ? (
-                  <EmptyState title="این کلاس لغو شده است" description="برای جلسهٔ لغو‌شده حضور و غیاب ثبت نمی‌شود. می‌توانید جلسهٔ جبرانی تعریف کنید." action="تعریف جلسهٔ جبرانی" onAction={() => notify({ tone: "success", title: "جلسهٔ جبرانی ایجاد شد" })} />
+                  <EmptyState title="این کلاس لغو شده است" description="برای جلسهٔ لغو‌شده حضور و غیاب ثبت نمی‌شود. می‌توانید جلسهٔ جبرانی تعریف کنید." action="تعریف جلسهٔ جبرانی" onAction={() => notify({ tone: "info", title: "جلسهٔ جبرانی نیازمند سرور است", detail: "زمان‌بندی جبرانی باید در سرور ثبت شود." })} />
                 ) : (
                   <>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-4">
                       <Button size="sm" variant="subtle" onClick={() => markAllPresent(active.sessionId)}>
-                        <CheckCheck className="size-3.5" /> همه حاضر
+                        <CheckCheck className="size-3.5" /> همه حاضر (موقت)
                       </Button>
                       <div className="flex items-center gap-2">
                         <Button size="sm" variant="ghost" onClick={() => setRosters((p) => p.map((r) => (r.sessionId === active.sessionId ? { ...r, entries: r.entries.map((e) => ({ ...e, mark: null })) } : r)))}>
@@ -217,17 +225,24 @@ export function AttendanceView() {
                   .flatMap((r) => r.entries.filter((e) => e.mark === "absent").map((e) => ({ ...e, roster: r })))
                   .map((e) => {
                     const st = students.find((s) => s.id === e.studentId);
+                    /*
+                      This row used to carry a «پیگیری» button whose toast reported
+                      that the student and their guardian had been notified.
+                      Nothing was sent: there is no messaging provider, no
+                      delivery channel, and no guardian principal in the product.
+                      A false claim about contacting a minor's guardian is the
+                      worst-shaped fake success here, so the control is removed
+                      rather than disabled or reworded — a disabled button would
+                      still advertise a capability that does not exist and is not
+                      decided (H2). What remains is the truthful action the row
+                      already had: opening that student's real profile.
+                    */
                     return (
                       <ListRow
                         key={e.studentId + e.roster.sessionId}
                         lead={<Avatar name={st?.name ?? ""} size="sm" ring="warn" />}
                         title={st?.name ?? ""}
                         meta={`${classById(e.roster.classId)?.title} · ${faTime(e.roster.time)} · حضور کلی ${faPercent(st?.attendance ?? 0)}`}
-                        end={
-                          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "success", title: "پیام پیگیری ارسال شد", detail: `${st?.name} و ولی ایشان مطلع شدند.` })}>
-                            پیگیری
-                          </Button>
-                        }
                         onClick={() => st && navigate({ view: "students", id: st.id })}
                       />
                     );
