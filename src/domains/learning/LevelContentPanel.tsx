@@ -21,6 +21,10 @@
  * another level resolves to nothing rather than becoming this level's write
  * target (I13 Checkpoint 1's lesson, applied to local state).
  *
+ * Both reads report their own failure. A catalogue that could not be read is
+ * rendered as unreadable — never as «nothing left to attach» — and the submit
+ * does not exist in that state, so an unavailable offer cannot be written.
+ *
  * Nothing here keeps a private copy of the links. Both lists are queries through
  * `useLearningContent`, so a successful write is reflected by the repository's
  * own re-read — driven by the global data-version bump — and the UI cannot claim
@@ -74,10 +78,15 @@ export function LevelContentPanel({
 
   // The catalogue to pick from. Active only: an inactive item is not something
   // to offer for a new link, though one already linked is still shown honestly.
-  const { items: catalogue, loading: catalogueLoading } = useLearningContent({
-    per_page: 200,
-    activeOnly: true,
-  });
+  //
+  // Its `error` is consumed, not discarded: this is a second query with its own
+  // failure mode, and a read that failed is not a read that found nothing.
+  const {
+    items: catalogue,
+    loading: catalogueLoading,
+    error: catalogueError,
+    reload: reloadCatalogue,
+  } = useLearningContent({ per_page: 200, activeOnly: true });
 
   /** In flight until both reads for this level have answered. */
   const pickerLoading = linkedLoading || catalogueLoading;
@@ -87,9 +96,16 @@ export function LevelContentPanel({
   // Already-linked content is not offered again. This is presentation, not a
   // second rule: `attachContent` still owns the duplicate refusal, and its
   // answer is surfaced verbatim when it happens anyway.
+  //
+  // A failed catalogue read offers nothing — deliberately, even though the hook
+  // keeps the previous page across a failed *refetch*: showing offers beside an
+  // error would claim a choice the read cannot currently justify.
   const available = useMemo(
-    () => (pickerLoading ? [] : catalogue.filter((row) => !linkedIds.has(row.id))),
-    [catalogue, linkedIds, pickerLoading],
+    () =>
+      pickerLoading || catalogueError
+        ? []
+        : catalogue.filter((row) => !linkedIds.has(row.id)),
+    [catalogue, linkedIds, pickerLoading, catalogueError],
   );
 
   // Derived, not stored: a pick made for the previous level is not in this
@@ -204,57 +220,73 @@ export function LevelContentPanel({
         </ul>
       )}
 
-      <form
-        className="mt-3 flex items-end gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void attach();
-        }}
-      >
-        <Field
-          label="منبع جدید"
-          hint={`از میان منابع فعال؛ سطح «${levelName}»`}
-          className="flex-1"
+      {catalogueError ? (
+        /*
+          The offers could not be read, so «منبعی برای اتصال باقی نمانده» would
+          be a false empty — the same shape I13 Checkpoint 1 removed from six
+          consumers, in a new place. The level's own links above are untouched
+          (that read answered), so only the add affordance is replaced, with the
+          failure's own message and a retry; there is no submit to press.
+        */
+        <ErrorState
+          className="mt-3 px-4 py-6"
+          title="فهرست منابع قابل اتصال خوانده نشد"
+          description={catalogueError.message}
+          onRetry={reloadCatalogue}
+        />
+      ) : (
+        <form
+          className="mt-3 flex items-end gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void attach();
+          }}
         >
-          {(control) => (
-            <select
-              {...control}
-              className={inputCls}
-              value={pickedId}
-              disabled={busy || pickerLoading}
-              onChange={(event) => setPicked(event.target.value)}
-            >
-              {/*
-                An empty option list while loading is not a false empty: the
-                control is disabled and says it is loading, which is the
-                explicit in-flight state I13 asks for instead of another
-                query's rows.
-              */}
-              <option value="">
-                {pickerLoading
-                  ? "در حال بارگذاری منابع…"
-                  : available.length === 0
-                    ? "منبعی برای اتصال باقی نمانده"
-                    : "— انتخاب کنید —"}
-              </option>
-              {available.map((content) => (
-                <option key={content.id} value={content.id}>
-                  {optionLabel(content)}
+          <Field
+            label="منبع جدید"
+            hint={`از میان منابع فعال؛ سطح «${levelName}»`}
+            className="flex-1"
+          >
+            {(control) => (
+              <select
+                {...control}
+                className={inputCls}
+                value={pickedId}
+                disabled={busy || pickerLoading}
+                onChange={(event) => setPicked(event.target.value)}
+              >
+                {/*
+                  An empty option list while loading is not a false empty: the
+                  control is disabled and says it is loading, which is the
+                  explicit in-flight state I13 asks for instead of another
+                  query's rows.
+                */}
+                <option value="">
+                  {pickerLoading
+                    ? "در حال بارگذاری منابع…"
+                    : available.length === 0
+                      ? "منبعی برای اتصال باقی نمانده"
+                      : "— انتخاب کنید —"}
                 </option>
-              ))}
-            </select>
-          )}
-        </Field>
-        <Button
-          type="submit"
-          size="sm"
-          variant="subtle"
-          className="mb-[2px]"
-          disabled={busy || pickerLoading || !pickedId}
-        >
-          {busy ? "در حال ثبت…" : "اتصال"}
-        </Button>
-      </form>
+                {available.map((content) => (
+                  <option key={content.id} value={content.id}>
+                    {optionLabel(content)}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <Button
+            type="submit"
+            size="sm"
+            variant="subtle"
+            className="mb-[2px]"
+            disabled={busy || pickerLoading || !pickedId}
+          >
+            {busy ? "در حال ثبت…" : "اتصال"}
+          </Button>
+        </form>
+      )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
         اتصال منبع به یک سطح، دسترسی هر هنرجویی را که روی آن سطح یا سطوح بعدی

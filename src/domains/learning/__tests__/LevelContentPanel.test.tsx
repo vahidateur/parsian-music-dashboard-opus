@@ -337,6 +337,67 @@ describe("M3 assignment surface — states", () => {
     expect(rows()).toHaveLength(0);
     expect(screen.getByRole("button", { name: /تلاش دوباره|بازیابی/ })).toBeTruthy();
   });
+
+  it("reports a failed catalogue read as unreadable, never as nothing left to attach", async () => {
+    const level = await freshLevel();
+    const [linked, spare] = await someContent(2);
+    await getLearningRepository().attachContent(level.id, linked.id, {
+      programId: PROGRAM.id,
+    });
+
+    const real = getLearningRepository();
+    const cause = new ApiError({
+      kind: "server",
+      code: "SERVER",
+      message: "فهرست منابع خوانده نشد.",
+    });
+    let catalogueFails = true;
+    setLearningRepository(
+      withStubs(real, {
+        // Only the catalogue read fails — the one without a `levelId`. The
+        // level's own links keep answering, so the two reads' states can be told
+        // apart instead of collapsing into one "the surface failed".
+        listContent: (params: { levelId?: string; per_page?: number } = {}) =>
+          params.levelId === undefined && catalogueFails
+            ? Promise.reject(cause)
+            : real.listContent(params),
+      } satisfies Stubs<LearningRepository>),
+    );
+
+    mountPanel({ levelId: level.id, levelName: level.name });
+
+    // The level's links are unaffected by the catalogue's failure.
+    await waitForRows(level.id);
+    expect(rowTitles().some((title) => title.includes(linked.title))).toBe(true);
+
+    // The defect this case exists for, asserted first so that a reversion names
+    // it: the copy claiming "nothing is left to attach" must be absent, because
+    // a read that failed is not a read that found nothing.
+    expect(screen.queryByText("منبعی برای اتصال باقی نمانده")).toBeNull();
+    // No offer exists and no submit exists — not merely disabled. A write cannot
+    // be attempted against a read that has not answered.
+    expect(screen.queryByRole("combobox")).toBeNull();
+    expect(screen.queryAllByRole("button", { name: /اتصال/ })).toHaveLength(0);
+    expect(await truth().listLinks(level.id)).toHaveLength(1);
+
+    // What is shown instead: the failure, in its own words.
+    expect(screen.getByText("فهرست منابع قابل اتصال خوانده نشد")).toBeTruthy();
+    expect(screen.getByText("فهرست منابع خوانده نشد.")).toBeTruthy();
+    expectNoArtefacts();
+
+    // Retry is offered, and it is real: once the read answers, the offers come
+    // back from the repository — the unlinked item, and not the linked one.
+    catalogueFails = false;
+    fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
+    await waitFor(() =>
+      expect(pickerLabels().some((label) => label.includes(spare.title))).toBe(true),
+    );
+    expect(pickerLabels().some((label) => label.includes(linked.title))).toBe(false);
+    expect(screen.queryByText("فهرست منابع قابل اتصال خوانده نشد")).toBeNull();
+    // Restored, and still honest: nothing is picked, so nothing can be written.
+    expect(picker().value).toBe("");
+    expect(attachButton().disabled).toBe(true);
+  });
 });
 
 describe("M3 assignment surface — writes", () => {
