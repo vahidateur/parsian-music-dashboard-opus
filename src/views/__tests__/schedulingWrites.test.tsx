@@ -880,17 +880,24 @@ describe("the write target", () => {
     expect(scheduling.state.reschedules[0].input).toMatchObject({ date: OTHER_DAY, startTime: "18:00" });
   });
 
-  it("offers reschedule and cancel, and neither delete nor generation", async () => {
+  it("offers reschedule and cancel, and no delete", async () => {
     renderView();
     const drawer = await openDrawer(THEORY_CLASS.title);
 
     expect(within(drawer).getByRole("button", { name: "جابه‌جایی" })).toBeTruthy();
     expect(within(drawer).getByRole("button", { name: "لغو جلسه" })).toBeTruthy();
-    // E-2 and E-1: the repository has a `delete`, and generation exists, but
-    // neither is CP2's to expose — a control whose operation is not wired is not
-    // rendered at all.
+    /*
+      E-2 still holds in CP3. The repository has a `delete`, and generation now
+      reports orphaned sessions, but nothing in this drawer removes a row:
+      cancellation remains the only destructive operation on offer. Generation
+      itself moved from "not exposed" (CP2) to its own surface in CP3 — what it
+      does there is asserted in `schedulingGeneration.test.tsx` — and the drawer
+      gained no control for it.
+    */
     expect(within(drawer).queryByRole("button", { name: /حذف/ })).toBeNull();
-    expect(document.body.textContent).not.toContain("تولید جلسات");
+    expect(within(drawer).queryByRole("button", { name: /تولید/ })).toBeNull();
+    // And nothing on the screen claims a generation nobody asked for.
+    expect(document.body.textContent).not.toContain("تولید شد");
     expect(document.body.textContent).not.toContain("زمان‌بندی خودکار");
   });
 });

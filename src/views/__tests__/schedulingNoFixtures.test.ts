@@ -21,8 +21,16 @@
  * documents what was removed, and prose about a rule must not satisfy it), and no
  * line numbers are used anywhere: they drift, and a gate that breaks on an
  * unrelated edit gets deleted.
+ *
+ * M4/CP2 moved the view's write forms beside it (`src/views/scheduling/`), and
+ * CP3 added generation there. A gate that reads one file would have scanned the
+ * calendar and missed every form that can write — so the shape rules below run
+ * over the whole scheduling surface, discovered from the directory rather than
+ * from a list someone has to remember to extend. The rules that are specific to
+ * the calendar itself (its read hooks, its bounded window) still run against
+ * `Scheduling.tsx` alone.
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -34,6 +42,26 @@ function code(source: string): string {
 }
 
 const VIEW = code(SOURCE);
+
+const VIEWS = join(process.cwd(), "src", "views");
+
+/**
+ * The scheduling surface: the calendar plus every file beside it.
+ *
+ * Read from the directory on purpose. A hardcoded list is how CP2's dialog
+ * escaped this gate, and the next form added here should be covered by it without
+ * anyone remembering to say so.
+ */
+const SCHEDULING_SURFACE = [
+  { name: "views/Scheduling.tsx", source: code(SOURCE) },
+  ...readdirSync(join(VIEWS, "scheduling"))
+    .filter((file) => /\.tsx?$/.test(file))
+    .sort()
+    .map((file) => ({
+      name: `views/scheduling/${file}`,
+      source: code(readFileSync(join(VIEWS, "scheduling", file), "utf8")),
+    })),
+];
 
 /** The domains this view is allowed to read from. */
 const READ_HOOKS = [
@@ -123,6 +151,7 @@ describe("Scheduling view reads the scheduling domain", () => {
   });
 
   it("reads a bounded window and never defaults a read away", () => {
+    // (calendar-specific: the write forms beside it read no list of their own)
     const call = /useSessions\(([\s\S]*?)\);/.exec(VIEW);
     expect(call, "sessions are read through useSessions").not.toBeNull();
     // No window is a read of the whole table; no page size silently falls back to
@@ -134,5 +163,70 @@ describe("Scheduling view reads the scheduling domain", () => {
     // the difference between "nothing is scheduled" and "we could not read it".
     expect(VIEW).not.toMatch(/items\s*\|\|\s*\[\]/);
     expect(VIEW).toContain("error !== null");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The write surface                                                   */
+/* ------------------------------------------------------------------ */
+describe("the scheduling write surface stays fixture-free", () => {
+  it("scans the calendar and every form beside it", () => {
+    // Named explicitly so a rename or a move shrinks the gate loudly instead of
+    // leaving it scanning one file and passing.
+    const names = SCHEDULING_SURFACE.map((file) => file.name);
+    expect(names).toContain("views/Scheduling.tsx");
+    expect(names).toContain("views/scheduling/SessionWriteDialogs.tsx");
+    expect(names).toContain("views/scheduling/GenerateSessionsDialog.tsx");
+    expect(names.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("imports nothing from the fixture collections", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      const imported = [...file.source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
+      expect(imported.filter((path) => path.startsWith("@/data/")), `${file.name} imports fixtures`).toEqual([]);
+    }
+  });
+
+  it("carries none of the fixture identifiers", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      for (const identifier of FIXTURE_IDENTIFIERS) {
+        expect(file.source, `${file.name} carries ${identifier}`).not.toContain(identifier);
+      }
+    }
+  });
+
+  it("carries none of the retired fabricated narratives", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      for (const narrative of RETIRED_NARRATIVES) {
+        expect(file.source, `${file.name} carries ${narrative}`).not.toContain(narrative);
+      }
+    }
+  });
+
+  it("takes no date from the wall clock and hardcodes no calendar day", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      // A second, uncontrolled clock in a form is how a demo freezes and a
+      // production build does not; a literal date is how a test passes today and
+      // a user sees a stale window next month.
+      expect(file.source, `${file.name} reads new Date()`).not.toMatch(/new Date\(/);
+      expect(file.source, `${file.name} reads Date.now()`).not.toMatch(/Date\.now\(/);
+      expect(file.source, `${file.name} hardcodes an ISO date`).not.toMatch(/20\d{2}-\d{2}-\d{2}/);
+    }
+  });
+
+  it("reports no statistic it cannot derive", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      expect(file.source, `${file.name} renders a fabricated percentage`).not.toContain("faPercent");
+      expect(file.source, `${file.name} renders a fabricated trend`).not.toMatch(/\bdelta:/);
+    }
+  });
+
+  it("fakes no completion with a timer", () => {
+    for (const file of SCHEDULING_SURFACE) {
+      // A write surface that "completes" on a timer is a success toast with no
+      // repository behind it — the exact defect H2 exists to prevent (§11).
+      expect(file.source, `${file.name} fakes latency`).not.toMatch(/\bsetTimeout\s*\(/);
+      expect(file.source, `${file.name} fakes latency`).not.toMatch(/\bsetInterval\s*\(/);
+    }
   });
 });

@@ -9,8 +9,11 @@
  * room-occupancy, room-pressure and free-slot narratives, which described no data
  * anyone had (H1a, H4).
  *
- * M4 / CP2 adds the first two real writes: **reschedule** and **cancel**, both
- * through `getSchedulingRepository()` and both awaited before anything is claimed.
+ * M4 / CP2 added the first two real writes — **reschedule** and **cancel** — and
+ * CP3 adds the third: **generation**, the bounded, idempotent expansion of a
+ * class's own recurrence across a date window. All three go through
+ * `getSchedulingRepository()` and all three are awaited before anything is
+ * claimed.
  *
  * THE WRITE CONTRACT THIS FILE FOLLOWS
  *
@@ -31,12 +34,21 @@
  *     loaded page. When the window changes and the id no longer resolves, there is
  *     no target and no dialog (I13) — a stale `Session` in state would let a write
  *     land on a row the user can no longer see.
+ *   - Generation plans nothing itself. `useGenerationPreview` asks the repository
+ *     for the plan and the dialog renders the domain's own numbers, labels and
+ *     protections; `generateSessions` re-plans before writing, so the preview is
+ *     labelled a preview, and the write is still awaited and still refuseable.
  *
  * WHAT THIS VIEW STILL DELIBERATELY DOES NOT DO
  *
- *   - **No generation.** Creating sessions across a date range is CP3; the
- *     `filter=new-slot` deep link keeps its CP1 meaning and says so.
- *   - **No delete.** The repository has the verb; no control here exposes it (E-2).
+ *   - **No delete.** The repository has the verb and generation reports orphaned
+ *     sessions, but no control here removes anything (E-2): cancellation from CP2
+ *     remains the only destructive operation this view offers, and an orphan is
+ *     shown as a report rather than a deletion waiting to happen. Delete is CP4.
+ *   - **No planning logic.** The recurrence expansion, the deterministic slot ids,
+ *     the window caps and the skip/orphan protections all live in
+ *     `domains/scheduling/generation.ts`. Nothing here recomputes them, which is
+ *     why the preview and the write can disagree and the write still wins.
  *   - **No conflict derivation.** Conflicts are the domain's (`conflicts.ts`
  *     through `checkConflicts`), reached via `useConflictCheck` in the reschedule
  *     form. No conflict count, badge or card is rendered on the calendar itself:
@@ -60,7 +72,7 @@
  *     open in the drawer (I13).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Plus, XCircle } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Plus, XCircle } from "lucide-react";
 import { apiErrorFromThrown } from "@/api/errors";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
@@ -78,12 +90,20 @@ import {
   weekdayIndex,
 } from "@/domains/scheduling/dateBridge";
 import { getSchedulingRepository } from "@/domains/registry";
-import { SESSION_STATUS_LABEL, type RescheduleInput, type Session, type SessionStatus } from "@/domains/scheduling/types";
+import {
+  SESSION_STATUS_LABEL,
+  type GenerateInput,
+  type GenerationResult,
+  type RescheduleInput,
+  type Session,
+  type SessionStatus,
+} from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
 import { academyNow, useAcademyNow } from "@/domains/shared/clock";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime, minutesToFaTime, toFa } from "@/lib/format";
 import { cn } from "@/utils/cn";
+import { GenerateSessionsDialog } from "./scheduling/GenerateSessionsDialog";
 import { CancelSessionDialog, RescheduleSessionDialog, jalaliDayLabel } from "./scheduling/SessionWriteDialogs";
 
 /**
@@ -262,6 +282,11 @@ export function SchedulingView() {
   const [intent, setIntent] = useState<"conflict" | "new-slot" | null>(isFocusFilter(filter) ? filter : null);
   /** Which write form is open, if any. The target is always `selected`, never a copy. */
   const [writeForm, setWriteForm] = useState<"reschedule" | "cancel" | null>(null);
+  /**
+   * Generation needs no selected session — it writes a window, not a row — so it
+   * keeps its own flag and is mounted whether or not the drawer is open.
+   */
+  const [generationOpen, setGenerationOpen] = useState(false);
 
   /*
     `filter=conflict` and `filter=new-slot` are produced by the dashboard's
@@ -391,6 +416,44 @@ export function SchedulingView() {
     [notify, sessions],
   );
 
+  const generate = useCallback((input: GenerateInput) => repository.generateSessions(input), [repository]);
+
+  /**
+   * Announced only once the repository has answered, and only from what it
+   * returned: the count is `result.created.length`, the window is the plan the
+   * repository actually applied, and a run that wrote nothing says so in `info`
+   * rather than borrowing a success it did not earn (H2). Generation is idempotent
+   * by construction — slot ids are content-derived — so "ran and wrote nothing" is
+   * a real outcome, not a failure.
+   */
+  const generated = useCallback(
+    (result: GenerationResult) => {
+      sessions.reload();
+      setGenerationOpen(false);
+      const classTitle = classIndex.get(result.plan.classId)?.title ?? NO_DATA;
+      const range = `${isoToJalaliDisplay(result.plan.from, {
+        day: "numeric",
+        month: "short",
+      })} تا ${isoToJalaliDisplay(result.plan.to, { day: "numeric", month: "short" })}`;
+      if (result.noop) {
+        notify({
+          tone: "info",
+          title: "تولید اجرا شد؛ جلسه‌ای نوشته نشد",
+          detail: `برای ${classTitle} در بازهٔ ${range} خانهٔ نوشتنی وجود نداشت — این بازه پیش‌تر تولید شده یا خانه‌های آن محافظت‌شده‌اند.`,
+        });
+        return;
+      }
+      const updates =
+        result.updated.length > 0 ? ` و ${faNum(result.updated.length)} جلسهٔ موجود به‌روزرسانی شد` : "";
+      notify({
+        tone: "success",
+        title: "جلسات تولید شد",
+        detail: `${faNum(result.created.length)} جلسه برای ${classTitle} در بازهٔ ${range} ایجاد شد${updates}. چیزی حذف نشد و اطلاع‌رسانی انجام نشد.`,
+      });
+    },
+    [classIndex, notify, sessions],
+  );
+
   /** True when the window holds more sessions than this page returned. */
   const truncated = sessions.total > sessions.items.length;
   const settled = !sessions.loading && sessions.error === null;
@@ -463,6 +526,9 @@ export function SchedulingView() {
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "attendance" })}>
               <CalendarDays className="size-3.5" /> حضور امروز
             </Button>
+            <Button size="sm" variant="subtle" onClick={() => setGenerationOpen(true)}>
+              <CalendarRange className="size-3.5" /> تولید جلسات
+            </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("class")}>
               <Plus className="size-3.5" /> بازهٔ جدید
             </Button>
@@ -485,7 +551,9 @@ export function SchedulingView() {
           <p className="text-[12px] leading-relaxed text-ink-200">
             تقویم روی امروز تمرکز داده شد. «بازهٔ جدید» فرم برنامه‌ریزی کلاس را باز می‌کند؛ آن فرم هنوز
             به سرور متصل نیست و چیزی ذخیره نمی‌کند، و خود نیز همین را می‌گوید. زمان‌بندی خودکار جلسات
-            روی یک بازهٔ تاریخ، نوشتن واقعی دامنه است و در این نسخه انجام نمی‌شود.
+            روی یک بازهٔ تاریخ نوشتن واقعی دامنه است و از این تقویم با «تولید جلسات» انجام می‌شود:
+            پیش‌نمایش از انبار خوانده می‌شود و نوشتن تنها با تأیید شما. باز کردن این پیام چیزی تولید
+            نکرده است.
           </p>
         </Surface>
       )}
@@ -851,6 +919,24 @@ export function SchedulingView() {
           </div>
         )}
       </Drawer>
+
+      {/*
+        Generation writes a window, not a row, so it needs no selected session and
+        stays mounted whether or not the drawer is open. Its class list and its
+        proposed window are this view's own reads and state; its plan is the
+        repository's.
+      */}
+      <GenerateSessionsDialog
+        open={generationOpen}
+        classes={classes.items}
+        classesUnavailable={classes.error !== null}
+        defaultFrom={from}
+        defaultTo={to}
+        onSubmit={generate}
+        onRejected={writeRefused("تولید جلسات انجام نشد")}
+        onGenerated={generated}
+        onClose={() => setGenerationOpen(false)}
+      />
 
       {/*
         The write forms. Mounted only while a derived session exists: with no
