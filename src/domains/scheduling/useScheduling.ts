@@ -57,20 +57,59 @@ export interface DerivedState<T> {
 }
 
 /**
+ * The value plus the identity of the query that produced it.
+ *
+ * Carrying the key is what makes the invariant enforceable: without it the
+ * state cannot say whose value it holds, so the render that first sees a new
+ * session exposes the previous session's read (OPEN_ITEMS I13, Checkpoint 3B —
+ * the same defect Checkpoint 1 closed in `useResourceList` and Checkpoint 3A
+ * closed in learning's `useDerived`).
+ */
+interface DerivedReaderState<T> {
+  key: string;
+  data: T | undefined;
+  loading: boolean;
+  error: ApiError | null;
+}
+
+/**
  * Runs an async read, cancelling in flight and discarding stale responses.
  *
- * The ticket guard matters when a user clicks quickly between sessions: without
- * it a slow first response can land after a fast second one and paint the
- * wrong session's roster.
+ * TWO guards, because they answer two different questions:
+ *
+ *   - the **ticket** discards a late RESPONSE. A user clicking quickly between
+ *     sessions must not have the slow first answer land after the fast second
+ *     one and paint the wrong session's roster;
+ *   - the **key** retracts an already-committed STATE. `loading` used to be set
+ *     inside the effect, so the render that first saw a new key still returned
+ *     the PREVIOUS key's data and error with `loading === false` — one committed
+ *     frame in which a roster of one session's students is on screen under
+ *     another session's heading, with no in-flight marker to wait for. A ticket
+ *     cannot help there: nothing has resolved yet.
+ *
+ * So what the hook exposes is derived at render from `state.key === key`, and a
+ * frame can no longer disagree with its own parameters. A refetch of the SAME
+ * key deliberately keeps its value: every persisted write anywhere bumps the
+ * global data version, so emptying on each effect run would blank the roster
+ * after any mutation in the app.
+ *
+ * When there is nothing to run — no session selected, or a dialog holding the
+ * preview until a range is chosen — the hook is NOT in flight. Reporting
+ * `loading` there would promise an answer nobody asked for.
  */
 function useDerivedRead<T>(
   run: ((signal: AbortSignal) => Promise<T>) | undefined,
   deps: readonly unknown[],
 ): DerivedState<T> {
   const dataVersion = useDataVersion();
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [loading, setLoading] = useState(run !== undefined);
-  const [error, setError] = useState<ApiError | null>(null);
+  /** The query's identity, serialized from the caller's declared deps. */
+  const key = JSON.stringify(deps);
+  const [state, setState] = useState<DerivedReaderState<T>>(() => ({
+    key,
+    data: undefined,
+    loading: run !== undefined,
+    error: null,
+  }));
   const [nonce, setNonce] = useState(0);
   const ticket = useRef(0);
 
@@ -82,30 +121,45 @@ function useDerivedRead<T>(
   useEffect(() => {
     const current = runRef.current;
     if (!current) {
-      setData(undefined);
-      setLoading(false);
-      setError(null);
+      // Nothing was asked for: no value, no failure, and nothing in flight.
+      setState((previous) =>
+        previous.key === key && previous.data === undefined && !previous.loading && previous.error === null
+          ? previous
+          : { key, data: undefined, loading: false, error: null },
+      );
       return;
     }
 
     const controller = new AbortController();
     const mine = ++ticket.current;
-    setLoading(true);
+    // A refetch of the SAME key keeps the value in hand and only marks itself in
+    // flight. A genuinely NEW key drops it: that value belongs to another query.
+    setState((previous) =>
+      previous.key === key
+        ? { ...previous, loading: true }
+        : { key, data: undefined, loading: true, error: null },
+    );
 
     current(controller.signal)
       .then((result) => {
         if (mine !== ticket.current) return;
-        setData(result);
-        setError(null);
+        setState({ key, data: result, loading: false, error: null });
       })
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         // A cancelled request is not a failure the user should see.
         if (mine !== ticket.current || normalized.kind === "cancelled") return;
-        setError(normalized);
+        // Keep whatever this key already had: a failed refetch reports the
+        // failure without discarding a value that is still this query's.
+        setState((previous) =>
+          previous.key === key ? { ...previous, error: normalized, loading: false } : previous,
+        );
       })
       .finally(() => {
-        if (mine === ticket.current) setLoading(false);
+        if (mine !== ticket.current) return;
+        setState((previous) =>
+          previous.key === key && previous.loading ? { ...previous, loading: false } : previous,
+        );
       });
 
     return () => controller.abort();
@@ -113,7 +167,20 @@ function useDerivedRead<T>(
   }, [...deps, dataVersion, nonce]);
 
   const reload = useCallback(() => setNonce((n) => n + 1), []);
-  return useMemo(() => ({ data, loading, error, reload }), [data, loading, error, reload]);
+
+  // Derived at render, not set in an effect: the ticket guard above discards a
+  // late RESPONSE, and only this can stop an already-committed STATE from being
+  // read as the current query's.
+  const answers = run !== undefined && state.key === key;
+  return useMemo(
+    () => ({
+      data: answers ? state.data : undefined,
+      loading: answers ? state.loading : run !== undefined,
+      error: answers ? state.error : null,
+      reload,
+    }),
+    [answers, run, state.data, state.loading, state.error, reload],
+  );
 }
 
 /**
