@@ -7,14 +7,18 @@
  * let the two arrive at different moments and render a student as unmarked
  * when their mark had in fact just loaded.
  *
- * Every list call passes an explicit `per_page`; correction history in
- * particular grows without bound and must never be fetched whole.
+ * Every list call states an explicit `per_page`, and for `useAttendanceRecords`
+ * that is enforced by the compiler rather than by convention: its params are
+ * `Paged<AttendanceListParams>`, so a call site that omits the page size does not
+ * typecheck. Correction history in particular grows without bound and must never
+ * be fetched whole. `src/__tests__/architectureBoundaries.test.ts` pins the
+ * signature and the call sites.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getAttendanceRepository } from "@/domains/registry";
 import { useDataVersion } from "@/domains/shared/dataVersion";
-import { useResourceList, type ListState } from "@/domains/shared/useResource";
+import { useResourceList, type ListState, type Paged } from "@/domains/shared/useResource";
 import type {
   AttendanceCorrection,
   AttendanceListParams,
@@ -23,13 +27,20 @@ import type {
   SessionAttendance,
 } from "./types";
 
-/** Raw attendance rows. Prefer `useSessionAttendance` for a register view. */
-export function useAttendanceRecords(params: AttendanceListParams): ListState<AttendanceRecord> {
+/**
+ * Raw attendance rows. Prefer `useSessionAttendance` for a register view.
+ *
+ * `per_page` is required at the type level (see `Paged`): this is an append-only
+ * trail, so an unstated page size is a silently truncated one.
+ */
+export function useAttendanceRecords(
+  params: Paged<AttendanceListParams>,
+): ListState<AttendanceRecord> {
   const loader = useCallback(
     (p: AttendanceListParams, signal?: AbortSignal) => getAttendanceRepository().list(p, signal),
     [],
   );
-  return useResourceList(loader, params);
+  return useResourceList<AttendanceRecord, AttendanceListParams>(loader, params);
 }
 
 /**

@@ -10,16 +10,25 @@
  * roster assembled from two independently-timed fetches can disagree with
  * itself mid-render.
  *
- * EVERY LIST CALL PASSES AN EXPLICIT `per_page`. A paginated `list()` is not a
+ * EVERY LIST CALL STATES AN EXPLICIT `per_page`. A paginated `list()` is not a
  * lookup table — relying on the repository's default page size silently
- * truncates the dataset and turns real sessions into "not found". The
- * architecture boundary test enforces this.
+ * truncates the dataset and turns real sessions into "not found", and a calendar
+ * is exactly the surface where three weeks of a term still looks like a term.
+ * `useSessions` therefore takes `Paged<SessionListParams>`, so omitting the page
+ * size is a **compile error at the call site** rather than a review habit, and
+ * `src/__tests__/architectureBoundaries.test.ts` pins both the signature and the
+ * call sites.
+ *
+ * What `Paged` guarantees is that the caller *states* a ceiling — not that the
+ * ceiling is high enough. A read that means "everything" still stops at whatever
+ * number it names (OPEN_ITEMS I16), which is why a window read here is bounded by
+ * `from`/`to` rather than by a large page.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getSchedulingRepository } from "@/domains/registry";
 import { useDataVersion } from "@/domains/shared/dataVersion";
-import { useResourceList, type ListState } from "@/domains/shared/useResource";
+import { useResourceList, type ListState, type Paged } from "@/domains/shared/useResource";
 import type {
   ConflictReport,
   GenerateInput,
@@ -30,13 +39,19 @@ import type {
   SessionListParams,
 } from "./types";
 
-/** Sessions matching the given filters, newest data on every version bump. */
-export function useSessions(params: SessionListParams): ListState<Session> {
+/**
+ * Sessions matching the given filters, newest data on every version bump.
+ *
+ * `per_page` is required at the type level (see `Paged`): a session list is a
+ * window over a term, and the repository's default page size would silently
+ * truncate it.
+ */
+export function useSessions(params: Paged<SessionListParams>): ListState<Session> {
   const loader = useCallback(
     (p: SessionListParams, signal?: AbortSignal) => getSchedulingRepository().list(p, signal),
     [],
   );
-  return useResourceList(loader, params);
+  return useResourceList<Session, SessionListParams>(loader, params);
 }
 
 /* ------------------------------------------------------------------ */

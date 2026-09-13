@@ -94,8 +94,11 @@ describe("list hooks request an explicit page size", () => {
       "useRooms",
       "useClasses",
       "useEnrollments",
-      // Scheduling and attendance list hooks additionally require `per_page`
-      // at the type level (see `Paged`), so this is a second line of defence.
+      // `useSessions` and `useAttendanceRecords` additionally require `per_page`
+      // at the TYPE level (`Paged<…>` in their own signatures), pinned by the two
+      // cases below — so this empty-argument check is a second line of defence
+      // rather than the only one, and a call like `useSessions({ from, to })`
+      // fails to compile instead of silently reading 25 sessions.
       "useSessions",
       "useAttendanceRecords",
       "useAttendanceCorrections",
@@ -106,6 +109,97 @@ describe("list hooks request an explicit page size", () => {
       for (const hook of hooks) {
         // `useX()` with an empty argument list, i.e. no params object.
         if (new RegExp(`\\b${hook}\\s*\\(\\s*\\)`).test(source)) offenders.push(`${file} → ${hook}()`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The hooks whose params are `Paged<…>`, so the compiler rejects a call site
+   * that omits the page size. Recorded here because a signature is easy to relax
+   * in a hurry — widening a parameter type never breaks the callers that already
+   * pass it, so nothing else would complain.
+   */
+  const PAGED_HOOKS = [
+    {
+      hook: "useSessions",
+      file: join("domains", "scheduling", "useScheduling.ts"),
+      params: "Paged<SessionListParams>",
+    },
+    {
+      hook: "useAttendanceRecords",
+      file: join("domains", "attendance", "useAttendance.ts"),
+      params: "Paged<AttendanceListParams>",
+    },
+    {
+      hook: "useLibraryList",
+      file: join("domains", "library", "useLibrary.ts"),
+      params: "Paged<LibraryListParams>",
+    },
+  ];
+
+  it("the page-size guarantee exists at the type level, not only in a comment", () => {
+    // Reported as a list rather than one assertion per hook, so a signature relaxed
+    // in two places names both instead of stopping at the first.
+    const offenders: string[] = [];
+    for (const { hook, file, params } of PAGED_HOOKS) {
+      const source = code(readFileSync(join(ROOT, file), "utf8"));
+      const escaped = params.replace(/[<>]/g, (char) => `\\${char}`);
+      // A multi-line parameter list may carry a trailing comma.
+      const signature = new RegExp(`${hook}\\s*\\(\\s*params:\\s*${escaped}\\s*,?\\s*\\)`);
+      if (!signature.test(source)) offenders.push(`${file} → ${hook} must take ${params}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Every list hook whose page size is a caller decision — including the ones the
+   * compiler cannot help with, because their params type leaves `per_page`
+   * optional (`useAttendanceCorrections`) or because the call passes a variable.
+   */
+  const PAGE_SIZE_CALLERS = [
+    "useSessions",
+    "useAttendanceRecords",
+    "useAttendanceCorrections",
+    "useLibraryList",
+  ];
+
+  /**
+   * The first argument of each `name(…)` call, with nested parens balanced.
+   * A definition (`function useSessions(params: …)`) yields a parameter list
+   * rather than an object literal, which the caller below skips.
+   */
+  function firstArguments(source: string, name: string): string[] {
+    const out: string[] = [];
+    const pattern = new RegExp(`\\b${name}\\s*\\(`, "g");
+    for (let match = pattern.exec(source); match !== null; match = pattern.exec(source)) {
+      let depth = 1;
+      let index = match.index + match[0].length;
+      const start = index;
+      while (index < source.length && depth > 0) {
+        if (source[index] === "(") depth += 1;
+        else if (source[index] === ")") depth -= 1;
+        index += 1;
+      }
+      out.push(source.slice(start, index - 1));
+    }
+    return out;
+  }
+
+  it("no list hook is called with a params object that omits `per_page`", () => {
+    const offenders: string[] = [];
+    for (const file of [...viewLayer, ...sourceFiles(join(ROOT, "domains"))]) {
+      const source = code(readFileSync(file, "utf8"));
+      for (const hook of PAGE_SIZE_CALLERS) {
+        for (const args of firstArguments(source, hook)) {
+          const trimmed = args.trim();
+          // Only an inline object literal can be judged here; a variable is the
+          // type system's job (see the case above).
+          if (!trimmed.startsWith("{")) continue;
+          if (!/\bper_page\s*:/.test(trimmed)) {
+            offenders.push(`${file} → ${hook}({ … }) without per_page`);
+          }
+        }
       }
     }
     expect(offenders).toEqual([]);
