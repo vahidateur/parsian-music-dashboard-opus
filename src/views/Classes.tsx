@@ -238,8 +238,10 @@ function ClassDetail({
                 button no longer claims either (H2). It now performs the only
                 truthful action available: opening the schedule, where a free
                 slot can actually be looked for. Real session generation
-                (`previewGeneration` / `generateSessions`) arrives with the
-                scheduling wiring.
+                (`previewGeneration` / `generateSessions`) has since landed with
+                M4's scheduling wiring — in the schedule view's «تولید جلسات»
+                dialog (`src/views/scheduling/GenerateSessionsDialog.tsx`), not
+                here. This button still only navigates, and still claims nothing.
               */}
               <Button size="sm" variant="subtle" className="w-full" onClick={() => navigate({ view: "schedule" })}>
                 <CalendarDays className="size-3.5" /> بررسی در برنامه‌ریزی

@@ -20,7 +20,8 @@ be derived, it is marked **not recorded** rather than guessed.
 | Product-feature phase — M2 (honest write feedback) | `c42f274ac10d4087f9280e3bf7b47141d0672e32` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | `73b40d970816f174b56d37addc21f106a472359b` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M3 (learning-content assignment UI) | `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` | ✅ yes (pushed) | ✅ **COMPLETE** — implemented `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted by audit, closed by `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`; limitations recorded, browser QA NOT VERIFIED |
-| Product-feature phase | — | — | M3 ✅ **COMPLETE** (row above); remaining milestones M4–M11 ❌ **NOT STARTED** |
+| Product-feature phase — M4 (scheduling **view** wiring) | `df701488362cb90cf32ccefad277879477571cf7` | ✅ yes (pushed) | ✅ **COMPLETE** — CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` (documents only), implemented at `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1 reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2 writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3 generation), acceptance coverage at `df701488362cb90cf32ccefad277879477571cf7`; **H1a closed**, limitations recorded, browser QA NOT VERIFIED |
+| Product-feature phase | — | — | M3 and M4 ✅ **COMPLETE** (rows above); remaining milestones M5–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -149,14 +150,16 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0); M1, M2, M2.1 and M3 LANDED; M4–M11 NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1, M2, M2.1, M3 and M4 LANDED; M5–M11 NOT STARTED
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
 M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3 ✅ **complete**
 (implemented `e5b0a57`, closed `3bec881`) · two **pre-M4 remediation** commits landed and accepted
 (**C1 / I13 Checkpoint 3B** `fba826f`, **C2 / the `Paged` page-size guarantee** `7e72887`, which is
-also M4's effective safe rollback boundary) · M4–M11 ❌ **not started, not authorized**.
+also M4's effective safe rollback boundary) · **M4 ✅ complete** (CP0 `84fb7cb`, CP1 `0f875a7`, CP2
+`f8c3472`, CP3 `6f54caf`, acceptance coverage `df70148` — see "Product phase — M4" below) ·
+M5–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -174,8 +177,8 @@ acceptance audit).
 | M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
 | M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ landed `73b40d9` |
 | M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ✅ complete — implemented `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, accepted by audit, closed `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`; **I3 closed**, limitations recorded (I13/I15/I16/I17), browser QA NOT VERIFIED |
-| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started — next. Two pre-M4 remediation commits (**C1** `fba826f`, **C2** `7e72887`) landed ahead of it and are *not* M4; its pre-implementation documentation reconciliation (CP0) changes documents only and is registered by the commit that follows it, per the no-self-referential-SHA rule |
-| M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
+| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ✅ **complete** — CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` (documents only), CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511` (reads), CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d` (writes), CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48` (generation), acceptance coverage `df701488362cb90cf32ccefad277879477571cf7`; **H1a closed** and **I3's pattern reused**, Group A untouched at 211, limitations recorded (H1 stays OPEN on H1b, I13, I16, five unconsumed verbs), browser QA NOT VERIFIED. The two pre-M4 remediation commits (**C1** `fba826f`, **C2** `7e72887`) landed ahead of it and are *not* M4 |
+| M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started — next |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
 | M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ❌ not started |
 | M8 — branding application | the identity that is saved becomes the identity rendered (needs **D2**) | ❌ not started |
@@ -351,7 +354,8 @@ advertises a capability the product does not have.
 
 - `src/views/Scheduling.tsx` — both «انتقال به اتاق ۴» buttons removed, with the local `resolved`
   flag whose only real effect was hiding the warning. The conflict card and the drawer's overlap
-  evidence stay visible until a real `rescheduleSession` resolves them, the drawer no longer closes
+  evidence stay visible until a real `rescheduleSession` resolves them *(M4's CP2 has since added that
+  real `rescheduleSession`; this is M2's record and stands as written)*, the drawer no longer closes
   on a claimed write, and «مشاهده در تقویم» still navigates. The removed toast also claimed a teacher
   and a student had been notified — a capability that does not exist at all, and which M2 could only
   delete, never implement.
@@ -408,7 +412,9 @@ DEMO for all five sites, through the real dialogs and repositories — both dire
 cannot be "delete the demo label"), `src/views/__tests__/noSuccessWithoutWrite.test.tsx` (each H2
 site's new behaviour, driven through the real view, plus an EMPTY sweep of all three fixture-driven
 views), `src/__tests__/writeFeedbackHonesty.test.ts` (the structural gate: a view may report success
-only where it can reach a repository, the four fixture-driven views may report none at all, and the
+only where it can reach a repository, the four fixture-driven views *(four then, three since M4
+graduated `views/Scheduling.tsx` into a both-directions ratchet — see "Product phase — M4")* may report
+none at all, and the
 set of files hardcoding the demo label is *exactly* the three tracked under H7 — a ratchet that can
 only shrink, and one M2.1 retired to an empty list). Extended: `src/views/__tests__/emptyEnvironment.test.tsx` (H3's done-when — «دمو»
 cannot appear after a real write in EMPTY) and
@@ -665,7 +671,9 @@ modes.
   rolling back onto it keeps the work being rejected. Corrected here; no history was rewritten, reset
   or rebased to make the documents agree.
 
-**Rule for whoever reads this next:** M4 is *not* authorized by M3 landing. What M3 leaves M4 is the
+**Rule for whoever reads this next (written when M3 closed; M4 has since landed — see the M4 section
+below, and read this paragraph as the record of what M3 handed it):** M4 is *not* authorized by M3
+landing. What M3 leaves M4 is the
 proven pattern — a surface over a complete contract, writing through the repository, with the
 independent-intent rule pinned by an adversarial test — and one open hardening item, **I13**, of
 which **Checkpoint 3B has since landed** (`fba826f`, scheduling's `useDerivedRead`, the boundary M4 is
@@ -677,6 +685,199 @@ take `Paged<…>`, so M4 cannot call the scheduling list without declaring its p
 that convention ("M4's is M3's") points at `3bec881`, M3's completion, and rolling back there would
 destroy both remediation commits. Same shape as the F2 correction above, one milestone later; see the milestone's
 own "Checkpoint & rollback" field.
+
+---
+
+## Product phase — M4 — scheduling **view** wiring (**H1a**) — ✅ COMPLETE
+
+**Documentation checkpoint (CP0):** `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` · *docs(m4): reconcile
+scheduling phase state* — the five `docs/engineering/` documents and `src/domains/scheduling/README.md`
+reconciled with the tree before any product source moved. **Base:** C2
+`7e72887761f07f48e115160611a9785bfaae9060`, which is also this milestone's **effective safe rollback
+boundary**.
+**Implementation checkpoints:** CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511` · *feat(m4): wire
+scheduling reads*; CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d` · *feat(m4): wire scheduling
+writes*; CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48` · *feat(m4): wire scheduling generation*.
+**Acceptance-coverage checkpoint (the audit's B1 + B2):**
+`df701488362cb90cf32ccefad277879477571cf7` · *test(m4): close scheduling acceptance coverage* — two
+test files, **402 insertions / 13 deletions**, no product source.
+All pushed ✅ to `arena/01a07c61-parsian-music-dashboard-opus`.
+
+**Status: ✅ COMPLETE (2026-09-14), accepted with recorded limitations.** The milestone was documented
+at CP0, implemented in three checkpoints, and put through a **read-only acceptance audit** at CP3 that
+returned **ACCEPT with non-blocking follow-ups**. The two follow-ups that were coverage findings
+(**B1**, **B2**) are closed at `df701488362cb90cf32ccefad277879477571cf7`; the remaining ones were
+**deferred by the owner's explicit instruction rather than landed**, and this ledger does not describe
+them as done. **No mutation or reversion check was recorded for CP1, CP2 or CP3** — unlike M3's record,
+which carries five — and none is claimed here. **Browser QA has never run and is NOT VERIFIED** (§5 of
+[PROJECT_STATE.md](PROJECT_STATE.md)): completion is a statement about code, tests, evidence and
+documents, not about a human having used this calendar in a browser.
+
+**Why this milestone exists.** **H1a** was the same shape as M3's **I3**, one layer up in risk: the
+scheduling domain was complete and heavily tested (**Group A**, 211 tests pinning the `Session` model,
+`conflicts.ts`, `generation.ts`, `dateBridge.ts`, the repository invariants and the registry), and
+nothing but tests called it. `src/views/Scheduling.tsx` rendered `weekSessions`, `rooms`, `teachers`
+and `TODAY_INDEX` from `src/data/records.ts`: a frozen weekday as "today", a hardcoded room-4 transfer
+narrative and fabricated occupancy and free-slot sentences — **H4**'s shape inside this view. M2 had
+already removed the two controls that *claimed* a write; what was left was fabricated **content**, and
+removing it meant introducing the product's first real scheduling operations.
+
+**What landed — CP1, the reads.** Every row on the screen is now a `Session` read through
+`useSessions` for a bounded `from`/`to` window derived from the mode the operator chose
+(`src/views/Scheduling.tsx:311`), labelled from the classes, rooms and teachers domains, dated through
+`dateBridge` and anchored on `useAcademyNow` instead of on a constant. The fixture imports are gone,
+and with them the frozen weekday and the fabricated room-occupancy, room-pressure and free-slot
+narratives. All four read states are reported as themselves — in-flight, empty
+(«جلسه‌ای در این بازه نیست»), error with its own message and a retry, success — and each supporting
+read owns its own failure rather than collapsing into a false empty.
+`src/views/__tests__/schedulingNoFixtures.test.ts` asserts the part that matters most: fixture records
+do **not** appear when the repository returns something else, which is H1's done-when and the
+`src/views/__tests__/Students.test.tsx` pattern.
+
+**What landed — CP2, the writes.** `src/views/scheduling/SessionWriteDialogs.tsx` (new) carries the
+first two real scheduling operations: **reschedule** — `rescheduleSession`, which cancels the original
+and creates a linked replacement — and **cancel**, which requires a reason. **Reschedule** is guarded
+before the write by `useConflictCheck`: a hard conflict blocks submission, and a warning requires an
+explicit acknowledgement that is withdrawn the moment the form is edited. **Cancel** is not
+conflict-guarded, because a cancellation is not a move; what guards it is the repository's own
+attendance protection, its already-cancelled refusal and its required reason. Both writes are awaited,
+neither mutates optimistically, and the repository re-runs its own checks at write time — the conflict
+recheck for a reschedule, the protections for both — so no invariant depends on the dialog having
+asked first.
+
+**What landed — CP3, generation.** `src/views/scheduling/GenerateSessionsDialog.tsx` (new) renders the
+plan `useGenerationPreview` asks the repository for — the domain's own numbers, labels, orphans,
+protections and window refusals — and commits through `generateSessions`, which re-plans before
+writing. The preview is labelled a preview, the write stays refuseable, and nothing in the dialog
+plans sessions itself.
+
+**The write contract, and where the invariants live.** The repository owns every invariant —
+attendance protection, the already-cancelled refusal, the required reason, the conflict recheck, and
+the fact that a reschedule is a cancellation plus a linked replacement rather than a date edit. The
+view calls the verbs, awaits them, refreshes its own read and reports what happened: success only
+*after* the promise resolves, naming only the operation that ran; failure in `danger` with
+`apiErrorFromThrown(cause).message`, the repository's own sentence, so `SESSION_HAS_ATTENDANCE`,
+`SESSION_ALREADY_CANCELLED`, `SESSION_CANCEL_REASON_REQUIRED` and `SESSION_CONFLICT` reach the
+operator in the domain's words. No copy implies a notification, an SMS or a server — none of those
+exist (the milestone's own **E-3** exclusion, cited where it was applied —
+`src/views/Scheduling.tsx:27`; **D8**'s api-mode indicator is still M11's). The write target is the **derived** selected session, an id
+resolved against the loaded page, so a window change that stops resolving leaves no target and no
+dialog: **D11**'s derive-rather-than-store rule and **D10**'s discipline, applied to a calendar, and
+asserted by `src/views/__tests__/schedulingStaleWindow.test.tsx` — a superseded window's late answer is
+ignored, each window is read once with its own bounds, and nothing of window A survives while B is in
+flight.
+
+**I16's calendar mitigation, implemented and still not a closure.** Every read states its own ceiling
+(`src/views/Scheduling.tsx:116`), the window is bounded, the counts come from `Page.meta.total` rather
+than `items.length` (`:458`), a truncated page says so in its own words (`:563`), and the per-day
+counts are **withheld** while that notice stands (`:711`) — a partial answer is never dressed as a
+complete one. **I16 stays OPEN**: the ceiling is still 200, `useClasses`, `useRooms` and `useTeachers`
+are still not `Paged<>`, and every other consumer is untouched.
+
+**Tests — 63 new cases in five new view files, two pre-existing gate suites extended, nothing
+weakened.** `src/views/__tests__/Scheduling.test.tsx` (15) ·
+`src/views/__tests__/schedulingNoFixtures.test.ts` (14) ·
+`src/views/__tests__/schedulingStaleWindow.test.tsx` (3) ·
+`src/views/__tests__/schedulingWrites.test.tsx` (16) ·
+`src/views/__tests__/schedulingGeneration.test.tsx` (15). The spec named two landed gates that listed
+this view as fixture-driven, and M4 reconciled both **in the strengthening direction**:
+`src/__tests__/writeFeedbackHonesty.test.ts` moved `views/Scheduling.tsx` out of `FIXTURE_DRIVEN_VIEWS`
+into a new `GRADUATED_VIEWS` ratchet asserted both ways — the file must reach `getSchedulingRepository(`
+*and* report the success it can now honestly claim — so the view can neither slip back into the
+fixture list nor keep a toast after losing its write; and
+`src/__tests__/architectureBoundaries.test.ts` added `useClasses`, `useRooms` and `useTeachers` to
+`PAGE_SIZE_CALLERS`, the gate C2 could not express in types.
+`src/views/__tests__/noSuccessWithoutWrite.test.tsx` was re-driven from the repository instead of the
+`weekSessions` fixture (8 cases before, 11 after). No Group A file, no Group D file and no protected
+milestone suite was edited.
+
+**Measured validation** is in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M4 validation": typecheck
+clean, build clean (the pre-existing >500 kB warning unchanged — **I6**), `git diff --check` clean, and
+**one full-suite run at `df701488362cb90cf32ccefad277879477571cf7`: 110 files / 1502 tests / 0 failed /
+0 skipped** — re-run once by this documentation pass at the same product tree, with the same numbers —
+and the arithmetic against C2's record is auditable (`1435 + 63 + 4`). **One run, not six,
+and that is the rule rather than a shortcut:** the spec's Tests clause requires six consecutive runs of
+a milestone that touches a file which has ever flaked, and M4 touched neither of the two **I11** files
+(`src/domains/learning/__tests__/LearningPanel.test.tsx`, `src/views/__tests__/emptyEnvironment.test.tsx`).
+**Mutation and reversion checks: NOT RECORDED for CP1–CP3.** They were not performed, so they are not
+written down; the row in §4 says so explicitly, and no reader may quote this milestone as
+mutation-checked.
+
+**Protected areas respected.** The spec protects the six **Group A** files
+(`src/domains/scheduling/__tests__/conflicts.test.ts`, `generation.test.ts`, `dateBridge.test.ts`,
+`demoRepository.test.ts`, `registry.test.ts`, `useScheduling.test.tsx`) plus
+[DECISIONS.md](DECISIONS.md) **§11** and **§16**, and states that **only the view changes**. Measured,
+not promised: `git diff --name-only 7e72887..df70148` lists **no** file under
+`src/domains/scheduling/__tests__/`, Group A still measures **211** tests, and the only path under
+`src/domains/` that differs across the whole chain is `src/domains/scheduling/README.md` — a document.
+`useScheduling.ts`, `repository.ts`, `demoRepository.ts`, `generation.ts`, `conflicts.ts`,
+`dateBridge.ts` and `src/domains/registry.ts` are byte-identical, so the demo implementation is still
+what both modes resolve to (`src/domains/registry.ts:197`). §11's decision is unchanged; only its
+*status* sentence, which claimed the view still renders fixtures, was corrected.
+
+**Out of scope, deliberately — and the five verbs no shipped surface calls.** *(The **E-n** labels
+below are the exclusion clauses of M4's own authorization; the documents do not reproduce that list,
+and the source comments that applied them are the reference — `src/views/Scheduling.tsx:27` and `:45`,
+`src/views/scheduling/GenerateSessionsDialog.tsx:35`.)* The domain's eleven
+verbs are `list`, `get`, `create`, `update`, `cancelSession`, `rescheduleSession`, `delete`,
+`previewGeneration`, `generateSessions`, `checkConflicts` and `sessionRoster`. M4 consumes six of them
+(through `useSessions`, `useGenerationPreview`, `useConflictCheck` and three direct calls). The other
+five stay unconsumed, each for a recorded reason:
+- **`get`** — the selected session is *derived* from the loaded page rather than fetched by id, which
+  is what makes a stale selection resolve to nothing (**D11**); a second read for the same row would
+  reintroduce the frame the derivation removes.
+- **`create`** — M4's writes are the operations the domain already guards (`rescheduleSession`,
+  `cancelSession`, `generateSessions`). A generic create would offer a path around those invariants,
+  and no UI need for a hand-made session was authorized.
+- **`update`** — same reason, sharper: `update` marks a session `manual`, so exposing it would let an
+  operator edit a generated session out from under the generation engine's protections.
+- **`delete`** — excluded by **E-2**, and the exclusion holds in CP3 as well: the repository has a
+  `delete` and generation can orphan a session, but no control in the view removes anything.
+  Cancellation *is* this domain's destructive operation, because a hard delete destroys the record that
+  a session ever existed, which is exactly what a parent disputes.
+- **`sessionRoster`** — deferred to **M5**, the milestone that wires attendance; rendering a roster
+  here would put a second consumer on the attendance boundary M5 owns.
+
+Also out of scope and untouched: the conflict engine, the generation rules, the date bridge, the
+`Session` model, `Room.occupancy` and `AcademyClass.attendanceAvg` semantics (**H4**), the legacy
+fixture collections in `src/data/records.ts` (`src/views/Classes.tsx` and `src/views/Attendance.tsx`
+still read them; their fate is **D5** at **M10**), any recurrence-scoped write (the fixture view's
+«فقط این جلسه» / «این و جلسات بعدی» controls are gone with the fixtures rather than reimplemented,
+because no domain contract exists for them), notifications to a teacher or a guardian, any dependency,
+and any backend work.
+
+**What completion does NOT claim — limitations preserved on purpose.** (1) **H1 stays OPEN**: H1a is
+closed, H1b (attendance) is M5's, and the umbrella item closes only when both views are wired.
+(2) **The roster is not rendered** — `useSessionRoster` is unconsumed. (3) **No create, edit or delete
+surface** — the five verbs above. (4) **I13 stays open**: three hand-rolled readers keep the old
+shape, and `useSessionRoster`'s key-carrying fix has no consumer yet. (5) **I16 stays open** globally.
+(6) **No mutation or reversion evidence for CP1–CP3.** (7) **Browser QA NOT VERIFIED** (§5). (8) **D8's
+api-mode indicator does not exist until M11**, so this surface carries no "still local" disclosure —
+and implies no server either, since scheduling resolves to Demo in both modes.
+
+**Rollback — two boundaries, because one number would be wrong in one of two directions (the same
+correction M3's F2 established).**
+- **Spec rollback boundary:** `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad` — **M3's completion**, which
+  is what the convention in [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M4 →
+  "Checkpoint & rollback" names ("M4's is M3's").
+- **Effective safe boundary:** `7e72887761f07f48e115160611a9785bfaae9060` — **C2**, the commit M4 was
+  actually built on. Rolling back to M3's completion would destroy two separately authorized,
+  separately reviewed and pushed remediation commits: **C1 / I13 Checkpoint 3B**
+  (`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`) and **C2** itself. **Those must survive any M4
+  rollback.**
+- So: to abandon M4 and nothing else, return to `7e72887761f07f48e115160611a9785bfaae9060`. Returning
+  instead to CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` keeps the documentation reconciliation and
+  drops all four product commits, which is the right answer only if the *wiring* is what is being
+  rejected. No history was rewritten, reset or rebased to make these documents agree.
+
+**Rule for whoever reads this next:** M5 is *not* authorized by M4 landing. What M4 leaves M5 is the
+proven pattern — a view over a frozen domain, writing through the repository, deriving its write
+target from what is actually loaded, reporting a truncated page as truncated — and three open items it
+does not close: **H1b** (the attendance view still reads fixtures, and its «ثبت نهایی» wording is
+**I12**), **I13** (`useSessionAttendance` is the reader M5 makes reachable, and its doc comment still
+claims a guarantee it does not deliver) and **I16**. M5 also inherits the one thing M4 proved about
+session ids: real ones now exist in shipped UI, so attendance no longer has to be wired to fixture ids
+twice.
 
 ---
 
@@ -705,7 +906,8 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `df3db2f18718ae0d6d3cf4b13050ea0774833864` | **M3 recorded as in progress** at its first checkpoint: PROJECT_STATE §2–§5 and §9, this ledger's M3 section and rows, **I3** landed-but-not-closed, **I13** with M3 as Checkpoint 2's first real caller, **I14** still deferred, and **D10**/**D11** added to the decision register | none (documents only) | ✅ |
 | `db5ec24e4477e92d9f9c1a94bc59c0c990fdeeed` | The detach exposure M3's surface introduced, recorded in I13 and in the M3 section rather than hidden: `detachContent` is a single-id write, so no guard can detect a crossed context | none (documents only) | ✅ |
 | `1f98228e0b6a5cf289d7d96bb012194fe4d71b3b` | **M3's acceptance-audit findings F2 and F3 recorded:** the rollback boundary corrected to two numbers (the spec's `c42f274` and the effective safe `85530b4`, because rolling back to M2 would destroy M2.1 and the three accepted I13 checkpoints), the six-run evidence recorded, and **M3 marked COMPLETE** across all five documents | none (documents only) | ✅ |
-| `eab30d3bfa2476b8d995f7cdb942497afce25238` | **Latest recorded.** F3's correction of its own evidence: the M3-completion row in [PROJECT_STATE.md](PROJECT_STATE.md) §4 quoted F1's diff as "64 insertions / 10 deletions", which was never measured — `git diff --numstat` reports 148/55 and `-w` reports 38/6 in the component, so the row now carries both figures with their commands | none (documents only) | ✅ |
+| `eab30d3bfa2476b8d995f7cdb942497afce25238` | F3's correction of its own evidence: the M3-completion row in [PROJECT_STATE.md](PROJECT_STATE.md) §4 quoted F1's diff as "64 insertions / 10 deletions", which was never measured — `git diff --numstat` reports 148/55 and `-w` reports 38/6 in the component, so the row now carries both figures with their commands | none (documents only) | ✅ |
+| `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` | **Latest recorded.** **M4's CP0** — the pre-implementation reconciliation of the five `docs/engineering/` documents and `src/domains/scheduling/README.md` against the tree at `7e72887761f07f48e115160611a9785bfaae9060`: the scheduling README's false "not implemented in Phase A" stub and its invented `POST /sessions/{id}/move` / `409 SCHEDULE_VERSION_CONFLICT` contract retired (**L3**), M4's scope restated so it names the frozen files, the two rollback boundaries recorded, and every claim about the scheduling view checked against the code as it stood *before* CP1 | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 
 The product-source commits this ledger also has to explain are **not** documentation checkpoints and
 are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4 instead: `289e080` (I13 Checkpoint 1 —
@@ -720,6 +922,18 @@ carrying its query key, with the 9-case suite that reproduced the crossed frame 
 `Paged<…>`, so omitting `per_page` is a compile error, with two mutation-checked boundary cases). The
 milestone commits among them
 are registered in the milestone table and in the M3 section above.
+
+**M4's own chain is registered in the M4 section above and in the milestone table**, and is listed
+here so that `git log` shows nothing unexplained: CP1
+`0f875a78c99077e25b67b9cc9cffe34c823ee511` (the reads — 6 files, 1688/262), CP2
+`f8c3472895978054c8dc81574bb8a945ef3c326d` (the writes — 5 files, 1898/46), CP3
+`6f54caf46dc13baca78e376c606a4aa9667cdb48` (generation — 5 files, 1533/14) and the
+acceptance-coverage checkpoint `df701488362cb90cf32ccefad277879477571cf7` (the audit's **B1** and
+**B2** — 2 test files, 402/13, no product source). That last commit is **test-only and carries no
+document**, so it is neither a documentation checkpoint by the definition above nor a milestone in its
+own right: it is the coverage half of M4, registered here and in the M4 section rather than left as an
+unexplained `test(…)` commit. None of the four advances the phase-checkpoint row, which stays at Phase
+2 for the ordering reason recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §2.
 None of them advances the phase checkpoint row, which stays at Phase 2 for the ordering reason
 recorded in §2. **`7e72887761f07f48e115160611a9785bfaae9060` is nevertheless the effective safe
 rollback boundary for M4** — see the milestone's own "Checkpoint & rollback" field in

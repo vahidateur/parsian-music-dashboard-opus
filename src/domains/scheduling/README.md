@@ -1,12 +1,17 @@
 # scheduling
 
-**Implemented, registered and protected — the *view* is not wired to it.**
+**Implemented, registered, protected — and wired: `src/views/Scheduling.tsx` reads and writes this
+domain (M4, 2026-09-14).**
 
 The domain below is real code with real tests: a session model, a repository contract, two pure
 engines (generation, conflicts), a calendar bridge, a demo implementation, an unregistered REST
-implementation and a read layer. What is *not* true is that anyone can see it: `src/views/Scheduling.tsx`
-still renders the legacy fixtures in `src/data/records.ts`, and no shipped surface reads this domain
-today. That gap is **H1a**, scheduled as **M4** — see
+implementation and a read layer. **M4 closed the gap that used to be recorded here** — the view no
+longer renders the legacy fixtures in `src/data/records.ts`; it reads `Session` rows through
+`useSessions` for a bounded date window and writes through `rescheduleSession`, `cancelSession` and
+`generateSessions`. **H1a is closed.** What is still true: **H1 stays OPEN** on its attendance half
+(**H1b**, M5's), five of this domain's eleven verbs have no shipped caller (§3), the roster is not
+rendered, and **browser QA has never run**. M4 changed **no file in this directory except this
+README** — the model, the engines, the repository, the hooks and Group A are exactly as they were. See
 [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) and
 [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md).
 
@@ -82,6 +87,25 @@ Full verb list: `list`, `get`, `create`, `update`, `cancelSession`, `rescheduleS
 never overwrite a hand edit. `delete` is a hard delete and is refused when any attendance record
 exists.
 
+### Which verbs shipped UI calls, and which it does not
+
+M4 wired **six** of the eleven: `list` (through `useSessions`), `checkConflicts` (through
+`useConflictCheck`), `previewGeneration` (through `useGenerationPreview`), and `rescheduleSession`,
+`cancelSession` and `generateSessions` as awaited direct calls on `getSchedulingRepository()`. There
+are **no write hooks** — the read layer stays read-only, and the view calls the verbs itself, which is
+what keeps every invariant in this directory.
+
+The other **five** have no shipped caller, each for a reason that is a decision rather than an
+omission:
+
+| Verb | Why nothing calls it |
+|---|---|
+| `get` | The selected session is **derived** from the page already loaded — `sessions.items.find(id)` at `src/views/Scheduling.tsx:353` — never fetched by id. A second read for a row the list already holds would reintroduce exactly the frame the derivation removes: a stale `Session` in state that a write could target after the window moved (DECISIONS **D11**, and `src/views/__tests__/schedulingStaleWindow.test.tsx`) |
+| `create` | M4's writes are the operations this domain already guards. A generic create in the UI would offer a path around `rescheduleSession`'s linked-replacement rule and `generateSessions`' idempotency, and no hand-made-session need was authorized |
+| `update` | The same reason, sharper: `update` marks a session `manual`, so exposing it would let an operator edit a generated session out from under the generation engine's protections. `RescheduleInput` and `cancelSession` cover the two edits the product decided to allow |
+| `delete` | Excluded by **E-2**, the clause of M4's own authorization that keeps a hard delete out of the UI (applied at `src/views/Scheduling.tsx:45` and `src/views/scheduling/GenerateSessionsDialog.tsx:35`). Cancellation *is* this domain's destructive operation, because a hard delete destroys the record that a session ever existed — which is exactly what a parent disputes. `delete` stays a contract a backend may need and the UI must not offer |
+| `sessionRoster` | Deferred to **M5**, the milestone that wires attendance. Rendering a roster here would put a second consumer on the attendance-presence boundary M5 owns, and `useSessionRoster` is already key-carrying (I13 Checkpoint 3B) and waiting for it |
+
 Errors are typed values, not thrown strings — `SESSION_ERRORS` in `types.ts`:
 `SESSION_NOT_FOUND`, `SESSION_INVALID`, `SESSION_CLASS_NOT_FOUND`, `SESSION_CLASS_ARCHIVED`,
 `SESSION_HAS_ATTENDANCE`, `SESSION_ALREADY_CANCELLED`, `SESSION_CANCEL_REASON_REQUIRED`,
@@ -134,17 +158,26 @@ timezone or on DST. `weekdayIndex` converts between the product's Saturday-first
   rule server-side) are recorded in that file's header and in `docs/production-handoff.md`.
 - **No write binding in the read layer.** `useScheduling.ts` exposes four *reads* — `useSessions`,
   `useSessionRoster`, `useGenerationPreview`, `useConflictCheck`. There is **no** hook for `create`,
-  `update`, `cancelSession`, `rescheduleSession`, `delete` or `generateSessions`; the repository has
-  the verbs, the UI layer does not bind them yet. Whoever adds them inherits M2's rule: a success
-  message follows an awaited repository call that actually wrote, and a failure is reported as a
-  failure — never as an empty state.
+  `update`, `cancelSession`, `rescheduleSession`, `delete` or `generateSessions`. **Since M4 the UI
+  calls three of those verbs directly** — `cancelSession`, `rescheduleSession` and `generateSessions`,
+  awaited, on `getSchedulingRepository()` — and inherits M2's rule in full: a success message follows
+  an awaited repository call that actually wrote, and a failure is reported in `danger` with the
+  repository's own sentence (`apiErrorFromThrown(cause).message`), never as an empty state. The
+  remaining verbs are unconsumed for the reasons in §3. Whoever adds a write *hook* later inherits the
+  same rule, plus this one: a hook must not own an invariant the repository already owns.
 - **No pager component.** Lists are read with an explicit `per_page` ceiling and no pagination UI, so a
   read that means "everything" silently stops at that ceiling (**I16**). `useSessions` takes
   `Paged<SessionListParams>`, which makes *stating* a ceiling a compile-time requirement; it says
   nothing about the ceiling being high enough. A calendar is the surface where a silent ceiling is most
   dangerous, so any consumer of this domain is expected to bound its reads with an explicit
   `from`/`to` window, size `per_page` above the window's plausible maximum rather than above today's
-  data, read `Page.meta.total`, and say so when `items.length < total`.
+  data, read `Page.meta.total`, and say so when `items.length < total`. **The shipped calendar does all
+  four (M4):** the window comes from the mode the operator chose (`src/views/Scheduling.tsx:311`), the
+  ceilings are named constants (`:116` sessions, `:117` the classes/rooms/teachers supporting reads),
+  the counts come from `total` (`:458`), a truncated page says so in its own words (`:563`) and its
+  per-day counts are withheld while that notice stands (`:711`) — a partial answer is never dressed as
+  a complete one. **I16 is still open:** the ceiling is still 200 and the rest of the product is
+  unchanged.
 - **No stored roster, no stored conflicts, no stored occupancy.** See §1.
 
 ## 8. Tests, and what is frozen
@@ -158,31 +191,38 @@ refactor, and new cases go in new files.
 **Checkpoint 3B** (`fba826f`): `useDerivedRead` carries the query key it answers and derives what it
 exposes at render, so a session switch cannot expose the previous session's roster, plan or conflict
 report as if it were the new one's. It is no less off-limits than Group A — weakening it would
-re-open a fixed exposure — and **M4 is what makes those three readers reachable in shipped UI**, which
-is why the checkpoint landed before the milestone rather than inside it.
+re-open a fixed exposure — and **M4 was what made those readers reachable in shipped UI**, which is
+why the checkpoint landed before the milestone rather than inside it. It has now landed, so the fix is
+live on a real path for two of the three: `useConflictCheck` in
+`src/views/scheduling/SessionWriteDialogs.tsx` and `useGenerationPreview` in
+`src/views/scheduling/GenerateSessionsDialog.tsx`. `useSessionRoster` is still unconsumed, and is
+**M5**'s.
 
-## 9. The legacy fixtures this domain replaces (and what M4 must not silently keep)
+## 9. The legacy fixtures this domain replaced (and what M4 did not silently keep)
 
-`src/data/records.ts` still holds `weekSessions`, `rooms`, `TODAY_INDEX` and the `GridSession` shape,
-and `src/views/Scheduling.tsx:5` imports them. The shapes are **not** the domain's:
+`src/data/records.ts` still holds `weekSessions`, `rooms`, `TODAY_INDEX` and the `GridSession` shape;
+**`src/views/Scheduling.tsx` no longer imports any of them** (M4 / CP1), and `src/views/Classes.tsx` is
+now the view that does. The shapes were never the domain's:
 
 | Fixture field | Domain equivalent |
 |---|---|
 | `s.day` (a weekday index) + `s.start` / `s.end` (minutes) | `date` (`YYYY-MM-DD`) + `startTime` / `endTime` (`HH:mm`) — `dateBridge` converts, and `weekdayIndex` maps to the Saturday-first week |
-| `s.conflictWith` (hand-stored, read at `src/views/Scheduling.tsx:97`) | nothing — conflicts are derived by `checkConflicts` / `conflicts.ts`, so they react to a move or a cancellation |
+| `s.conflictWith` (hand-stored in the fixture, and read by the pre-M4 view) | nothing — conflicts are derived by `checkConflicts` / `conflicts.ts`, so they react to a move or a cancellation. The shipped view asks `useConflictCheck` |
 | `s.cancelled` (a boolean) | `status: "scheduled" \| "cancelled" \| "completed"` plus a required `cancelReason` |
 | `rooms[].occupancy`, `attendanceAvg` | not this domain's to redefine — `Room.occupancy` semantics are unchanged by M4, and the attendance projection stays where it is |
 
-M4 stops this *view* from reading the fixtures. It does **not** delete the fixture collections: other
-surfaces still read them, and their fate is a separate decision (**D5**, to be recorded at **M10** and
-known from M4 onward) under which `src/data/records.ts` is *split by role* — entity types to their
-owning domains, the canonical DEMO seed under `src/domains/demo/`, and only the third role, fake data
-for unwired views, deleted once M4–M9 have removed every reader. M4 also does not redesign this
-domain: the model, the engines, the repository and Group A stay exactly as they are.
+**M4 stopped this *view* from reading the fixtures. It did not delete the fixture collections:**
+`src/views/Classes.tsx` and `src/views/Attendance.tsx` still read them, and their fate is a separate
+decision (**D5**, to be recorded at **M10** and known from M4 onward) under which
+`src/data/records.ts` is *split by role* — entity types to their owning domains, the canonical DEMO
+seed under `src/domains/demo/`, and only the third role, fake data for unwired views, deleted once
+M4–M9 have removed every reader. **M4 also did not redesign this domain:** the model, the engines, the
+repository, the hooks and Group A are byte-identical to what they were at
+`7e72887761f07f48e115160611a9785bfaae9060`.
 
 ## 10. Where the authoritative state lives
 
 - [docs/engineering/PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md) — current phase, checkpoints, validation evidence, browser-QA status (NOT VERIFIED for every milestone).
-- [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) — **H1** (this view renders fixtures), **I13** (Checkpoints 1, 2, 3A, 3B landed; three hand-rolled readers remain), **I14**, **I16**.
+- [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) — **H1** (H1a, this view, **closed by M4**; H1b, attendance, is **M5**'s and keeps the item OPEN), **I13** (Checkpoints 1, 2, 3A, 3B landed; three hand-rolled readers remain), **I14**, **I16** (this domain's calendar mitigation implemented, the item still open).
 - [docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md) — §11 (CLASS vs RECURRENCE vs SESSION), §10 (domain boundaries), §15 (honesty rules).
-- [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md) — the **M4** milestone: scope, protected areas, demo/api behaviour, tests, acceptance, out-of-scope and its rollback boundary.
+- [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md) — the **M4** milestone (scope, protected areas, demo/api behaviour, tests, acceptance, out-of-scope, rollback boundary) with its **LANDED** record at the end of that section, and the **M5** milestone that follows it.

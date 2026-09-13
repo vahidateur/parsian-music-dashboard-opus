@@ -215,12 +215,24 @@ tests): I13 **Checkpoint 3B** (`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`) made 
 carry its query key, so the three derived reads behind `useSessionRoster`, `useGenerationPreview` and
 `useConflictCheck` expose only the session they were asked about, and `Paged<SessionListParams>`
 (`7e72887761f07f48e115160611a9785bfaae9060`) makes omitting `per_page` a compile error at the call
-site. ❌ **The view still renders fixtures** — `src/views/Scheduling.tsx:5` reads
-`weekSessions`/`rooms`/`TODAY_INDEX` from `src/data/records.ts` — **but it no longer fakes success:**
-M2 (`c42f274ac10d4087f9280e3bf7b47141d0672e32`) *removed* both «انتقال به اتاق ۴» controls rather
-than wiring them, so what remains is fabricated **content** (a hardcoded room, weekday and occupancy
-narrative), not a claimed write. Wiring the view is **M4** — see
-[OPEN_ITEMS.md](OPEN_ITEMS.md) **H1**.
+site. ✅ **The view is wired to it (M4, 2026-09-14).** `src/views/Scheduling.tsx` no longer imports
+`src/data/records.ts` at all: its rows are `Session` values read through `useSessions` for a bounded
+`from`/`to` window, and its three operations — `rescheduleSession`, `cancelSession` and
+`generateSessions` — are awaited repository calls made from
+`src/views/scheduling/SessionWriteDialogs.tsx` and `src/views/scheduling/GenerateSessionsDialog.tsx`,
+with `useConflictCheck` and `useGenerationPreview` driving those dialogs. **The decision above is
+unchanged by the wiring, and the wiring did not touch this domain:** across the whole milestone the
+only path under `src/domains/scheduling/` that changed is its README, so sessions are still
+materialized, still carry no `students[]`, no `conflictWith` and no attendance summary, and Jalali is
+still a presentation concern at the UI edge. What the view does **not** do is part of this record too:
+no create, edit or delete surface — five verbs (`get`, `create`, `update`, `delete`, `sessionRoster`)
+have no shipped caller, for the reasons in `src/domains/scheduling/README.md` §3 — no
+recurrence-scoped write, no rendered roster, and no copy implying a server. **H1a is closed; H1 stays
+OPEN** on its attendance half (**H1b**, M5's) — see [OPEN_ITEMS.md](OPEN_ITEMS.md) **H1**.
+*M2's record, kept because it explains why there was no write to wire:* M2
+(`c42f274ac10d4087f9280e3bf7b47141d0672e32`) *removed* both «انتقال به اتاق ۴» controls rather than
+wiring them, so between M2 and M4 what remained was fabricated **content** (a hardcoded room, weekday
+and occupancy narrative), not a claimed write.
 
 ## 12. Attendance and progress are append-only; corrections require a reason
 
@@ -527,7 +539,10 @@ that a regression, not a cleanup.
 and the new M10 boundary test asserting no view imports those modules at all.
 
 **Status.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
-or seed roles).
+or seed roles). **M4 has removed its reader:** `src/views/Scheduling.tsx` imports neither
+`src/data/records.ts` nor `src/data/academy.ts` any more. The scheduling fixtures stay in the dataset
+because `src/views/Classes.tsx` still reads them — the third role retiring one reader at a time, with
+the type and seed roles untouched.
 
 ### D6. Finance and reports domains are not built in this phase
 
@@ -632,7 +647,13 @@ by a test that fails without it, not by a sentence.
 
 **Status.** ✅ Landed with M3's first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`. Binding on M4, M5 and every later
 surface that writes through a rendered row: the mutation check above is the acceptance test for this
-decision, and a new surface that cannot fail it has not proved anything.
+decision, and a new surface that cannot fail it has not proved anything. **M4 is bound by it and
+honours it:** the scheduling view resolves its write target against the loaded page rather than storing
+a `Session`, so a window change that stops resolving the id leaves no target and no dialog — asserted by
+`src/views/__tests__/schedulingStaleWindow.test.tsx`, which also asserts that a superseded window's
+late answer is ignored. **No mutation or reversion check was recorded for M4's own checkpoints**, so
+this is behavioural evidence rather than the mutation evidence M3 carries, and it is recorded as the
+weaker of the two.
 
 ### D11. An assignment surface renders outside the list it assigns to, and derives its own selection
 

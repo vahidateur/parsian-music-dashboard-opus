@@ -35,11 +35,31 @@ import { resetToEmptyEnvironment } from "@/test/demoEnvironment";
 const LIVE_VIEWS: ViewId[] = ["dashboard", "students", "teachers", "classes", "messages", "library"];
 
 /**
- * Surfaces that still render from static fixtures rather than their domains
- * (scheduling and attendance have complete, tested domains the views do not use
- * yet; finance and reports have no domain at all). They are asserted to render
- * without artefacts here, and reported as a known limitation — asserting zeros
- * for them would claim a wiring that does not exist.
+ * Surfaces this file asserts ONLY as "renders without crashing or leaking
+ * artefacts", instead of as live surfaces showing real zeros.
+ *
+ * Three of the four still render from static fixtures rather than their domains
+ * (attendance has a complete, tested domain the view does not use; finance and
+ * reports have no domain at all). For those, asserting zeros would claim a
+ * wiring that does not exist, so the artefact check is all this file owes them —
+ * and the limitation is reported in `docs/engineering/OPEN_ITEMS.md` (H1b).
+ *
+ * `schedule` is the fourth, and it is the classification this comment used to get
+ * wrong: **M4 wired `src/views/Scheduling.tsx` to the scheduling domain**, so it
+ * is no longer fixture-driven. It stays in this list on purpose, and its
+ * assertion is unchanged, for two reasons. Moving it to `LIVE_VIEWS` would add an
+ * assertion this file has never made about it — that no in-flight marker survives
+ * `renderView` — which is a semantic change to a protected milestone test rather
+ * than a classification fix; and its zero-record and no-fixture behaviour is
+ * already asserted where the wiring lives, in
+ * `src/views/__tests__/schedulingNoFixtures.test.ts` and
+ * `src/views/__tests__/Scheduling.test.tsx`. What this file owes `#/schedule` is
+ * what it owes every surface: an EMPTY environment renders it without crashing
+ * and without leaking `NaN`, `undefined` or a lookup mistake.
+ *
+ * The name is kept because renaming it would not change what is asserted, and
+ * because the list's meaning is now "artefact-only surfaces" rather than
+ * "fixture-driven" ones.
  */
 const FIXTURE_VIEWS: ViewId[] = ["schedule", "attendance", "finance", "reports"];
 
@@ -218,7 +238,7 @@ describe("student profile over zero records", () => {
   });
 });
 
-describe("fixture-driven surfaces (audited, wiring outstanding)", () => {
+describe("artefact-only surfaces (three of four still fixture-driven, wiring outstanding)", () => {
   it.each(FIXTURE_VIEWS)("#/%s renders without crashing or leaking artefacts", async (view) => {
     const { container } = await renderView(view);
     expectNoArtefacts(container, `#/${view}`);

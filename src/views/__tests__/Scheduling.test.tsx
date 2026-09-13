@@ -504,7 +504,7 @@ describe("SchedulingView reads", () => {
     renderView("#/schedule?filter=conflict");
     await expectSessions();
 
-    // The intent this read-only checkpoint can honour: today, on its own, and
+    // What this deep link can honour without a write: today, on its own, and
     // from the first read — no week window fetched and thrown away.
     await waitFor(() => expect(lastParams()).toMatchObject({ from: TODAY, to: TODAY }));
     expect(sessions.list.mock.calls).toHaveLength(1);

@@ -4,9 +4,9 @@
 [PROJECT_STATE.md](PROJECT_STATE.md) §9. **Implementation has not started.** Only M0 (this
 document, the decision register and the ledger entry) is documentation work; every milestone
 from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
-M1, M2, M2.1 and **M3** have since landed — M3 complete, accepted with recorded limitations — and
-**M4 onward has not started** — the live status of every milestone is
-in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
+M1, M2, M2.1, **M3** and **M4** have since landed — M3 complete and accepted with recorded
+limitations, M4 complete on the same terms — and **M5 onward has not started** — the live status of
+every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2). **Authored:** 2026-09-09.
@@ -87,7 +87,7 @@ required.
 | 13 | Gallery | **A** | real upload path in `GalleryPanel.tsx`; `galleryImages` seeded empty *by design* (a seeded row would point at missing bytes) | M11 (disclosure only) |
 | 14 | Performance | **C** | 13 static view imports in `src/App.tsx`, zero `lazy`/`Suspense`; no budget in `vite.config.ts`; **every size figure must be re-measured — `dist/` is absent** | M11 |
 | 15 | Clean code / security / a11y / docs | security **A** · a11y **C** · docs **B** | CSP + OWASP + privacy posture are gated; a11y has **no automated assertion** and no axe dependency; five documents carry recorded drift | M10, M11 |
-| 16 | Scheduling | domain **A** / view **D** — *unchanged at `7e72887`; the view becomes **A** only when M4 lands, and this row must not be advanced before then* | domain surface at `src/domains/scheduling/repository.ts:60-103`; view reads `TODAY_INDEX, weekSessions, rooms, teacherById, classById` from `src/data/records.ts` (`src/views/Scheduling.tsx:5`, frozen weekday at `:43,78,123,152,199-201,221,227` — re-grepped, the earlier `:115,136,193` drifted). M2 removed the view's two fake-success controls; what remains **D** is the fixture-driven calendar and its fabricated room/occupancy narrative | **M4** |
+| 16 | Scheduling | domain **A** / view **A** — *advanced at M4's landing (2026-09-14), which is the precondition this row itself named: it was **D** at `7e72887761f07f48e115160611a9785bfaae9060` and must not be read as **A** at any commit before CP1* | domain surface at `src/domains/scheduling/repository.ts:60-103`, **unchanged by M4** (no file under `src/domains/scheduling/` differs across the milestone except its README). The view no longer imports `src/data/records.ts` or `src/data/academy.ts`: rows are `Session` values from `useSessions` over a bounded window (`src/views/Scheduling.tsx:311`, ceilings at `:116` and `:117`, counts from `total` at `:458`), labels come from the classes/rooms/teachers domains, dates go through `dateBridge`, and the three operations are awaited repository calls — `rescheduleSession` and `cancelSession` in `src/views/scheduling/SessionWriteDialogs.tsx`, `generateSessions` (planned through `useGenerationPreview`) in `src/views/scheduling/GenerateSessionsDialog.tsx` — `rescheduleSession` conflict-previewed through `useConflictCheck`, which the cancel dialog does not need because a cancellation is not a move. The frozen weekday and the fabricated room/occupancy/free-slot narrative went with the fixtures. **What the A does not cover, stated so the grade is not read as more than it is:** five verbs have no shipped caller (`get`, `create`, `update`, `delete`, `sessionRoster` — by row 1's convention unconsumed surface is what holds a requirement at **B**), there is no create/edit/delete UI and no rendered roster, no recurrence-scoped write, and browser QA is NOT VERIFIED. Evidence: [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M4 validation" | ✅ **M4** — CP1 `0f875a7`, CP2 `f8c3472`, CP3 `6f54caf`, coverage `df70148` |
 | 17 | Attendance | domain **A** / view **D** | domain surface at `src/domains/attendance/repository.ts:40-80`, roster derived (`src/domains/attendance/types.ts:186-189`); view keeps rosters in local React state | **M5** |
 | 18 | Finance / Reports | **D + E** | four README stubs only (`src/domains/finance/README.md`, `src/domains/reports/README.md`, `src/domains/messaging/README.md`, `src/domains/notifications/README.md`); reports must be *"authoritative server-side results, not client-side math"* | **deferred (D6)**; fake actions disabled in M2 |
 | 19 | Recovery / lifecycle UX | domain **A** / UX **C** | `uninitializeEnvironment` (`src/domains/demo/lifecycle.ts:265`) + `demoDataManager.uninitialize` (`src/domains/demo/demoDataManager.ts:124-125`) exist with **zero UI callers**; `src/domains/demo/useDemoData.ts:29` wires only `reset｜clear｜import-seed｜restore-backup` | **M1** |
@@ -267,7 +267,8 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 > measured validation and the mutation checks are recorded in [PHASES.md](PHASES.md) → "Product phase
 > — M3" and [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4. This note, the two field annotations below and
 > the correction of one stale sentence are the only edits M3 made to this section; **no future
-> milestone's status was touched, and M4 has not started.**
+> milestone's status was touched, and M4 had not started when this note was written** — it has since
+> landed, and its own record is the "LANDED" field at the end of the M4 section below.
 
 - **Scope.** An assignment surface — I3 names it: *"in Settings → Programs & levels (or the
   learning workspace)"* — that writes through the contract which already exists and is already
@@ -312,7 +313,8 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   readers with the same shape, none reachable in shipped UI today, not authorized and not started —
   the fourth, scheduling's `useDerivedRead`, has since been fixed as **Checkpoint 3B**
   (`fba826f66336d2825eb7b4fbe5c6fe0e2e5b6807`), ahead of M4 rather than inside it, because M4 is
-  what makes its three readers reachable. Consequence for M3's own code: a
+  what makes its three readers reachable — which M4 has now done for two of them
+  (`useGenerationPreview`, `useConflictCheck`), leaving `useSessionRoster` for M5. Consequence for M3's own code: a
   write whose target comes from a rendered row must pair it with a parent id from an **independent**
   query, as `StudentLearningPanel` already does — two values from the same stale row cannot
   contradict each other, so a guard built on them proves nothing.
@@ -423,6 +425,72 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
     to abandon M4 and nothing else, return to `7e72887`; obeying the literal "M3's SHA" would revert
     accepted work, which is not what the field is for.
 
+- **LANDED (2026-09-14) — what this milestone actually did, field by field.** This record answers the
+  fields above against the tree; it does not restate or redefine them. Checkpoints: **CP0**
+  `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` (documents only, before any product source moved), **CP1**
+  `0f875a78c99077e25b67b9cc9cffe34c823ee511` (reads), **CP2** `f8c3472895978054c8dc81574bb8a945ef3c326d`
+  (writes), **CP3** `6f54caf46dc13baca78e376c606a4aa9667cdb48` (generation), **B1+B2**
+  `df701488362cb90cf32ccefad277879477571cf7` (acceptance coverage, two test files, 402/13). All pushed.
+  - **Scope — met.** `src/views/Scheduling.tsx` reads through `useSessions` and writes through the
+    repository; the fixture imports and the frozen-weekday logic are gone; the grid is driven from the
+    domain's ISO `date` through `dateBridge` and from `useAcademyNow`. Sites 1 and 2's *real operation*
+    now exists (`rescheduleSession` guarded by `checkConflicts`), and site 7's real generation is
+    implemented and reachable. **One deviation, recorded rather than smoothed over:** the acceptance
+    clause "EMPTY shows «داده‌ای نیست»" is met in substance with the domain's own copy —
+    «جلسه‌ای در این بازه نیست», plus a description that names the window and says whether filters are
+    active (`src/views/Scheduling.tsx:671`) — not with that literal sentence, and it is asserted by
+    `src/views/__tests__/Scheduling.test.tsx`.
+  - **Dependencies — both present.** M2's copy rules (no claim without an awaited write; remove a
+    control that has no truthful action) and M3's pattern (a surface over a complete contract, deriving
+    what it acts on) are what CP2 and CP3 follow.
+  - **Protected areas — respected, and measured.** `git diff --name-only 7e72887..df70148` lists no
+    file in `src/domains/scheduling/__tests__/`: the six **Group A** files are untouched and green at
+    **211** tests, `useDerivedRead.test.tsx` (9, not Group A) is untouched, and the only path under
+    `src/domains/` that changed is `src/domains/scheduling/README.md`. **§11's decision is unchanged** —
+    only its *status* sentence, which claimed the view still renders fixtures, was corrected. §16's
+    no-regression principle holds: no domain file, no model, no engine, no dependency.
+  - **Demo/API behaviour — unchanged and unclaimed.** `src/domains/registry.ts:197` still returns the
+    demo implementation in both modes, and no copy added by this milestone implies server persistence;
+    the view says outright that the class-scheduling form is not connected to a server and saves
+    nothing, and generation is described as a real domain write over a date window rather than as a
+    server operation. **D8's api-mode indicator still does not exist** (M11).
+  - **Tests — H1's done-when met for the scheduling half.** The view reads exclusively through
+    `useScheduling`, the fixture imports are gone,
+    `src/__tests__/architectureBoundaries.test.ts` passes with three *more* `PAGE_SIZE_CALLERS` than
+    before, and `src/views/__tests__/schedulingNoFixtures.test.ts` (14 cases) asserts fixture records do
+    not appear when the repository returns something else. Conflict refusals surface in the
+    repository's own words and are never swallowed
+    (`src/views/__tests__/schedulingWrites.test.tsx`). The two gates that named this view as
+    fixture-driven were reconciled in the strengthening direction, exactly as this field required:
+    `writeFeedbackHonesty.test.ts` moved it into a `GRADUATED_VIEWS` ratchet asserted both ways, and
+    `noSuccessWithoutWrite.test.tsx` was re-driven from the repository (8 cases → 11).
+  - **Acceptance — met, with the copy deviation above.** "A real reschedule resolves a real conflict"
+    is asserted by name: `describe("a real reschedule resolving a real conflict")` refuses the contested
+    slot at both gates without mutating, then resolves the clash with a write the repository performed
+    (added by the B1/B2 coverage checkpoint). "Generation preview shows what will be created before it
+    is created" is asserted by `src/views/__tests__/schedulingGeneration.test.tsx` (15 cases), including
+    the re-plan on a window change, the no-op second run, the explicit `confirmUpdates` gate and the
+    reported-never-deleted orphan. Group A green and unweakened.
+  - **Out of scope — nothing leaked in.** No change to the conflict engine, generation rules, date
+    bridge or `Session` model; no notification; `Room.occupancy` and `AcademyClass.attendanceAvg`
+    semantics untouched; the legacy `sessions`/`attendance` fixture collections still in the dataset
+    because `src/views/Classes.tsx` and `src/views/Attendance.tsx` read them (**M10 / D5**); no
+    dependency added. **Five repository verbs remain unconsumed** — `get` (the selection is derived from
+    the loaded page, **D11**), `create` and `update` (they would offer a path around the guarded verbs,
+    and `update` would let an operator mark a generated session `manual` out from under the engine's
+    protections), `delete` (excluded by **E-2**: cancellation is this domain's destructive operation)
+    and `sessionRoster` (**M5**'s attendance boundary) — each recorded in
+    `src/domains/scheduling/README.md` §3 rather than left as an unexplained gap. *(**E-2** is the
+    exclusion clause of M4's own authorization that keeps a hard delete out of the UI; the source
+    comments citing it are `src/views/Scheduling.tsx:45` and
+    `src/views/scheduling/GenerateSessionsDialog.tsx:35`.)*
+  - **Checkpoint & rollback — as specified.** Both boundaries below are recorded in
+    [PHASES.md](PHASES.md) → "Product phase — M4"; nothing was reset, rebased or amended to make the
+    documents agree. **Not recorded, and not claimed:** no mutation or reversion check was performed for
+    CP1–CP3, unlike M3's five, so this milestone's evidence is one full-suite run
+    (110 files / 1502 tests / 0 failed / 0 skipped) plus typecheck, build and `git diff --check` — see
+    [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M4 validation". **Browser QA: NOT VERIFIED.**
+
 ### M5 — Attendance **view** wiring (**H1b**) — domain frozen
 
 - **Scope.** Replace the local `setRosters` state and the fixtures in `src/views/Attendance.tsx`
@@ -431,7 +499,8 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   `sessionIdsWithAttendance`), where the roster is **derived from enrollments and never stored**
   (`SessionAttendance` / `RosterAttendance`, `src/domains/attendance/types.ts:180-189`). Closes
   site 3; decides site 4 (real `sendMessage` with an honest `MessageStatus`, or removal).
-- **Dependencies.** **M4** — session ids must come from real sessions. Boundary rule already
+- **Dependencies.** **M4** — session ids must come from real sessions (**✅ met**: M4's CP1 put real
+  `Session` ids in shipped UI, so M5 does not have to wire attendance to fixture ids first). Boundary rule already
   tested: scheduling never reads attendance storage.
 - **Protected areas — Group D** (§6): `src/domains/attendance/__tests__/demoRepository.test.ts`,
   `roster.test.ts`, `useAttendance.test.tsx`; DECISIONS.md **§12** (attendance and progress are
@@ -445,7 +514,11 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   returns something else.
 - **Out of scope.** Guardian/student notification (**D1**, **I7**); any change to the correction
   model; attendance-derived balances (DECISIONS: *"never from session counters"*).
-- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M4's SHA.
+- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M4's SHA. **M4 landed as a chain, so
+  that convention now needs the same two-number correction M3's F2 established:** the last commit of
+  M4's chain is `df701488362cb90cf32ccefad277879477571cf7` (acceptance coverage), its last *product*
+  commit is `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3), and the effective safe boundary for M5 is
+  whichever of them M5 is actually built on — recorded when M5 starts, not guessed now.
 
 ### M6 — Contracts without UI (chat management, attachments, export coverage)
 
@@ -624,13 +697,13 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 
 | # | Site | Claim | What actually runs | Real operation | Closes in |
 |---|---|---|---|---|---|
-| 1 | `src/views/Scheduling.tsx:144` *(pre-M2 line ref; the control is gone)* | «تعارض برطرف شد · پیانو پیشرفته به اتاق ۴ منتقل شد · مدرس و هنرجو مطلع شدند» | `setResolved(true)` *(what ran before M2)* | `rescheduleSession(id, { roomId })` (`repository.ts:80`) + `checkConflicts` (`:96`); the "مطلع شدند" half is *notifications* → **deferred** | ✅ **CLOSED IN M2 BY REMOVAL** (`c42f274`) — the real operation arrives with **M4** |
-| 2 | `src/views/Scheduling.tsx:327` *(pre-M2 line ref; the control is gone)* | «تعارض برطرف شد · کلاس به اتاق ۴ منتقل شد» | `setResolved(true); setSelected(null)` *(what ran before M2)* | same | ✅ **CLOSED IN M2 BY REMOVAL** (`c42f274`) — the real operation arrives with **M4** |
+| 1 | `src/views/Scheduling.tsx:144` *(pre-M2 line ref; the control is gone)* | «تعارض برطرف شد · پیانو پیشرفته به اتاق ۴ منتقل شد · مدرس و هنرجو مطلع شدند» | `setResolved(true)` *(what ran before M2)* | `rescheduleSession(id, { roomId })` (`repository.ts:80`) + `checkConflicts` (`:96`); the "مطلع شدند" half is *notifications* → **deferred** | ✅ **CLOSED IN M2 BY REMOVAL** (`c42f274`) — the real operation arrived with **M4** ✅ |
+| 2 | `src/views/Scheduling.tsx:327` *(pre-M2 line ref; the control is gone)* | «تعارض برطرف شد · کلاس به اتاق ۴ منتقل شد» | `setResolved(true); setSelected(null)` *(what ran before M2)* | same | ✅ **CLOSED IN M2 BY REMOVAL** (`c42f274`) — the real operation arrived with **M4** ✅ |
 | 3 | `src/views/Attendance.tsx:46` | «همه حاضر ثبت شدند» (`markAllPresent`) | `setRosters(...)` local state | `bulkRecord` (`repository.ts:51`) | M5 |
 | 4 | `src/views/Attendance.tsx:224` | «پیام پیگیری ارسال شد · … و ولی ایشان مطلع شدند» | `notify()` only | `chat.sendMessage` (provider `in_app`, honest `MessageStatus`) **or** removal | M2 / M5 |
 | 5 | `src/views/Finance.tsx:98` | «یادآوری ارسال شد · پیامک برای …» | `notify()` only | **none** — the invoices are fixtures; disable with an honest reason | M2 |
 | 6 | `src/views/Finance.tsx:285` | «یادآوری گروهی ارسال شد · N پیام در صف ارسال قرار گرفت» | `notify()` only | **none** | M2 |
-| 7 | `src/views/Classes.tsx:234` | «پیشنهاد بازهٔ جدید ثبت شد · برای بررسی به برنامه‌ریزی ارسال شد» | `notify()` only | **none** today; real generation arrives with `previewGeneration` / `generateSessions` | M2 → M4 |
+| 7 | `src/views/Classes.tsx:234` | «پیشنهاد بازهٔ جدید ثبت شد · برای بررسی به برنامه‌ریزی ارسال شد» | `notify()` only | **none in this view** — the claim was removed at M2 and the button navigates; real generation now exists and is reachable **from the schedule view** (`previewGeneration` / `generateSessions` via `src/views/scheduling/GenerateSessionsDialog.tsx`) | ✅ M2 (claim removed) → **M4 landed** (capability real) |
 
 These seven are exactly the list [OPEN_ITEMS.md](OPEN_ITEMS.md) H2 already records — this document
 adds no site and removes none.
@@ -649,6 +722,19 @@ plus the real generation that makes site 7's «پیشنهاد بازهٔ جدی�
 honest. The honesty rule itself is unchanged and still enforced by
 `src/__tests__/writeFeedbackHonesty.test.ts` and `src/views/__tests__/noSuccessWithoutWrite.test.tsx`;
 rows 3–7 keep their original milestones.
+
+**Update (2026-09-14), because M4 landed and changed what "arrives with M4" means.** The real
+scheduling operation sites **1** and **2** faked now exists and is awaited before anything is claimed:
+`rescheduleSession`, guarded by `checkConflicts` at both the dialog and the repository, and
+`cancelSession` with its required reason, in `src/views/scheduling/SessionWriteDialogs.tsx` (CP2,
+`f8c3472895978054c8dc81574bb8a945ef3c326d`). Site **7**'s capability is real too: generation runs
+through `src/views/scheduling/GenerateSessionsDialog.tsx` (CP3,
+`6f54caf46dc13baca78e376c606a4aa9667cdb48`), preview first and write only on confirmation, so the
+«پیشنهاد بازهٔ جدید» claim stays unnecessary rather than becoming honest — and `src/views/Classes.tsx`'s
+button still only navigates, which is the one truthful action available from that screen. **The
+notification half of site 1's claim («مدرس و هنرجو مطلع شدند») is still deferred and still must never
+return, not even beside a real write.** Rows **3**, **4**, **5** and **6** are untouched by M4: 3 and 4
+remain **M5**'s, 5 and 6 were settled at M2.
 
 ---
 
@@ -740,7 +826,10 @@ item downward to make a phase look finished."*
    exposes only the student it was asked about. **Checkpoint 3B has landed since** (`fba826f`):
    scheduling's `useDerivedRead`, behind `useSessionRoster`, `useGenerationPreview` and
    `useConflictCheck`, carries its key too, so a session switch cannot expose the previous session's
-   roster, plan or report — hardened *before* M4 makes those three readers reachable in shipped UI.
+   roster, plan or report — hardened *before* M4 made those readers reachable in shipped UI, which it
+   has now done for two of the three (`useGenerationPreview` in
+   `src/views/scheduling/GenerateSessionsDialog.tsx`, `useConflictCheck` in
+   `src/views/scheduling/SessionWriteDialogs.tsx`); `useSessionRoster` is still unconsumed and is M5's.
    **The rest of Checkpoint 3 remains open** — three
    hand-rolled readers still have the pre-fix shape (`useStudentList`, `useStudentProgress`,
    `useSessionAttendance`) — which is why the
@@ -819,15 +908,18 @@ The phase is complete when **all** of the following are true and evidenced:
 1. **No view reads fixture data.** `src/views/Scheduling.tsx`, `Attendance.tsx`, `Students.tsx`,
    `Teachers.tsx`, `Classes.tsx`, `Messages.tsx`, `Library.tsx`, `Settings.tsx` and the dashboard
    panels read through domain hooks only, enforced by a boundary test.
-   **Scope of that gate, stated so M4 neither over- nor under-claims it:** this is the *final phase*
-   DoD, not M4's, and at `7e72887761f07f48e115160611a9785bfaae9060` it is **not met** —
-   `src/views/Scheduling.tsx:5` still imports `src/data/records.ts`. What M4's own Acceptance
-   requires is narrower and is achievable in one milestone: **the scheduling view reads through the
+   **Scope of that gate, stated so M4 neither over- nor under-claimed it:** this is the *final phase*
+   DoD, not M4's, and at `7e72887761f07f48e115160611a9785bfaae9060` it was **not met** —
+   `src/views/Scheduling.tsx` still imported `src/data/records.ts`. What M4's own Acceptance
+   required is narrower and was achievable in one milestone: **the scheduling view reads through the
    domain hooks and not through fixture data**, asserted by a suite following the
-   `src/views/__tests__/Students.test.tsx` absence pattern. The structural no-fixture check M4 adds is
+   `src/views/__tests__/Students.test.tsx` absence pattern. **That narrower gate is met** —
+   `src/views/__tests__/schedulingNoFixtures.test.ts` is the suite, and the view imports neither
+   fixture module. The structural no-fixture check M4 added is
    **M4-local** (one view); the product-wide fixture/type/seed separation and a boundary test covering
-   every view remain **M10 / D5**, and `Attendance.tsx`, `Classes.tsx` and the dashboard panels keep
-   reading fixtures after M4 lands.
+   every view remain **M10 / D5**, and `Attendance.tsx`, `Classes.tsx` and the dashboard panels still
+   read fixtures after M4's landing — so **item 1 of this final-phase DoD is still not met**, now for
+   those reasons rather than for the scheduling view's.
 2. **EMPTY is honest everywhere:** «داده‌ای نیست» / `NO_DATA`, never a fabricated record, figure or
    sentence — asserted by rendering in EMPTY.
 3. **Zero fake success.** Every `tone: "success"` follows an awaited repository call with an honest
