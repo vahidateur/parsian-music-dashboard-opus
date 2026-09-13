@@ -3,7 +3,9 @@
 **Status:** ✅ the phase *spec* required by [PHASES.md](PHASES.md) → "Product-feature phase" and
 [PROJECT_STATE.md](PROJECT_STATE.md) §9. **Implementation has not started.** Only M0 (this
 document, the decision register and the ledger entry) is documentation work; every milestone
-from M1 onward still needs its own explicit authorization.
+from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
+M1, M2 and M2.1 have since landed and **M3 is in progress** — the live status of every milestone is
+in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2). **Authored:** 2026-09-09.
@@ -246,6 +248,15 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 
 ### M3 — Learning content assignment UI (**I3**) — UI only
 
+> **Status (2026-09-13): 🚧 IN PROGRESS — authorized by the owner and implemented at
+> `e5b0a57d8f33dc04838670a2cd4158a88dd34022`, pushed to the working branch.** Scope, prohibition, protected areas, Demo/API
+> behaviour, tests and out-of-scope below are unchanged and were honoured as written; the milestone
+> is *not* complete until the owner accepts the surface and browser QA exists (§5 of
+> [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED). What landed, the measured validation
+> and the mutation checks are recorded in [PHASES.md](PHASES.md) → "Product phase — M3" and
+> [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4. This note and the correction of one stale sentence
+> below are the only edits M3 made to this section; **no future milestone's status was touched.**
+
 - **Scope.** An assignment surface — I3 names it: *"in Settings → Programs & levels (or the
   learning workspace)"* — that writes through the contract which already exists and is already
   tested: `LevelContentLink` (`src/domains/learning/types.ts:183`), `listLinks` / `attachContent` /
@@ -267,8 +278,9 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   full-suite runs (100 files / 1384 passed / 0 failed / 0 skipped each, `dist/` built so nothing
   skipped), 4 samples as two concurrent full suites, build, typecheck, documentation gates — plus a
   reversion check on each half, so neither the hook fix nor the consumer gates rest on a test that
-  would pass without them. **M3 is therefore no longer held by I13 Checkpoint 1**; it remains NOT
-  STARTED and awaits the owner's authorization. Two parts were **deliberately excluded** from that
+  would pass without them. **M3 is therefore no longer held by I13 Checkpoint 1**; it *was* NOT STARTED
+  when that gate was discharged and awaited the owner's authorization — which was given, and M3 has
+  since landed as `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (see the status note above). Two parts were **deliberately excluded** from that
   authorization
   and stay open: **Checkpoint 2**, an intent guard on `attachContent` — which this milestone's surface
   writes through, and which took only `(levelId, contentId)`, so unlike `assignPlacement` it had

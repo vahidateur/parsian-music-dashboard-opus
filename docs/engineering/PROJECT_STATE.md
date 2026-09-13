@@ -6,7 +6,7 @@
 > Sibling documents: [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md)
 >
-> **Last state update: 2026-09-12.**
+> **Last state update: 2026-09-13.**
 
 ---
 
@@ -26,10 +26,10 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b` — and §3 carries the current phase |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b` and M3's first checkpoint is `e5b0a57d8f33dc04838670a2cd4158a88dd34022` — and §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `be75ac6f99815700f2a65d026f09ee0c3213f019` — I13 Checkpoint 2 recorded as authorized and in progress *before* its code was written; documents only, no behaviour |
-| Previous documentation checkpoint | `ea890ae5a6d5fa2209049637f8f85ed070e26e25` — I13 Checkpoint 1's measured validation recorded and M3's I13 gate discharged; documents only |
+| **Documentation checkpoint (pushed)** | `85530b40c66db63b10769537c2dc6cb24609842d` — I13 Checkpoint 3A recorded as landed and validated; documents only, no behaviour |
+| Previous documentation checkpoint | `49fb49949feea4bb8c85957a317243d470b20c7a` — I13 Checkpoint 2 recorded as landed and validated; documents only |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (shallow-clone graft boundary) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -38,19 +38,21 @@
 - A **phase checkpoint** is a durable *application* milestone: a reviewed, approved and pushed
   commit that ends a phase of product work. The row above names the latest one the
   documentation-checkpoint ordering rule permits — still `33b1031` (Phase 2) — while the product
-  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, M2 `c42f274` and M2.1 `73b40d9`) are
-  registered in [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
+  phase's own milestones (M0 `f2ebc09`, M1 `689a7c1`, M2 `c42f274`, M2.1 `73b40d9` and M3's
+  first checkpoint `e5b0a57`) are registered in [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Eight exist so far: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Ten exist so far: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
   truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
   `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11),
   `b3ffffd` (the M2.1 validation block's measured timings),
   `9247a17` (M2.1's SHA registered in the ledger),
   `2972a99` (the I11 `LearningPanel` harness fix — one test file and four documents),
-  `ea890ae` (I13 Checkpoint 1's validation recorded, M3's gate discharged) and
-  `be75ac6` (I13 Checkpoint 2 recorded as in progress before its code existed). They
+  `ea890ae` (I13 Checkpoint 1's validation recorded, M3's gate discharged),
+  `be75ac6` (I13 Checkpoint 2 recorded as in progress before its code existed),
+  `49fb499` (I13 Checkpoint 2 recorded as landed and validated) and
+  `85530b4` (I13 Checkpoint 3A recorded as landed and validated). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -93,17 +95,20 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 
 | Field | Value |
 |---|---|
-| Current phase | **Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels: H6 + H7)** |
-| Phase status | ✅ **COMPLETE** — landed as `73b40d970816f174b56d37addc21f106a472359b` on top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch and registered by the commit that followed it (§2: no self-referential SHA) |
-| Next phase | Product-feature phase — **M3 (learning-content assignment UI, I3 — UI only)** — ❌ **NOT STARTED**, not authorized yet |
+| Current phase | **Product-feature phase — M3 (learning-content assignment UI, I3 — UI only)** |
+| Phase status | 🚧 **IN PROGRESS** — M3's first checkpoint landed as `e5b0a57d8f33dc04838670a2cd4158a88dd34022` on top of I13 Checkpoint 3A (`57c1dfb8967a60990021ac9fe59c6ab80045fca3`, recorded by `85530b40c66db63b10769537c2dc6cb24609842d`), pushed to the working branch. Code and tests are in that checkpoint; its documents and measured validation are in the commit that follows it (§2: no self-referential SHA). The last *completed* milestone remains M2.1 ✅ `73b40d970816f174b56d37addc21f106a472359b` |
+| Next phase | Product-feature phase — **M4 (scheduling view wiring, H1a)** — ❌ **NOT STARTED**, not authorized |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
 M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
 (`c42f274`, honest write feedback) and M2.1 (`73b40d9`, the two defects M2 found and recorded
-rather than fixed) are the product phase's milestones so far. **M2.1 is not in the M0
+rather than fixed) are the product phase's completed milestones. **M3 (`e5b0a57`, the
+learning-content assignment UI) is in progress**: its surface, its wiring and its 16 tests are
+pushed, and what remains is owner acceptance and browser QA, which §5 records as NOT VERIFIED for
+every milestone alike. **M2.1 is not in the M0
 specification:** it is **H6** and **H7** from [OPEN_ITEMS.md](OPEN_ITEMS.md), inserted between M2 and
 M3 by the owner's explicit decision after a read-only triage, and the spec's M0–M11 sequence is
-unchanged by it. M3–M11 have not started; the ledger in [PHASES.md](PHASES.md) marks the
+unchanged by it. M4–M11 have not started; the ledger in [PHASES.md](PHASES.md) marks the
 product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
@@ -189,6 +194,34 @@ no repository, store or merge semantics, no domain model, no fixture, no depende
 dialogs that were already correct (`AssignPieceDialog` and `RecordProgressDialog`, which their panel
 mounts conditionally) were deliberately left alone.
 
+### Work in progress (M3, in one paragraph)
+
+**M3 is the learning-content assignment UI, and its gap was a UI and workflow gap, not a schema
+one.** `LevelContentLink`, `listLinks` / `attachContent` / `detachContent`, link ordering and the
+`CONTENT_ALREADY_LINKED` conflict already existed, were already tested, and were called by nothing
+but tests — the recorded **I3**. At `e5b0a57` the contract has a surface:
+`src/domains/learning/LevelContentPanel.tsx` (new) lists the content a level really links, offers
+the active catalogue minus what is already linked, and writes through the repository verbs;
+`src/domains/learning/LearningPanel.tsx` gained a per-level «منابع» toggle (+66 lines, no deletions)
+that opens it, with the surface rendered **outside** the levels column so its content rows can never
+be counted as levels by the protected harness. There is no second source of truth: the list under a
+write refreshes from `demoStore`'s data-version bump, the picker's offers are derived from the
+repository's rows, the pick itself is derived from *this* level's rows so a choice made for another
+level collapses instead of becoming a write target, and the selection is dropped when the program
+changes. **The write invariant is honoured where it lives — the wiring:** `levelId` comes from the
+rendered row while `AttachContentIntent.programId` comes from the programs query the panel selected,
+never from `level.programId`. Because those two can disagree (`useResourceList` commits a frame
+holding the previous program's levels on a switch — **I11**/**I13**), the adversarial case reproduces
+that crossed page at the repository boundary and asserts both halves: the repository was handed the
+independent program, and it therefore refused the write. Mutating the wiring to
+`contentLevel.programId` — the exact shape I13 Checkpoint 2's caveat warned about — turns that case
+red, so the invariant is pinned by a test that fails without it. **What did not move:** no schema,
+model, repository, fixture, dependency or router change; the three files M3's spec protects
+(`LearningPanel.test.tsx`, `StudentLearningPanel.test.tsx`, `demoRepository.test.ts`) are untouched
+and green; and the spec's *optional* student-scoped read was deliberately **not** added, so I13
+Checkpoint 3A's `useDerived` fix is landed but has no M3 consumer — recorded as unused rather than
+claimed as a dependency satisfied. **What remains for M3:** owner acceptance and browser QA (§5).
+
 ### Work landed since the Phase 2 checkpoint
 
 Three documentation checkpoints first — documents, validation gates, one labelling fix and one
@@ -208,16 +241,18 @@ test-harness fix, **no product feature work**:
 
 Product work since those three is the product phase itself, described above and ledgered in
 [PHASES.md](PHASES.md): M0 `f2ebc09` (specification and decision register — documents only), M1
-`689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback) and M2.1 `73b40d9`
-(the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels).
+`689a7c1` (recovery and lifecycle UX), M2 `c42f274` (honest write feedback), M2.1 `73b40d9`
+(the two defects M2 found and recorded: edit-form draft integrity and the three Settings panels) and
+M3 `e5b0a57` (the learning-content assignment UI, in progress — described above).
 
-Six further commits landed outside that milestone sequence and are registered here so that
-`git log` shows nothing this ledger does not explain. Three of them are **documentation
+Eight further commits landed outside that milestone sequence and are registered here so that
+`git log` shows nothing this ledger does not explain. Five of them are **documentation
 checkpoints** by the definition in §2 and are listed in [PHASES.md](PHASES.md): `2972a99` (closing
 **I11** — one test file and four documents, no product behaviour), `ea890ae` (I13 Checkpoint 1's
-measured validation recorded and M3's gate discharged) and `be75ac6` (I13 Checkpoint 2 recorded as
-authorized and in progress *before* its code was written). Each was registered by a later commit,
-because no entry may carry its own SHA. The other three are **product source**, so they are neither
+measured validation recorded and M3's gate discharged), `be75ac6` (I13 Checkpoint 2 recorded as
+authorized and in progress *before* its code was written), `49fb499` (I13 Checkpoint 2 recorded as
+landed and validated) and `85530b4` (I13 Checkpoint 3A recorded as landed and validated). Each was
+registered by a later commit, because no entry may carry its own SHA. The other three are **product source**, so they are neither
 milestones nor documentation checkpoints and they advance no row above: `289e080` is **I13
 Checkpoint 1** — the shared list hook plus the six consumers that ignored `loading`, with three new
 test files, and the commit that discharged M3's I13 gate (§9); `bcea26c` is **I13 Checkpoint 2** —
@@ -231,7 +266,27 @@ file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
 
-### M2.1 validation (measured this pass, on top of M2 `c42f274`)
+### M3 validation (measured this pass, on top of I13 Checkpoint 3A `85530b4`)
+
+| Check | Result |
+|---|---|
+| Dependencies | ✅ none added, removed or changed — `package.json` and `package-lock.json` are untouched by the diff, so `npm ci` was not re-run this pass (`npm install` is never run, in CI or locally) |
+| `npm run typecheck` | ✅ clean (`tsc --noEmit`, zero output, exit 0) |
+| `npm run build` | ✅ exit 0, `built in 3.10s`; pre-existing warning: main chunk > 500 kB (no code-splitting yet — **I6**) |
+| `npm test` (full suite) | ✅ **104 files / 1423 passed / 0 failed / 0 skipped**, with `dist/` present so the CSP gates ran — **3 consecutive full runs**, each 104 / 1423, 98–100 s |
+| Targeted repeats | ✅ **6 consecutive runs** of the learning domain plus `staleQueryGates`, `emptyEnvironmentPanels` and `projectState`: **11 files / 160 tests** green on every run, no run retried |
+| Baseline before any M3 edit | ✅ measured in a `git worktree` of `85530b4` with `dist/` built and `node_modules` linked: **102 files / 1407 tests — 1406 passed / 0 skipped / 1 failed**. The single failure is `projectState.test.ts`'s "the recorded working branch is the branch actually checked out", which fails by construction in a detached worktree, not because of the code. The arithmetic is auditable: `1407 + 11 (LevelContentPanel) + 5 (contentAssignmentFlow) = 1423` and `102 + 2 = 104` |
+| Mutation checks on the new tests | ✅ four independent mutations, each reverted byte-exactly from a backup and the file re-verified against it (`diff -q`). (1) `programId={selected.id}` → `programId={contentLevel.programId}` — the forbidden shape — fails **only** the adversarial crossing case. (2) Removing the selection-drop effect fails **only** the program-switch case. (3) Storing the pick raw instead of deriving it from this level's rows fails **only** the level-switch case. (4) Removing the in-flight state, so an empty level is shown while the read is pending, fails the in-flight case and the level-switch case. Every other case stayed green under each mutation, which is the evidence that the new tests detect the defects instead of restating the code |
+| Protected suites | ✅ unchanged and green: `LearningPanel.test.tsx` (11), `StudentLearningPanel.test.tsx`, `demoRepository.test.ts`, `architectureBoundaries.test.ts`, `privacyPosture.test.ts`, `projectState.test.ts`, `writeFeedbackHonesty.test.ts`, `noSuccessWithoutWrite.test.tsx`, `emptyEnvironment.test.tsx`, `emptyEnvironmentPanels.test.tsx`, `staleQueryGates.test.tsx` and every Group A / Group D domain suite |
+| Scope of the diff | ✅ `git diff 85530b4..HEAD --numstat` = 5 files, **1414 insertions and 0 deletions** — one new component, one edited component, two new test files, one extracted test helper (`src/test/repositoryStubs.ts`). Zero deletions is the check that nothing was weakened, skipped, re-timed or removed. `git diff --check` clean |
+| Browser QA | ❌ NOT VERIFIED (§5) — unchanged for every milestone, including this one |
+
+The M3 workspace is the same fresh clone of the branch used for I13 (`/home/user/i13-work`), verified
+before the first edit at `85530b40c66db63b10769537c2dc6cb24609842d` with a clean
+`git status --porcelain`. The sandbox clone at `/home/user/parsian-music-dashboard-opus` remains
+stale at the `292b8b8` graft and was left untouched, as instructed.
+
+### M2.1 validation (measured at M2.1, on top of M2 `c42f274` — kept for audit)
 
 | Check | Result |
 |---|---|
@@ -428,7 +483,10 @@ verification is jsdom + `tsc` + the Vite build. Manual browser QA is still requi
 mobile drawer/bottom-nav, command-palette keyboard flow, focus trapping in dialogs, chart
 rendering, RTL layout at tablet/mobile breakpoints, real audio playback, real file-picker and
 file-download paths, and the first-run lifecycle chooser on a genuinely fresh browser
-profile. See `docs/production-handoff.md` → "NOT verified".
+profile. **M3 adds one more:** the learning-content assignment surface
+(`src/domains/learning/LevelContentPanel.tsx`) has never been opened in a browser — its four states,
+its picker, its toasts and its keyboard path are jsdom-verified only. See
+`docs/production-handoff.md` → "NOT verified".
 
 ## 6. Protected domains and invariants
 
@@ -541,18 +599,22 @@ was dropped.
 
 ## 9. Immediate next action
 
-**M2.1 (edit-form draft integrity + the three Settings panels, H6 + H7) is COMPLETE and landed** on
-top of M2 `c42f274ac10d4087f9280e3bf7b47141d0672e32`, pushed to the working branch. The next
-milestone is **M3 — learning-content assignment UI (I3, UI only)**, and it is **NOT STARTED** and not
-yet authorized.
+**M3 (learning-content assignment UI, I3 — UI only) is 🚧 IN PROGRESS.** Its first checkpoint
+`e5b0a57d8f33dc04838670a2cd4158a88dd34022` is pushed to the working branch on top of I13 Checkpoint 3A
+(`57c1dfb8967a60990021ac9fe59c6ab80045fca3`), and it carries the whole of the milestone's code and
+tests: the assignment surface, its wiring into `LearningPanel`, and 16 new cases (§3 → "Work in
+progress (M3…)", §4 → "M3 validation"). **What M3 still needs is not code:** the owner's acceptance
+of the surface, and browser QA, which §5 records as NOT VERIFIED. Treat the milestone as unfinished
+until both exist; do not report it as complete because its suite is green.
 
-When authorized, the first step is *not* implementation: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md),
-confirm the recorded checkpoints against Git (§2, and the recovery contract at the end of this
-file), re-establish a green baseline (`npm ci` if `node_modules` is absent, then `npm run
-typecheck`, `npm test`, `git diff --check`, `npm run build`), and only then start M3 from the
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M3 scope: assignment-management
-UI over the learning-content repository that already exists — **UI only**, no new domain, no
-invented content bytes, honest unavailable states where media is missing.
+**Do not start M4.** The next milestone — **M4, scheduling *view* wiring (H1a, domain frozen)** — is
+**NOT STARTED** and not authorized. When it is authorized, the first step is *not* implementation:
+re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded checkpoints against Git (§2, and the
+recovery contract at the end of this file), re-establish a green baseline (`npm ci` if
+`node_modules` is absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run
+build`), and only then start from the
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M4 scope, with Groups A and D
+frozen exactly as §6 records.
 
 **M3's own spec named one precondition, and it is now discharged:** the **I11** `LearningPanel`
 flake has been reproduced, root-caused and fixed in the test harness, so the suites M3 touches are
@@ -578,19 +640,30 @@ serving several programs unchanged. `attachContent` therefore **is** fixed for t
 writes through, with one honest caveat recorded in
 [OPEN_ITEMS.md](OPEN_ITEMS.md) I13: no signature can stop a caller passing the target's own
 `programId` back as its intent, which makes the comparison a tautology — only review can, and the
-test file names that failure mode. The second, **Checkpoint 3**, is five hand-rolled readers with the
+test file names that failure mode. **M3 is that review, and it is now pinned by a test rather than
+by a sentence:** the surface passes the program the panel selected, and
+`src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` reproduces the frame in which a
+rendered level row belongs to a different program than the selection, asserts that the repository
+was handed the *independent* program and therefore refused the write, and goes red when the wiring
+is mutated to `contentLevel.programId`. The caveat stays open — the guard still cannot defend itself
+against a future caller — but the first real caller does not defeat it. The second, **Checkpoint 3**, is five hand-rolled readers with the
 same shape. Its first slice, **Checkpoint 3A**, was authorized and has **landed and been validated at
 `57c1dfb`**: `useDerived`, the boundary behind `useStudentPlacement` and `useEligibleContent`, was
 the one with a real consumer, and it was **reproduced deterministically before being fixed** — a
 dedicated suite failed 4 of 8 against the unmodified hook, then passed 8 of 8 after it, and restoring
 the old hook fails the same 4 and no others. That discharges the condition this section placed on M3:
 a student-scoped derived read can now be rendered by M3's surface without exposing one student's
-placement or unlocked content under another's name. **The remaining four readers are not authorized
+placement or unlocked content under another's name. **M3 chose not to render one** — the spec made
+the student-scoped read optional and the slice stayed tight — so `useDerived`'s fix is landed,
+validated and *unused by M3*. That is recorded as unused rather than claimed as a dependency
+satisfied; M6/M7 are what will consume it. **The remaining four readers are not authorized
 and not started** — `useStudentList`, `useStudentProgress`, `useDerivedRead` and
 `useSessionAttendance`, none of them reachable in shipped UI today (tests only, or constant params),
 becoming reachable at M6/M7. **I14** (`paginate` clamps `per_page: 0` to one
-row) was assessed for M3 relevance and **deferred**: M3's assignment surface never reads through a
-`per_page: 0` query, since that is only the not-yet-selected branch of three call sites. The two
+row) was assessed for M3 relevance and **deferred**, and M3's landing changes nothing about it: the
+assignment surface never reads through a `per_page: 0` query, since that is only the
+not-yet-selected branch of three call sites — and M3 added no fourth, because its surface renders
+only once a level is selected. The two
 findings that M2
 recorded and M2.1 fixed (**H6**, **H7**) no longer block anything; what M2.1 leaves behind is the
 knowledge that `RepertoirePanel` and `PieceFormDialog` are now safe to build on — a piece's

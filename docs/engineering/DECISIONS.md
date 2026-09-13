@@ -589,6 +589,57 @@ system uses four), `src/__tests__/cspCompatibility.test.ts` and the budget asser
 
 **Status.** 🔶 Open — deliberately empty. Blocks M11, and is filled in by M11's measurement step.
 
+### D10. A write target taken from a rendered row is paired with a parent resolved independently
+
+**Decision.** When a surface writes through a rendered row *and* needs that row's parent context —
+a program, an album, a session, a student — the row's id comes from the row and the parent's id comes
+from the query that produced the **current selection**. Reading the parent back off the row is
+forbidden, even when the two are equal in the honest case, and even when the repository would accept
+it. M3's assignment surface therefore calls `attachContent(levelId, contentId, { programId })` with
+`levelId` from the level row and `programId` from `usePrograms`' selection.
+
+**Why.** A guard that compares two values taken from one object is a tautology: it cannot fail, so it
+proves nothing — the limitation [OPEN_ITEMS.md](OPEN_ITEMS.md) I13 recorded against its own
+Checkpoint 2. And the two values genuinely *can* disagree, because a list hook commits a frame
+holding the previous query's rows while the selection has already moved (I11/I13). Pairing
+independently is what turns that disagreement into an honest refusal at the repository instead of a
+silent write into the wrong parent.
+
+**Enforced by.** `src/domains/learning/LearningPanel.tsx` (the wiring),
+`src/domains/learning/demoRepository.ts` (`LINK_INVALID` before the duplicate check),
+`src/domains/learning/__tests__/attachContentIntent.test.ts` (the guard, and the tautology named as a
+failure mode) and `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx`, which reproduces
+the crossed frame at the repository boundary, asserts the repository was handed the independent
+program, and goes red when the wiring is mutated to `contentLevel.programId` — so the rule is pinned
+by a test that fails without it, not by a sentence.
+
+**Status.** ✅ Landed with M3's first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`. Binding on M4, M5 and every later
+surface that writes through a rendered row: the mutation check above is the acceptance test for this
+decision, and a new surface that cannot fail it has not proved anything.
+
+### D11. An assignment surface renders outside the list it assigns to, and derives its own selection
+
+**Decision.** `LevelContentPanel` is a sibling of the levels grid inside `LearningPanel`'s panel, not
+a row of the levels column. Everything it can act on is **derived**, never stored: the level is
+`levels.find(id)` over the current query's rows, the picked content is kept only if it is in *this*
+level's available rows, and the selection is dropped when the selected program changes.
+
+**Why.** The levels column's row count is an assertion in a protected harness —
+`src/domains/learning/__tests__/LearningPanel.test.tsx` counts every `li` in that column — and mixing
+content rows into it would make the level list claim rows it does not own. Deriving instead of storing
+is the same principle as I13 Checkpoint 1 applied to local state: a stale id then resolves to
+*nothing* rather than rendering a target that no longer belongs to the selection, so a mid-switch
+frame cannot leave an armed button pointing at the previous level.
+
+**Enforced by.** `src/domains/learning/LevelContentPanel.tsx`,
+`src/domains/learning/LearningPanel.tsx`,
+`src/domains/learning/__tests__/LevelContentPanel.test.tsx` (the level-switch case, which fails when
+the pick is stored raw instead of derived, and the in-flight case, which fails when the empty state is
+shown while a read is pending) and `src/domains/learning/__tests__/LearningPanel.test.tsx` —
+unchanged and green, which is the evidence that the levels column still counts only levels.
+
+**Status.** ✅ Landed with M3's first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+
 ---
 
 ### Adding a decision

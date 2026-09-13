@@ -19,7 +19,8 @@ be derived, it is marked **not recorded** rather than guessed.
 | Product-feature phase — M1 (recovery & lifecycle UX) | `689a7c15951d690b1ce650a5938e6b1216ca30ed` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2 (honest write feedback) | `c42f274ac10d4087f9280e3bf7b47141d0672e32` | ✅ yes | **COMPLETE** |
 | Product-feature phase — M2.1 (edit-form draft integrity + the three Settings panels) — *not in the M0 spec; the two items M2 recorded, inserted here by the owner's decision* | `73b40d970816f174b56d37addc21f106a472359b` | ✅ yes | **COMPLETE** |
-| Product-feature phase | — | — | remaining milestones M3–M11 ❌ **NOT STARTED** |
+| Product-feature phase — M3 (learning-content assignment UI) | `e5b0a57d8f33dc04838670a2cd4158a88dd34022` | ✅ yes (pushed) | 🚧 **IN PROGRESS** — code and tests landed; owner acceptance and browser QA outstanding |
+| Product-feature phase | — | — | M3 🚧 **IN PROGRESS** (row above); remaining milestones M4–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -148,12 +149,12 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0); M1, M2 and M2.1 LANDED; M3–M11 NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1, M2 and M2.1 LANDED; M3 IN PROGRESS; M4–M11 NOT STARTED
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
-M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3–M11 ❌ **not
-started, not authorized**.
+M1 ✅ landed `689a7c1` · M2 ✅ landed `c42f274` · M2.1 ✅ landed `73b40d9` · M3 🚧 **in progress**
+at `e5b0a57` (pushed, not yet accepted) · M4–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -169,8 +170,8 @@ checkpoint boundary, with `file:line` evidence. The decisions that gate it are r
 | M1 — recovery & lifecycle UX | **H5** (critical: `clear()` is a one-way door) | ✅ landed `689a7c1` |
 | M2 — honest write feedback | **H2** (seven fake-success sites) + **H3** (five mislabels) | ✅ landed `c42f274` |
 | M2.1 — *inserted, not in the spec* | **H6** (edit dialogs opened on an empty draft) + **H7** (three Settings panels) — the two items M2 found and recorded | ✅ landed `73b40d9` |
-| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | ❌ not started — next |
-| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started |
+| M3 — learning-content assignment UI | **I3** (UI over an existing, tested contract) | 🚧 in progress — first checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022` pushed; owner acceptance + browser QA outstanding |
+| M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ❌ not started — next |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ❌ not started |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ❌ not started |
 | M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ❌ not started |
@@ -509,6 +510,95 @@ precondition, I11.
 
 ---
 
+## Product phase — M3 — learning-content assignment UI (**I3**) — 🚧 IN PROGRESS
+
+**First checkpoint:** `e5b0a57d8f33dc04838670a2cd4158a88dd34022` · *feat(learning): M3 checkpoint — assign learning content to a level
+through the UI*. **Base:** I13 Checkpoint 3A's documentation checkpoint `85530b40c66db63b10769537c2dc6cb24609842d`. **Pushed** ✅ to
+`arena/01a07c61-parsian-music-dashboard-opus`. Its documents and measured validation are in the
+commit that follows it, per § "No self-referential checkpoint SHA". **Status: 🚧 IN PROGRESS** —
+the code and tests are landed and green; the milestone is *not* complete until the owner accepts the
+surface and browser QA exists (§5 of [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED).
+
+**Why this milestone exists.** **I3** was the cheapest possible proof of the phase's central
+pattern: a contract that is complete, tested and called by nothing but tests. `LevelContentLink`,
+`listLinks` / `attachContent` / `detachContent`, link ordering and the `CONTENT_ALREADY_LINKED`
+conflict all existed at `src/domains/learning/repository.ts` and
+`src/domains/learning/demoRepository.ts`, and no view touched them. The spec made this **UI only**:
+no new field, no model change, no edit to the learning domain — which is why M3 could not fix
+`attachContent`'s missing intent parameter itself, and why that fix landed separately as **I13
+Checkpoint 2** (`bcea26c`).
+
+**What landed — one new surface, one edited panel, no second source of truth.**
+`src/domains/learning/LevelContentPanel.tsx` (new, 265 lines) reads the level's links with
+`useLearningContent({ levelId })` and the active catalogue with `useLearningContent({ activeOnly:
+true })`, offers the catalogue minus what is already linked, and writes through `attachContent` /
+`detachContent`. `src/domains/learning/LearningPanel.tsx` gained a per-level «منابع» toggle (+66
+lines, no deletions) and renders the surface **after** the grid, outside the levels column, so its
+content rows can never be counted as levels by the protected harness. Nothing is copied locally: the
+list under a write refreshes from `demoStore`'s data-version bump, the picker's offers are derived
+from the repository's rows, and the pick itself is derived from *this* level's rows so a choice made
+for another level collapses to nothing instead of arming a button. The selection is dropped when the
+program changes, so the surface cannot name one program while listing another's level. All four
+states are reported as themselves — in-flight (with the count withheld rather than claiming
+«۰ منبع»), empty, error with retry, success — and feedback fires only after a mutation resolved.
+
+**The write invariant, honoured at the wiring where it lives.** `levelId` comes from the rendered
+row; `AttachContentIntent.programId` comes from the programs query the panel selected, never from
+`level.programId`. Two values read off one row cannot contradict each other, so a guard built from
+them proves nothing — which is the caveat I13 Checkpoint 2 recorded against itself. M3 answers it
+with a test rather than a sentence: `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx`
+reproduces, at the repository boundary, the crossed frame `useResourceList` really commits on a
+program switch (**I11**/**I13**) — the heading names program B while the rows are still program A's
+levels — opens the surface from that stale row, attaches, and asserts both halves: the repository was
+handed the independently selected program and therefore refused with `LINK_INVALID`, writing nothing.
+Mutating the wiring to `contentLevel.programId` turns that case red and no other.
+
+**Tests — 16 new cases in two new files, no existing test touched.**
+`src/domains/learning/__tests__/LevelContentPanel.test.tsx` (11) covers the surface in isolation:
+in-flight with no false empty, honest empty, listing exactly what the repository holds, a failed
+read as an error with retry, valid attach, duplicate refusal in the repository's own words, failed
+attach with no false success, detach without deleting content, the intent handed over, the
+adversarial prop-level crossing, and a level switch that neither exposes the previous level's rows
+nor lets its pick become this level's write target.
+`src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` (5) covers the flow through
+`LearningPanel`: attach end-to-end and persistence across a remount, the surface closing on a program
+switch, the adversarial crossing above, duplicate refusal through the panel with a deliberately stale
+picker, and the EMPTY environment offering no assignment surface while inventing nothing. Every wait
+is data-derived — the rows the store holds for the level the heading names — never a loading flag,
+since that flag is under test. `withStubs` moved to `src/test/repositoryStubs.ts` so both files share
+one Proxy-based stubber; a spread would drop the prototype verbs.
+
+**Measured validation** is in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M3 validation": typecheck
+clean, build clean, **3 consecutive full-suite runs at 104 files / 1423 tests / 0 failed / 0
+skipped**, **6 consecutive targeted runs at 11 files / 160 tests**, a worktree baseline at `85530b4`
+of 102 files / 1407 tests (so `1407 + 11 + 5 = 1423`), **four mutation checks** each killing only
+the case that pins it, and a diff of 5 files with **1414 insertions and 0 deletions**.
+
+**Protected areas respected.** The spec protects `src/domains/learning/__tests__/demoRepository.test.ts`,
+`src/domains/learning/__tests__/LearningPanel.test.tsx`,
+`src/domains/learning/__tests__/StudentLearningPanel.test.tsx` and [DECISIONS.md](DECISIONS.md) §10
+against M3; all three files are untouched and green, and every new case lives in a new file.
+`LearningPanel.tsx` — the component — is edited, which the spec permits as long as its tests stay
+green, and they do (11/11).
+
+**Out of scope, deliberately.** The spec's *optional* student-scoped read was **not** added, so the
+slice stays tight and I13 Checkpoint 3A's `useDerived` fix is landed but unused by M3 — recorded as
+unused, not claimed as a dependency satisfied. No media bytes were invented, no `per_page: 0` call
+site added (**I14** stays deferred and untouched), no backend touched, no dependency added, and no
+unrelated cleanup folded in.
+
+**Remaining for M3, exactly.** Owner acceptance of the surface, and browser QA (§5 of
+[PROJECT_STATE.md](PROJECT_STATE.md)). Nothing else is known outstanding; if acceptance produces
+changes, they land as a **new** commit on top of `e5b0a57d8f33dc04838670a2cd4158a88dd34022` — never an amend, never a
+force-push. **Rollback boundary:** `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+
+**Rule for whoever reads this next:** M4 is *not* authorized by M3 landing. What M3 leaves M4 is the
+proven pattern — a surface over a complete contract, writing through the repository, with the
+independent-intent rule pinned by an adversarial test — and one open hardening item, **I13**, whose
+remaining readers are still not authorized and still not started.
+
+---
+
 ## Documentation checkpoints (pushed, not application phases)
 
 Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
@@ -528,13 +618,22 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `9247a17681871c2be39ecf3193c0aded3d0232a0` | M2.1's phase-checkpoint SHA `73b40d9` registered in the ledger, its section, the milestone table and the phase-heading status line, plus PROJECT_STATE §2/§3, the H6/H7 status lines in [OPEN_ITEMS.md](OPEN_ITEMS.md) and DECISIONS §15; the documentation checkpoint advanced to `b3ffffd` | none (documents only) | ✅ |
 | `2972a99c447de17af6d3c72d58facb62400bd707` | The **I11 Tier 1** harness fix: `src/domains/learning/__tests__/LearningPanel.test.tsx` waits for the data-derived state instead of a marker's absence, so its assertions measure loaded records; the race's root cause, the contention evidence and the two findings underneath it (I13, I14) recorded in I11 | none (one test file and four documents) | ✅ |
 | `ea890ae5a6d5fa2209049637f8f85ed070e26e25` | **I13 Checkpoint 1's** measured validation recorded — 6 consecutive full-suite runs plus 4 contention samples, the reversion checks, the honest `act()` limitation — and M3's I13 gate marked discharged in PROJECT_STATE §9, in this ledger and in the milestone's own dependency bullet | none (documents only) | ✅ |
-| `be75ac6f99815700f2a65d026f09ee0c3213f019` | **Latest recorded.** **I13 Checkpoint 2** recorded as authorized and in progress, with the authorized contract written down — a required `AttachContentIntent { programId }` on `attachContent`, resolved independently of the target level, following the `assignPlacement` pattern — *before* any of its code existed | none (documents only) | ✅ |
+| `be75ac6f99815700f2a65d026f09ee0c3213f019` | **I13 Checkpoint 2** recorded as authorized and in progress, with the authorized contract written down — a required `AttachContentIntent { programId }` on `attachContent`, resolved independently of the target level, following the `assignPlacement` pattern — *before* any of its code existed | none (documents only) | ✅ |
+| `49fb49949feea4bb8c85957a317243d470b20c7a` | **I13 Checkpoint 2** recorded as landed and validated at `bcea26c`: the guard's contract, its adversarial suite, the measured runs, and the caveat that no signature can stop a caller passing the target's own `programId` back as its intent | none (documents only) | ✅ |
+| `85530b40c66db63b10769537c2dc6cb24609842d` | **Latest recorded.** **I13 Checkpoint 3A** recorded as landed and validated at `57c1dfb`: `useDerived` carrying its key, the suite that reproduced the crossed frame before the fix, and I13's status bullet stating outright that the item is **not** closed and that I14 is untouched and deferred | none (documents only) | ✅ |
 
-The two product-source commits this ledger also has to explain are **not** documentation checkpoints
-and are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §4 instead: `289e080` (I13 Checkpoint 1 —
-the shared list hook and the six consumers that ignored `loading`) and `bcea26c` (I13 Checkpoint 2 —
-the `attachContent` intent guard and its adversarial suite). Neither advances the phase checkpoint
-row, which stays at Phase 2 for the ordering reason recorded in §2.
+The product-source commits this ledger also has to explain are **not** documentation checkpoints and
+are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4 instead: `289e080` (I13 Checkpoint 1 —
+the shared list hook and the six consumers that ignored `loading`), `bcea26c` (I13 Checkpoint 2 — the
+`attachContent` intent guard and its adversarial suite), `57c1dfb` (I13 Checkpoint 3A — `useDerived`
+carrying its key) and `e5b0a57d8f33dc04838670a2cd4158a88dd34022` (**M3's first checkpoint**, the assignment surface — a milestone, so it
+is registered in the milestone table and in its own section above). None of them advances the phase
+checkpoint row, which stays at Phase 2 for the ordering reason recorded in §2.
+
+Two rows above — `49fb49949feea4bb8c85957a317243d470b20c7a` and `85530b40c66db63b10769537c2dc6cb24609842d` — were pushed before this ledger recorded them, which is the
+self-reference rule working rather than an omission: each documentation checkpoint is registered by a
+later commit, because no entry may carry its own SHA. They are registered here now, and the commit
+carrying this entry is itself registered by the next one.
 
 The commit that registered the entries above `9247a17` — and `9247a17` itself — are documents-only,
 and each is registered by the commit that followed it. The same is true of the **I11 Tier 1 harness

@@ -309,6 +309,17 @@ its repository surface already exist and are already tested: `LevelContentLink` 
 **Done when:** an assignment surface exists in Settings → Programs & levels (or the learning
 workspace), writes through that existing contract, and is covered by a test.
 
+- **Status (2026-09-13): LANDED by M3 at `e5b0a57`, and M3 is 🚧 IN PROGRESS — this item is not
+  closed yet.** All three of the "done when" conditions are met in code: `LevelContentPanel` renders
+  in Settings → Programs & levels behind a per-level «منابع» toggle, it writes through
+  `attachContent` / `detachContent` and reads through `listContent` (no new contract, no schema
+  change), and it is covered by 16 tests in
+  `src/domains/learning/__tests__/LevelContentPanel.test.tsx` and
+  `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx`. What is *not* done is the
+  milestone: the owner has not accepted the surface and there is no browser QA (§5 of
+  [PROJECT_STATE.md](PROJECT_STATE.md) records it NOT VERIFIED). Reporting I3 as closed now would be
+  reporting unfinished work as finished, so it stays open until M3 is accepted.
+
 ### I4. Teacher visual workspace
 No dedicated teacher-facing workspace exists; teachers are managed as records
 (`src/views/Teachers.tsx`). Product-phase scope, including which of the teacher's own data a
@@ -487,7 +498,17 @@ recovery and the zero-record tests both remaining green.
 - **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2 and 3A implemented and validated; the
   rest of Checkpoint 3 (four hand-rolled readers) not authorized and not started; I14 untouched and
   explicitly deferred. The item is NOT closed and must not be reported as fixed — not all of its
-  readers are fixed.** The owner authorized **Checkpoint 1 only**: the shared hook
+  readers are fixed.** **M3 has since landed (`e5b0a57d8f33dc04838670a2cd4158a88dd34022`) as Checkpoint 2's first real caller, and it
+  did not weaken the caveat — it pinned it:** the assignment surface takes its level from a rendered
+  row and its `AttachContentIntent.programId` from the programs query, and
+  `src/domains/learning/__tests__/contentAssignmentFlow.test.tsx` reproduces the crossed frame in
+  which those two disagree, asserts the repository was handed the independent program and refused the
+  write, and goes red when the wiring is mutated to `contentLevel.programId`. **The hazard this item
+  describes is unchanged and still open**: M3's surface reads `useLearningContent`, whose rows come
+  from `useResourceList`, so the stale-row window still exists — it is now caught downstream instead
+  of silently written, and only for this one caller. `LearningPanel`'s «حذف» and move buttons still
+  take their target from a stale-capable list and pass a single id, which no repository guard can
+  check. The owner authorized **Checkpoint 1 only**: the shared hook
   plus the six dynamic-params consumers that ignored `loading`. It landed as
   `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
   `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
@@ -542,7 +563,11 @@ recovery and the zero-record tests both remaining green.
   honestly rejected. **`attachContent` has no such guard** — it takes `(levelId, contentId)`, checks
   only that both exist, and has no `programId` to check against. Any surface that attaches content to
   a level rendered from this hook inherits the window with nothing downstream to catch it, which is
-  why this is recorded **before M3** rather than after it.
+  why this is recorded **before M3** rather than after it. *(Kept as written because it is the record
+  of why Checkpoint 2 was authorized; the bold claim is **superseded** — `attachContent` now requires
+  an `AttachContentIntent` and refuses a mismatch with `LINK_INVALID`, and M3's surface is its first
+  caller. The window itself is not closed by that guard: it stops a wrong write, it does not stop a
+  stale row being offered.)*
 - **Blast radius:** every list in the product — 12 domain hook modules call `useResourceList`
   (attendance, chat, classes, enrollments, gallery, instruments, learning, library, progress, rooms,
   scheduling, teachers), and `paginate` has 13 callers. Of the 18 `useResourceList` call sites, 10
@@ -715,8 +740,9 @@ recovery and the zero-record tests both remaining green.
   to mean "there is nothing to fetch yet" gets **one row** back, and since such a call usually has no
   filter either, the row it gets is whatever sorts first across the whole collection.
 - **Where it is relied on:** three call sites use `{ per_page: 0 }` as "load nothing" —
-  `src/domains/learning/LearningPanel.tsx:104`, `src/domains/learning/StudentLearningPanel.tsx:32`
-  and `src/domains/gallery/GalleryPanel.tsx:65`. In `LearningPanel` this is what put a single
+  `src/domains/learning/LearningPanel.tsx:105`, `src/domains/learning/StudentLearningPanel.tsx:37`
+  and `src/domains/gallery/GalleryPanel.tsx:69` (line numbers re-verified against `e5b0a57`, which
+  moved the first of them by adding an import). In `LearningPanel` this is what put a single
   unrelated level (`lv_violin_1`, «۱. سطح 1») on screen under a heading claiming «۱ سطح» for a
   fifteen-level program, and it is the direct cause of the I11 failure
   (`expected 16 to be 2`).
@@ -728,6 +754,9 @@ recovery and the zero-record tests both remaining green.
   line and changes `PageRequest` semantics for 13 callers; the second is three small edits and leaves
   the trap for the next caller. The choice is a contract decision, not a bug fix, which is why it is
   recorded rather than made here.
+- **Still deferred after M3 (2026-09-13), and M3 changed nothing about it:** the assignment surface
+  renders only once a level is selected, so it added **no fourth call site** and issues no
+  `per_page: 0` read. Nothing in `paginate`, `demoCollection` or the three call sites was touched.
 - **Done when:** `per_page: 0` has one documented meaning, a test in the owning module pins it, and
   the three call sites above agree with it.
 
