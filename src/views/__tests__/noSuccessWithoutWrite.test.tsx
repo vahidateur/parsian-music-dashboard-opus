@@ -35,16 +35,19 @@ import { AttendanceView } from "@/views/Attendance";
 import { ClassesView } from "@/views/Classes";
 import { FinanceView } from "@/views/Finance";
 import { SchedulingView } from "@/views/Scheduling";
-import { classById, weekSessions } from "@/data/records";
-import { faTime } from "@/lib/format";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import {
   getClassRepository,
   getEnrollmentRepository,
+  getSchedulingRepository,
   getStudentRepository,
   resetRegistry,
+  setSchedulingRepository,
 } from "@/domains/registry";
+import type { Session } from "@/domains/scheduling/types";
+import { academyNow } from "@/domains/shared/clock";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
+import { withStubs } from "@/test/repositoryStubs";
 
 /** Every claim the seven controls used to make. None may appear anywhere. */
 const RETRACTED_CLAIMS = [
@@ -120,48 +123,92 @@ function expectNoToast() {
   expect(successRings()).toBe(0);
 }
 
+/** The academy's own current date, `YYYY-MM-DD` — the calendar's anchor. */
+function isoToday(): string {
+  const now = academyNow();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const day = `${now.getDate()}`.padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 /* ------------------------------------------------------------------ */
-/* Sites 1 and 2 — scheduling conflict card and session drawer          */
+/* Sites 1 and 2 — scheduling calendar and session drawer               */
 /* ------------------------------------------------------------------ */
-describe("scheduling conflicts", () => {
+/*
+  CP1 replaced this view's fixture week (`weekSessions` + `conflictWith`) with
+  reads from the scheduling domain, so the fabricated conflict card these two
+  cases used to click — «تعارض اتاق ۱ در سه‌شنبه ساعت ۱۴:۰۰», its «مشاهده در تقویم»
+  button and the drawer's overlap verdict — no longer exists to be asserted
+  against, and neither does the fixture they derived it from. What has to survive
+  is the rule, restated against a session this file supplies: the calendar
+  announces nothing, offers no control that claims a transfer, and the drawer
+  opens and closes only on the user's own acts.
+
+  A conflict verdict is the domain's (`checkConflicts`), and CP1 wires reads only,
+  so nothing here asserts one either way. The session is dated on the academy's
+  own current day rather than taken from the seeded schedule, whose dates are
+  fixed and would quietly stop covering the current week.
+*/
+describe("scheduling", () => {
+  /** One real session for today, so the calendar has something to render. */
+  const probeSession = (): Session => ({
+    id: "ses_probe",
+    classId: "cl8",
+    date: isoToday(),
+    startTime: "16:00",
+    endTime: "17:00",
+    teacherId: "t5",
+    roomId: "r3",
+    status: "scheduled",
+    origin: "manual",
+    createdAt: "2026-01-01T08:00:00Z",
+    updatedAt: "2026-01-01T08:00:00Z",
+  });
+
   beforeEach(() => {
     resetToDemoEnvironment();
     resetRegistry();
+    setSchedulingRepository(
+      withStubs(getSchedulingRepository(), {
+        list: async () => ({ data: [probeSession()], meta: { page: 1, per_page: 200, total: 1 } }),
+      }),
+    );
   });
 
-  it("keeps the warning on screen and offers only the action that does something true", async () => {
+  afterEach(() => setSchedulingRepository(undefined));
+
+  it("renders a calendar that claims no conflict it did not read", async () => {
     renderView("#/schedule", SchedulingView);
     await settled();
 
-    // The evidence survives: an unresolved conflict is still reported.
-    expect(screen.getByText("تعارض اتاق ۱ در سه‌شنبه ساعت ۱۴:۰۰")).toBeTruthy();
-    // The control that claimed to fix it is gone, not disabled.
+    // The session this file supplied is on screen, so what follows is asserted
+    // about a calendar that really read something.
+    expect(screen.getByTitle(/۱۶:۰۰–۱۷:۰۰/)).toBeTruthy();
+
+    // The fixture card named a Tuesday, room 1, 14:00 and a violin/piano overlap,
+    // and offered to move the class to room 4. None of those facts came from a
+    // read; neither the card nor the control may come back.
+    expect(screen.queryByText(/روز سه‌شنبه/)).toBeNull();
+    expect(screen.queryByText(/هم‌پوشانی/)).toBeNull();
     expect(screen.queryByRole("button", { name: /انتقال به اتاق ۴/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "مشاهده در تقویم" })).toBeNull();
     for (const claim of RETRACTED_CLAIMS) {
       expect(document.body.textContent, claim).not.toContain(claim);
     }
-
-    // What remains really moves the calendar, and announces nothing.
-    fireEvent.click(screen.getByRole("button", { name: "مشاهده در تقویم" }));
     expectNoToast();
   });
 
-  it("opens the conflicted session and keeps the drawer open, with nothing claiming a transfer", async () => {
+  it("opens the session and keeps the drawer open, with nothing claiming a transfer", async () => {
     renderView("#/schedule", SchedulingView);
     await settled();
 
-    // Derived from the fixture rather than hardcoded, so the case follows the
-    // data if the seeded conflict moves.
-    const conflicted = weekSessions.find((s) => s.conflictWith);
-    expect(conflicted, "the schedule fixture carries a conflict").toBeDefined();
-    const blockTitle = `${classById(conflicted!.classId)?.title} · ${faTime(conflicted!.start)}`;
-    const block = document.querySelector<HTMLButtonElement>(`button[title^="${blockTitle}"]`);
-    expect(block, `no session block titled ${blockTitle}`).not.toBeNull();
-
-    fireEvent.click(block!);
+    fireEvent.click(screen.getByTitle(/۱۶:۰۰–۱۷:۰۰/));
     const drawer = await screen.findByRole("dialog");
-    expect(within(drawer).getByText(/هم‌پوشانی دارد/)).toBeTruthy();
-    expect(within(drawer).queryByRole("button", { name: /انتقال به اتاق ۴/ })).toBeNull();
+    // The session's own facts, read from the domains.
+    expect(drawer.textContent).toContain("۱۶:۰۰");
+    // No overlap verdict, and no control claiming to resolve one.
+    expect(within(drawer).queryByText(/هم‌پوشانی/)).toBeNull();
+    expect(within(drawer).queryByRole("button", { name: /انتقال به اتاق/ })).toBeNull();
 
     // Closing is still the user's own explicit act, not a side effect of a
     // write that was claimed but never performed.

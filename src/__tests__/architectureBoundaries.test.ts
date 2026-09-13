@@ -156,12 +156,21 @@ describe("list hooks request an explicit page size", () => {
    * Every list hook whose page size is a caller decision — including the ones the
    * compiler cannot help with, because their params type leaves `per_page`
    * optional (`useAttendanceCorrections`) or because the call passes a variable.
+   *
+   * `useClasses`, `useRooms` and `useTeachers` are here for the first reason:
+   * their params types extend `ListParams`, so omitting `per_page` compiles and
+   * silently falls back to the API default of 25. A calendar that reads its rooms
+   * or teachers without a stated ceiling renders a quarter of the academy and
+   * looks complete — which is what the scheduling view did before M4/CP1 wired it.
    */
   const PAGE_SIZE_CALLERS = [
     "useSessions",
     "useAttendanceRecords",
     "useAttendanceCorrections",
     "useLibraryList",
+    "useClasses",
+    "useRooms",
+    "useTeachers",
   ];
 
   /**
