@@ -1,29 +1,49 @@
 /**
  * Scheduling — the operational calendar.
  *
- * M4 / CP1: **reads only**. Every row on this screen is a `Session` from the
- * scheduling domain, read through `useSessions` for a real, bounded date window,
- * and labelled from the classes, rooms and teachers domains. The fixtures this
- * view used to render (`weekSessions`, `rooms`, `teachers`, `TODAY_INDEX` and the
- * `GridSession` shape from `src/data/records.ts`) are gone from it, and with them
- * the fabricated room-occupancy, room-pressure and free-slot narratives, which
- * described no data anyone had (H1a, H4).
+ * Every row on this screen is a `Session` from the scheduling domain, read through
+ * `useSessions` for a real, bounded date window, and labelled from the classes,
+ * rooms and teachers domains (M4 / CP1). The fixtures this view used to render
+ * (`weekSessions`, `rooms`, `teachers`, `TODAY_INDEX` and the `GridSession` shape
+ * from `src/data/records.ts`) are gone from it, and with them the fabricated
+ * room-occupancy, room-pressure and free-slot narratives, which described no data
+ * anyone had (H1a, H4).
  *
- * WHAT CP1 DELIBERATELY DOES NOT DO
+ * M4 / CP2 adds the first two real writes: **reschedule** and **cancel**, both
+ * through `getSchedulingRepository()` and both awaited before anything is claimed.
  *
- *   - **No writes.** Reschedule, cancel and generate are M4's writes and belong to
- *     a later checkpoint, so this file calls no mutating verb and fires no
- *     notification of any kind: a success message here would be a claim about a
- *     write that did not happen (H2, and M2's rule that a control whose operation
- *     does not exist is removed rather than disabled).
+ * THE WRITE CONTRACT THIS FILE FOLLOWS
+ *
+ *   - The repository owns every invariant — attendance protection, the
+ *     already-cancelled refusal, the required reason, the conflict recheck at
+ *     write time, and the fact that a reschedule cancels the original and creates
+ *     a linked replacement rather than editing a date in place. The view calls the
+ *     verbs, awaits them, refreshes its own read and reports what happened.
+ *   - Success is announced only AFTER the promise resolves, and its copy names
+ *     only the operation that ran. No «تعارض برطرف شد», no teacher or student
+ *     notification, no SMS, no server: none of those exist (H2, E-3).
+ *   - Failure is announced in `danger` with `apiErrorFromThrown(cause).message` —
+ *     the repository's own sentence, verbatim, including its domain code's
+ *     meaning (`SESSION_HAS_ATTENDANCE`, `SESSION_ALREADY_CANCELLED`,
+ *     `SESSION_CANCEL_REASON_REQUIRED`, `SESSION_CONFLICT`). Nothing is mutated
+ *     optimistically, so a refusal leaves the calendar exactly as it was.
+ *   - The write target is the DERIVED selected session: an id resolved against the
+ *     loaded page. When the window changes and the id no longer resolves, there is
+ *     no target and no dialog (I13) — a stale `Session` in state would let a write
+ *     land on a row the user can no longer see.
+ *
+ * WHAT THIS VIEW STILL DELIBERATELY DOES NOT DO
+ *
+ *   - **No generation.** Creating sessions across a date range is CP3; the
+ *     `filter=new-slot` deep link keeps its CP1 meaning and says so.
+ *   - **No delete.** The repository has the verb; no control here exposes it (E-2).
  *   - **No conflict derivation.** Conflicts are the domain's (`conflicts.ts`
- *     through `checkConflicts`), and re-deriving overlap rules in a view would
- *     duplicate them and then disagree with them. So no conflict count, badge or
- *     card is rendered: an invented number would be worse than none. The
- *     `filter=conflict` deep link is honoured as real view state and says plainly
- *     what is not wired yet.
- *   - **No roster or generation preview.** Those derived reads arrive with the
- *     write workflows.
+ *     through `checkConflicts`), reached via `useConflictCheck` in the reschedule
+ *     form. No conflict count, badge or card is rendered on the calendar itself:
+ *     an invented number would be worse than none, and the `filter=conflict` deep
+ *     link says plainly what is not wired yet.
+ *   - **No roster.** The session's students are a derived read that arrives with
+ *     the workflows that need them.
  *
  * HONESTY RULES THIS FILE FOLLOWS
  *
@@ -39,8 +59,9 @@
  *     loaded page, so a window change cannot leave the previous window's session
  *     open in the drawer (I13).
  */
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Plus, XCircle } from "lucide-react";
+import { apiErrorFromThrown } from "@/api/errors";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { Chip, Drawer, FilterBar, PageHeader, Segmented, StatStrip, type StatDef } from "@/components/ds/patterns";
@@ -56,12 +77,14 @@ import {
   toMinutes,
   weekdayIndex,
 } from "@/domains/scheduling/dateBridge";
-import { SESSION_STATUS_LABEL, type Session, type SessionStatus } from "@/domains/scheduling/types";
+import { getSchedulingRepository } from "@/domains/registry";
+import { SESSION_STATUS_LABEL, type RescheduleInput, type Session, type SessionStatus } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
 import { academyNow, useAcademyNow } from "@/domains/shared/clock";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime, minutesToFaTime, toFa } from "@/lib/format";
 import { cn } from "@/utils/cn";
+import { CancelSessionDialog, RescheduleSessionDialog, jalaliDayLabel } from "./scheduling/SessionWriteDialogs";
 
 /**
  * Every read states its own ceiling rather than relying on the repository's
@@ -217,7 +240,7 @@ function SessionBlock({
 /* The view                                                            */
 /* ------------------------------------------------------------------ */
 export function SchedulingView() {
-  const { filter, navigate, openSheet } = useApp();
+  const { filter, navigate, notify, openSheet } = useApp();
   const now = useAcademyNow();
   const todayIso = useMemo(() => isoFromAcademyDate(academyNow()), []);
 
@@ -237,14 +260,17 @@ export function SchedulingView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** What the deep link asked for. Real state; no write is attached to it. */
   const [intent, setIntent] = useState<"conflict" | "new-slot" | null>(isFocusFilter(filter) ? filter : null);
+  /** Which write form is open, if any. The target is always `selected`, never a copy. */
+  const [writeForm, setWriteForm] = useState<"reschedule" | "cancel" | null>(null);
 
   /*
     `filter=conflict` and `filter=new-slot` are produced by the dashboard's
     attention panels and by the command palette, and this view used to ignore
     both. They now move the calendar to today's day view, which is the part of the
-    intent a read-only checkpoint can honour: resolving a conflict needs the
-    domain's conflict engine and creating a slot needs the generation writes, and
-    neither is wired here yet.
+    intent this view can honour: since CP2 it consults the domain's conflict
+    engine as a preview while a session is being rescheduled — but it offers no
+    control that claims to have resolved a conflict, and creating sessions across
+    a date range is the generation write that belongs to CP3 (E-1, E-7).
   */
   useEffect(() => {
     if (isFocusFilter(filter)) {
@@ -302,6 +328,67 @@ export function SchedulingView() {
   const selected = useMemo(
     () => (selectedId === null ? undefined : sessions.items.find((session) => session.id === selectedId)),
     [selectedId, sessions.items],
+  );
+
+  /*
+    THE WRITES. Reschedule and cancel are the repository's verbs, called with the
+    derived session's id and awaited: the calendar shows the repository's answer,
+    never a guess made on the way there.
+  */
+  const repository = useMemo(() => getSchedulingRepository(), []);
+
+  const reschedule = useCallback(
+    (id: string, input: RescheduleInput) => repository.rescheduleSession(id, input),
+    [repository],
+  );
+  const cancelSession = useCallback((id: string, reason: string) => repository.cancelSession(id, reason), [repository]);
+
+  /**
+   * A refusal is reported in the repository's own words. Replacing its message
+   * with a friendlier invention would hide the reason the write did not happen —
+   * which is the whole of what the user needs in order to act (E-4).
+   */
+  const writeRefused = useCallback(
+    (title: string) => (cause: unknown) => {
+      notify({ tone: "danger", title, detail: apiErrorFromThrown(cause).message });
+    },
+    [notify],
+  );
+
+  /**
+   * Announced only once the promise has resolved, from the record the repository
+   * returned: a reschedule really is a cancelled original plus a linked
+   * replacement, so that is what the copy says, and nothing else is claimed.
+   */
+  const rescheduled = useCallback(
+    (moved: Session) => {
+      sessions.reload();
+      setWriteForm(null);
+      setSelectedId(moved.id);
+      notify({
+        tone: "success",
+        title: "جلسه جابه‌جا شد",
+        detail: `به ${jalaliDayLabel(moved.date)} ساعت ${faTime(moved.startTime)}–${faTime(
+          moved.endTime,
+        )} منتقل شد؛ جلسهٔ پیشین لغو شد و در تقویم باقی می‌ماند.`,
+      });
+    },
+    [notify, sessions],
+  );
+
+  const cancelled = useCallback(
+    (record: Session) => {
+      sessions.reload();
+      setWriteForm(null);
+      notify({
+        tone: "success",
+        title: "جلسه لغو شد",
+        detail: `${jalaliDayLabel(record.date)} ساعت ${faTime(record.startTime)}–${faTime(
+          record.endTime,
+        )} — دلیل: ${record.cancelReason ?? NO_DATA}`,
+      });
+    },
+    [notify, sessions],
   );
 
   /** True when the window holds more sessions than this page returned. */
@@ -386,9 +473,10 @@ export function SchedulingView() {
       {intent === "conflict" && (
         <Surface className="mt-5 border-info-400/20 bg-info-400/[0.04] p-4">
           <p className="text-[12px] leading-relaxed text-ink-200">
-            تقویم روی امروز تمرکز داده شد. بررسی تعارض اتاق و مدرس کار موتور تعارض دامنه است و هنگام
-            نوشتن جلسه انجام می‌شود؛ در این نسخه که تنها خواندن متصل است، به این تقویم وصل نیست. آنچه
-            نمایش داده شده جلسات واقعی همین بازه است.
+            تقویم روی امروز تمرکز داده شد. بررسی تعارض اتاق و مدرس کار موتور تعارض دامنه است؛ هنگام
+            جابه‌جایی یک جلسه همان موتور پیش‌نمایش تعارض را نشان می‌دهد و انبار هنگام ثبت دوباره بررسی
+            می‌کند. روی خود این تقویم داوری از تعارض نمایش داده نمی‌شود. آنچه نمایش داده شده جلسات
+            واقعی همین بازه است.
           </p>
         </Surface>
       )}
@@ -609,7 +697,12 @@ export function SchedulingView() {
                               start <= now &&
                               now < start + span
                             }
-                            onOpen={() => setSelectedId(session.id)}
+                            onOpen={() => {
+                              setSelectedId(session.id);
+                              // A write form belongs to the session it was opened
+                              // for; opening another session must not inherit it.
+                              setWriteForm(null);
+                            }}
                           />
                         );
                       })}
@@ -649,13 +742,13 @@ export function SchedulingView() {
         kicker="جلسه"
         title={selected ? titleOf(selected) : ""}
         footer={
-          <>
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)}>
               بستن
             </Button>
             <Button
               size="sm"
-              variant="primary"
+              variant="subtle"
               onClick={() => {
                 if (selected) navigate({ view: "classes", id: selected.classId });
                 setSelectedId(null);
@@ -663,7 +756,35 @@ export function SchedulingView() {
             >
               پروندهٔ کلاس
             </Button>
-          </>
+            {/*
+              The two M4 writes. A cancelled session offers neither: the
+              repository refuses both, and a control whose operation cannot run is
+              removed rather than left to fail (M2). The refusal path stays wired
+              for the race that removal cannot prevent — someone else cancelling
+              the session first — and reports `SESSION_ALREADY_CANCELLED` verbatim.
+            */}
+            {selected?.status !== "cancelled" && (
+              <>
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  className="border-danger-500/30 text-danger-400 hover:border-danger-500/45 hover:bg-danger-500/10"
+                  onClick={() => setWriteForm("cancel")}
+                  disabled={writeForm !== null}
+                >
+                  <XCircle className="size-3.5" /> لغو جلسه
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setWriteForm("reschedule")}
+                  disabled={writeForm !== null}
+                >
+                  <CalendarClock className="size-3.5" /> جابه‌جایی
+                </Button>
+              </>
+            )}
+          </div>
         }
       >
         {selected && (
@@ -697,6 +818,18 @@ export function SchedulingView() {
                 </div>
               ))}
             </dl>
+            {/* Links the repository wrote, displayed as the facts they are. The
+                view never creates or repairs them. */}
+            {selected.rescheduledFromId !== undefined && (
+              <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11.5px] leading-relaxed text-ink-300">
+                این جلسه جایگزین یک جلسهٔ لغوشده است.
+              </p>
+            )}
+            {selected.rescheduledToId !== undefined && (
+              <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11.5px] leading-relaxed text-ink-300">
+                این جلسه لغو شد و جلسهٔ جایگزین آن ثبت شده است.
+              </p>
+            )}
             {selected.status === "cancelled" && selected.cancelReason && (
               <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                 <div className="text-[12px] font-medium text-ink-100">دلیل لغو</div>
@@ -718,6 +851,40 @@ export function SchedulingView() {
           </div>
         )}
       </Drawer>
+
+      {/*
+        The write forms. Mounted only while a derived session exists: with no
+        target there is nothing to write to, so a window change cannot leave a
+        form holding a session the user can no longer see (I13). Each form keeps
+        its own draft, its own in-flight state and the repository's own errors;
+        the view supplies the verbs and reports the outcome.
+      */}
+      {selected !== undefined && (
+        <>
+          <RescheduleSessionDialog
+            open={writeForm === "reschedule"}
+            session={selected}
+            classTitle={titleOf(selected)}
+            rooms={rooms.items}
+            teachers={teachers.items}
+            roomsUnavailable={rooms.error !== null}
+            teachersUnavailable={teachers.error !== null}
+            onSubmit={reschedule}
+            onRejected={writeRefused("جابه‌جایی انجام نشد")}
+            onWritten={rescheduled}
+            onClose={() => setWriteForm(null)}
+          />
+          <CancelSessionDialog
+            open={writeForm === "cancel"}
+            session={selected}
+            classTitle={titleOf(selected)}
+            onSubmit={cancelSession}
+            onRejected={writeRefused("لغو انجام نشد")}
+            onWritten={cancelled}
+            onClose={() => setWriteForm(null)}
+          />
+        </>
+      )}
     </div>
   );
 }

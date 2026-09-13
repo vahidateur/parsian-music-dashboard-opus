@@ -5,10 +5,18 @@
  * `docs/engineering/OPEN_ITEMS.md`):
  *
  *   1. A success toast is a claim that a write happened. So a file that cannot
- *      reach the data layer must not contain one at all, and the four views that
- *      still render static fixtures must contain none whatsoever — for them the
- *      absence is a proof, not a convention: there is no repository in scope to
- *      have written through.
+ *      reach the data layer must not contain one at all, and the views that still
+ *      render static fixtures must contain none whatsoever — for them the absence
+ *      is a proof, not a convention: there is no repository in scope to have
+ *      written through.
+ *
+ *      A view leaves that list in exactly one way: by acquiring a real write. The
+ *      graduation is asserted below in both directions, so the list can neither
+ *      grow quietly nor leave a view that stopped writing untracked. What the
+ *      structural check cannot see — that the claim is made only AFTER the write
+ *      resolved — is asserted behaviourally, in
+ *      `src/views/__tests__/noSuccessWithoutWrite.test.tsx` and
+ *      `src/views/__tests__/schedulingWrites.test.tsx`.
  *   2. Calling a real write "demo data" is the same dishonesty in the opposite
  *      direction, so a confirmation that uses the demo label must derive it from
  *      the sanctioned environment seam (`useIsDemoEnvironment`) instead of
@@ -62,13 +70,19 @@ const views = sourceFiles(join(SRC, "views"));
 
 describe("no success toast without a write", () => {
   /**
-   * These four render `src/data/records.ts` fixtures and have no domain behind
-   * them yet (scheduling and attendance have complete domains the views do not
-   * use; finance and reports have none). Nothing in them can write, so any
-   * success toast there is by definition a false claim.
+   * These three render `src/data/records.ts` fixtures and have no domain behind
+   * them yet (attendance has a complete domain the view does not use; finance and
+   * reports have none). Nothing in them can write, so any success toast there is
+   * by definition a false claim.
+   *
+   * `views/Scheduling.tsx` was on this list until M4's CP1 replaced its fixture
+   * week with reads from the scheduling domain, and left it in CP2 when the view
+   * acquired two real writes (`rescheduleSession`, `cancelSession`). It is tracked
+   * in GRADUATED_VIEWS below rather than simply deleted, so losing the write again
+   * fails the suite instead of silently returning the view to the fixture list's
+   * meaning.
    */
   const FIXTURE_DRIVEN_VIEWS = [
-    "views/Scheduling.tsx",
     "views/Attendance.tsx",
     "views/Finance.tsx",
     "views/Reports.tsx",
@@ -77,6 +91,24 @@ describe("no success toast without a write", () => {
   it("the fixture-driven views report no success at all", () => {
     const offenders = views.filter((file) => FIXTURE_DRIVEN_VIEWS.includes(rel(file)) && reportsSuccess(file));
     expect(offenders.map(rel)).toEqual([]);
+  });
+
+  /**
+   * Views that left the list above, and the repository each one must write
+   * through. The ratchet runs in both directions: the file has to reach its own
+   * domain's repository AND report the success it can now honestly claim, so a
+   * view cannot graduate by deleting its write and keeping its toast, nor by
+   * keeping the write and dropping the claim.
+   */
+  const GRADUATED_VIEWS = [{ file: "views/Scheduling.tsx", repository: "getSchedulingRepository(" }];
+
+  it("a view that left the fixture list writes through its own domain", () => {
+    for (const { file, repository } of GRADUATED_VIEWS) {
+      const full = join(SRC, file);
+      expect(code(readFileSync(full, "utf8")), `${file} must reach ${repository}`).toContain(repository);
+      expect(reportsSuccess(full), `${file} writes but reports no success`).toBe(true);
+      expect(FIXTURE_DRIVEN_VIEWS, `${file} is tracked twice`).not.toContain(file);
+    }
   });
 
   /**

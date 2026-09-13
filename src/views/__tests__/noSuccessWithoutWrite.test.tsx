@@ -26,8 +26,9 @@
  * `src/__tests__/writeFeedbackHonesty.test.ts`, and together they are what makes
  * "no success notification without a write" enforceable rather than aspirational.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { Toasts } from "@/components/overlays/ActionSheet";
@@ -44,10 +45,11 @@ import {
   resetRegistry,
   setSchedulingRepository,
 } from "@/domains/registry";
-import type { Session } from "@/domains/scheduling/types";
+import type { SchedulingRepository } from "@/domains/scheduling/repository";
+import { SESSION_ERRORS, type Session } from "@/domains/scheduling/types";
 import { academyNow } from "@/domains/shared/clock";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
-import { withStubs } from "@/test/repositoryStubs";
+import { withStubs, type Stubs } from "@/test/repositoryStubs";
 
 /** Every claim the seven controls used to make. None may appear anywhere. */
 const RETRACTED_CLAIMS = [
@@ -148,6 +150,15 @@ function isoToday(): string {
   so nothing here asserts one either way. The session is dated on the academy's
   own current day rather than taken from the seeded schedule, whose dates are
   fixed and would quietly stop covering the current week.
+
+  CP2 gave this view two real writes — `rescheduleSession` and `cancelSession` —
+  which is exactly the situation H2 exists for: a view that CAN say «انجام شد» now
+  has to earn it. The three cases at the end of this block are that earning, and
+  they keep every M2 rule above intact: the retracted claims are still forbidden,
+  and a real success may only describe the operation that really happened. The
+  write's own mechanics — payload, conflict gating, repository links — are
+  asserted in `schedulingWrites.test.tsx`; here the question is only whether the
+  feedback waits for the repository.
 */
 describe("scheduling", () => {
   /** One real session for today, so the calendar has something to render. */
@@ -215,6 +226,138 @@ describe("scheduling", () => {
     fireEvent.click(within(drawer).getAllByRole("button", { name: "بستن" })[0]);
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expectNoToast();
+  });
+
+  /**
+   * The same readable probe session, plus whatever write verbs a case needs.
+   * `checkConflicts` answers clean on purpose: these cases test whether the
+   * feedback waits for the write, not whether the preview gates it — that gate
+   * is asserted in `schedulingWrites.test.tsx`.
+   */
+  function installWrite(stubs: Stubs<SchedulingRepository> = {}) {
+    setSchedulingRepository(
+      withStubs(getSchedulingRepository(), {
+        list: async () => ({ data: [probeSession()], meta: { page: 1, per_page: 200, total: 1 } }),
+        checkConflicts: async () => ({ hard: [], warnings: [], ok: true }),
+        ...stubs,
+      }),
+    );
+  }
+
+  /** Opens the probe session's drawer, exactly as a user would. */
+  async function openDrawer() {
+    fireEvent.click(screen.getByTitle(/۱۶:۰۰–۱۷:۰۰/));
+    return screen.findByRole("dialog");
+  }
+
+  /** Fills the reason and submits, then hands back the write dialog. */
+  async function submitWrite(
+    open: "جابه‌جایی" | "لغو جلسه",
+    reason: string,
+  ): Promise<HTMLElement> {
+    const drawer = await openDrawer();
+    fireEvent.click(within(drawer).getByRole("button", { name: open }));
+    const dialog = await screen.findByRole("dialog", {
+      name: open === "جابه‌جایی" ? "جابه‌جایی جلسه" : "لغو جلسه",
+    });
+    fireEvent.change(
+      within(dialog).getByLabelText(open === "جابه‌جایی" ? /دلیل جابه‌جایی/ : /دلیل لغو/),
+      { target: { value: reason } },
+    );
+    if (open === "جابه‌جایی") {
+      // The form will not write while its own preview is outstanding.
+      await within(dialog).findByText(/تعارضی برای این بازه گزارش نشد/);
+    }
+    fireEvent.click(within(dialog).getByRole("button", { name: open === "جابه‌جایی" ? "جابه‌جایی جلسه" : "لغو جلسه" }));
+    return dialog;
+  }
+
+  /** A promise the case controls, so "pending" is a state and not a race. */
+  function held<T>() {
+    let release!: (value: T) => void;
+    const promise = new Promise<T>((resolve) => {
+      release = resolve;
+    });
+    return { promise, release: async (value: T) => act(() => { release(value); }) };
+  }
+
+  /** What a real success may still never say (E-3, and M2 before it). */
+  const FORBIDDEN_IN_SUCCESS = [
+    ...RETRACTED_CLAIMS,
+    "مدرس مطلع شد",
+    "هنرجو مطلع شد",
+    "پیامک",
+    "اطلاع‌رسانی شد",
+    "در سرور ثبت شد",
+    "حضور و غیاب",
+  ];
+
+  it("claims a reschedule only once the repository has answered", async () => {
+    const write = held<Session>();
+    installWrite({ rescheduleSession: () => write.promise });
+
+    renderView("#/schedule", SchedulingView);
+    await settled();
+    const dialog = await submitWrite("جابه‌جایی", "درخواست هنرجو");
+
+    // Pending: nothing is claimed, and the control says the write is in flight
+    // rather than offering a second one.
+    expectNoToast();
+    expect(within(dialog).getByRole("button", { name: "در حال جابه‌جایی…" })).toBeTruthy();
+    expect(within(dialog).queryByRole("button", { name: "جابه‌جایی جلسه" })).toBeNull();
+
+    await write.release({ ...probeSession(), startTime: "18:00", endTime: "19:00" });
+    await waitFor(() => expect(toastText()).toContain("جلسه جابه‌جا شد"), { timeout: 8000 });
+    expect(successRings(), "an awaited write may report success").toBeGreaterThan(0);
+    for (const claim of FORBIDDEN_IN_SUCCESS) {
+      expect(toastText(), claim).not.toContain(claim);
+    }
+  });
+
+  it("reports a refused reschedule in the repository's own words, with no success", async () => {
+    const refusal = new ApiError({
+      kind: "conflict",
+      code: SESSION_ERRORS.HAS_ATTENDANCE,
+      message: "برای این جلسه حضور و غیاب ثبت شده است و جابه‌جا نمی‌شود.",
+    });
+    installWrite({
+      rescheduleSession: async () => {
+        throw refusal;
+      },
+    });
+
+    renderView("#/schedule", SchedulingView);
+    await settled();
+    await submitWrite("جابه‌جایی", "درخواست هنرجو");
+
+    // Verbatim, in a tone that is not success.
+    await expectHonestToast(refusal.message);
+    expect(toastText()).toContain("جابه‌جایی انجام نشد");
+
+    // No optimistic move: the session on screen is still the one that was read,
+    // and the form survives the refusal so the user can correct it.
+    expect(screen.getByTitle(/۱۶:۰۰–۱۷:۰۰/)).toBeTruthy();
+    expect(screen.queryByTitle(/۱۸:۰۰–۱۹:۰۰/)).toBeNull();
+    expect(screen.getByRole("dialog", { name: "جابه‌جایی جلسه" })).toBeTruthy();
+  });
+
+  it("claims a cancellation only after the repository has cancelled", async () => {
+    const write = held<Session>();
+    installWrite({ cancelSession: () => write.promise });
+
+    renderView("#/schedule", SchedulingView);
+    await settled();
+    const dialog = await submitWrite("لغو جلسه", "تعطیلی رسمی");
+
+    expectNoToast();
+    expect(within(dialog).getByRole("button", { name: "در حال لغو…" })).toBeTruthy();
+
+    await write.release({ ...probeSession(), status: "cancelled", cancelReason: "تعطیلی رسمی" });
+    await waitFor(() => expect(toastText()).toContain("جلسه لغو شد"), { timeout: 8000 });
+    expect(successRings(), "an awaited cancellation may report success").toBeGreaterThan(0);
+    for (const claim of FORBIDDEN_IN_SUCCESS) {
+      expect(toastText(), claim).not.toContain(claim);
+    }
   });
 });
 
