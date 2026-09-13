@@ -24,6 +24,8 @@
  *      no class list?
  *  10. is any of it dressed up as a notification, a server write, a deletion or a
  *      resolved conflict?
+ *  11. does the plan's own skip vocabulary reach the screen — the domain's reasons
+ *      and the domain's counts, rather than a fixed list painted onto the dialog?
  *
  * Everything here runs against the REAL demo repositories (`resetToDemoEnvironment`
  * + `withStubs`), so the plans, the protections and the written rows are the
@@ -51,9 +53,12 @@ import { deterministicSessionId } from "@/domains/scheduling/generation";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import {
   SESSION_ERRORS,
+  SKIP_REASON_LABEL,
   type GenerateInput,
+  type GenerationPlan,
   type GenerationResult,
   type Session,
+  type SkipReason,
 } from "@/domains/scheduling/types";
 import { academyNow } from "@/domains/shared/clock";
 import { faNum } from "@/lib/format";
@@ -704,6 +709,113 @@ describe("generation protections", () => {
       written.every((session) => session.date >= WEEK_START && session.date <= WEEK_END),
       "both rows belong to the requested window",
     ).toBe(true);
+  });
+
+  /**
+   * The plan's skip vocabulary is the domain's, and so are its counts.
+   *
+   * Four of the five reasons are arranged here through real repository writes — a
+   * slot that has already happened, a hand edit, a cancellation, and one left
+   * exactly as generation wrote it — so what the dialog renders cannot have come
+   * from the dialog. `SKIP_PROTECTED` needs an attendance record, which the
+   * domain's own frozen suite covers (`demoRepository.test.ts`, "protects an
+   * attendance-bearing session from generation"), so it is asserted ABSENT here
+   * instead: the fifth label existing in the map is precisely what would prove a
+   * fixed list had been painted onto the screen.
+   */
+  it("renders the plan's own skip reasons and counts, and no reason the plan does not hold", async () => {
+    const probe = await createProbeClass();
+    const repo = getSchedulingRepository();
+
+    /*
+      Three weeks around today, so the class's weekly slot occurs four times: once
+      already past, once today, twice ahead. One real generation writes all four,
+      then two real writes give two of them a history the planner has to respect.
+    */
+    const FROM = addDays(TODAY, -7)!;
+    const TO = addDays(TODAY, 14)!;
+    const NEXT = addDays(TODAY, 7)!;
+    const slotOn = (date: string) => deterministicSessionId(probe.id, date, PROBE_START);
+
+    const first = await repo.generateSessions({ classId: probe.id, from: FROM, to: TO });
+    expect(first.created, "four weekly occurrences across the window").toHaveLength(4);
+
+    // A hand edit pins today's slot: `update` keeps the deterministic id and marks
+    // the row manual, which is what makes it a skip rather than an update.
+    await repo.update(slotOn(TODAY), { roomId: "r3", acknowledgeWarnings: true });
+    // A cancellation the planner must never resurrect.
+    await repo.cancelSession(slotOn(NEXT), "تعطیلی رسمی");
+
+    const generation = installGeneration();
+    renderView();
+    await calendarSettled();
+
+    const dialog = await openGeneration();
+    pickClass(dialog, probe);
+    await planShown(dialog);
+    fireEvent.change(dateField(dialog, /^از تاریخ/), { target: { value: jalaliInput(FROM) } });
+    fireEvent.change(dateField(dialog, /^تا تاریخ/), { target: { value: jalaliInput(TO) } });
+
+    // Wait on the plan the domain answered with — the window on screen is the
+    // window asked about — and only then on the row that renders it.
+    await waitFor(() =>
+      expect(generation.previewGeneration.mock.calls.at(-1)?.[0]).toMatchObject({
+        classId: probe.id,
+        from: FROM,
+        to: TO,
+      }),
+    );
+    const plan = (await generation.previewGeneration.mock.results.at(-1)!.value) as GenerationPlan;
+    expect(plan.conflicts.ok, "nothing about this window is impossible").toBe(true);
+    expect(plan.creates).toHaveLength(0);
+    expect(plan.updates).toHaveLength(0);
+    expect(plan.skips.map((skip) => skip.reason).sort()).toEqual(
+      ["SKIP_CANCELLED", "SKIP_MANUAL", "SKIP_PAST", "SKIP_UNCHANGED"].sort(),
+    );
+    await within(dialog).findByText(new RegExp(`${faNum(plan.skips.length)} بدون نوشتن`));
+
+    // Every reason the plan holds is on screen with the plan's own count and the
+    // domain's own label — both read out of the plan, neither written down here.
+    // The skip rows are the dialog's only «count × label» items, so filtering on
+    // that shape keeps the assertion about them whatever else the plan renders.
+    const counts = new Map<SkipReason, number>();
+    for (const skip of plan.skips) counts.set(skip.reason, (counts.get(skip.reason) ?? 0) + 1);
+    expect(counts.size, "four distinct reasons").toBe(4);
+    const rendered = within(dialog)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent?.trim() ?? "")
+      .filter((text) => text.includes("×"));
+    expect(rendered.sort()).toEqual(
+      [...counts].map(([reason, count]) => `${faNum(count)} × ${SKIP_REASON_LABEL[reason]}`).sort(),
+    );
+
+    // The reason this plan does NOT hold is not on screen, and the summary line is
+    // the plan's own arithmetic rather than a count of rows somebody listed.
+    expect(dialog.textContent).not.toContain(SKIP_REASON_LABEL.SKIP_PROTECTED);
+    expect(dialog.textContent).toMatch(
+      new RegExp(`${faNum(0)} ایجاد · ${faNum(0)} به‌روزرسانی ·\\s*${faNum(plan.skips.length)} بدون نوشتن`),
+    );
+    expect(dialog.textContent).toContain("این بازه نوشتنی ندارد");
+
+    // A preview writes nothing: the verb was never called, and the store still
+    // holds exactly the four rows this case arranged, in the state it left them.
+    expect(generation.generateSessions, "a preview is not a write").not.toHaveBeenCalled();
+    const rows = await probeSessions(probe.id, FROM, TO);
+    expect(rows).toHaveLength(4);
+    expect(rows.find((row) => row.date === TODAY)).toMatchObject({
+      origin: "manual",
+      roomId: "r3",
+      status: "scheduled",
+    });
+    expect(rows.find((row) => row.date === NEXT)).toMatchObject({
+      status: "cancelled",
+      cancelReason: "تعطیلی رسمی",
+    });
+    expect(rows.find((row) => row.date === FROM), "a past session is left alone").toMatchObject({
+      origin: "generated",
+      status: "scheduled",
+    });
+    expect(rows.find((row) => row.date === TO)).toMatchObject({ origin: "generated", status: "scheduled" });
   });
 });
 

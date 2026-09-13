@@ -12,25 +12,35 @@
  *
  * WHY A DOUBLE STANDS IN FOR THE REPOSITORY
  *
- * Eleven of the twelve cases drive a stub whose ids and titles exist nowhere else
- * in the codebase, for the same reason CP1's read tests do: a case that could pass
- * by rendering the demo seed is not testing the wiring, and the seeded schedule is
- * anchored to fixed dates that stop covering the current week. The double mirrors
- * the repository's documented reschedule semantics (a linked replacement plus the
- * original kept as cancelled) so the cases can assert what the view makes visible
- * after a write; the semantics themselves are the domain's, and are proven by its
- * own frozen tests.
+ * Fourteen of the sixteen cases drive a stub whose ids and titles exist nowhere
+ * else in the codebase, for the same reason CP1's read tests do: a case that could
+ * pass by rendering the demo seed is not testing the wiring, and the seeded
+ * schedule is anchored to fixed dates that stop covering the current week. The
+ * double mirrors the repository's documented reschedule semantics (a linked
+ * replacement plus the original kept as cancelled) so the cases can assert what the
+ * view makes visible after a write; the semantics themselves are the domain's, and
+ * are proven by its own frozen tests.
  *
- * The twelfth case crosses into the REAL demo repositories, records real
- * attendance through the attendance repository, and asserts that the refusal the
- * domain produces reaches the user verbatim — the invariant is the repository's,
- * and the view's job is not to soften it (E-4).
+ * TWO CASES CROSS INTO THE REAL DEMO REPOSITORIES, because two questions cannot be
+ * answered by a double:
+ *
+ *   - the attendance refusal: real attendance is recorded through the attendance
+ *     repository, and the refusal the domain produces has to reach the user
+ *     verbatim — the invariant is the repository's, and the view's job is not to
+ *     soften it (E-4);
+ *   - the whole chain, at the end of this file: a REAL stored conflict, the REAL
+ *     engine's verdict through the REAL form, a refused attempt that mutates
+ *     nothing, and then a write the REAL repository performed — asserted on the
+ *     persisted rows and on the engine's own verdict after a re-read. A double
+ *     could only ever restate what the test itself decided, so this one is the
+ *     acceptance question ("a real reschedule resolves a real conflict") asked of
+ *     the product rather than of the harness.
  *
  * No case waits on a timer, and none treats "the spinner went away" as
  * settlement: every wait is on data, on a toast, or on a named control.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import { Toasts } from "@/components/overlays/ActionSheet";
@@ -50,6 +60,7 @@ import {
 import type { RoomRepository } from "@/domains/rooms/repository";
 import type { Room, RoomListParams } from "@/domains/rooms/types";
 import { addDays, isoToJalaliDisplay, weekdayIndex } from "@/domains/scheduling/dateBridge";
+import { deterministicSessionId } from "@/domains/scheduling/generation";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import {
   SESSION_ERRORS,
@@ -63,7 +74,9 @@ import {
 import { academyNow } from "@/domains/shared/clock";
 import type { TeacherRepository } from "@/domains/teachers/repository";
 import type { Teacher, TeacherListParams } from "@/domains/teachers/types";
+import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { SchedulingView } from "@/views/Scheduling";
 
 /* ------------------------------------------------------------------ */
@@ -969,5 +982,269 @@ describe("attendance protection", () => {
     const unchanged = await realScheduling.get(created.id);
     expect(unchanged).toMatchObject({ status: "scheduled", date: TODAY, startTime: "09:00", endTime: "10:00" });
     expect(screen.getByTitle(/۰۹:۰۰–۱۰:۰۰/)).toBeTruthy();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* The whole chain: real conflict, real engine, real write, real state  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The composition M4's acceptance asks for and no double can answer: a REAL
+ * stored conflict, the REAL engine's verdict inside the REAL form, a refused
+ * attempt that leaves the store byte-identical, and then a write the REAL
+ * repository performed — judged afterwards on the persisted rows and on the
+ * engine's own verdict over a re-read.
+ *
+ * Three verbs are wrapped so a case can see them (`list`, `checkConflicts`,
+ * `rescheduleSession`); every wrapper runs the real implementation, so observing
+ * a call is not the same as replacing one.
+ *
+ * WHY ONE ROW IS ARRANGED THROUGH THE STORE
+ *
+ * Two stored rows that clash cannot be produced through the repository: refusing
+ * to write them is the invariant, and this case asserts that refusal first. So the
+ * clash is planted the way it reaches a real academy — as data the product did not
+ * write (an import, a legacy row, a server's own history) — through the same store
+ * seam the domain's frozen tests arrange state with. The demo seed plants exactly
+ * such a clash (`SEEDED_CONFLICT` in `src/domains/demo/schedulingSeed.ts`), but on
+ * a fixed date the calendar's current week stops covering, so this case plants its
+ * own on the academy's today instead of depending on the seed's calendar.
+ *
+ * Both slots sit in the early-morning band: nothing the seed schedules starts
+ * before 09:30, so every row below is free of seeded clashes whichever weekday the
+ * suite runs on. Waits are on rendered verdicts, on control state and on
+ * repository state — never on a timer or on a spinner going away.
+ */
+describe("a real reschedule resolving a real conflict", () => {
+  /** The day's rows as the repository holds them — the mutation baseline. */
+  async function dayFingerprint(real: SchedulingRepository): Promise<string[]> {
+    const page = await real.list({ from: TODAY, to: TODAY, per_page: 200 });
+    return page.data
+      .map((row) =>
+        [row.id, row.status, row.date, row.startTime, row.endTime, row.roomId, row.teacherId, row.updatedAt].join("|"),
+      )
+      .sort();
+  }
+
+  it("refuses the contested slot at both gates without mutating, then resolves the clash with a write the repository performed", async () => {
+    resetToDemoEnvironment();
+    resetRegistry();
+
+    const real = getSchedulingRepository();
+    const list: Mock = vi.fn(real.list.bind(real));
+    const checkConflicts: Mock = vi.fn(real.checkConflicts.bind(real));
+    const rescheduleSession: Mock = vi.fn(real.rescheduleSession.bind(real));
+    const stubs: Stubs<SchedulingRepository> = { list, checkConflicts, rescheduleSession };
+    setSchedulingRepository(withStubs(real, stubs));
+
+    /* ---- the row that holds the slot, written by the real repository ---- */
+
+    const holder = await real.create({
+      classId: "cl1",
+      date: TODAY,
+      startTime: "07:00",
+      endTime: "08:00",
+      teacherId: "t1",
+      roomId: "r1",
+      // Off cl1's weekly recurrence, which the domain reports as a warning.
+      acknowledgeWarnings: true,
+    });
+
+    /* ---- the clash: refused by the repository, then planted as foreign data ---- */
+
+    const intruderSlot = {
+      classId: "cl2",
+      date: TODAY,
+      startTime: "07:30",
+      endTime: "08:30",
+      teacherId: "t1",
+      roomId: "r1",
+    };
+    const refusal = await real
+      .create({ ...intruderSlot, acknowledgeWarnings: true })
+      .then(() => null, (cause: unknown) => cause as ApiError);
+    expect(refusal?.code, "the repository will not store an overlap").toBe(SESSION_ERRORS.CONFLICT);
+
+    const intruderId = deterministicSessionId(intruderSlot.classId, TODAY, intruderSlot.startTime);
+    demoStore.scheduledSessions.create({
+      id: intruderId,
+      ...intruderSlot,
+      status: "scheduled",
+      origin: "generated",
+      createdAt: STAMP,
+      updatedAt: STAMP,
+    });
+
+    /* ---- the engine's own verdicts, before any UI is involved ---- */
+
+    const contested = { id: intruderId, ...intruderSlot };
+    const holderSlot = {
+      id: holder.id,
+      classId: holder.classId,
+      date: TODAY,
+      startTime: "07:00",
+      endTime: "08:00",
+      teacherId: "t1",
+      roomId: "r1",
+    };
+    const FREE_SLOT = { date: TODAY, startTime: "06:00", endTime: "07:00", roomId: "r3", teacherId: "t5" };
+
+    const intruderVerdict = await real.checkConflicts(contested);
+    expect(intruderVerdict.ok, "the planted row really clashes").toBe(false);
+    expect(intruderVerdict.hard.map((item) => item.kind)).toEqual(
+      expect.arrayContaining(["SESSION_ROOM_CONFLICT", "SESSION_TEACHER_CONFLICT"]),
+    );
+    expect(intruderVerdict.hard.every((item) => item.conflictingSessionId === holder.id)).toBe(true);
+
+    // The same clash asked from the other side. This is the verdict the move has
+    // to turn clean, and it comes from the engine rather than from this file.
+    const holderVerdictBefore = await real.checkConflicts(holderSlot);
+    expect(holderVerdictBefore.ok, "the holder's own slot is contested too").toBe(false);
+    expect(holderVerdictBefore.hard.every((item) => item.conflictingSessionId === intruderId)).toBe(true);
+
+    const destination = await real.checkConflicts({ id: intruderId, classId: intruderSlot.classId, ...FREE_SLOT });
+    expect(destination.ok, "the destination is certified free before the move").toBe(true);
+
+    const storeBefore = await dayFingerprint(real);
+
+    /* ---- the real view, the real drawer, the real form ---- */
+
+    renderView();
+    fireEvent.click(await screen.findByTitle(/۰۷:۳۰–۰۸:۳۰/));
+    const drawer = await screen.findByRole("dialog", { name: /پیانو انفرادی/ });
+    fireEvent.click(within(drawer).getByRole("button", { name: "جابه‌جایی" }));
+    const dialog = await screen.findByRole("dialog", { name: "جابه‌جایی جلسه" });
+
+    // The form opens on the session's own values, and the engine's first answer is
+    // already the planted clash: the view asked, the domain answered.
+    expect((field(dialog, /ساعت شروع/) as HTMLInputElement).value).toBe("07:30");
+    await within(dialog).findByText("این جابه‌جایی ممکن نیست");
+    expect(checkConflicts.mock.calls.at(-1)?.[0]).toMatchObject({ id: intruderId, roomId: "r1", teacherId: "t1" });
+
+    // Step into the holder's exact slot: the engine names the row holding it.
+    fireEvent.change(field(dialog, /ساعت شروع/), { target: { value: "07:00" } });
+    fireEvent.change(field(dialog, /ساعت پایان/), { target: { value: "08:00" } });
+    fireEvent.change(field(dialog, /دلیل جابه‌جایی/), { target: { value: "درخواست هنرجو" } });
+    await within(dialog).findByText(/این اتاق در بازهٔ 07:00–08:00 اشغال است/);
+    expect(within(dialog).getByText(/این مدرس در بازهٔ 07:00–08:00 جلسهٔ دیگری دارد/)).toBeTruthy();
+    expect(checkConflicts.mock.calls.at(-1)?.[0]).toMatchObject({
+      id: intruderId,
+      date: TODAY,
+      startTime: "07:00",
+      endTime: "08:00",
+      roomId: "r1",
+      teacherId: "t1",
+    });
+
+    // GATE ONE — the form. The control says no, and clicking it goes nowhere.
+    expect(
+      (within(dialog).getByRole("button", { name: "جابه‌جایی جلسه" }) as HTMLButtonElement).disabled,
+      "a hard conflict disables the write",
+    ).toBe(true);
+    submitReschedule(dialog);
+    expect(rescheduleSession, "the form never reached the repository").not.toHaveBeenCalled();
+    expect(await dayFingerprint(real), "the blocked attempt mutated nothing").toEqual(storeBefore);
+    expectNoSuccess();
+
+    // GATE TWO — the repository, with the form's own gate bypassed. The write is
+    // attempted for real and refused for real, and still nothing moves: the
+    // invariant is the repository's, not the button's.
+    fireEvent.submit(dialog.querySelector("form")!);
+    await waitFor(() => expect(rescheduleSession).toHaveBeenCalledTimes(1));
+    expect(rescheduleSession.mock.calls[0]).toEqual([intruderId, expect.objectContaining({ startTime: "07:00" })]);
+    await expectToast("جابه‌جایی انجام نشد");
+    expect(toastText()).toContain("این اتاق در بازهٔ 07:00–08:00 اشغال است.");
+    expectNoSuccess();
+    expect(await dayFingerprint(real), "the refused write mutated nothing").toEqual(storeBefore);
+    expect(await real.get(intruderId)).toMatchObject({
+      status: "scheduled",
+      startTime: "07:30",
+      roomId: "r1",
+      teacherId: "t1",
+    });
+    expect(await real.checkConflicts(holderSlot), "the clash is still there to resolve").toMatchObject({ ok: false });
+
+    /* ---- a genuinely free slot, through the same real form ---- */
+
+    fireEvent.change(field(dialog, /ساعت شروع/), { target: { value: FREE_SLOT.startTime } });
+    fireEvent.change(field(dialog, /ساعت پایان/), { target: { value: FREE_SLOT.endTime } });
+    fireEvent.change(field(dialog, /^اتاق/, "select"), { target: { value: FREE_SLOT.roomId } });
+    fireEvent.change(field(dialog, /^مدرس/, "select"), { target: { value: FREE_SLOT.teacherId } });
+    // Wait for the engine's answer to the new slot to be ON SCREEN, in whichever
+    // of its two shapes it comes: nothing to report, or a warning to consent to.
+    await waitFor(() =>
+      expect(
+        within(dialog).queryByText(CLEAN_PREVIEW) !== null ||
+          within(dialog).queryByRole("switch", { name: "پذیرش هشدارهای تعارض" }) !== null,
+        "the engine answered for the free slot",
+      ).toBe(true),
+    );
+    // Leaving the class's recurrence warns, and the form withdraws a consent on
+    // any edit — so the acknowledgement is the operator's, given last.
+    const acknowledge = within(dialog).queryByRole("switch", { name: "پذیرش هشدارهای تعارض" });
+    if (acknowledge) fireEvent.click(acknowledge);
+    await submitReady(dialog);
+    submitReschedule(dialog);
+
+    await waitFor(() => expect(rescheduleSession).toHaveBeenCalledTimes(2));
+    expect(rescheduleSession.mock.calls[1]).toEqual([
+      intruderId,
+      {
+        date: FREE_SLOT.date,
+        startTime: FREE_SLOT.startTime,
+        endTime: FREE_SLOT.endTime,
+        roomId: FREE_SLOT.roomId,
+        teacherId: FREE_SLOT.teacherId,
+        reason: "درخواست هنرجو",
+        acknowledgeWarnings: acknowledge !== null,
+      },
+    ]);
+    await expectToast("جلسه جابه‌جا شد");
+    expect(successRings(), "an awaited, real write may report success").toBeGreaterThan(0);
+
+    /* ---- what the repository holds now, read back from the repository ---- */
+
+    const replacement = (await rescheduleSession.mock.results[1].value) as Session;
+    expect(replacement.id, "a reschedule creates a new session").not.toBe(intruderId);
+    expect(replacement).toMatchObject({
+      classId: intruderSlot.classId,
+      status: "scheduled",
+      ...FREE_SLOT,
+      rescheduledFromId: intruderId,
+    });
+
+    const original = await real.get(intruderId);
+    expect(original).toMatchObject({
+      status: "cancelled",
+      cancelReason: "درخواست هنرجو",
+      rescheduledToId: replacement.id,
+      date: TODAY,
+    });
+    expect(await real.get(holder.id), "the row that held the slot was never touched").toMatchObject({
+      status: "scheduled",
+      startTime: "07:00",
+      endTime: "08:00",
+      roomId: "r1",
+      teacherId: "t1",
+    });
+    const scheduledForClass = (await real.list({ from: TODAY, to: TODAY, per_page: 200 })).data.filter(
+      (row) => row.classId === intruderSlot.classId && row.status === "scheduled",
+    );
+    expect(scheduledForClass.map((row) => row.id), "one move, not a duplicate").toEqual([replacement.id]);
+
+    /* ---- the conflict is gone: the same real query, asked again ---- */
+
+    const holderVerdictAfter = await real.checkConflicts(holderSlot);
+    expect(holderVerdictAfter.hard, "the cancelled row no longer contests the slot").toEqual([]);
+    expect(holderVerdictAfter.ok, "the clash the move was for is resolved").toBe(true);
+    const landed = await real.checkConflicts({ id: replacement.id, classId: intruderSlot.classId, ...FREE_SLOT });
+    expect(landed.ok, "where the session landed is certified free").toBe(true);
+
+    // And the screen is a re-read of that, not a local edit.
+    expect(list.mock.calls.length, "the calendar re-read after the write").toBeGreaterThan(1);
+    expect(await screen.findByTitle(/۰۶:۰۰–۰۷:۰۰/)).toBeTruthy();
+    const movedDrawer = await screen.findByRole("dialog", { name: /پیانو انفرادی/ });
+    expect(within(movedDrawer).getByText("این جلسه جایگزین یک جلسهٔ لغوشده است.")).toBeTruthy();
   });
 });
