@@ -587,6 +587,14 @@ unused, not claimed as a dependency satisfied. No media bytes were invented, no 
 site added (**I14** stays deferred and untouched), no backend touched, no dependency added, and no
 unrelated cleanup folded in.
 
+**Residual exposure M3 introduced, recorded rather than hidden.** The surface's «جدا کردن» is a
+single-id write: `detachContent(levelId, contentId)` takes both ids from the rows on screen, so no
+repository guard can detect a crossed context, and a detach performed from a stale level row inside
+the **I11**/**I13** frame would remove a link of the program the operator navigated away from. The
+attach half is guarded and pinned (D10); the detach half is not, and closing it needs either an intent
+on `detachContent` — a learning-domain change M3's prohibition forbids — or the hook fix itself. It is
+recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I13: not fixed, not authorized, not started.
+
 **Remaining for M3, exactly.** Owner acceptance of the surface, and browser QA (§5 of
 [PROJECT_STATE.md](PROJECT_STATE.md)). Nothing else is known outstanding; if acceptance produces
 changes, they land as a **new** commit on top of `e5b0a57d8f33dc04838670a2cd4158a88dd34022` — never an amend, never a

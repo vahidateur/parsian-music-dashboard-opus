@@ -508,7 +508,14 @@ recovery and the zero-record tests both remaining green.
   from `useResourceList`, so the stale-row window still exists — it is now caught downstream instead
   of silently written, and only for this one caller. `LearningPanel`'s «حذف» and move buttons still
   take their target from a stale-capable list and pass a single id, which no repository guard can
-  check. The owner authorized **Checkpoint 1 only**: the shared hook
+  check. **M3 added one more write of that shape, and it is recorded here rather than hidden:** the
+  assignment surface's «جدا کردن» calls `detachContent(levelId, contentId)` with both ids read off
+  the rows on screen, so nothing downstream can detect a crossed context — an operator who opens the
+  surface from a stale level row inside that frame, and detaches, would remove a link belonging to
+  the program they navigated *away* from. The attach half is guarded and pinned (**D10**); the detach
+  half is not. Closing it needs either an intent parameter on `detachContent` — a learning-domain
+  change, which M3's own prohibition forbids — or the hook fix this item exists to track. **Not
+  fixed, not authorized, not started.** The owner authorized **Checkpoint 1 only**: the shared hook
   plus the six dynamic-params consumers that ignored `loading`. It landed as
   `289e080b56520d097d05554f2010f1723bca294f`, whose parent is I11's
   `2972a99c447de17af6d3c72d58facb62400bd707` — I11's fix untouched, nothing amended or rebased —
