@@ -61,6 +61,18 @@ const LIVE_VIEWS: ViewId[] = ["dashboard", "students", "teachers", "classes", "m
  * because the list's meaning is now "artefact-only surfaces" rather than
  * "fixture-driven" ones.
  */
+/*
+  `attendance` left the fixture list in M5, when `views/Attendance.tsx` was wired
+  to `src/domains/attendance` — the same move `schedule` made in M4. It stays HERE
+  for the reason given above: this file's contract is that an EMPTY environment
+  renders the surface without crashing and without leaking an arithmetic or lookup
+  mistake, which is exactly what a freshly wired view most needs checked, and
+  moving it would add the `inFlightMarkers() === 0` assertion that `LIVE_VIEWS`
+  makes and this list never has. Its zero-record, nothing-fabricated behaviour is
+  asserted where the wiring lives, in
+  `src/views/__tests__/attendanceNoFixtures.test.ts` and
+  `src/views/__tests__/attendanceWrites.test.tsx`.
+*/
 const FIXTURE_VIEWS: ViewId[] = ["schedule", "attendance", "finance", "reports"];
 
 /** Text that can only reach the DOM through an arithmetic or lookup mistake. */
@@ -238,7 +250,7 @@ describe("student profile over zero records", () => {
   });
 });
 
-describe("artefact-only surfaces (three of four still fixture-driven, wiring outstanding)", () => {
+describe("artefact-only surfaces (two of four still fixture-driven, wiring outstanding)", () => {
   it.each(FIXTURE_VIEWS)("#/%s renders without crashing or leaking artefacts", async (view) => {
     const { container } = await renderView(view);
     expectNoArtefacts(container, `#/${view}`);

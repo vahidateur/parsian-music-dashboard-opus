@@ -30,7 +30,19 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
+import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
+import { DemoUserRepository } from "@/domains/auth/userRepository";
+import type { AttendanceRepository } from "@/domains/attendance/repository";
+import {
+  ATTENDANCE_ERRORS,
+  type AttendanceRecord,
+  type AttendanceStatus,
+  type BulkRecordInput,
+  type RecordAttendanceInput,
+  type RosterAttendance,
+  type SessionAttendance,
+} from "@/domains/attendance/types";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { AttendanceView } from "@/views/Attendance";
 import { ClassesView } from "@/views/Classes";
@@ -38,13 +50,19 @@ import { FinanceView } from "@/views/Finance";
 import { SchedulingView } from "@/views/Scheduling";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import {
+  getAttendanceRepository,
   getClassRepository,
   getEnrollmentRepository,
   getSchedulingRepository,
   getStudentRepository,
   resetRegistry,
+  setAttendanceRepository,
+  setAuthRepository,
   setSchedulingRepository,
+  setUserRepository,
 } from "@/domains/registry";
+import { demoStore, memoryStorage } from "@/services/demoStore";
+import { faNum } from "@/lib/format";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import { SESSION_ERRORS, type Session } from "@/domains/scheduling/types";
 import { academyNow } from "@/domains/shared/clock";
@@ -61,7 +79,18 @@ const RETRACTED_CLAIMS = [
   "پیشنهاد بازهٔ جدید ثبت شد",
 ] as const;
 
-/** Views that read static fixtures and therefore cannot write anything. */
+/**
+ * Surfaces that must announce nothing on render.
+ *
+ * The name is the M2 one and is now narrower than it reads. `#/schedule` left the
+ * fixture list in M4 and `#/attendance` in M5 — both write for real now, and both
+ * stay here because the rule this loop asserts was never "renders fixtures": it is
+ * that opening the surface retracts no claim, offers no control whose operation
+ * does not exist, and fires no success toast for merely arriving. That is a rule
+ * a wired view has to keep satisfying, arguably more than a fixture did, since it
+ * now has something to be tempted by. What each view does ON A WRITE is asserted
+ * in its own describe below.
+ */
 const FIXTURE_VIEWS = [
   { hash: "#/schedule", View: SchedulingView },
   { hash: "#/attendance", View: AttendanceView },
@@ -362,50 +391,297 @@ describe("scheduling", () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* Sites 3 and 4 — attendance roster and absentee follow-up             */
+/* Sites 3 and 4 — attendance register and absentee follow-up           */
 /* ------------------------------------------------------------------ */
+/*
+  M2 made these two sites honest by RETRACTING their claims: the mark-all
+  convenience stayed on screen and said plainly that nothing had been recorded,
+  and the absentee row's «پیگیری» button — which announced that a student and their
+  guardian had been notified — was removed rather than reworded, because there is
+  no messaging provider, no delivery channel and no guardian principal in the
+  product.
+
+  M5 wired this view to `src/domains/attendance`, which puts the first half in
+  exactly the situation H2 exists for: a view that CAN record a mark now has to
+  earn «ثبت شد». The second half must survive untouched — the follow-up control
+  stays gone now that the view has a real repository to be tempted by.
+
+  So the five cases below are the earning and the survival: a mark claimed only
+  after the repository answered, a refusal carried in the repository's own words,
+  a bulk save that counts the records it wrote instead of sweeping the page, an
+  already-complete register that offers no bulk control and claims nothing, and
+  the absentee row still navigating to a real profile with no notification
+  control beside it.
+
+  The write's own mechanics — payload shape, roster membership, atomicity, the
+  append-only trail — are asserted in `src/views/__tests__/attendanceWrites.test.tsx`
+  and by the domain's frozen suites; here the only question is whether the
+  feedback waits for the repository and says no more than it did.
+*/
 describe("attendance", () => {
+  const PROBE_SESSION_ID = "ses_att_probe";
+  const PROBE_CLASS_ID = "cl8";
+  /** Identities that exist in no fixture and no seed, so a row is unmistakably a read. */
+  const STUDENT_A = { studentId: "st_probe_alef", studentName: "هنرجوی آزمایشی الف" };
+  const STUDENT_B = { studentId: "st_probe_be", studentName: "هنرجوی آزمایشی ب" };
+  const STUDENT_C = { studentId: "st_probe_se", studentName: "هنرجوی آزمایشی سین" };
+  const ROSTER = [STUDENT_A, STUDENT_B, STUDENT_C];
+  /** A real seeded student, so the absentee row's navigation lands on a real profile. */
+  const SEEDED_STUDENT_ID = "st1";
+
+  function probeSession(over: Partial<Session> = {}): Session {
+    return {
+      id: PROBE_SESSION_ID,
+      classId: PROBE_CLASS_ID,
+      date: isoToday(),
+      startTime: "11:00",
+      endTime: "12:00",
+      teacherId: "t5",
+      roomId: "r3",
+      status: "scheduled",
+      origin: "manual",
+      createdAt: "2026-01-01T08:00:00Z",
+      updatedAt: "2026-01-01T08:00:00Z",
+      ...over,
+    };
+  }
+
+  function probeRecord(
+    studentId: string,
+    status: AttendanceStatus = "present",
+    sessionId = PROBE_SESSION_ID,
+  ): AttendanceRecord {
+    return {
+      id: `att_${sessionId}_${studentId}`,
+      sessionId,
+      studentId,
+      status,
+      recordedAt: "2026-01-01T08:00:00Z",
+      recordedByUserId: "usr_admin",
+      updatedAt: "2026-01-01T08:00:00Z",
+    };
+  }
+
+  /** A register built the way the domain builds one: no record means unmarked. */
+  function registerWith(records: readonly AttendanceRecord[], roster = ROSTER): SessionAttendance {
+    const rows: RosterAttendance[] = roster.map((student) => {
+      const record = records.find((row) => row.studentId === student.studentId);
+      return record ? { student, record } : { student };
+    });
+    return {
+      sessionId: PROBE_SESSION_ID,
+      roster: rows,
+      recorded: rows.filter((row) => row.record !== undefined).length,
+      expected: rows.length,
+      locked: false,
+    };
+  }
+
+  /** What a real attendance success may still never say (E-3, and M2 before it). */
+  const FORBIDDEN_IN_SUCCESS = [
+    ...RETRACTED_CLAIMS,
+    "مدرس مطلع شد",
+    "هنرجو مطلع شد",
+    "سرپرست",
+    "پیامک",
+    "اطلاع‌رسانی شد",
+    "در سرور ثبت شد",
+    "دادهٔ دمو",
+  ];
+
+  /** A promise the case controls, so "pending" is a state and not a race. */
+  function held<T>() {
+    let release!: (value: T) => void;
+    const promise = new Promise<T>((resolve) => {
+      release = resolve;
+    });
+    return { promise, release: async (value: T) => act(() => { release(value); }) };
+  }
+
+  /**
+   * The register this file supplies, plus whatever write verbs a case needs.
+   *
+   * A stateful double over the real repository, for the reason the scheduling
+   * block gives: a case that could pass by rendering the demo seed is not testing
+   * the wiring. The demo schedule's dates are fixed, and the demo attendance store
+   * starts empty, so without a double there is no register on screen to write
+   * against at all.
+   */
+  function installRegister(
+    options: { records?: AttendanceRecord[]; roster?: typeof ROSTER; attendance?: Stubs<AttendanceRepository> } = {},
+  ) {
+    const state = {
+      recordCalls: [] as RecordAttendanceInput[],
+      bulkCalls: [] as BulkRecordInput[],
+    };
+    setSchedulingRepository(
+      withStubs(getSchedulingRepository(), {
+        list: async () => ({ data: [probeSession()], meta: { page: 1, per_page: 200, total: 1 } }),
+      }),
+    );
+    setAttendanceRepository(
+      withStubs(getAttendanceRepository(), {
+        sessionAttendance: async () => registerWith(options.records ?? [], options.roster ?? ROSTER),
+        record: async (input: RecordAttendanceInput) => {
+          state.recordCalls.push(input);
+          return probeRecord(input.studentId, input.status);
+        },
+        bulkRecord: async (input: BulkRecordInput) => {
+          state.bulkCalls.push(input);
+          return input.entries.map((entry) => probeRecord(entry.studentId, entry.status));
+        },
+        ...options.attendance,
+      }),
+    );
+    return state;
+  }
+
+  /** Writes need a principal: `recordedByUserId` is required by the repository. */
+  async function signIn() {
+    const auth = new DemoAuthRepository(demoStore, memoryStorage());
+    setAuthRepository(auth);
+    setUserRepository(new DemoUserRepository(demoStore));
+    await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
+  }
+
+  /** The register row for one student, anchored so its mark buttons do not match. */
+  function rowOf(name: string): HTMLElement {
+    const label = screen.getByRole("button", { name: new RegExp(`^${name}`) });
+    const row = label.closest("li");
+    expect(row, `no register row for ${name}`).not.toBeNull();
+    return row as HTMLElement;
+  }
+
+  function mark(row: HTMLElement, studentName: string, status: "حاضر" | "غایب" | "تأخیر" | "موجه") {
+    fireEvent.click(within(row).getByRole("button", { name: `${status} — ${studentName}` }));
+  }
+
   beforeEach(() => {
     resetToDemoEnvironment();
     resetRegistry();
   });
 
-  /** Roster mark buttons carry `aria-pressed`, so the local effect is visible. */
-  const presentButtons = () => screen.queryAllByRole("button", { name: /^حاضر$/ });
-  const pressedPresent = () =>
-    presentButtons().filter((b) => b.getAttribute("aria-pressed") === "true").length;
+  afterEach(() => {
+    setSchedulingRepository(undefined);
+    setAttendanceRepository(undefined);
+    setAuthRepository(undefined);
+    setUserRepository(undefined);
+  });
 
-  it("marks the roster on screen and says plainly that nothing was recorded", async () => {
+  it("claims a mark only once the repository has answered", async () => {
+    const write = held<AttendanceRecord>();
+    installRegister({ attendance: { record: () => write.promise } });
+    await signIn();
+
+    renderView("#/attendance", AttendanceView);
+    await settled();
+    mark(rowOf(STUDENT_A.studentName), STUDENT_A.studentName, "حاضر");
+
+    // Pending: nothing announced, and the row still shows what was read. A toast
+    // here would be the claim arriving before the fact it claims.
+    expectNoToast();
+    expect(within(rowOf(STUDENT_A.studentName)).getAllByText(/ثبت‌نشده/).length).toBeGreaterThan(0);
+
+    await write.release(probeRecord(STUDENT_A.studentId, "present"));
+    await waitFor(() => expect(toastText()).toContain("حاضر ثبت شد"), { timeout: 8000 });
+    expect(successRings(), "an awaited write may report success").toBeGreaterThan(0);
+    for (const claim of FORBIDDEN_IN_SUCCESS) {
+      expect(toastText(), `the success claims «${claim}»`).not.toContain(claim);
+    }
+  });
+
+  it("reports a refused mark in the repository's own words, and claims no success", async () => {
+    const refusal = new ApiError({
+      kind: "validation",
+      code: ATTENDANCE_ERRORS.DUPLICATE,
+      message: "برای این هنرجو در این جلسه حضور و غیاب ثبت شده است. برای تغییر، از اصلاح استفاده کنید.",
+    });
+    installRegister({ attendance: { record: async () => { throw refusal; } } });
+    await signIn();
+
+    renderView("#/attendance", AttendanceView);
+    await settled();
+    mark(rowOf(STUDENT_A.studentName), STUDENT_A.studentName, "غایب");
+
+    // Verbatim: the domain says which rule was hit and what to do instead, and a
+    // paraphrase would trade that answer for an apology (§37).
+    await expectHonestToast(refusal.message);
+    expect(toastText()).toContain("ثبت حضور انجام نشد");
+  });
+
+  it("counts the records a bulk save wrote instead of sweeping the page", async () => {
+    const seen: { payload: BulkRecordInput | null } = { payload: null };
+    installRegister({
+      attendance: {
+        bulkRecord: async (input: BulkRecordInput) => {
+          seen.payload = input;
+          return input.entries.map((entry) => probeRecord(entry.studentId, entry.status));
+        },
+      },
+    });
+    await signIn();
+
+    renderView("#/attendance", AttendanceView);
+    await settled();
+    const bulk = screen.getByRole("button", { name: /همه حاضر/ });
+    fireEvent.click(bulk);
+
+    await waitFor(() => expect(toastText()).toContain(`${faNum(ROSTER.length)} حضور ثبت شد`), { timeout: 8000 });
+    expect(successRings(), "an awaited bulk write may report success").toBeGreaterThan(0);
+    for (const claim of FORBIDDEN_IN_SUCCESS) {
+      expect(toastText(), `the success claims «${claim}»`).not.toContain(claim);
+    }
+    // The retracted claim was «همه حاضر ثبت شدند» — a page-wide sweep. What is
+    // said now is a count of records that exist, attributed to a real principal.
+    expect(toastText()).not.toContain("همه حاضر ثبت شدند");
+    expect(seen.payload?.entries).toHaveLength(ROSTER.length);
+    expect(seen.payload?.recordedByUserId).toBe("usr_admin");
+  });
+
+  it("offers no bulk control and claims nothing when the register is already complete", async () => {
+    const state = installRegister({ records: ROSTER.map((entry) => probeRecord(entry.studentId)) });
+    await signIn();
+
     renderView("#/attendance", AttendanceView);
     await settled();
 
-    const before = pressedPresent();
-    fireEvent.click(screen.getByRole("button", { name: /همه حاضر/ }));
-
-    // The convenience still works — this is why the control was kept at all.
-    await waitFor(() => expect(pressedPresent()).toBe(presentButtons().length));
-    expect(pressedPresent()).toBeGreaterThan(before);
-
-    // …and the confirmation no longer claims a record was written.
-    await expectHonestToast("هیچ حضوری ثبت نشده است");
-    expect(toastText()).toContain("همه در همین صفحه حاضر شدند");
-    expect(toastText()).not.toContain("ثبت شدند");
+    // Removed, not disabled: with nobody left to submit, the control's operation
+    // cannot run, and a disabled button would still advertise it (M2).
+    expect(screen.queryByRole("button", { name: /همه حاضر/ })).toBeNull();
+    expect(state.bulkCalls, "nothing was submitted").toHaveLength(0);
+    // The marks that exist are still readable — this is a complete register, not
+    // an empty one dressed up as complete.
+    expect(within(rowOf(STUDENT_A.studentName)).getByRole("button", { name: /اصلاح/ })).toBeTruthy();
+    expectNoToast();
   });
 
   it("drops the fake follow-up message and keeps the row's real navigation", async () => {
+    const absent = probeRecord(SEEDED_STUDENT_ID, "absent");
+    installRegister({
+      records: [],
+      attendance: {
+        // The absentee tab reads the record list, bounded by the window on screen.
+        list: async (params) => ({
+          data: params?.status === "absent" ? [absent] : [],
+          meta: { page: 1, per_page: 200, total: params?.status === "absent" ? 1 : 0 },
+        }),
+      },
+    });
+    await signIn();
+
     renderView("#/attendance", AttendanceView);
     await settled();
-    fireEvent.click(screen.getByRole("tab", { name: /غایبان و پیگیری/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /غایبان/ }));
 
-    // The tab is still named «غایبان و پیگیری»; what is gone is the control that
-    // claimed a student and their guardian had been notified.
+    // The control that claimed a student and their guardian had been notified is
+    // still gone, now that the view has a real repository to be tempted by.
     await waitFor(() => expect(screen.queryAllByRole("button", { name: "پیگیری" })).toHaveLength(0));
     expect(document.body.textContent).not.toContain("پیام پیگیری ارسال شد");
 
     const rows = screen
       .getAllByRole("button")
-      .filter((b) => (b.textContent ?? "").includes("حضور کلی"));
-    expect(rows.length, "the absentee list is populated").toBeGreaterThan(0);
+      .filter((button) => (button.textContent ?? "").includes("شناسهٔ رکورد"));
+    expect(rows.length, "the absentee list is populated from the read").toBeGreaterThan(0);
 
     // Opening the student's real profile is the truthful action this row had.
     fireEvent.click(rows[0]);

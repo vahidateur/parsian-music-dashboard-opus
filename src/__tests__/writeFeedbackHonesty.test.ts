@@ -70,23 +70,25 @@ const views = sourceFiles(join(SRC, "views"));
 
 describe("no success toast without a write", () => {
   /**
-   * These three render `src/data/records.ts` fixtures and have no domain behind
-   * them yet (attendance has a complete domain the view does not use; finance and
-   * reports have none). Nothing in them can write, so any success toast there is
-   * by definition a false claim.
+   * These two render `src/data/records.ts` fixtures and have no domain behind them
+   * (finance and reports have none). Nothing in them can write, so any success
+   * toast there is by definition a false claim.
    *
    * `views/Scheduling.tsx` was on this list until M4's CP1 replaced its fixture
    * week with reads from the scheduling domain, and left it in CP2 when the view
-   * acquired two real writes (`rescheduleSession`, `cancelSession`). It is tracked
-   * in GRADUATED_VIEWS below rather than simply deleted, so losing the write again
-   * fails the suite instead of silently returning the view to the fixture list's
-   * meaning.
+   * acquired two real writes (`rescheduleSession`, `cancelSession`).
+   *
+   * `views/Attendance.tsx` left it in M5, which replaced the fixture register
+   * (`todayAttendance`, keyed by session ids that match no real session) with reads
+   * from the attendance domain and gave the view three real writes — `record`,
+   * `bulkRecord` and `correct`. Its «ثبت نهایی» local state flip, the hardcoded
+   * recorder name and the fabricated 92٪ rate went with it (H1b, I12).
+   *
+   * Both are tracked in GRADUATED_VIEWS below rather than simply deleted, so losing
+   * the write again fails the suite instead of silently returning the view to the
+   * fixture list's meaning.
    */
-  const FIXTURE_DRIVEN_VIEWS = [
-    "views/Attendance.tsx",
-    "views/Finance.tsx",
-    "views/Reports.tsx",
-  ];
+  const FIXTURE_DRIVEN_VIEWS = ["views/Finance.tsx", "views/Reports.tsx"];
 
   it("the fixture-driven views report no success at all", () => {
     const offenders = views.filter((file) => FIXTURE_DRIVEN_VIEWS.includes(rel(file)) && reportsSuccess(file));
@@ -100,7 +102,10 @@ describe("no success toast without a write", () => {
    * view cannot graduate by deleting its write and keeping its toast, nor by
    * keeping the write and dropping the claim.
    */
-  const GRADUATED_VIEWS = [{ file: "views/Scheduling.tsx", repository: "getSchedulingRepository(" }];
+  const GRADUATED_VIEWS = [
+    { file: "views/Scheduling.tsx", repository: "getSchedulingRepository(" },
+    { file: "views/Attendance.tsx", repository: "getAttendanceRepository(" },
+  ];
 
   it("a view that left the fixture list writes through its own domain", () => {
     for (const { file, repository } of GRADUATED_VIEWS) {
