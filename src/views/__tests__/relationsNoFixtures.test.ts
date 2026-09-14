@@ -466,12 +466,7 @@ const SURFACES: readonly Surface[] = [
     enforcedRules: [...SCOPE_RULES["relation-surface"]],
     stagedRules: [],
   },
-  relationSurface(
-    "students",
-    "CP2",
-    ["weekSessions", "classById(", "teacherById(", "TODAY_INDEX", "academyClasses", "i * 7 +", "3_600_000", "عصرها بعد از"],
-    "src/views/Students.tsx",
-  ),
+  relationSurface("students", "enforced", [], "src/views/Students.tsx"),
   relationSurface(
     "teachers",
     "CP3",
@@ -523,7 +518,7 @@ function hitsFor(surface: Surface, ruleIds: readonly RuleId[]): Hit[] {
 }
 
 const describeHit = (hit: Hit): string =>
-  `${hit.file} · ${hit.rule} (${ruleById(hit.rule).forbids}): ${hit.message}`;
+  `${hit.file} · ${hit.rule} — ${ruleById(hit.rule).forbids}: ${hit.message}`;
 
 /* ------------------------------------------------------------------ */
 /* Requirements the checkpoints carry, recorded where the work happens  */
@@ -606,7 +601,8 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
     // The M7 plan, in one place. A checkpoint that rewires a surface flips its
     // stage here — the refusal to do so is what the per-surface test below fails on.
     expect(surfaceById("m7-relation-plumbing").stage).toBe("enforced");
-    expect(surfaceById("students").stage).toBe("CP2");
+    // CP2 turned the students surface on: it carries no coupling at all now.
+    expect(surfaceById("students").stage).toBe("enforced");
     expect(surfaceById("teachers").stage).toBe("CP3");
     expect(surfaceById("classes").stage).toBe("CP4");
     expect(surfaceById("navigation").stage).toBe("CP4");
@@ -671,12 +667,18 @@ describe("each surface satisfies its enforced rules today, or says so", () => {
     const stage = surface.stage;
 
     it(title, () => {
+      /*
+        Joined into one string rather than compared as an array: a checkpoint
+        that breaks this has to see WHAT it broke, and a reviewer reading a diff
+        message gets the rule id, the rule and the exact import or identifier.
+        An empty hit list is the empty string, so the assertion is the same one.
+      */
       const enforcedHits = hitsFor(surface, surface.enforcedRules);
-      expect(enforcedHits.map(describeHit), `${surface.id} breaks a rule that is not staged`).toEqual([]);
+      expect(enforcedHits.map(describeHit).join("\n"), `${surface.id} breaks a rule that is not staged`).toBe("");
 
       const stagedHits = hitsFor(surface, surface.stagedRules);
       if (stage === "enforced") {
-        expect(stagedHits.map(describeHit), `${surface.id} is marked enforced but still carries coupling`).toEqual([]);
+        expect(stagedHits.map(describeHit).join("\n"), `${surface.id} is marked enforced but still carries coupling`).toBe("");
         return;
       }
 
