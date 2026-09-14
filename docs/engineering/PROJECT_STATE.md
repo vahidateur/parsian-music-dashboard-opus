@@ -6,17 +6,18 @@
 > Sibling documents: [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md)
 >
-> **Last state update: 2026-09-14** — **M5 (attendance *view* wiring, H1b) is ✅ COMPLETE** and
-> pushed at `9505ade`, one implementation checkpoint built on M4's final documentation
-> reconciliation (`24caf3a`): the fixture register is gone from `src/views/Attendance.tsx`, replaced
-> by four real reads and three awaited writes — `record`, `bulkRecord`, `correct` — against a domain
-> that was **not modified at all**. **H1 and I12 are closed; I13 and I16 are open with this view's
-> mitigations recorded as mitigations.** M4's own record above it — CP0 `84fb7cb`, CP1 `0f875a7`,
-> CP2 `f8c3472`, CP3 `6f54caf`, coverage `df70148` — is kept for audit. This pass is M5's
-> **documentation reconciliation**: documents only, no product source, no test, no dependency, and
-> **M6 has not started**. It is also a **replay** — the first pass was committed, validated and lost
-> unpushed when the workspace was recycled, so every number here was re-measured from scratch (§4,
-> §7 item 14).
+> **Last state update: 2026-09-14** — **M6 (contracts without UI) is ✅ COMPLETE** and pushed,
+> implemented across four checkpoints on top of M5's documentation reconciliation (`9190da0`):
+> **CP1** `43e7882` (the chat contract — `mediaId`, the reversible `archived` patch, resolution
+> before delivery), **CP2** `42c54f4` (conversation management, the conversation-keyed composer,
+> failed-read honesty), **CP3** `563b8d8` (real attachments: picker → media write → message write →
+> render), **CP4** `4e03b87` (single-conversation text export). **106 new tests**; the full suite is
+> at **119 files / 1655 passed / 8 skipped / 1 failed** — the one failure is the known environmental
+> branch-name case in `projectState.test.ts:299` (§7 item 16), identical at the pre-M6 base and at
+> every checkpoint. M5's record above it — `9505ade` plus its reconciliation — and M4's before that
+> (CP0 `84fb7cb`, CP1 `0f875a7`, CP2 `f8c3472`, CP3 `6f54caf`, coverage `df70148`) are kept for
+> audit. This pass is M6's **documentation reconciliation**: documents plus the chat domain's README,
+> no product source, no test, no dependency, and **M7 has not started**.
 
 ---
 
@@ -36,10 +37,11 @@
 | Field | Value |
 |---|---|
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
-| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3/M4/M5, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — **M4** sits after those, implemented across three checkpoints, `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1, the reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2, the two writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3, generation), with its acceptance-coverage checkpoint at `df701488362cb90cf32ccefad277879477571cf7` and its final documentation reconciliation at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — and **M5**, the attendance *view* wiring, sits after that at `9505ade4011b37a34e3488fd51206512829205ec`; §3 carries the current phase |
+| **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3/M4/M5/M6, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — **M4** sits after those, implemented across three checkpoints, `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1, the reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2, the two writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3, generation), with its acceptance-coverage checkpoint at `df701488362cb90cf32ccefad277879477571cf7` and its final documentation reconciliation at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — and **M5**, the attendance *view* wiring, sits after that at `9505ade4011b37a34e3488fd51206512829205ec` with its own documentation reconciliation at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — and **M6**, the contracts-without-UI milestone, sits after that, implemented across four checkpoints, CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (the chat contract), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management and composer state safety), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export), all pushed; §3 carries the current phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — **M4's final reconciliation**: the five `docs/engineering/` documents brought in line with the milestone that had just landed — M4 marked COMPLETE against its measured evidence, **H1a** closed, **I16**'s calendar mitigation recorded as a mitigation and not as a closure, and the milestone's two rollback boundaries named; documents only, no product source, no test, no dependency |
-| Previous documentation checkpoint | `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` — **M4's CP0**: the five `docs/engineering/` documents and `src/domains/scheduling/README.md` reconciled with the tree at `7e72887761f07f48e115160611a9785bfaae9060` *before* M4's first implementation checkpoint — the scheduling README's false "not implemented in Phase A" stub and its invented `POST /sessions/{id}/move` contract retired (**L3**), the milestone's scope restated against the frozen domain, and its two rollback boundaries recorded; documents only, no behaviour |
+| **Documentation checkpoint (pushed)** | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*): M5 registered as ✅ COMPLETE against its measured evidence, the M5 chain's own accounting corrected to what happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — no amend, no force-push, no reset, no rebase), and the M5 documentation checkpoint that was **lost unpushed** recorded as **L5** happening twice rather than papered over. It is the commit M6 was built on. Documents only |
+| Previous documentation checkpoint | `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — **M4's final reconciliation**: the five `docs/engineering/` documents brought in line with the milestone that had just landed — M4 marked COMPLETE against its measured evidence, **H1a** closed, **I16**'s calendar mitigation recorded as a mitigation and not as a closure, and the milestone's two rollback boundaries named; documents only, no product source, no test, no dependency |
+| Documentation checkpoint before that | `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` — **M4's CP0**: the five `docs/engineering/` documents and `src/domains/scheduling/README.md` reconciled with the tree at `7e72887761f07f48e115160611a9785bfaae9060` *before* M4's first implementation checkpoint — the scheduling README's false "not implemented in Phase A" stub and its invented `POST /sessions/{id}/move` contract retired (**L3**), the milestone's scope restated against the frozen domain, and its two rollback boundaries recorded; documents only, no behaviour |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (the graft boundary **of a shallow checkout** — measure whether your clone is shallow rather than inheriting that; see the note at the end of this section) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
 
@@ -55,7 +57,9 @@
   [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Sixteen exist so far: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Seventeen are **named** so far — an eighteenth is the commit carrying
+  this paragraph, which cannot name itself (see the rule immediately below), and it must be
+  registered by whichever documentation commit comes next: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
   truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
   `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11),
@@ -71,8 +75,10 @@
   `1f98228` (M3's audit findings F2 and F3 recorded, M3 marked complete),
   `eab30d3` (F3's recorded diff scope corrected to the measured numbers) and
   `84fb7cb` (**M4's CP0**, the pre-implementation reconciliation of these documents and the
-  scheduling README) and `24caf3a` (**M4's final reconciliation**, the same five documents brought
-  in line with the milestone that had landed). They
+  scheduling README), `24caf3a` (**M4's final reconciliation**, the same five documents brought
+  in line with the milestone that had landed) and `9190da0` (**M5's reconciliation**, which had to
+  wait for a later docs commit before it could be named at all — the no-self-reference rule below
+  and §7 item 14). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -120,16 +126,19 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 
 | Field | Value |
 |---|---|
-| Current phase | **Product-feature phase — M5 (attendance *view* wiring, H1b — domain frozen)** |
-| Phase status | ✅ **COMPLETE** — M4 was documented at CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5`, implemented across CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511`, CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d` and CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48`, covered at `df701488362cb90cf32ccefad277879477571cf7` and reconciled at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` (see "Last completed work (M4…)" below, kept for audit). **M5 is the milestone that has now landed on top of it:** one implementation checkpoint, `9505ade4011b37a34e3488fd51206512829205ec`, built on `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — which is therefore M5's **effective safe rollback boundary**. All pushed. **Accepted with recorded limitations** — see §3 → "Last completed work (M5…)" and §4 → "M5 validation". **H1 is closed** (H1a by M4, H1b by M5) and **I12 is closed**; **I13** and **I16** stay OPEN, each with this view's own mitigation recorded as a mitigation and not as a closure — and **browser QA is NOT VERIFIED** (§5) |
-| Next phase | Product-feature phase — **M6 (contracts without UI)** — ❌ **NOT STARTED**, not authorized |
+| Current phase | **Product-feature phase — M6 (contracts without UI: chat management, attachments, export coverage)** |
+| Phase status | ✅ **COMPLETE** — M6 was implemented across four checkpoints, CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0`, CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76`, CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2`, built on M5's documentation reconciliation `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — which is therefore M6's **effective safe rollback boundary** — and this documentation pass reconciles the record. All pushed. **Accepted with recorded limitations** — see §3 → "Last completed work (M6…)" and §4 → "M6 validation": attachment ownership and authorization stay **backend-required**, attachment bytes stay **browser-local and out of the export**, the export is **single-conversation with a disclosed 1000-message ceiling**, and **browser QA is NOT VERIFIED** (§5). The M5 record is kept below it for audit. |
+| Previous phase status | ✅ **COMPLETE** — **M5** (attendance *view* wiring, H1b) landed at `9505ade4011b37a34e3488fd51206512829205ec`, built on `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — which is therefore M5's **effective safe rollback boundary** — and was reconciled at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`. **H1 is closed** (H1a by M4, H1b by M5) and **I12 is closed**; **I13** and **I16** stay OPEN, each with this view's own mitigation recorded as a mitigation and not as a closure. Before it, **M4** was documented at CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5`, implemented across CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511`, CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d` and CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48`, covered at `df701488362cb90cf32ccefad277879477571cf7` and reconciled at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` (see "Last completed work (M5…)" and "(M4…)" below, kept for audit). All pushed. **Accepted with recorded limitations**, and **browser QA is NOT VERIFIED** (§5) |
+| Next phase | Product-feature phase — **M7 (relation de-fixturing + sidebar badges, I1)** — ❌ **NOT STARTED**, not authorized |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
 M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
 (`c42f274`, honest write feedback), M2.1 (`73b40d9`, the two defects M2 found and recorded
 rather than fixed), **M3** (implemented at `e5b0a57`, completed at `3bec881` — the
 learning-content assignment UI), **M4** (CP1 `0f875a7`, CP2 `f8c3472`, CP3 `6f54caf`, coverage
-`df70148` — the scheduling *view* wiring) and **M5** (`9505ade` — the attendance *view* wiring) are
+`df70148` — the scheduling *view* wiring), **M5** (`9505ade` — the attendance *view* wiring) and
+**M6** (CP1 `43e7882`, CP2 `42c54f4`, CP3 `563b8d8`, CP4 `4e03b87` — the chat milestone: contracts,
+management, attachments and a single-conversation export) are
 the product phase's completed milestones. M3's surface, its
 wiring and its 16 tests are pushed, it went through a formal acceptance audit and it was **accepted
 with recorded limitations**; what is *not* true of it — or of any milestone — is browser QA, which
@@ -145,7 +154,12 @@ milestone** and neither advances a row above; both were done *ahead of* M4 rathe
 implementation checkpoints named above, after its CP0 documentation reconciliation
 (`84fb7cb`, documents only) and its final one (`24caf3a`, documents only). **M5 was built on that
 last commit**, in a single implementation checkpoint (`9505ade`), so `24caf3a` is its effective safe
-rollback boundary. **M5 is COMPLETE; M6–M11 have not started**, and the ledger in
+rollback boundary. **M6 (contracts without UI — chat management, attachments, export coverage) landed
+after M5's documentation reconciliation (`9190da0`, documents only) across four checkpoints** — CP1
+`43e7882` (the chat contract), CP2 `42c54f4` (conversation management and composer state safety), CP3
+`563b8d8` (attachments) and CP4 `4e03b87` (conversation export) — **106 new tests, 17 files, no file
+outside the chat domain and the Messages surface**; its documentation pass is the commit carrying this paragraph, and the
+milestone's own section follows below. **M7–M11 have not started**, and the ledger in
 [PHASES.md](PHASES.md) marks the product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
@@ -469,6 +483,66 @@ with this view's ceilings stated rather than removed; the legacy `attendance` se
 with no reader in the view that owns it (**D5**, M10); `apiRepository.ts` stays unregistered, so
 backend aggregation does not exist; and **D8**'s api-mode indicator does not exist until **M11**.
 
+### Last completed work (M6, in one paragraph)
+
+**M6 — contracts without UI (chat management, attachments, export coverage) — is ✅ COMPLETE**, and
+it is the milestone that took the chat domain's un-consumed contract to a wired, tested surface. It
+was implemented in four checkpoints on top of M5's documentation reconciliation
+`9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`, which is therefore M6's **effective safe rollback
+boundary**:
+
+- **CP1 `43e7882`** — the contract, and only the contract. `SendMessageInput.mediaId?: string` added;
+  `updateConversation` accepting `archived?: boolean` (so **archive is reversible** and no unarchive
+  verb had to be invented) with `archiveConversation` delegating to that same write path; and
+  `sendMessage` refusing a `mediaId` that does not resolve (`MESSAGE_INVALID`, `fields.mediaId`)
+  **before** provider delivery and **before** any write, so a message can never point at an asset
+  that does not exist and a refusal leaves no thread preview behind. The attachment is a reference:
+  a 1 MB upload grows the persisted message row by under 500 characters (measured). 31 new domain
+  tests.
+- **CP2 `42c54f4`** — the first UI for three verbs that had **zero callers** since Phase A
+  (`updateConversation` rename/topic/pin, `archiveConversation`), plus the archive filter, the
+  archived badge, and the **explicit hidden-selection panel** that replaced silent retargeting (a
+  selection a filter hides says so, with the way back). Composer state became conversation-keyed
+  (`useComposer`), so a draft typed for one thread cannot follow the operator into another or be
+  resurrected on the way back, and a send resolving after a switch cannot clear the new draft. The
+  message read's `error` is no longer discarded at `Messages.tsx` (**I15** at this site): a failed
+  read is a failure with the repository's own reason and a retry, never «هنوز پیامی رد و بدل نشده».
+  22 new view tests; the dialog resolves its repository **at call time**.
+- **CP3 `563b8d8`** — real attachments. The disabled paperclip became a real picker; the allow-lists
+  and size ceilings are **derived from the media contract** (`allowedTypesFor`/`maxBytesFor`) rather
+  than re-typed; the send is **two awaited writes and one claim** — `MediaRepository.create` then
+  `ChatRepository.sendMessage`, with success reported only after both resolved, an in-flight guard
+  against duplicate submits, and the stored asset released if the message write fails (so a retry
+  cannot strand a copy). Rendering resolves the stored reference through the media repository and
+  reports missing bytes or an unresolvable reference honestly, with **no fabricated object URL and no
+  open/download affordance that could not work**. The fixture gate was extended and now scans the
+  whole surface **discovered from the directory**, not one file. 30 new tests.
+- **CP4 `4e03b87`** — single-conversation export, as a plain-text transcript read from the
+  repositories at call time (`getConversation` + `listMessages`, the same two reads the UI uses — no
+  export verb was added). The id is captured when the operator asks, so a list that changes cannot
+  retarget it; the download happens only **after** the read resolved, through the export domain's
+  existing `downloadBlob` seam; attachment **metadata** is included and the bytes are not, stated in
+  the file itself; the 1000-message ceiling is disclosed rather than silently truncating; and an
+  empty conversation produces an honest empty transcript, never a fabricated one. 23 new tests
+  (21 export + 2 gate).
+
+**Totals (measured, `git diff --shortstat 9190da0..4e03b87`):** 17 files, 4 321 insertions, 61
+deletions — the chat domain's three implementation files, `src/views/Messages.tsx`, five new files
+under `src/views/messages/`, and seven test files. **No file under `src/services/`, `src/api/`,
+`src/context/`, `src/components/` or the media domain changed at all**, no dependency was added, and
+the suite grew from **1 549 to 1 655 passing tests (+106)**.
+
+**M6 is complete *with limitations*, and they are not closed by declaring it complete** — the full
+list is §7 item 15: attachment **ownership and authorization remain backend-required** (the frontend
+checks that a reference resolves and claims nothing more), attachment **bytes live in this browser's
+blob store** and are not in any export, no server persistence, no signed URLs, no scanning, no
+non-`in_app` delivery, no bulk export and no PDF/ZIP/CSV pipeline for chat, and **M6 registered two
+deliberately UI-less capabilities rather than pretending coverage** — `archiveConversation` (the
+manager dialog archives and restores through `updateConversation`, because one write path is what
+makes restore provable) and the fact that a single-conversation export is served by existing reads.
+**Browser QA has never run** (§5) — the real file-picker and file-download paths are precisely what
+jsdom cannot exercise.
+
 ### Work landed since the Phase 2 checkpoint
 
 Three documentation checkpoints first — documents, validation gates, one labelling fix and one
@@ -578,6 +652,25 @@ truncated page, but the ceilings are still 200 (and 50 for the correction trail)
 consumer is untouched. **I13 is not closed:** `useSessionAttendance` still does not carry its query
 key; what exists is one consumer's guard, mutation-checked, and a test that keeps the upstream defect
 named. And **no browser has ever rendered this register.**
+
+### M6 validation (measured at `4e03b8762bebcb87e46cf7044af5da99d709b4d2`, the milestone's last implementation checkpoint)
+
+| Check | Result |
+|---|---|
+| **Full suite** | **119 files / 1 655 passed / 8 skipped / 1 failed** — the single failure is the known environmental branch-name case in `projectState.test.ts:299` (§7 item 16), identical at the pre-M6 base and at every checkpoint |
+| **Suite growth** | **1 549 → 1 655 (+106)**, monotonic and accounted for checkpoint by checkpoint: base 1 549 → CP1 **+31** (1 580) → CP2 **+22** (1 602) → CP3 **+30** (1 632) → CP4 **+23** (1 655). No test was skipped, suppressed or removed to reach any of those numbers |
+| **The 8 skipped** | The same environment-conditional skips the suite has always had (CSP/build evidence that cannot exist in this sandbox), untouched by M6 |
+| **M6's own 106 cases** | `src/domains/chat/__tests__/conversationLifecycle.test.ts` **16** · `messageAttachments.test.ts` **15** · `src/views/__tests__/messagesConversationManagement.test.tsx` **13** · `messagesStateSafety.test.tsx` **9** · `messagesAttachments.test.tsx` **19** · `messagesConversationExport.test.tsx` **21** · `messagesNoFixtures.test.ts` **13** (the fixture gate, grown from a directory-discovered scan of the whole surface) |
+| **Focused + gate sweep at CP4** | **278/278 across 21 files** — M6's seven suites plus `MessagesChat.test.tsx`, `messagesDatasetRegression.test.tsx`, the chat, media, export and import domain suites and the honesty/layering gates (`staleQueryGates`, `writeFeedbackHonesty`, `noSuccessWithoutWrite`, `honestWriteCopy`, `emptyEnvironment`, `architectureBoundaries`) |
+| **Typecheck / diff** | `npm run typecheck` clean (`tsc --noEmit`) and `git diff --check` clean at every checkpoint |
+| **Reversion (mutation) checks** | **14**, each reverted byte-identically (MD5-verified) before its checkpoint commit: CP1 **2** — archive made one-way → exactly the 3 restore cases fail; the `mediaId` resolution check removed → exactly the 4 dangling-reference cases fail. CP3 **6** — size ceiling removed → the oversized case; upload not awaited → 7 cases including both awaited-write cases; duplicate-submit guard removed → 3 uploads for 3 clicks; open-affordance decoupled from the bytes → the missing-bytes case; a fixture import added to the new attachment file → 3 gate cases; a hardcoded ceiling re-typed → the derived-limits case. CP4 **6** — selection identity replaced by the list's first row → 6 cases; the read replaced by another conversation's messages → 8; the download moved before the awaited read → 8 incl. the empty-file case; the duplicate guard removed → 3 reads for 3 clicks; the attachment line dropped → 3; a fabricated message in the empty state → 2 |
+| **Rollback boundary** | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` (M5's documentation reconciliation — the commit CP1 was built on). Rolling back further would drop M6 entirely; M5's own boundary is unchanged |
+| **Environment note** | The CP4 session began with the sandbox having restored a **shallow** tree at the base commit with CP1–CP3 present as uncommitted work; the pushed tip was treated as authority, the WIP was backed up, **367/367 files were verified identical by hash before anything moved**, restoration used `git reset --mixed` (never a working-tree-destructive form), `npm ci` was run because `node_modules` was absent, and `git fetch --unshallow` restored the expected history (4 → 55 commits, and the 10 shallow-artifact `projectState` failures collapsed back to the single known one) |
+
+**The documentation pass that carries this block (M6's CP5) is documents-only and did not re-run the
+full suite** — it changes no source and no test. What it did run is the documentation gate itself
+(`src/__tests__/projectState.test.ts`), which is the gate over the very files it edits: 51 passed /
+1 failed — the same known environmental branch-name case, unchanged.
 
 ### M4 validation (measured at `df701488362cb90cf32ccefad277879477571cf7`, the acceptance-coverage checkpoint that ends the M4 chain)
 
@@ -917,7 +1010,17 @@ browser. `src/views/Attendance.tsx` now reads through `useSessions`, `useSession
 `correct`, so its session picker, its derived register, its bulk-save control, its correction dialog,
 its empty and truncated states, and its Persian success and refusal sentences are **jsdom-verified
 only** until this checklist is performed. Written down before this documentation pass rather than
-after, and not discharged by M5's landing. See `docs/production-handoff.md` → "NOT verified".
+after, and not discharged by M5's landing. **M6 added its own item, and it is still open:** the
+Messages surface's two genuinely browser-only paths have never been exercised in a browser. The
+**file picker** (`AttachmentPicker` → the browser's own dialog) and the **file download**
+(`downloadBlob` → an object URL handed to a browser) cannot run under jsdom at all: jsdom implements
+neither `URL.createObjectURL` nor a download, so M6's export suite **stubs that one unavoidable
+browser API** and asserts the artifact's real bytes instead (`Blob` content, filename, BOM, MIME
+type), counting anchor clicks at the seam rather than pretending a download happened. That is the
+honest limit of the evidence: the artifact is verified, the browser behaviour is **not**. The
+attachment card's image preview has the same shape — the object URL cannot exist in jsdom, so the
+missing-bytes and withheld-affordance states are what is pinned, and the successful-preview state is
+unverified until a human opens `#/messages`. See `docs/production-handoff.md` → "NOT verified".
 
 ## 6. Protected domains and invariants
 
@@ -940,6 +1043,7 @@ lists nothing under `src/domains/scheduling/__tests__/`), and all six are green 
 | Privacy/exposure posture and absence of embedded secrets | `src/__tests__/privacyPosture.test.ts` |
 | Production artifact loads under the deployed CSP | `src/__tests__/cspCompatibility.test.ts` |
 | Route protection + boot gates | `src/__tests__/routeProtection.test.tsx` · `src/__tests__/configGate.test.tsx` |
+| **The wired Messages surface and its chat contract** (no fixture read, real writes, attachment validation, honest empty/error states, text-only export) | `src/domains/chat/__tests__/conversationLifecycle.test.ts` (16) · `messageAttachments.test.ts` (15) · `src/views/__tests__/messagesConversationManagement.test.tsx` (13) · `messagesStateSafety.test.tsx` (9) · `messagesAttachments.test.tsx` (19) · `messagesConversationExport.test.tsx` (21) · `messagesNoFixtures.test.ts` (13) — added and re-driven at M6 (CP1–CP4), `4e03b8762bebcb87e46cf7044af5da99d709b4d2`. The two Phase 1 regressions in this area (`messagesDatasetRegression.test.tsx`, `MessagesChat.test.tsx`) stayed green and unweakened |
 | These engineering documents stay truthful | `src/__tests__/projectState.test.ts` |
 
 **Standing engineering invariants** (full rationale in [DECISIONS.md](DECISIONS.md)):
@@ -1102,6 +1206,50 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     which is a credential expiring at a fortunate moment rather than a mitigation. The rule stands; the
     claim that this commit followed it does not.
 
+15. **M6's own limitations, none of them closed by declaring the milestone complete.** **Attachment
+    ownership and authorization remain backend-required.** The chat repository refuses a `mediaId`
+    that does not *resolve*; that is resolution, not authorization, and neither the domain nor the
+    view claims otherwise — production needs server-enforced per-object authorization, signed and
+    expiring URLs, server-side content sniffing and virus scanning (`src/domains/media/types.ts`,
+    `docs/production-handoff.md`). **Attachment bytes are browser-local.** They live in the media blob
+    store (IndexedDB, or an in-memory store where IndexedDB is absent), so an attachment survives a
+    reload only in the browser that uploaded it, a backup carries metadata and **not** binaries, and
+    the honest "bytes unavailable" state is therefore a real, expected state rather than a bug. There
+    is **no server persistence and no shared thread**: chat resolves to the demo repository in both
+    modes, and no chat API repository exists. **The export is single-conversation plain text**:
+    attachment **metadata** only (no bytes), a disclosed **1 000-message ceiling** rather than a silent
+    truncation, no bulk/multi-conversation export, no PDF/ZIP/CSV pipeline for chat, and **no export
+    verb** — deliberately, because `getConversation` plus `listMessages` already express it. **No
+    delivery beyond `in_app`**: Telegram, Bale, SMS and email report `unavailable` (`D1`, **I7**), and
+    no notification is sent. **`archiveConversation` still has no shipped caller by decision** (D14 —
+    one write path is what makes restore provable). **I15 stays OPEN**: M6 fixed the `Messages.tsx`
+    site only, and `OPEN_ITEMS.md`'s I15 register still lists that file among the unfixed consumers,
+    which is now stale on that one line — recorded here instead of quietly edited, because that
+    register is the honest inventory of the remaining sites. **I13 stays OPEN**: the attachment card
+    consumes `useMediaObjectUrl`, which carries the same unfixed one-frame exposure. In this surface
+    it is not *reachable* — the bubble list is keyed by `message.id`, a message's `mediaId` never
+    changes, and the card withholds its open affordance until its own bytes check resolves for the
+    current id — but that is reasoning about a surface, not a fix, and no closure is claimed. **No
+    storage round-trip test**: M6's suites re-read through fresh repository instances, but none
+    unmounts and remounts the view, so "a thread survives a reload" rests on the store's
+    single-persistence-authority path, exactly as M5 recorded for its own surface. And **browser QA has
+    never run** (§5) — the file picker and the download path are jsdom-untestable by construction.
+16. **One test has failed in every session of this milestone, and it is environmental — it is recorded,
+    not fixed, silenced or accommodated.** `src/__tests__/projectState.test.ts:299` asserts that the
+    branch recorded in §2 (`arena/01a07c61-parsian-music-dashboard-opus`) is the branch actually checked
+    out, and in this session's sandbox the checked-out branch is
+    `arena/01a0a068-parsian-music-dashboard-opus` — a fresh Arena session branch, not a rename of the
+    recorded one. The failure was measured at the **pre-M6 base `9190da0`**, at **M6 CP1** and at
+    **M6 CP2** by running the same file on each tree and diffing the per-test outcomes and the failure
+    block after ANSI normalization: **identical at all three** — same test, same assertion, same
+    expected and received values, `51 passed / 1 failed` — and the same single failure is what the
+    CP3, CP4 and CP5 runs report. The owner ruled it **environmental** and the ruling is the standing
+    policy: the branch is **not** renamed, `projectState.test.ts` is **not** skipped, xfailed or
+    suppressed, and §2 is **not** edited to make the gate green — the recorded value is a durable fact
+    about where this work has been done, and a per-session sandbox branch name is not. Everything else
+    in §4's M6 block was measured with this failure present, and the suite's totals (1 655 passed / 8
+    skipped) are quoted with it rather than around it.
+
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
 called a real write demo data (**H7**). Both are recorded as landed in
@@ -1116,10 +1264,12 @@ was dropped.
 
 ## 9. Immediate next action
 
-**The current state in one line: M5 (attendance *view* wiring, H1b) is ✅ COMPLETE and pushed at
-`9505ade4011b37a34e3488fd51206512829205ec`, with this documentation reconciliation on top of it; M6
-is ❌ NOT STARTED and not authorized.** The M3 and M4 records that follow are kept for audit; the M5
-record comes after them, together with §4 → "M5 validation".
+**The current state in one line: M6 (contracts without UI — chat management, attachments, export
+coverage) is ✅ COMPLETE and pushed, implemented across CP1 `43e7882`, CP2 `42c54f4`, CP3 `563b8d8`
+and CP4 `4e03b87` on top of M5's documentation reconciliation `9190da0`, with this documentation pass
+reconciling the record; **M7 (relation de-fixturing + sidebar badges, I1) is ❌ NOT STARTED and not
+authorized.** The M3, M4 and M5 records that follow are kept for audit, each with its own §4
+validation block.
 
 **M3 (learning-content assignment UI, I3 — UI only) is ✅ COMPLETE, and I3 with it.** Implemented at
 `e5b0a57d8f33dc04838670a2cd4158a88dd34022` on top of I13 Checkpoint 3A
@@ -1178,6 +1328,36 @@ or reversion check was recorded for CP1–CP3**, and §4 states that absence ins
 evidence; and **browser QA has never run and is NOT VERIFIED** (§5). Completion says the calendar now
 reads and writes the real domain under jsdom — not that a human has used it in a browser.
 
+**M6 (contracts without UI — chat management, attachments, export coverage) is ✅ COMPLETE.** Four
+implementation checkpoints on top of M5's documentation reconciliation
+(`9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`, M6's effective safe rollback boundary): **CP1**
+`43e7882f051b46abfa9f0530137cedfb3a541ce0` — the chat contract (`SendMessageInput.mediaId`, the
+reversible `archived` patch, resolution of a `mediaId` before delivery and before any write);
+**CP2** `42c54f41ed3099cf65ac4ca035146958a1a51f76` — conversation management for three verbs with zero
+callers, the conversation-keyed composer, and a failed message read that is no longer rendered as an
+empty thread; **CP3** `563b8d85ee48614963cb3c182ac9b84239645c3d` — real attachments through the media
+seam, with the limits derived from the media contract, two awaited writes before any success claim,
+duplicate-submit protection, asset release on a failed message write, and honest missing-bytes
+rendering; **CP4** `4e03b8762bebcb87e46cf7044af5da99d709b4d2` — a single-conversation plain-text
+export read through the existing reads, downloaded only after the read resolved, with attachment
+metadata but no bytes and a disclosed ceiling. **17 files, 4 321 insertions / 61 deletions, 106 new
+tests (+106 on the suite), 14 mutation checks reverted byte-identically.** The authoritative evidence
+is §4 → "M6 validation".
+
+**M6 is complete *with limitations*, and they are not closed by declaring it complete.** Preserve them
+in any future report, in full, from §7 item 15: attachment ownership and authorization stay
+backend-required; attachment bytes stay browser-local and out of every export; there is no server
+persistence, no signed URL, no scanning and no delivery beyond `in_app` (**D1**, **I7**); the export
+is single-conversation with a disclosed 1 000-message ceiling; `archiveConversation` remains
+deliberately unconsumed (**D14**) and the export deliberately has no verb of its own; **I15 stays
+OPEN** with its `Messages.tsx` site fixed and the rest of its register untouched (and now stale on
+that one line, recorded as such); **I13 stays OPEN**, inherited by the attachment card's use of
+`useMediaObjectUrl` without being reachable there; no storage round-trip is tested; and **browser QA
+has never run and is NOT VERIFIED** (§5), with the file picker and the download path named as the
+things jsdom cannot reach. Completion says the chat contract now has a tested, honest surface —
+management, attachments and an export that reads what is really stored — not that a human has used it
+in a browser.
+
 **M5 (attendance *view* wiring, H1b — domain frozen) is ✅ COMPLETE, and H1 and I12 with it.** One
 implementation checkpoint, `9505ade4011b37a34e3488fd51206512829205ec` · *feat(m5): wire attendance
 view*, built directly on M4's final documentation reconciliation
@@ -1209,20 +1389,31 @@ indicator does not exist until **M11**; and **browser QA has never run and is NO
 Completion says the register now reads and writes the real domain under jsdom — not that a human has
 used it in a browser.
 
-**M6 is NOT STARTED, and this pass did not start it.** The next milestone — **M6, contracts without
+**What M5's reconciliation said about M6, kept as the state it left, followed by what actually
+happened — the correction M6's own landing requires.** *(As written at M5's reconciliation, 2026-09-14:
+"**M6 is NOT STARTED, and this pass did not start it.** The next milestone — **M6, contracts without
 UI** — is not authorized beyond the documentation reconciliation recorded here. This pass changed
 **documents only: no product source, no test, no dependency, no build behaviour**, and no claim in
-these files upgraded past its evidence. When M6 *is* authorized, the first step is still *not*
-implementation: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded checkpoints against Git
-(§2, and the recovery contract at the end of this file), re-establish a green baseline (`npm ci` if
-`node_modules` is absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run build`),
-and only then start from the
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M6 scope, with Groups A and D
-frozen exactly as §6 records — together with the 9-case
-`src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, which is *not* Group A and is no
-less off-limits, and the two view suites M5 added, which now pin the attendance surface. M6 inherits
-two things M4 and M5 proved: real session ids exist in shipped UI, and `useDerived`'s fixed shape is
-landed and still unused, waiting for the student-scoped consumers M6/M7 are. **M5's rollback boundary
+these files upgraded past its evidence.")* That paragraph is preserved rather than rewritten, because
+it is the honest record of what the M5 pass did. **Correction (2026-09-14, M6's reconciliation): M6 was
+authorized afterwards and has since landed** — four implementation checkpoints, CP1 `43e7882`, CP2
+`42c54f4`, CP3 `563b8d8` and CP4 `4e03b87`, on top of M5's reconciliation, and it is ✅ **COMPLETE**
+(§3 carries the current phase; §4 → "M6 validation" carries the measured evidence). **The rule that
+paragraph stated — that the first step is not implementation — was followed, not skipped:** the
+recorded checkpoints were confirmed against Git and the baseline re-established before CP1, and
+**Groups A and D stayed frozen exactly as §6 records** — no checkpoint changed any file under
+`src/domains/` outside the chat domain. The recovery contract it names is unchanged and now applies to
+**M7, which is not authorized**: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded
+checkpoints against Git (§2, and the recovery contract at the end of this file), re-establish a green
+baseline (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`,
+`git diff --check`, `npm run build`), and only then start from the
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M7 scope, with Groups A and D frozen
+exactly as §6 records — together with the 9-case
+`src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, which is *not* Group A and is no less
+off-limits, the two view suites M5 added, which pin the attendance surface, and the seven M6 suites,
+which pin the chat surface. **M6 consumed neither of the two things M4 and M5 handed over:** it is not
+student-scoped, so `useDerived`'s landed shape is *still* unused and still waits for the consumers M7
+is, and real session ids were not what its surface needed. **M5's rollback boundary
 is two numbers, not one**, exactly as M4's and M3's were: the spec's convention names
 `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` (M4's final reconciliation), and the **effective safe**
 boundary is the same commit, because rolling back past it would destroy M4's acceptance coverage

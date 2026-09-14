@@ -4,9 +4,9 @@
 [PROJECT_STATE.md](PROJECT_STATE.md) §9. **Implementation has not started.** Only M0 (this
 document, the decision register and the ledger entry) is documentation work; every milestone
 from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
-M1, M2, M2.1, **M3**, **M4** and **M5** have since landed — M3 complete and accepted with recorded
-limitations, M4 and M5 complete on the same terms — and **M6 onward has not started** — the live
-status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
+M1, M2, M2.1, **M3**, **M4**, **M5** and **M6** have since landed — M3 complete and accepted with
+recorded limitations, M4, M5 and M6 complete on the same terms — and **M7 onward has not started** —
+the live status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2). **Authored:** 2026-09-09.
@@ -17,7 +17,8 @@ adds no new requirements and cancels none.
 
 **What this document is not.** It does not replace [OPEN_ITEMS.md](OPEN_ITEMS.md) (the backlog of
 record, with the evidence), [DECISIONS.md](DECISIONS.md) (the durable architecture record — the
-D1–D12 register below is summarised here and *recorded* there, at §19), or
+D1–D16 register is *recorded* there, at §19 — this document summarises it below as the D1–D12
+table M0 wrote, with D13–D16 referenced by the milestone sections that decided them), or
 [PROJECT_STATE.md](PROJECT_STATE.md) (the recovery document). Where they disagree, **they win**
 and this file is corrected.
 
@@ -76,8 +77,8 @@ required.
 
 | # | Requirement | Status | Evidence | Milestone |
 |---|---|---|---|---|
-| 1 | Messaging / Chat | **B** | real send/read/create at `src/views/Messages.tsx:116,127,183`; `updateConversation`/`archiveConversation` (`src/domains/chat/repository.ts:16-17`) and `mediaId` (`src/domains/chat/types.ts:79`) have **zero UI callers** | M6 |
-| 2 | Renaming / persistence | **B** | CRUD dialogs write through repositories and persist; branding is the exception (row 11) | M6, M8 |
+| 1 | Messaging / Chat | **B** | real send/read/create at `src/views/Messages.tsx`; the "zero UI callers" gap this row recorded is **closed by M6** — `updateConversation`/`archiveConversation` (`src/domains/chat/repository.ts:16-17`), `mediaId` (`src/domains/chat/types.ts:79`) and an export read through the existing reads are all wired and tested (see "M6 update" below). Still **B**, not A: chat resolves to Demo in both modes (`src/domains/registry.ts:147`) and no chat API repository exists | M6 ✅ **complete**; the server half stays with M11 **(D8)** |
+| 2 | Renaming / persistence | **B** | CRUD dialogs write through repositories and persist — **M6 added the chat conversation surface** (rename / topic / pin / archive, persisted through the repository, with archived threads hidden by default and restorable); branding is still the exception (row 11) | M6 ✅ **complete**; **M8** remains (branding) |
 | 3 | Student profiles | **C** | live list/CRUD + national-ID masking; relations still read fixtures (`src/views/Students.tsx`) | M7 |
 | 4 | Teacher profiles | **C** | same shape (`src/views/Teachers.tsx`) | M7 |
 | 5 | Instruments | **A** | `src/domains/instruments/` incl. the read-through `catalog.ts`; only the *type provenance* is fixture-bound | M10 |
@@ -115,7 +116,7 @@ M2  Honest write feedback (H2 + H3)    ← the panel stops claiming writes it di
 M3  Learning content assignment (I3)   ← UI over a complete, tested contract; proves the pattern
 M4  Scheduling view wiring (H1a)       ← Group A domain frozen, view rewritten
 M5  Attendance view wiring (H1b)       ← Group D domain frozen; needs M4's real session ids
-M6  Contracts without UI (chat, attachments, export coverage)
+M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b87
 M7  Relation de-fixturing + sidebar badges (I1)
 M8  Branding application & visual identity (needs D2)
 M9  Dashboard insight from live data (H4) — I9 guards land FIRST
@@ -577,7 +578,7 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   6. **Site 4 was decided as removal**, the second of the two options this section offered — see the H2
      update above. No `MessageStatus` was introduced and no `sendMessage` call added.
 
-### M6 — Contracts without UI (chat management, attachments, export coverage)
+### M6 — Contracts without UI (chat management, attachments, export coverage) — ✅ COMPLETE
 
 - **Scope.** `updateConversation` (rename / topic / pin) and `archiveConversation`
   (`src/domains/chat/repository.ts:16-17`) — **zero UI callers today**; the `ChatMessage.mediaId`
@@ -600,7 +601,65 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Out of scope.** Provider integration; a notifications domain; group moderation.
 - **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M5's SHA —
   `9505ade4011b37a34e3488fd51206512829205ec`, its single implementation checkpoint, recorded now that
-  M5 has landed. **M6 has not started and is not authorized.**
+  M5 has landed. *(Written at M0 and kept as written.)* **Recorded now that M6 has landed:** M6 was
+  built on neither of the two numbers this bullet originally implied but on **M5's documentation
+  reconciliation `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`**, which is therefore both the spec's
+  boundary and the effective safe one — rolling back to it drops M6 entirely and keeps every document,
+  test and view M5 left behind intact.
+
+- **Status (2026-09-14): ✅ COMPLETE, accepted with recorded limitations.** Four implementation
+  checkpoints, all pushed: **CP1** `43e7882f051b46abfa9f0530137cedfb3a541ce0` · *feat(m6): chat
+  conversation lifecycle and message attachments (contract + domain)* (5 files, 525/7) — the contract
+  only: `SendMessageInput.mediaId?: string`, the reversible `archived` patch on `updateConversation`
+  with `archiveConversation` delegating to it, and a `mediaId` that must resolve **before** provider
+  delivery and **before** any write; **CP2** `42c54f41ed3099cf65ac4ca035146958a1a51f76` ·
+  *M6 · CP2 — conversation management UI + composer state safety* (5 files, 1217/39) — the UI for
+  rename/topic/pin/archive, the archived filter and badge, an explicit hidden-selection panel, a
+  conversation-keyed composer, and the failed-read honesty at `Messages.tsx`; **CP3**
+  `563b8d85ee48614963cb3c182ac9b84239645c3d` · *feat(m6): wire chat attachments* (7 files, 1527/25) —
+  the picker and its limits derived from the media contract, two awaited writes before one claim,
+  duplicate-submit protection, asset release on a failed message write, honest missing-bytes
+  rendering, and the gate widened to the whole Messages surface; **CP4**
+  `4e03b8762bebcb87e46cf7044af5da99d709b4d2` · *feat(m6): add conversation export* (4 files, 1063/1) —
+  a single-conversation transcript read through `getConversation` + `listMessages`, downloaded through
+  the export domain's existing `downloadBlob` only after the read resolves, identity captured before
+  the await. **17 files, 4321 insertions / 61 deletions** (`git diff --shortstat 9190da0..4e03b87`),
+  **106 new tests** (31 domain, 75 view/gate), **14 mutation checks** reverted byte-identically, and
+  `git diff --name-only 9190da0..4e03b87` outside `src/domains/chat/` and the Messages surface prints
+  nothing. Measured evidence in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M6 validation" (119 files /
+  1655 passed / 8 skipped / 1 known environmental failure at `projectState.test.ts:299`; focused and
+  gate sweep 278/278 across 21 files; typecheck and `git diff --check` clean). Milestone record in
+  [PHASES.md](PHASES.md) → "Product phase — M6"; the domain's own contract is documented in
+  [`src/domains/chat/README.md`](../../src/domains/chat/README.md).
+- **Acceptance, restated against what actually shipped rather than the M0 wording alone.** The clause
+  was *"every chat capability either has a UI or is recorded in the docs as deliberately UI-less"*. Two
+  capabilities are **deliberately UI-less and recorded as such**: `archiveConversation`, which now
+  shares one write path with the management dialog (**D14**), and the export itself, which gained **no
+  verb** because the two existing reads already express it (**D14**) — in both cases the
+  documentation states the reason, not just the absence.
+- **Deviations from this section, recorded rather than presented as compliance.**
+  1. **No CP0**, on M5's recorded precedent: the scope below was already accurate, so the milestone went
+     straight to implementation and the reconciliation happened after its evidence existed.
+  2. **The export is one entity, not a scope extension.** The M0 clause said "only where a real
+     repository read exists"; the only chat-shaped read that exists is per-conversation
+     (`getConversation` + `listMessages`), so the milestone shipped single-conversation text export and
+     **did not** add a chat entity to `ExportEntity` or invent a bulk read. No CSV/XLSX path was
+     touched, so the formula-injection guard named in *Protected areas* was never in play.
+  3. **The Tests clause "a recorded roster"/"an attachment whose bytes are missing …" is met, but the
+     milestone's own round-trip claim is not.** Attachment metadata persists; an attachment's **bytes**
+     that are gone render the honest unavailable state and are pinned by test. No test unmounts and
+     remounts the view, so "a thread survives a reload" rests on the demo store's single-persistence
+     authority, the same gap M3 and M5 recorded for their surfaces.
+  4. **Browser QA did not run and is NOT VERIFIED** — the file picker and the download are precisely
+     what jsdom cannot exercise. The export suite stubs `URL.createObjectURL` (which jsdom does not
+     implement) while still asserting the artifact's real bytes, and verifies anchor/download
+     invocation at the seam, which is why the limitation is stated instead of being papered over by
+     the jsdom result.
+  5. **No acceptance audit ran**, so this milestone has no audit findings and no **B**-numbered coverage
+     items, unlike M3 and M4. The mutation checks are the implementer's own measurement.
+  6. **`archiveConversation` remains without a shipped caller by decision**, not by omission — see
+     **D14**. Its behaviour is proven at the domain boundary (reversible, persisted, hidden by default
+     and restorable) and its reachability is recorded as a deliberate gap rather than implied coverage.
 
 ### M7 — Relation de-fixturing + sidebar badges (**I1**)
 
@@ -622,7 +681,10 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Acceptance.** H1 closed for these views; I1 closed.
 - **Out of scope.** The type/seed separation itself (**M10**) — this milestone removes *data*
   imports, not the modules.
-- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M6's SHA.
+- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = **M6's effective safe boundary**,
+  `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — M6's last *product* commit is CP4 `4e03b87`, the
+  milestone's documentation reconciliation follows it, and the commit M7 would be built on is therefore
+  the one M6 was built on. Recorded at M6's landing rather than guessed, the same way M5's boundary was.
 
 ### M8 — Branding application & visual identity (**needs D2**)
 
@@ -821,9 +883,13 @@ because neither has a domain layer to be wired to.
 
 Recorded with full rationale in [DECISIONS.md](DECISIONS.md) **§19**; summarised here so the
 milestones can reference them. **This table is a summary and §19 is the authority:** D1–D9 are what
-M0 recorded, and three entries have been added since by work that landed — **D10**, **D11** and
-**D12**, all decided by M3 and its acceptance audit. D3 and D4 were settled by M1's landing, so their
-status here is the settled one rather than the pre-M1 "required before".
+M0 recorded, and three entries have been added **to this table** since by work that landed — **D10**,
+**D11** and **D12**, all decided by M3 and its acceptance audit. D3 and D4 were settled by M1's
+landing, so their status here is the settled one rather than the pre-M1 "required before".
+**Later decisions are recorded in §19 and deliberately not duplicated here:** **D13** (M5's
+documentation reconciliation) and **D14–D16** (M6) are referenced by the milestone sections below and
+carried with full rationale in §19 of [DECISIONS.md](DECISIONS.md); this M0-era table keeps the shape
+it was written with, and the milestone sections are where a reader is pointed.
 
 | ID | Decision | Status | Blocks |
 |---|---|---|---|

@@ -419,20 +419,22 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D13)
+## 19. Product-phase decision register (D1–D16)
 
 Thirteen decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D13** to
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D16** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Six are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
-M5's), two are settled by deferral (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**,
-**D8**, **D9**) —
+Nine are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
+M5's, and **D14**, **D15** and **D16** by M6's), two are settled by deferral (**D1**, **D6**), and
+five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
 was right and the table was not. **D13** was added by M5's documentation reconciliation, together with
-its table row and its section, so that neither half drifts the way those three did.
+its table row and its section, so that neither half drifts the way those three did. **D14–D16** were
+added the same way by M6's documentation reconciliation — each with its row and its section, written
+from M6's measured evidence rather than from its plan.
 
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
@@ -449,6 +451,9 @@ its table row and its section, so that neither half drifts the way those three d
 | D11 | An assignment surface renders outside the list it assigns to, and derives its own selection | **DECIDED — landed with M3** | M3 |
 | D12 | A failed secondary read is reported as a failure, never as an empty list | **DECIDED — landed with M3's F1 fix** | M3 |
 | D13 | A wired view derives its own selection and renders the register its own domain derives | **DECIDED — landed with M5** | M5 |
+| D14 | An operation the existing contract already expresses gets no new verb and no second write or read path | **DECIDED — landed with M6** | M6 |
+| D15 | An attachment is a reference (`mediaId`), not a copy — resolution is not authorization, and bytes never travel in an export | **DECIDED — landed with M6** | M6 |
+| D16 | Write state and in-flight work are keyed to the identity they started with, not to whatever is on screen when they resolve | **DECIDED — landed with M6** | M6 |
 
 ### D1. Student role — deferred, not designed
 
@@ -803,6 +808,145 @@ Attendance's `get` verb is unconsumed for **D11**'s reason, and `sessionIdsWithA
 unconsumed because it is a **cross-domain boundary** rather than a view read: scheduling reaches it
 through the registry's presence provider (`src/domains/registry.ts:223`) and its synchronous sibling,
 which fails safe. All three reasons are in `src/domains/attendance/README.md` §3.
+
+---
+
+### D14. An operation the existing contract already expresses gets no new verb, and no second write or read path
+
+**Decision.** Where the chat contract can already express an operation, M6 added **no verb** for it and
+kept **one** path to the data. Two applications, both deliberate:
+
+1. **Archive is one reversible patch, not a pair of verbs.** `updateConversation(id, { archived })`
+   carries the flag in both directions and `archiveConversation(id)` is a one-line convenience that
+   delegates to it (`src/domains/chat/demoRepository.ts:101`). There is therefore **no unarchive
+   verb** — restore *is* `updateConversation(id, { archived: false })` — and the management dialog
+   writes through that same single path. Consequently `archiveConversation` itself has **no shipped
+   caller**, and that is recorded as a choice rather than left to look like an oversight.
+2. **The export got no verb, and the chat domain was not added to `ExportEntity`.** `ExportEntity`
+   still lists exactly `"students" | "teachers" | "classes" | "enrollments"`
+   (`src/domains/export/exportService.ts:25`). A conversation transcript is composed from the reads
+   that already exist — `getConversation(id)` and `listMessages({ conversationId, per_page })`
+   (`src/views/messages/conversationExport.ts` lines 197–198) — and the only thing the surface borrows is the
+   export domain's **existing download seam**, `downloadBlob`
+   (`src/views/messages/conversationExport.ts:246`), which the exporter owns exclusively: the gate
+   requires that file to contain `downloadBlob(` and forbids `getBlob(`
+   (`src/views/__tests__/messagesNoFixtures.test.ts` lines 241 and 253).
+
+**Why.** A convenience verb beside a general one is a second code path that can disagree with the
+first — with the flag, the trim, the validation or the persistence — and a second code path is where
+"restore works" stops being provable. The same logic applies to reads: a hypothetical
+`exportConversation` verb would have to re-implement the paging and identity rules `listMessages`
+already enforces, and adding chat to the CSV/XLSX `ExportEntity` union would have meant inventing a
+tabular projection of a conversation that the data does not support (and dragging the
+formula-injection guard into a text artifact where it does not apply). Composing existing reads keeps
+the export's honesty checkable against the same reads the view uses: what the file contains is what
+the repository returned, not what a parallel path decided to say.
+
+**Enforced by.** `src/domains/chat/demoRepository.ts:101` (the delegation) with
+`src/domains/chat/__tests__/conversationLifecycle.test.ts` — "restores through updateConversation,
+because no unarchive verb exists", "round-trips archive → restore → archive without losing the
+thread", "combines archive with a rename in one call, without dropping either"; and, for the export,
+`src/views/messages/conversationExport.ts` lines 197–198 plus
+`src/views/__tests__/messagesConversationExport.test.tsx` — "reads that conversation by id, its own
+messages, and nothing else", "hands the finished artifact to the browser only through the export
+domain's download seam", "downloads a file containing the selected conversation's stored messages" —
+with `src/views/__tests__/messagesNoFixtures.test.ts` lines 241 and 253 pinning the seam and forbidding a second
+one. Mutation-checked at CP4: removing the "read before download" ordering fails 8 cases; making the
+identity the list's first row instead of the selected conversation fails 6.
+
+**Status.** ✅ Landed with M6's implementation checkpoints — the contract half at CP1
+`43e7882f051b46abfa9f0530137cedfb3a541ce0` and the export at CP4
+`4e03b8762bebcb87e46cf7044af5da99d709b4d2`. **The consequence is recorded, not hidden:**
+`archiveConversation` now belongs to no shipped caller, and the export deliberately has no domain
+half. Both are listed in `src/domains/chat/README.md` as what the domain does *not* provide.
+
+---
+
+### D15. An attachment is a reference, not a copy — and resolution is not authorization
+
+**Decision.** A chat message carries an attachment as a **`mediaId` reference** into the media domain
+and nothing else: the contract adds one optional field to `SendMessageInput`
+(`src/domains/chat/types.ts:110`) and one to `ChatMessage` (`:79`), the bytes stay in the media blob
+store, and **no filename or mime type is copied onto the message** — the message's rendering resolves
+the asset's metadata when it needs it. The repository validates that the reference **resolves**
+(`src/domains/chat/demoRepository.ts:137`, refusing with `MESSAGE_INVALID` and `fields.mediaId`)
+**before** the provider is asked to deliver and **before** anything is written, so a dangling
+reference can never produce a half-sent message or a thread preview. **That check is resolution, not
+authorization:** per-object ownership and access control remain a backend concern
+(`src/domains/media/types.ts:22`, "BACKEND REQUIRED"), and neither the domain nor the view claims a
+frontend security guarantee. Consistent with the same rule, an export carries attachment **metadata**
+(name, kind, mime, size, id) and **never bytes**
+(`src/views/messages/conversationExport.ts` lines 125 and 144), and an attachment whose metadata no longer
+resolves is described as unavailable rather than invented (`:168`).
+
+**Why.** Copying bytes or metadata onto the message would create a second source of truth that can
+outlive the asset it describes and silently disagree with the media domain, and it would make the
+message row grow with the file. A reference keeps the product's existing rule — metadata in the
+dataset, bytes in the blob store, never a fabricated URL (§13). Stating resolution ≠ authorization
+explicitly is the difference between a dangling-reference check (which this product can honestly
+make) and a security boundary (which only a server can), and M6's rule is that the code says which of
+the two it is doing.
+
+**Enforced by.** `src/domains/chat/__tests__/messageAttachments.test.ts` — "keeps the attachment as a
+REFERENCE — a megabyte of bytes never enters the dataset", "refuses an unknown mediaId, and writes no
+message at all", "refuses before delivery — no thread preview is written for a refused send", "claims
+no ownership or authorization check — resolution only", "does not copy the asset's filename or mime
+type onto the message", "refuses a reference whose bytes were removed — a dangling metadata row"; the
+surface by `src/views/__tests__/messagesAttachments.test.tsx` — "stores the bytes, references them on
+the message, and renders them", "keeps the metadata, says the file is unavailable, and offers no open
+or download", "says the reference no longer resolves when the asset metadata is gone too", "reports a
+failed message write, frees the stored asset, and allows a retry"; and the export boundary by
+`src/views/__tests__/messagesConversationExport.test.tsx` — "carries attachment metadata and denies
+that the bytes are included", "returns a .txt artifact whose bytes are UTF-8 text with a BOM, and no
+attachment content". Mutation-checked: dropping the attachment line from the artifact fails 3 cases.
+
+**Status.** ✅ Landed with M6 — the contract at CP1
+`43e7882f051b46abfa9f0530137cedfb3a541ce0`, the UI at CP3
+`563b8d85ee48614963cb3c182ac9b84239645c3d`, the export boundary at CP4
+`4e03b8762bebcb87e46cf7044af5da99d709b4d2`. **The backend half is deferred and must be built before
+this is production-ready:** server-side per-object authorization, signed and expiring URLs, and
+content sniffing/virus scanning. Attachment **bytes stay browser-local** in the meantime, which is why
+"the file is unavailable" is a real state the UI renders rather than an error it survives.
+
+---
+
+### D16. Write state and in-flight work are keyed to the identity they started with
+
+**Decision.** Any state that belongs to an object is stored **against that object's id**, and any act
+that takes time is **pinned to the identity it started for** before the first await. Three
+applications: the composer holds `{ key, draft, attachment }` and derives its visible state only when
+the key matches the conversation on screen, so a draft cannot follow the operator between threads,
+cannot be cached for the way back, and cannot be resurrected by returning
+(`src/views/messages/useComposer.ts:83`, `:131`); a send that resolves after the operator has switched
+conversations clears **only** the conversation it was sent for, so a late promise cannot wipe the new
+thread's typing; and an export captures the selected conversation as a value before awaiting
+`readChatExport` (`src/views/Messages.tsx` lines 382–386), so a list that refetches mid-read cannot
+retarget the file, and the artifact is named from the artifact's own conversation
+(`src/views/messages/conversationExport.ts`), never from "whatever is selected now".
+
+**Why.** This is **D10**, **D11** and **D13** applied to write state and to work in flight. A stored
+draft outlives the object that produced it exactly the way a stored id outlives the window that
+produced it; a promise that resolves into a different screen is the same hazard (I13) in a second
+guise. Deriving from the key instead of trusting a stored record makes "the draft I am looking at is
+this conversation's draft" a property of the render, not a hope about the order of effects, and
+capturing the target before the await removes the last window in which a rendered row could change
+under an operation already running.
+
+**Enforced by.** `src/views/__tests__/messagesStateSafety.test.tsx` — "never shows the previous
+conversation's draft under the new header", "discards the draft rather than caching it for the way
+back", "keeps each conversation's own typing while both are visited", "does not wipe the new
+conversation's draft when a send for the old one resolves late", "survives a clearFor aimed at another
+conversation, and is cleared by its own"; `src/views/__tests__/messagesAttachments.test.tsx` — "does
+not follow the operator into another conversation, or back", "does not let a slow send clear the new
+conversation's draft or attachment"; and `src/views/__tests__/messagesConversationExport.test.tsx` —
+"keeps an in-flight export pinned to the conversation it started for", "claims nothing until the
+repository read resolves". **Mutation-checked:** reading the selection at download time instead of
+capturing it before the await fails 8 cases.
+
+**Status.** ✅ Landed with M6 — composer state at CP2
+`42c54f41ed3099cf65ac4ca035146958a1a51f76`, the export's captured identity at CP4
+`4e03b8762bebcb87e46cf7044af5da99d709b4d2`. The composer is a view-layer hook by design: the chat
+domain has no draft concept and gained none.
 
 ---
 
