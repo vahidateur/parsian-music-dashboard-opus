@@ -16,6 +16,18 @@
  * takes `archived`, so the same surface archives and restores. Archived threads
  * are hidden by default and discoverable through an explicit filter chip.
  *
+ * ATTACHMENTS (M6 / CP3)
+ *
+ * The paperclip is a real picker now. A picked file is validated against the
+ * media domain's own allow-lists and ceilings (derived, never re-typed), then
+ * stored through `MediaRepository.create` and referenced by the message through
+ * `mediaId` — the only attachment field the chat contract has. Nothing is
+ * claimed before the awaited writes resolve, no object URL is invented from the
+ * local `File`, and a message whose bytes are missing says so instead of offering
+ * an open/download that could not work. Ownership and access control remain
+ * server-side concerns: this surface checks that a reference resolves, and claims
+ * nothing more (see `docs/engineering/OPEN_ITEMS.md` and the media domain header).
+ *
  * STATE SAFETY
  *
  * Composer state (text AND pending attachment) is keyed to the conversation it
@@ -38,7 +50,6 @@ import {
   Archive,
   ArrowRight,
   Megaphone,
-  Paperclip,
   Pin,
   Send,
   Settings2,
@@ -50,13 +61,16 @@ import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
-import { getChatRepository } from "@/domains/registry";
+import { getChatRepository, getMediaRepository } from "@/domains/registry";
 import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
 import type { ChatMessage, ChatParticipantRole } from "@/domains/chat/types";
 import { cn } from "@/utils/cn";
 import { useComposer } from "./messages/useComposer";
 import { ConversationManagerDialog } from "./messages/ConversationManagerDialog";
+import { AttachmentPicker, AttachmentStatus } from "./messages/AttachmentField";
+import { MessageAttachment } from "./messages/MessageAttachment";
+import { attachmentKindFor, checkAttachment } from "./messages/attachmentRules";
 
 const roleMeta: Record<ChatParticipantRole, { label: string; tone: "gold" | "violet" | "info" | "neutral" }> = {
   teacher: { label: "مدرس", tone: "gold" },
@@ -97,6 +111,12 @@ function MessageBubble({ message, index }: { message: ChatMessage; index: number
       >
         {/* Bodies are rendered as text; React escapes them. Never as HTML. */}
         <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{message.body}</p>
+        {/*
+          The attachment is rendered from the reference the STORED message
+          carries, never from a pending local file: `MessageAttachment` resolves
+          the metadata and the bytes through the media repository.
+        */}
+        {message.mediaId && <MessageAttachment mediaId={message.mediaId} />}
         <div className={cn("mt-1 flex items-center gap-1.5 text-[10px]", mine ? "text-gold-400/70" : "text-ink-500")}>
           <span className="nums">{clock(message.sentAt)}</span>
           {undelivered && (
@@ -183,6 +203,54 @@ export function MessagesView() {
       });
   }, [active]);
 
+  /**
+   * Picks a file for the next message — locally, without writing anything.
+   *
+   * A refusal keeps the conversation's draft and any attachment that was already
+   * valid: the operator's chosen file is not thrown away because a second pick
+   * was wrong.
+   */
+  const pickAttachment = useCallback(
+    (file: File) => {
+      const check = checkAttachment(file);
+      if (!check.ok) {
+        composer.setAttachmentError(check.reason);
+        return;
+      }
+      composer.setPendingAttachment(file);
+      composer.setAttachmentError(null);
+    },
+    [composer],
+  );
+
+  /**
+   * Sends the message, and the attachment if there is one.
+   *
+   * TWO AWAITED WRITES, ONE CLAIM
+   *
+   *  1. `MediaRepository.create` stores the bytes and records the metadata. The
+   *     contract makes it the validator too (allow-list, cap, magic bytes).
+   *  2. `ChatRepository.sendMessage` writes the message, with the asset id as its
+   *     `mediaId`. The chat repository refuses a reference that does not resolve,
+   *     which is why the order cannot be reversed: a message may never be written
+   *     pointing at an asset that does not exist yet.
+   *
+   * The success toast fires only after both resolved. The upload is not reported
+   * on its own, because a stored-but-unreferenced file is not a sent attachment.
+   *
+   * A message body is required — `sendMessage` refuses an empty one — so an
+   * attachment alone is not sendable, and the composer says so rather than
+   * silently dropping the file.
+   *
+   * IF THE MESSAGE WRITE FAILS after the asset was stored, the asset is removed
+   * again (best effort, exactly as `ProfilePhotoField` frees a replaced photo):
+   * leaving it would strand a file nothing can reach, and the retry would store a
+   * second copy of the same bytes. The failure is reported with the repository's
+   * own reason, and the draft and pending file stay put so the send can be retried.
+   *
+   * `sending` is the duplicate guard: it is set before the first await and checked
+   * on entry, so a double Enter or a second click cannot start a second upload.
+   */
   const send = useCallback(async () => {
     const body = draft.trim();
     if (!body || !activeId || sending) return;
@@ -190,13 +258,44 @@ export function MessagesView() {
     // operator was composing in, and the draft is cleared only if that is still
     // the conversation on screen (`clearFor`).
     const target = activeId;
+    const file = composer.pendingAttachment;
     setSending(true);
+    let storedMediaId: string | undefined;
     try {
-      const message = await getChatRepository().sendMessage({ conversationId: target, body });
+      if (file) {
+        const kind = attachmentKindFor(file.type);
+        if (!kind) {
+          // Defensive: the rules ran at selection time. Saying the same thing
+          // again is better than storing a file whose kind nobody knows.
+          composer.setAttachmentError("قالب این فایل مجاز نیست.");
+          return;
+        }
+        const asset = await getMediaRepository().create({
+          kind,
+          filename: file.name,
+          mimeType: file.type,
+          bytes: await file.arrayBuffer(),
+        });
+        storedMediaId = asset.id;
+      }
+
+      const message = await getChatRepository().sendMessage({
+        conversationId: target,
+        body,
+        ...(storedMediaId ? { mediaId: storedMediaId } : {}),
+      });
       composer.clearFor(target);
       // The toast reports what actually happened, per message status.
       if (message.status === "sent") {
-        notify({ tone: "success", title: "پیام ارسال شد", detail: "پیام در گفتگوی داخلی ثبت و ذخیره شد." });
+        notify(
+          storedMediaId
+            ? {
+                tone: "success",
+                title: "پیام و پیوست ثبت شد",
+                detail: "پیام ذخیره شد و فایل پیوست در همین مرورگر نگهداری می‌شود.",
+              }
+            : { tone: "success", title: "پیام ارسال شد", detail: "پیام در گفتگوی داخلی ثبت و ذخیره شد." },
+        );
       } else {
         notify({
           tone: "danger",
@@ -205,7 +304,18 @@ export function MessagesView() {
         });
       }
     } catch (cause) {
-      notify({ tone: "danger", title: "ارسال پیام ناموفق بود", detail: apiErrorFromThrown(cause).message });
+      if (storedMediaId) {
+        await getMediaRepository()
+          .delete(storedMediaId)
+          .catch(() => {
+            /* an orphaned blob must not replace the real failure message */
+          });
+      }
+      notify({
+        tone: "danger",
+        title: file ? "ارسال پیام و پیوست ناموفق بود" : "ارسال پیام ناموفق بود",
+        detail: apiErrorFromThrown(cause).message,
+      });
     } finally {
       setSending(false);
     }
@@ -413,19 +523,10 @@ export function MessagesView() {
               <div className="border-t border-white/[0.06] p-3">
                 <div className="flex items-end gap-2">
                   {/*
-                    Attachments need object storage plus a messaging gateway.
-                    The control is disabled and explains itself rather than
-                    pretending to upload.
+                    A real picker. Selecting a file writes nothing: the attachment
+                    is stored and referenced by `send`, and only then reported.
                   */}
-                  <button
-                    type="button"
-                    disabled
-                    aria-label="پیوست فایل — نیازمند سرور"
-                    title="ارسال پیوست به فضای ذخیره‌سازی سرور نیاز دارد و در نسخهٔ دمو فعال نیست."
-                    className="flex size-9 shrink-0 cursor-not-allowed items-center justify-center rounded-xl border border-white/[0.07] text-ink-600 opacity-50"
-                  >
-                    <Paperclip className="size-4" />
-                  </button>
+                  <AttachmentPicker disabled={sending} onSelect={pickAttachment} />
                   <label htmlFor="chat-draft" className="sr-only">
                     متن پیام
                   </label>
@@ -454,6 +555,13 @@ export function MessagesView() {
                     <Send className="size-3.5" /> {sending ? "در حال ارسال…" : "ارسال"}
                   </Button>
                 </div>
+                <AttachmentStatus
+                  file={composer.pendingAttachment}
+                  error={composer.attachmentError}
+                  needsBody={composer.pendingAttachment !== null && draft.trim().length === 0}
+                  disabled={sending}
+                  onClear={() => composer.clearAttachment()}
+                />
                 <p className="mt-2 text-[10.5px] text-ink-500">Enter برای ارسال · Shift + Enter برای خط جدید</p>
               </div>
             </>

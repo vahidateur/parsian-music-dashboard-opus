@@ -23,14 +23,16 @@
  * The pending attachment is reset for the same reason: a file chosen for A is
  * A's, and carrying it into B would attach it to the wrong conversation.
  *
- * SCOPE (M6 / CP2)
+ * SCOPE (M6 / CP2, extended by CP3)
  *
- * CP2 owns this state and its isolation. The attachment CONTROL is CP3's work
- * (upload through `MediaRepository`, send, render), so nothing in the current
- * view populates `pendingAttachment` yet — the paperclip stays honestly
- * disabled rather than promising an upload that does not exist. The state and
- * its reset rule are implemented and tested now so the control is wired to a
- * boundary that is already conversation-safe instead of being retrofitted.
+ * CP2 owns this state and its isolation; CP3 wired the control that populates
+ * it (`AttachmentPicker` → `AttachmentStatus` → `Messages.send`). The pending
+ * file is still only a `File`: it becomes a persisted attachment when the send
+ * path stores it through `MediaRepository` and the message records its id.
+ *
+ * `attachmentError` is part of the same record for the same reason the file is:
+ * a validation reason belongs to the conversation whose picker produced it, so
+ * switching threads cannot leave A's «این قالب مجاز نیست» sitting under B.
  */
 import { useCallback, useEffect, useState } from "react";
 
@@ -44,6 +46,17 @@ export interface ComposerState {
    */
   pendingAttachment: File | null;
   setPendingAttachment: (file: File | null) => void;
+  /**
+   * Why the last picked file was refused — the client-side validation reason, in
+   * the same words the media repository uses. `null` when nothing was refused.
+   *
+   * It lives here rather than in the field component so it is keyed to the
+   * conversation like every other piece of composer state.
+   */
+  attachmentError: string | null;
+  setAttachmentError: (message: string | null) => void;
+  /** Drops the pending file and its refusal; leaves the draft untouched. */
+  clearAttachment: () => void;
   /**
    * Clears both fields, but ONLY if `conversationId` is still the conversation
    * on screen.
@@ -62,9 +75,10 @@ interface ComposerRecord {
   key: string;
   draft: string;
   attachment: File | null;
+  attachmentError: string | null;
 }
 
-const EMPTY = (key: string): ComposerRecord => ({ key, draft: "", attachment: null });
+const EMPTY = (key: string): ComposerRecord => ({ key, draft: "", attachment: null, attachmentError: null });
 
 export function useComposer(conversationId: string | undefined): ComposerState {
   const key = conversationId ?? "";
@@ -96,6 +110,24 @@ export function useComposer(conversationId: string | undefined): ComposerState {
     [key],
   );
 
+  const setAttachmentError = useCallback(
+    (message: string | null) => {
+      setState((current) => ({
+        ...(current.key === key ? current : EMPTY(key)),
+        attachmentError: message,
+      }));
+    },
+    [key],
+  );
+
+  const clearAttachment = useCallback(() => {
+    setState((current) => ({
+      ...(current.key === key ? current : EMPTY(key)),
+      attachment: null,
+      attachmentError: null,
+    }));
+  }, [key]);
+
   const clearFor = useCallback((conversationId: string) => {
     setState((current) => (current.key === conversationId ? EMPTY(conversationId) : current));
   }, []);
@@ -125,6 +157,9 @@ export function useComposer(conversationId: string | undefined): ComposerState {
     setDraft,
     pendingAttachment: active.attachment,
     setPendingAttachment,
+    attachmentError: active.attachmentError,
+    setAttachmentError,
+    clearAttachment,
     clearFor,
   };
 }
