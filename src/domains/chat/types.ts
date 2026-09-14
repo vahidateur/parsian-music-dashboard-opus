@@ -101,6 +101,14 @@ export interface SendMessageInput {
   body: string;
   /** Defaults to `in_app`, the only provider that can genuinely deliver here. */
   provider?: MessageProvider;
+  /**
+   * Attachment reference into the media domain: the id of an existing
+   * `MediaAsset` whose bytes live in the blob store. The repository validates
+   * that the asset RESOLVES; per-object ownership and authorization are a
+   * backend concern (see `domains/media/types.ts` §BACKEND REQUIRED and the
+   * production handoff). Nothing here may claim a frontend security guarantee.
+   */
+  mediaId?: string;
 }
 
 /** Longest accepted message body; guards the store against unbounded growth. */

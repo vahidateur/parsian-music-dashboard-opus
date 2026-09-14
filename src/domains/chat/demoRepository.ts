@@ -8,6 +8,13 @@
  * XSS (§24): message bodies are stored as plain text and rendered as text by
  * React, which escapes by default. Nothing here produces HTML, and no consumer
  * may pass a body to `dangerouslySetInnerHTML`.
+ *
+ * ATTACHMENTS (§13)
+ *
+ * A message may reference an existing `MediaAsset` by `mediaId` — the metadata
+ * lives in the dataset, the bytes in the blob store, and this repository never
+ * sees a byte. The reference is validated for RESOLUTION only; per-object
+ * ownership and authorization stay a backend concern.
  */
 import type { Page } from "@/api/types";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
@@ -67,7 +74,7 @@ export class DemoChatRepository implements ChatRepository {
 
   async updateConversation(
     id: string,
-    patch: { name?: string; topic?: string; pinned?: boolean },
+    patch: { name?: string; topic?: string; pinned?: boolean; archived?: boolean },
   ): Promise<ChatConversation> {
     await this.getConversation(id);
     if (patch.name !== undefined && patch.name.trim().length < 2) {
@@ -77,16 +84,21 @@ export class DemoChatRepository implements ChatRepository {
       ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
       ...(patch.topic !== undefined ? { topic: patch.topic.trim() } : {}),
       ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}),
+      // `false` is a real value here — it is the restore path, not an omission.
+      ...(patch.archived !== undefined ? { archived: patch.archived } : {}),
     });
     if (!updated) throw notFound("CONVERSATION_NOT_FOUND", `گفتگو با شناسهٔ ${id} یافت نشد.`);
     return updated;
   }
 
+  /**
+   * Archives a thread.
+   *
+   * Delegates to `updateConversation` rather than writing directly, so archive
+   * and restore share exactly one write path and one set of validation rules.
+   */
   async archiveConversation(id: string): Promise<ChatConversation> {
-    await this.getConversation(id);
-    const updated = this.store.chatConversations.update(id, { archived: true });
-    if (!updated) throw notFound("CONVERSATION_NOT_FOUND", `گفتگو با شناسهٔ ${id} یافت نشد.`);
-    return updated;
+    return this.updateConversation(id, { archived: true });
   }
 
   async listMessages(params: MessageListParams): Promise<Page<ChatMessage>> {
@@ -112,6 +124,24 @@ export class DemoChatRepository implements ChatRepository {
     }
 
     const providerId = input.provider ?? "in_app";
+
+    // An attachment must point at an asset that actually exists. Validated
+    // BEFORE the provider is asked to deliver and before anything is written,
+    // following the same rule as every other media reference in the product
+    // (`gallery`, `learning`, `library`): a message may never carry a dangling
+    // `mediaId`, and a failure must not leave a half-sent message behind.
+    //
+    // This is resolution, NOT authorization: the media domain states that
+    // per-object ownership and access control are server-side concerns. No
+    // frontend check here is a security boundary, and none is claimed to be.
+    if (input.mediaId !== undefined) {
+      if (!this.store.media.find(input.mediaId)) {
+        throw validationError("MESSAGE_INVALID", "فایل پیوست یافت نشد.", {
+          mediaId: ["فایل انتخاب‌شده در فضای ذخیره‌سازی وجود ندارد."],
+        });
+      }
+    }
+
     const provider = getMessageProvider(providerId);
     const result = await provider.deliver({ conversationId: input.conversationId, body });
 
@@ -124,6 +154,7 @@ export class DemoChatRepository implements ChatRepository {
       provider: providerId,
       status: result.status,
       ...(result.reason ? { statusReason: result.reason } : {}),
+      ...(input.mediaId ? { mediaId: input.mediaId } : {}),
     });
 
     // The thread preview reflects what was actually recorded. A message that
