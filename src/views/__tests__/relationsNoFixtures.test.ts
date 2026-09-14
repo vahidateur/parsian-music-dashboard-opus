@@ -467,12 +467,9 @@ const SURFACES: readonly Surface[] = [
     stagedRules: [],
   },
   relationSurface("students", "enforced", [], "src/views/Students.tsx"),
-  relationSurface(
-    "teachers",
-    "CP3",
-    ["weekSessions", "classById(", "TODAY_INDEX", "delta:", "۵ کلاس نیازمند جایگزین"],
-    "src/views/Teachers.tsx",
-  ),
+  // CP3 turned the teachers surface on: its relations come from the domains, so
+  // nothing is deferred and the surface carries no fixture coupling at all.
+  relationSurface("teachers", "enforced", [], "src/views/Teachers.tsx"),
   relationSurface(
     "classes",
     "CP4",
@@ -521,27 +518,53 @@ const describeHit = (hit: Hit): string =>
   `${hit.file} · ${hit.rule} — ${ruleById(hit.rule).forbids}: ${hit.message}`;
 
 /* ------------------------------------------------------------------ */
-/* Requirements the checkpoints carry, recorded where the work happens  */
+/* Requirements the checkpoints carry, and keep                        */
 /* ------------------------------------------------------------------ */
 
-interface PendingRequirement {
+interface GuardRequirement {
   surfaceId: string;
   checkpoint: Checkpoint;
   requirement: string;
-  /** A file whose current shape is the reason the requirement exists. */
-  evidence: string;
+  /**
+   * The un-keyed shared hook the requirement is about: the file that must still
+   * lack the render-time key invariant, and the marker whose ARRIVAL means the
+   * requirement can be deleted because the hazard it guards is gone.
+   */
+  unsafeHook: { file: string; keyInvariantMarker: string };
+  /** What the surface must carry once its checkpoint has rewired it. */
+  guard: {
+    file: string;
+    /** The read made through the un-keyed hook. */
+    read: string;
+    /** The consumer-local identity that keeps that read's state per selection. */
+    mustContain: string[];
+  };
 }
 
-const PENDING_REQUIREMENTS: readonly PendingRequirement[] = [
+/**
+ * Requirements a checkpoint carries, recorded where the work happens.
+ *
+ * A requirement is PENDING while its surface still defers to the checkpoint, and
+ * VERIFIED once that checkpoint has rewired the surface. It is deliberately not
+ * deleted when the stage flips: the reason it exists is a property of a SHARED
+ * hook that this milestone may not change, so an edit that removes the call-site
+ * guard must fail here rather than quietly re-opening the frame the guard closes.
+ */
+const GUARD_REQUIREMENTS: readonly GuardRequirement[] = [
   {
     surfaceId: "teachers",
     checkpoint: "CP3",
     requirement:
       "the students-of-a-teacher relation needs a CONSUMER-side key guard: `useStudentList` has the " +
       "known render-time stale-frame gap (OPEN_ITEMS I13) — a params change can commit one frame with the " +
-      "previous query's rows and `loading === false`. CP3 must guard at the call site; fixing the shared " +
+      "previous query's rows and `loading === false`. CP3 guards at the call site; fixing the shared " +
       "hook is a separate issue and not part of M7.",
-    evidence: "src/domains/students/useStudents.ts",
+    unsafeHook: { file: "src/domains/students/useStudents.ts", keyInvariantMarker: "useResourceList" },
+    guard: {
+      file: "src/views/Teachers.tsx",
+      read: "useStudentList",
+      mustContain: ["key={detail.id}"],
+    },
   },
 ];
 
@@ -603,7 +626,9 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
     expect(surfaceById("m7-relation-plumbing").stage).toBe("enforced");
     // CP2 turned the students surface on: it carries no coupling at all now.
     expect(surfaceById("students").stage).toBe("enforced");
-    expect(surfaceById("teachers").stage).toBe("CP3");
+    // CP3 turned the teachers surface on — every relation it renders is a
+    // repository read, and the deferral ledger below is empty.
+    expect(surfaceById("teachers").stage).toBe("enforced");
     expect(surfaceById("classes").stage).toBe("CP4");
     expect(surfaceById("navigation").stage).toBe("CP4");
   });
@@ -699,6 +724,52 @@ describe("each surface satisfies its enforced rules today, or says so", () => {
   }
 });
 
+describe("a surface that relapses is caught by the rules it is enforced on", () => {
+  it("rejects every coupling CP3 retired from the teachers surface", () => {
+    const surface = surfaceById("teachers");
+    const source = surface.files.map(sourceOf).join("\n");
+
+    /*
+      Source shapes the pre-CP3 view carried, one per kind of coupling this
+      surface's enforced set forbids. The rules are no longer exercised by the
+      code they describe — that is what "enforced" means — so a relapse is
+      replayed against them here, on the real surface rather than on a synthetic
+      probe.
+    */
+    const relapses: readonly { what: string; source: string }[] = [
+      { what: "the fixture template", source: 'import { weekSessions } from "@/data/records";' },
+      { what: "the class resolver", source: 'import { classById } from "@/data/records";' },
+      { what: "the fixture student collection", source: 'import { students } from "@/data/records";' },
+      { what: "the fixture class collection", source: 'import { classes } from "@/data/records";' },
+      { what: "the frozen weekday column", source: 'import { TODAY_INDEX } from "@/data/records";' },
+      {
+        what: "an aliased fixture collection",
+        source:
+          'import { classes as academyClasses } from "@/data/records";\nconst waitlist = academyClasses.filter((c) => c.teacherId === t.id).reduce((a, b) => a + b.waitlist, 0);',
+      },
+      {
+        what: "a fixture relation named without importing it",
+        source: "const rows = weekSessions.filter((w) => w.teacherId === teacher.id);",
+      },
+      { what: "a resolver named without importing it", source: "const cl = classById(session.classId);" },
+      { what: "the frozen today index in a render path", source: "const rows = sessions.filter((s) => s.day === TODAY_INDEX);" },
+      { what: "the invented substitution workload", source: 'hint: "۵ کلاس نیازمند جایگزین",' },
+      { what: "the invented trend delta", source: "const stat = { label: 'x', value: 'y', delta: 11 };" },
+      { what: "an unwindowed session read", source: "const read = useSessions({ teacherId: teacher.id });" },
+      { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the wall clock", source: "const today = new Date();" },
+    ];
+
+    for (const relapse of relapses) {
+      const found = hits(surface.enforcedRules, `${source}\n${relapse.source}`, "src/views/Teachers.tsx");
+      expect(
+        found.map(describeHit).join("\n"),
+        `reintroducing ${relapse.what} was not caught: 「${relapse.source}」`,
+      ).not.toBe("");
+    }
+  });
+});
+
 describe("the plumbing this checkpoint adds is held to the rules from day one", () => {
   it("the day primitive reads the academy clock and nothing else", () => {
     const source = sourceOf("src/views/relations/academyDay.ts");
@@ -711,25 +782,52 @@ describe("the plumbing this checkpoint adds is held to the rules from day one", 
     const source = sourceOf("src/views/relations/indexById.ts");
     expect(source).not.toMatch(/^\s*import\s/m);
   });
+});
 
-  it("records the CP3 key-guard requirement with the surface that must honour it", () => {
-    expect(PENDING_REQUIREMENTS.length).toBeGreaterThan(0);
-    for (const entry of PENDING_REQUIREMENTS) {
+describe("the guards a checkpoint agrees to are kept after the checkpoint lands", () => {
+  it("keeps the CP3 key-guard requirement with the surface that honours it", () => {
+    expect(GUARD_REQUIREMENTS.length).toBeGreaterThan(0);
+    for (const entry of GUARD_REQUIREMENTS) {
       const surface = surfaceById(entry.surfaceId);
-      expect(
-        surface.stage,
-        `${entry.surfaceId} is already enforced, so its pending requirement must be deleted`,
-      ).toBe(entry.checkpoint);
       expect(entry.requirement).toContain("useStudentList");
       expect(entry.requirement).toContain("key guard");
-    }
 
-    // And the requirement is not prose about a hypothetical: the shared hook
-    // really is the one without the render-time key invariant.
-    const hook = sourceOf("src/domains/students/useStudents.ts");
-    expect(
-      hook.includes("useResourceList"),
-      "useStudentList now uses the key-safe shared hook — re-read the CP3 requirement above and delete it if the consumer-side guard is no longer needed",
-    ).toBe(false);
+      // The requirement is not prose about a hypothetical: the shared hook really
+      // is the one without the render-time key invariant.
+      const hook = sourceOf(entry.unsafeHook.file);
+      expect(
+        hook.includes(entry.unsafeHook.keyInvariantMarker),
+        "useStudentList now answers a changed key safely — re-read the CP3 requirement above and delete it if the consumer-side guard is no longer needed",
+      ).toBe(false);
+
+      // While the surface still defers to the checkpoint, the requirement is
+      // pending and there is nothing in its code to verify yet.
+      if (surface.stage === entry.checkpoint) continue;
+
+      // The guard has two halves, and both are checked. First: the un-keyed read
+      // may not be given a selection-varying key, because that params change is
+      // exactly the frame the hook can leak.
+      const guardSource = sourceOf(entry.guard.file);
+      const reads = callArguments(guardSource, entry.guard.read);
+      expect(
+        reads.length,
+        `${entry.surfaceId} no longer reads through ${entry.guard.read} — the guard below protects a read that is not there`,
+      ).toBeGreaterThan(0);
+      for (const args of reads) {
+        expect(
+          args.replace(/\s+/g, " "),
+          `${entry.surfaceId} keys ${entry.guard.read} on the selected teacher — a params change is the frame the un-keyed hook leaks`,
+        ).not.toMatch(/teacherId/);
+      }
+
+      // Second: the surface must still identify that read's owner locally, rather
+      // than relying on the route remounting its ancestor.
+      for (const token of entry.guard.mustContain) {
+        expect(
+          guardSource.includes(token),
+          `${entry.surfaceId} must carry 「${token}」: ${entry.requirement}`,
+        ).toBe(true);
+      }
+    }
   });
 });
