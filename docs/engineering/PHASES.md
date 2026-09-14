@@ -1146,8 +1146,17 @@ documents, and the workspace was recycled before its push landed — the commit,
 scratch on a fresh full clone of the pushed tip rather than copied from the lost record, and the three
 mutation checks were taken in a throwaway worktree so that no product file was ever altered. The
 replayed commit has a different SHA, and no claim of byte-identity with the lost one is made. That is
-[OPEN_ITEMS.md](OPEN_ITEMS.md) **L5** happening twice, and it is why this commit is committed **and
-pushed in the same operation**.
+[OPEN_ITEMS.md](OPEN_ITEMS.md) **L5** happening twice.
+
+**Correction to this entry's own first wording, which said the commit was "committed and pushed in the
+same operation".** It was not. The sequence was: committed locally as
+`d39793051c6cea61c80e1bba68a97dbf0b4c472c`; the first push **failed** because the environment's GitHub token was no longer valid;
+GitHub was reconnected; and the **same** commit was then pushed unchanged as a fast-forward
+(`9505ade..d397930`) — with **no amend, no force-push, no reset, no rebase and no second commit**
+before the successful push. The rule that wording invoked is unchanged and is still the rule
+(`git commit && git push` in one operation, then verify with `git ls-remote`); this entry now records
+what happened instead of what was intended, because a ledger that explains every commit has to explain
+this one's gap too.
 
 The product-source commits this ledger also has to explain are **not** documentation checkpoints and
 are registered in [PROJECT_STATE.md](PROJECT_STATE.md) §3–§4 instead: `289e080` (I13 Checkpoint 1 —

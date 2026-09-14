@@ -555,7 +555,7 @@ pass**, on a full single-branch clone of the pushed tip — not copied from an e
 | Documentation gates | ✅ **52** checks in `src/__tests__/projectState.test.ts`, green on the unedited tree and green again after this reconciliation pass |
 | Acceptance audit | ❌ **none ran, and none is claimed.** M5 was not put through the read-only acceptance audit M3 and M4 had, so this record carries no audit findings, no follow-ups and no **B**-numbered coverage items. The three mutation checks above are this pass's own measurement, not an auditor's |
 | Browser QA | ❌ **NOT VERIFIED** (§5) — unchanged for every milestone, including this one |
-| Remote | ✅ before this pass began, local `HEAD` and `git ls-remote origin refs/heads/arena/01a07c61-parsian-music-dashboard-opus` agreed on `9505ade4011b37a34e3488fd51206512829205ec`, and the clone in use was a **full** single-branch clone rather than a shallow one (§2). This documentation commit is committed **and pushed in the same operation**, because the pass it replays was lost precisely by sitting unpushed between turns (**L5**); §2's rule still applies to it — verify the remote with the command, never trust a recorded value |
+| Remote | ✅ before this pass began, local `HEAD` and `git ls-remote origin refs/heads/arena/01a07c61-parsian-music-dashboard-opus` agreed on `9505ade4011b37a34e3488fd51206512829205ec`, and the clone in use was a **full** single-branch clone rather than a shallow one (§2). **This row's first wording was inaccurate and is corrected here.** It claimed this documentation commit was "committed **and pushed in the same operation**". The actual sequence: (1) committed locally as `d39793051c6cea61c80e1bba68a97dbf0b4c472c`; (2) the first push **failed** because the environment's GitHub token was no longer valid — `gh auth status` reported *"The github.com token in GH_TOKEN is no longer valid"*, and `git ls-remote` could not authenticate either; (3) GitHub was reconnected; (4) the **same** commit, unchanged, was then pushed as a fast-forward (`9505ade..d397930`); (5) **no amend, no force-push, no reset, no rebase and no second commit** preceded that successful push. The rule the original wording invoked — commit and push together, because the pass this one replays was lost precisely by sitting unpushed between turns (**L5**) — was attempted and defeated by an expired credential, so this commit *did* cross a turn boundary unpushed and survived. §2's rule still applies to it: verify the remote with the command, never trust a recorded value |
 
 **What this evidence does not say.** A green suite is evidence, not a proof of determinism, and one
 full run is weaker evidence than six — the reason six were not required is stated in the row rather
@@ -1094,8 +1094,13 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     lost record, and the three mutation checks were taken in a throwaway `git worktree` so that no
     product file in the working tree was ever altered. The replayed commit carries a different SHA, and
     no claim of byte-identity with the lost one is made or implied. **L5** — validated work left
-    unpushed between turns — has now destroyed work twice, which is why this commit is committed **and
-    pushed in the same operation**.
+    unpushed between turns — has now destroyed work twice. This record was written under the rule that
+    lesson produces and did **not** achieve it, which the first wording of this item claimed: the commit
+    was made locally, its first push failed on an invalid GitHub token, and after the connection was
+    restored the same commit was pushed unchanged as a fast-forward — no amend, no force-push, no reset,
+    no rebase, no second commit. It therefore *did* sit unpushed across a turn boundary and survived,
+    which is a credential expiring at a fortunate moment rather than a mitigation. The rule stands; the
+    claim that this commit followed it does not.
 
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
