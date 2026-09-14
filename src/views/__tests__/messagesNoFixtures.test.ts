@@ -32,6 +32,13 @@
  * automatically — including the retired `conversations` fixture, which is
  * asserted to exist precisely so this rule cannot become vacuous.
  *
+ * M6/CP4 added the export, and the same rule applies to it: the transcript is
+ * built from repository reads and handed to the browser through the export
+ * domain's own `downloadBlob`. So the attachment rules above are joined by the
+ * ones a text export needs — no fixture transcript, no browser storage, no
+ * second download implementation, no HTML serialization of user content, no
+ * attachment bytes, and no console output of anything read.
+ *
  * Comments are stripped before the identifier checks (the files document what
  * they do, and prose about a rule must not satisfy it), and no line numbers are
  * used anywhere: they drift, and a gate that breaks on an unrelated edit gets
@@ -105,7 +112,8 @@ describe("the messages surface reads from the domains", () => {
     expect(names).toContain("views/messages/AttachmentField.tsx");
     expect(names).toContain("views/messages/MessageAttachment.tsx");
     expect(names).toContain("views/messages/attachmentRules.ts");
-    expect(names.length).toBeGreaterThanOrEqual(6);
+    expect(names).toContain("views/messages/conversationExport.ts");
+    expect(names.length).toBeGreaterThanOrEqual(7);
   });
 
   it("imports nothing from the fixture collections outside the declared exception", () => {
@@ -219,6 +227,39 @@ describe("the attachment surface is repository-backed", () => {
       expect(file.source, `${file.name} reads the wall clock`).not.toMatch(/Date\.now\(/);
       expect(file.source, `${file.name} fakes latency`).not.toMatch(/\bset(Timeout|Interval)\s*\(/);
       expect(file.source, `${file.name} branches on the test environment`).not.toContain("NODE_ENV");
+    }
+  });
+
+  it("builds the export from repository reads and hands it to the existing download seam", () => {
+    const exporter = MESSAGES_SURFACE.find((file) => file.name === "views/messages/conversationExport.ts")!;
+    // Reads: the conversation by id and its messages, through the chat repository.
+    expect(exporter.source).toContain("getChatRepository()");
+    expect(exporter.source).toContain("getConversation(");
+    expect(exporter.source).toContain("listMessages(");
+    // The file is handed to the browser by the export domain's own utility —
+    // not by a second, private implementation of the same browser dance.
+    expect(exporter.source).toContain("downloadBlob(");
+    expect(exporter.source).toContain('from "@/domains/export/exportService"');
+    expect(exporter.source).not.toContain("createElement(");
+    // A statement the artifact must carry: the bytes are not in the file.
+    expect(exporter.source).toContain("خودِ فایل پیوست در خروجی نیست");
+  });
+
+  it("exports no attachment bytes and produces no markup", () => {
+    const exporter = MESSAGES_SURFACE.find((file) => file.name === "views/messages/conversationExport.ts")!;
+    // `mediaId` resolution reads METADATA only. The bytes live behind `getBlob`,
+    // which belongs to the media card that renders an attachment, not to the
+    // export — a transcript has no business reading a binary.
+    expect(exporter.source).not.toContain("getBlob(");
+    // Plain text, always: no HTML, no XML, no data URLs, no inline serialization.
+    expect(exporter.source).toContain('"text/plain;charset=utf-8"');
+    for (const file of MESSAGES_SURFACE) {
+      expect(file.source, `${file.name} produces HTML`).not.toContain("text/html");
+      expect(file.source, `${file.name} writes markup into the DOM`).not.toMatch(
+        /innerHTML|dangerouslySetInnerHTML|outerHTML|insertAdjacentHTML/,
+      );
+      // Nothing read from the user is printed to a console or sent anywhere.
+      expect(file.source, `${file.name} logs`).not.toMatch(/console\.(log|info|warn|error|debug)/);
     }
   });
 

@@ -28,6 +28,18 @@
  * server-side concerns: this surface checks that a reference resolves, and claims
  * nothing more (see `docs/engineering/OPEN_ITEMS.md` and the media domain header).
  *
+ * EXPORT (M6 / CP4)
+ *
+ * The export is a plain-text transcript of the SELECTED conversation, read at
+ * call time through `getConversation(id)` and `listMessages({ conversationId })`
+ * — see `readChatExport`. The id is captured when the operator asks, so a list
+ * that changes underneath the export cannot retarget it, and the download
+ * happens only after the read resolved (the artifact is built, then saved, then
+ * reported). A selection hidden by a filter keeps CP2's explicit panel and
+ * therefore has no export control at all: nothing here can export a different
+ * conversation than the one on screen. Attachment metadata is in the file;
+ * attachment BYTES are not, and the transcript says so.
+ *
  * STATE SAFETY
  *
  * Composer state (text AND pending attachment) is keyed to the conversation it
@@ -49,6 +61,7 @@ import {
   AlertTriangle,
   Archive,
   ArrowRight,
+  Download,
   Megaphone,
   Pin,
   Send,
@@ -71,6 +84,8 @@ import { ConversationManagerDialog } from "./messages/ConversationManagerDialog"
 import { AttachmentPicker, AttachmentStatus } from "./messages/AttachmentField";
 import { MessageAttachment } from "./messages/MessageAttachment";
 import { attachmentKindFor, checkAttachment } from "./messages/attachmentRules";
+import { readChatExport, saveChatExport } from "./messages/conversationExport";
+import { academyNow } from "@/domains/shared/clock";
 
 const roleMeta: Record<ChatParticipantRole, { label: string; tone: "gold" | "violet" | "info" | "neutral" }> = {
   teacher: { label: "مدرس", tone: "gold" },
@@ -144,6 +159,7 @@ export function MessagesView() {
   const [sending, setSending] = useState(false);
   const [mobileThread, setMobileThread] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const listParams = useMemo(
     () => ({
@@ -344,6 +360,51 @@ export function MessagesView() {
     }
   }, [notify]);
 
+  /**
+   * Exports the conversation that is selected RIGHT NOW.
+   *
+   * `active` is captured before the await, and the read re-resolves the thread by
+   * that id rather than trusting the list's order — so switching threads while an
+   * export is in flight cannot make it export the other conversation, and the
+   * success names the thread that was actually read (`artifact.conversationName`),
+   * never whatever happens to be on screen when the promise settles.
+   *
+   * `exporting` is the duplicate guard, set before the first await and checked on
+   * entry; the control is disabled while it is true, so repeated clicks cannot
+   * start a second read. The composer is not touched by any of this.
+   *
+   * The download happens after `readChatExport` resolved, so a failed read cannot
+   * reach `saveChatExport` — there is no path in this action that reports or
+   * performs an export that did not happen.
+   */
+  const runExport = useCallback(async () => {
+    if (!active || exporting) return;
+    const target = active;
+    setExporting(true);
+    try {
+      const artifact = await readChatExport(target.id, academyNow());
+      saveChatExport(artifact);
+      notify({
+        tone: "success",
+        title: "خروجی گفتگو ذخیره شد",
+        detail:
+          artifact.messageCount === 0
+            ? `«${artifact.conversationName}» هیچ پیامی ندارد؛ فایل خروجی بدون پیام ذخیره شد.`
+            : `«${artifact.conversationName}» · ${faNum(artifact.messageCount)}${
+                artifact.truncated ? ` از ${faNum(artifact.totalInRepository)}` : ""
+              } پیام در فایل «${artifact.fileName}» ذخیره شد.`,
+      });
+    } catch (cause) {
+      notify({
+        tone: "danger",
+        title: "تهیهٔ خروجی گفتگو ناموفق بود",
+        detail: apiErrorFromThrown(cause).message,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [active, exporting, notify]);
+
   if (loading) return <LoadingState className="py-32" label="در حال بارگذاری گفتگوها…" />;
   if (error)
     return (
@@ -483,6 +544,17 @@ export function MessagesView() {
                   <div className="truncate text-[11.5px] text-ink-400">{active.topic}</div>
                 </div>
                 <StatusBadge tone={roleMeta[active.role].tone} label={roleMeta[active.role].label} glyph={false} />
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  className="shrink-0"
+                  onClick={() => void runExport()}
+                  disabled={exporting}
+                  aria-label="خروجی گرفتن از این گفتگو"
+                  title="خروجی متنی همین گفتگو، بر اساس داده‌های ذخیره‌شده"
+                >
+                  <Download className="size-3.5" /> {exporting ? "در حال تهیه…" : "خروجی"}
+                </Button>
                 <Button
                   size="sm"
                   variant="subtle"
