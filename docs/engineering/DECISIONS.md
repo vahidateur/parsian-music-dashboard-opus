@@ -229,6 +229,11 @@ no create, edit or delete surface — five verbs (`get`, `create`, `update`, `de
 have no shipped caller, for the reasons in `src/domains/scheduling/README.md` §3 — no
 recurrence-scoped write, no rendered roster, and no copy implying a server. **H1a is closed; H1 stays
 OPEN** on its attendance half (**H1b**, M5's) — see [OPEN_ITEMS.md](OPEN_ITEMS.md) **H1**.
+*(Superseded 2026-09-14, and kept as M4's record: **M5 landed and closed H1b, so H1 is closed.** The
+"no rendered roster" clause needs one correction rather than a deletion — a roster **is** now rendered
+in shipped UI, but not by this domain: the attendance view derives it through its own
+`useSessionAttendance`, so scheduling's `sessionRoster` verb and the `useSessionRoster` hook behind it
+are still unconsumed and now belong to no milestone. See **D13**.)*
 *M2's record, kept because it explains why there was no write to wire:* M2
 (`c42f274ac10d4087f9280e3bf7b47141d0672e32`) *removed* both «انتقال به اتاق ۴» controls rather than
 wiring them, so between M2 and M4 what remained was fabricated **content** (a hardcoded room, weekday
@@ -251,7 +256,19 @@ unacceptable.
 (`src/domains/attendance/__tests__/`: `demoRepository`, `roster`, `useAttendance` — 79 tests)
 plus `src/domains/progress/__tests__/`.
 
-**Status.** ✅ In force and protected.
+**Status.** ✅ In force and protected — **and since M5, in front of users.**
+`9505ade4011b37a34e3488fd51206512829205ec` wired `src/views/Attendance.tsx` to this domain without
+changing a file in it, so the decision is now exercised by shipped UI rather than only by Group D:
+`record`, `bulkRecord` and `correct` are all awaited, a correction requires a reason before any write
+is attempted, the trail is read back newest-first and paginated, and **no control offers an update, a
+delete or an un-record** — `src/views/__tests__/attendanceWrites.test.tsx` asserts the absence of
+«حذف», «پاک کردن», «بازگرداندن», «ویرایش رکورد» and «ثبت نهایی» rather than trusting it, and
+`src/views/__tests__/attendanceNoFixtures.test.ts` forbids the verbs the interface does not have
+(`.update(`, `.delete(`, `.remove(`, `.save(`, `.destroy(`, `.bulkSave(`). Provenance comes from the
+authenticated principal (`recorderId = user?.id`), never from a form field, so `changedByUserId` is a
+fact about the session rather than a claim by the operator. Cancellation stays domain-owned: the view
+reports the `locked` flag the repository derived from `session.status === "cancelled"` and withdraws
+its controls instead of deciding lock state itself.
 
 ## 13. Media: metadata in the dataset, bytes in IndexedDB — never a fabricated URL
 
@@ -402,18 +419,20 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D12)
+## 19. Product-phase decision register (D1–D13)
 
-Twelve decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D12** to
+Thirteen decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D13** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Five are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's), two are
-settled by deferral (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
+Six are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
+M5's), two are settled by deferral (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**,
+**D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
-was right and the table was not.
+was right and the table was not. **D13** was added by M5's documentation reconciliation, together with
+its table row and its section, so that neither half drifts the way those three did.
 
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
@@ -429,6 +448,7 @@ was right and the table was not.
 | D10 | A write target taken from a rendered row is paired with a parent resolved independently | **DECIDED — landed with M3** | M3 |
 | D11 | An assignment surface renders outside the list it assigns to, and derives its own selection | **DECIDED — landed with M3** | M3 |
 | D12 | A failed secondary read is reported as a failure, never as an empty list | **DECIDED — landed with M3's F1 fix** | M3 |
+| D13 | A wired view derives its own selection and renders the register its own domain derives | **DECIDED — landed with M5** | M5 |
 
 ### D1. Student role — deferred, not designed
 
@@ -451,7 +471,12 @@ workspace in `src/views`.
 **Status.** ⏸️ Deferred by decision. Consequence: I5 and I4 (teacher visual workspace — what a
 teacher role may see is the same authorization question) stay out of the phase. The chat domain
 already models a student *counterpart* (`ChatParticipantRole` includes `student` and `guardian`),
-which is not a login principal and is unaffected.
+which is not a login principal and is unaffected. **Since M5 the deferral is stated in the UI rather
+than merely absent from it:** the wired attendance register and its correction dialog each say out loud
+that no teacher, student or guardian is notified, and no `sendMessage` call exists anywhere in
+`src/views/Attendance.tsx` or `src/views/attendance/`. The H2 site that once claimed «پیام پیگیری
+ارسال شد · … و ولی ایشان مطلع شدند» was removed at M2 and did not return beside the real writes —
+see [OPEN_ITEMS.md](OPEN_ITEMS.md) **H2** and **I7**.
 
 ### D2. Branding is the source of truth for the academy identity
 
@@ -542,7 +567,19 @@ and the new M10 boundary test asserting no view imports those modules at all.
 or seed roles). **M4 has removed its reader:** `src/views/Scheduling.tsx` imports neither
 `src/data/records.ts` nor `src/data/academy.ts` any more. The scheduling fixtures stay in the dataset
 because `src/views/Classes.tsx` still reads them — the third role retiring one reader at a time, with
-the type and seed roles untouched.
+the type and seed roles untouched. **M5 has removed the attendance view's reader too, and is the
+clearest case yet of the three roles being separable:** `src/views/Attendance.tsx` and both of its
+panels import nothing from either module, so `todayAttendance`, `attendanceTrend`, `attendanceByDay`,
+`attendanceLabel` and `AttendanceRoster` have no reader in the view that owns them — while the **seed**
+role survives untouched (`src/domains/demo/seed.ts:166` still seeds a legacy `attendance` collection
+and `src/domains/demo/backup.ts:242` still reads it, so a round-trip stays lossless) and the **type**
+role was never in question. Deleting the fixtures was therefore *not* possible inside M5's
+authorization, and the one remaining shipped reader is `src/views/Reports.tsx:143` (`attendanceByDay`)
+— **I2** and M9's. One deliberate non-change belongs to this entry: `attendance` **stays** in
+`src/views/__tests__/emptyEnvironment.test.tsx`'s fixture list, because that membership asserts
+`inFlightMarkers() === 0` — a semantic claim about issuing no domain read, which a wired view would
+fail — and moving it would have been a test-semantics change the milestone was not authorized to make.
+Only that file's labels and comments were corrected.
 
 ### D6. Finance and reports domains are not built in this phase
 
@@ -677,6 +714,11 @@ shown while a read is pending) and `src/domains/learning/__tests__/LearningPanel
 unchanged and green, which is the evidence that the levels column still counts only levels.
 
 **Status.** ✅ Landed with M3's implementation checkpoint `e5b0a57d8f33dc04838670a2cd4158a88dd34022`.
+**The same reasoning was applied again at M5, to a different domain:** attendance's `get` verb has no
+shipped UI caller, because the register is read for the **derived** selected session and the mark a
+correction targets is a row the register or the record list already holds — a second read by id would
+add a second copy of the same fact, and a second copy a write could target after the window moved. See
+**D13** and `src/domains/attendance/README.md` §3.
 
 ---
 
@@ -708,6 +750,59 @@ detects its violation rather than by this sentence.
 **Scope is deliberately one surface:** fourteen other consumers still discard `error` — recorded as
 [OPEN_ITEMS.md](OPEN_ITEMS.md) **I15**, not authorized, not started. This decision states the rule the
 product means; it does not claim the codebase obeys it.
+**M5 obeyed it at a second surface, and at a wider one:** `src/views/Attendance.tsx` renders **six**
+independent error states — sessions (`:524`), classes (`:563`), the register (`:587`), recorded
+absences (`:636`), the window's records (`:712`) and the correction trail (`:766`) — each with the
+failure's own message and its own retry, and each withholding only what that read would offer. A
+failed register read therefore offers **no write at all**, asserted by
+`src/views/__tests__/attendanceWrites.test.tsx` ("reports a failed register read with a retry, and
+offers no write") and ("reports a failed session read with its own message and a retry, never as an
+empty window"). **I15's count is unchanged by this:** M5 fixed its own surface, as M3 did, and did not
+touch the fourteen others.
+
+---
+
+### D13. A wired view derives its own selection, and renders the register its own domain derives
+
+**Decision.** `src/views/Attendance.tsx` derives the session it shows from the window it read —
+`sessions.items.find((row) => row.id === selectedSessionId)` over the page currently on screen — rather
+than storing a selection, and it renders the register its **own** domain derives: one
+`useSessionAttendance` pass, in which the attendance repository joins the roster resolved from active
+Enrollment at that session's date with whatever marks exist. It does this even though the scheduling
+domain offers `sessionRoster` and `useSessionRoster` for the same session. And where a hook it depends
+on cannot guarantee what its own doc comment claims (**I13**), the view **guards the exposure at its own
+boundary and keeps the defect named** instead of either fixing a frozen domain file or shipping the
+exposure silently.
+
+**Why.** A stored id outlives the window that produced it, so a day/week switch, a refetch or a
+truncated page can leave a selection no row justifies — the principle **D11** and I13 Checkpoint 1
+already established, applied to a session instead of a level. A register assembled from two domains
+would oblige the view to reconcile two rosters, and a view that reconciles is a view that can disagree
+with both; the attendance domain already derives one, atomically, with the marks joined in the same
+pass, so rendering what the domain owns removes the disagreement rather than managing it. Choosing the
+sibling verb would also have made a *scheduling* protection depend on an *attendance* read. The guard
+exists because M5's authorization froze every file under `src/domains/`: `useSessionAttendance` still
+carries no query key, so a committed frame can hold the previous session's register, and the honest
+options were to withhold the register while identities disagree or to render it.
+
+**Enforced by.** `src/views/Attendance.tsx:237` (the derived selection), `:241` (the domain's own
+register) and `:250` (the boundary guard, `attendance.sessionId === selectedSessionId`);
+`src/views/__tests__/attendanceNoFixtures.test.ts` — "selects a session from the window it read, never
+a default id", "compares the register's session with the one selected", "withholds a register that
+answers for another session", "keeps the upstream defect visible rather than claiming a fix" — and
+`src/views/__tests__/attendanceWrites.test.tsx` — "does not render a register that answers for another
+session". Removing the guard is **mutation-checked**: 2 of the 53 cases across the two files fail.
+
+**Status.** ✅ Landed with M5's implementation checkpoint
+`9505ade4011b37a34e3488fd51206512829205ec`. **Taken by the implementer inside M5's authorization and
+recorded here so the next reader knows it was a choice, not an accident:** the milestone was scoped to
+the view, the domain was frozen, and the consequence is that scheduling's `sessionRoster` verb and
+`useSessionRoster` hook remain unconsumed and **now belong to no milestone**. The guard is a
+**mitigation, not a closure** of **I13** — the hook is still unfixed and now sits behind shipped UI.
+Attendance's `get` verb is unconsumed for **D11**'s reason, and `sessionIdsWithAttendance` is
+unconsumed because it is a **cross-domain boundary** rather than a view read: scheduling reaches it
+through the registry's presence provider (`src/domains/registry.ts:223`) and its synchronous sibling,
+which fails safe. All three reasons are in `src/domains/attendance/README.md` §3.
 
 ---
 

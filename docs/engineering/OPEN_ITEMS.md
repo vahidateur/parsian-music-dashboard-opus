@@ -16,23 +16,26 @@ drift — re-grep before editing.
 
 ## CRITICAL / HIGH
 
-### H1. Scheduling and Attendance views ignore their own real domains
+### H1. Scheduling and Attendance views ignore their own real domains — ✅ CLOSED (2026-09-14: H1a by M4, H1b by M5)
 - **What (as found):** Both domains are complete and heavily tested (Group A: 211 tests; Group D: 79
   tests) with `repository.ts` / `demoRepository.ts` / `apiRepository.ts` / hooks / registry
   wiring — yet `src/views/Scheduling.tsx` and `src/views/Attendance.tsx` read static fixtures from
-  `src/data/records.ts` and `src/data/academy.ts`. **Half of that sentence is now history:** M4 wired
-  the scheduling view to its own domain, so `src/views/Attendance.tsx` is the only one of the two that
-  still reads fixtures. The umbrella item stays open until both are wired.
+  `src/data/records.ts` and `src/data/academy.ts`. **All of that sentence is now history:** M4 wired
+  the scheduling view to its own domain and **M5 wired the attendance view to its own**, so neither
+  reads fixtures any more. The umbrella item is closed — see the Status bullet, which checks the
+  original "Done when" clause by clause rather than restating it in easier terms.
 - **Why it is critical:** the product looks finished where it is not, and the tested domain
   logic (conflict engine, materialized sessions, append-only corrections, derived rosters) is
-  invisible to the user. *(Since M4 that is true of **attendance** — its append-only corrections and
-  derived rosters — and no longer of scheduling, whose conflict engine, materialized sessions and
-  generation the shipped calendar now reads and writes.)*
+  invisible to the user. *(Since M5 that is true of neither: scheduling's conflict engine,
+  materialized sessions and generation are read and written by the shipped calendar, and attendance's
+  append-only corrections and derived rosters are read and written by the shipped register.)*
 - **Deferred because:** Phase 2 was scoped to the data lifecycle; re-wiring two views is a
   product-phase change with its own UX decisions.
-- **Status (2026-09-14): OPEN — H1a (scheduling) is ✅ CLOSED by M4, H1b (attendance) is M5's and has
-  not landed. Do not report this item as closed until BOTH views are wired.** One distinction matters,
-  because two different defects are easy to conflate:
+- **Status (2026-09-14): ✅ CLOSED — H1a (scheduling) by M4, H1b (attendance) by M5 at
+  `9505ade4011b37a34e3488fd51206512829205ec`.** Both views are wired, so this item's **own** "Done
+  when" is satisfied; it is checked clause by clause at the bottom of this entry, and its definition
+  was **not** rewritten to make closure easier. One distinction still matters, because two different
+  defects are easy to conflate:
   - **The fake-success half of the scheduling view is already gone, and M2 removed it rather than
     wiring it.** `c42f274ac10d4087f9280e3bf7b47141d0672e32` deleted both «انتقال به اتاق ۴» controls
     and the local `resolved` flag whose only real effect was hiding the conflict warning, kept the
@@ -66,11 +69,37 @@ drift — re-grep before editing.
     («فقط این جلسه» / «این و جلسات بعدی») were **not** reimplemented, because no domain contract exists
     for a recurrence write; **no mutation or reversion check was recorded for CP1–CP3**; and **browser
     QA is NOT VERIFIED**.
-  - **Attendance is untouched:** `src/views/Attendance.tsx:31` still keeps rosters in local React
-    state (`useState(todayAttendance)`), and the setters below it — `setMark`, `markAllPresent` and
-    `submit`, down to line 58 — write only to that state. The fixture is keyed by legacy `g*` session
-    ids, and its «ثبت نهایی» wording is
-    **I12**, deferred to M5 by the owner's explicit decision.
+  - **H1b is CLOSED (2026-09-14, by M5).** What the bullet here used to record —
+    `src/views/Attendance.tsx:31` keeping rosters in local React state (`useState(todayAttendance)`),
+    with `setMark`, `markAllPresent` and `submit` down to line 58 writing only to that state, over a
+    fixture keyed by legacy `g*` session ids — **is gone**. There is no `useState(todayAttendance)` and
+    no `setMark`/`markAllPresent`/`submit` in the file; the selected session is **derived** from the
+    window the view read (`src/views/Attendance.tsx:237`) rather than stored, and the three setters
+    were replaced by three awaited repository calls: `record` (`:304`), `bulkRecord` (`:349`) and
+    `correct` (`:390`), each with an honest failure path reporting `apiErrorFromThrown(cause).message`.
+    The reads are `useSessions` (`:208`), `useSessionAttendance` (`:241`), two `useAttendanceRecords`
+    queries the repository filters (`:215`, `:217`) and `useAttendanceCorrections` (`:219`).
+    **I12** — the «ثبت نهایی» wording the owner deferred to this milestone — is closed with it,
+    clause by clause, in its own entry below. Checkpoint: `9505ade4011b37a34e3488fd51206512829205ec`
+    (one implementation checkpoint, built on M4's final reconciliation
+    `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b`); measured evidence in
+    [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M5 validation"; the milestone's own record in
+    [PHASES.md](PHASES.md) → "Product phase — M5".
+    **What closure does not mean, and must be carried into any report:** the academy-wide rate, trend
+    and per-day chart the fixture view faked were **removed, not rebuilt** — no percentage, no
+    sparkline, no per-instrument breakdown and no «آخرین حضور» projection, because the window this view
+    reads cannot support them honestly (**H5**'s ceiling honoured by absence); **no notification of any
+    kind is sent** to a teacher, a student or a guardian (**D1**, **I7**), and the UI says so out loud;
+    there is **no un-record, no edit and no delete** of a mark or of a correction, because the model is
+    append-only by contract; two of the domain's eight verbs (`get`, `sessionIdsWithAttendance`) have
+    no shipped UI caller, each with its reason in `src/domains/attendance/README.md` §3, and
+    scheduling's `useSessionRoster` is **still** unconsumed — M5 read the attendance domain's own
+    derived register instead, so that verb now belongs to no milestone; **I13 stays OPEN** with a
+    view-boundary mitigation only; **I16 stays OPEN** with this view's ceilings stated rather than
+    removed; the legacy `attendance` seed collection survives with no reader in the view that owns it
+    (**D5**, **M10**); `src/domains/attendance/apiRepository.ts` stays deliberately unregistered, so
+    backend aggregation does not exist; **no acceptance audit of M5 ever ran**, so no audit findings
+    and no **B**-numbered coverage items exist for it; and **browser QA is NOT VERIFIED**.
   - Group A has since grown one suite that is **not** part of the protected six:
     `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` (9 tests, I13 Checkpoint 3B), so the
     scheduling `__tests__` directory holds 220 tests while **Group A itself remains 211**.
@@ -82,8 +111,39 @@ drift — re-grep before editing.
   reads exclusively through `useSessions`, its fixture imports are gone,
   `src/__tests__/architectureBoundaries.test.ts` passes with three *more* callers in
   `PAGE_SIZE_CALLERS` than before, and `src/views/__tests__/schedulingNoFixtures.test.ts` (14 cases)
-  asserts that fixture records do not appear when the repository returns something else. **The
-  attendance half is not started** — it is **M5**.
+  asserts that fixture records do not appear when the repository returns something else.
+  **The attendance half is satisfied and measured too** (2026-09-14, M5 at
+  `9505ade4011b37a34e3488fd51206512829205ec`), clause by clause against the criterion exactly as
+  originally written:
+  - *"both views read exclusively through `useScheduling` / `useAttendance`"* — `src/views/Attendance.tsx`
+    imports `useSessions` from `src/domains/scheduling/useScheduling.ts` and `useSessionAttendance`,
+    `useAttendanceRecords` and `useAttendanceCorrections` from
+    `src/domains/attendance/useAttendance.ts`, and reaches the repository itself only for the three
+    writes (`getAttendanceRepository()`). Its remaining reads — `useClasses`, `useTeachers`,
+    `useStudentList` — resolve ids the domain's records carry into labels, exactly as the scheduling
+    view's do, and none of them is a source of register data.
+  - *"the fixture imports are gone"* — the file imports nothing from `src/data/records.ts` or
+    `src/data/academy.ts`; `grep -nE "src/data/|todayAttendance|attendanceTrend|attendanceByDay|attendanceLabel|AttendanceRoster"`
+    over the view and both of its panels matches only prose inside comments, never an import or a use,
+    and `src/views/__tests__/attendanceNoFixtures.test.ts` pins that structurally ("imports nothing
+    from the fixture module", "names no fixture symbol anywhere in the view or its panels").
+  - *"`src/__tests__/architectureBoundaries.test.ts` still passes"* — green at **11** tests with **no
+    new entry needed**: `useSessions`, `useAttendanceRecords` and `useAttendanceCorrections` were
+    already in that file's `PAGE_SIZE_CALLERS`, and all seven of this view's bounded reads state an
+    explicit page size. One honest gap in that list is recorded rather than left implied:
+    `useStudentList` is **not** among the policed hooks, so this view's new call site
+    (`src/views/Attendance.tsx:211`, `per_page: SUPPORT_PER_PAGE`) is checked by review and by
+    `attendanceNoFixtures` rather than by that gate — see **I16**.
+  - *"new suites assert that fixture records do **not** appear when the repository returns something
+    else"* — `src/views/__tests__/attendanceNoFixtures.test.ts` (31 cases: "renders none of the retired
+    narratives", "carries none of the five fabricated figures", "computes no percentage", "hardcodes no
+    ISO date and no fixture session id", "calls no verb the repository does not have") and
+    `src/views/__tests__/attendanceWrites.test.tsx` (22 behavioural cases driven through the real
+    repository in DEMO **and** in a customer's own EMPTY environment: "records one mark, and shows the
+    record the repository wrote", "renders honest empty surfaces and no fabricated figure", "reads the
+    correction history back on the history tab"). Three of those cases are **mutation-checked**: a
+    fabricated rate, a crossed register and a missing RBAC gate each turn them red (§4 → "M5
+    validation").
 
 ### H2. Fake-success UX (a toast claims a write or a delivery that never happened)
 - **Confirmed instances** (a `notify({ tone: "success" })` with **no** repository call behind it):
@@ -118,7 +178,15 @@ drift — re-grep before editing.
     «همه حاضر (موقت)», and now says in `info` that no attendance has been recorded; a real
     `bulkRecord` needs a domain session id and an authenticated `recordedByUserId` this view does
     not have. The «پیگیری» button, which claimed a student **and their guardian** had been
-    notified, is removed; the row still opens that student's real profile.
+    notified, is removed; the row still opens that student's real profile. *(This is M2's record and
+    stands as written. **M5 discharged the reason it gives:** a real `bulkRecord` now exists, is
+    awaited, and carries the authenticated principal, so the control is no longer «موقت» — it is
+    labelled with the count it will write, «همه حاضر (N)», withdrawn rather than disabled when there
+    is nothing to write, and its success sentence reports a count of records that exist. **Site 3's
+    retracted claim «همه حاضر ثبت شدند» is now a forbidden string**, pinned by
+    `src/views/__tests__/attendanceNoFixtures.test.ts`. **Site 4 stays removed:** no notification of
+    any kind is sent — nothing messages a teacher, a student or a guardian (**D1**, **I7**) — and the
+    register panel and the correction dialog each say so out loud rather than leaving it implied.)*
   - `src/views/Finance.tsx` — both reminders now say in `info` that an SMS service is required and
     that nothing was sent or queued. The invented «N پیام در صف ارسال قرار گرفت» count is gone.
   - `src/views/Classes.tsx` — the waitlist button no longer claims a suggestion was filed with
@@ -129,8 +197,9 @@ drift — re-grep before editing.
 - **Enforced by** `src/__tests__/writeFeedbackHonesty.test.ts` (a view may only report success where
   it can reach a repository, and the views on its `FIXTURE_DRIVEN_VIEWS` list may contain no success
   toast at all — for them the absence is a proof, not a convention. That list held **four** views when
-  M2 landed and holds **three** since M4 graduated `views/Scheduling.tsx` into the `GRADUATED_VIEWS`
-  ratchet described above) and
+  M2 landed, held **three** after M4 graduated `views/Scheduling.tsx` into the `GRADUATED_VIEWS`
+  ratchet described above, and holds **two** since M5 graduated `views/Attendance.tsx` the same way —
+  Finance and Reports only) and
   `src/views/__tests__/noSuccessWithoutWrite.test.tsx` (each site's new behaviour, driven through
   the real view in DEMO and in a customer's EMPTY environment).
 - **Not fake (verified — do not "fix" these):** `src/views/Classes.tsx:118` (archive, with a
@@ -140,6 +209,11 @@ drift — re-grep before editing.
   (`Attendance.tsx:51`, `Finance.tsx:170`, `Library.tsx:334`, `Messages.tsx:172` and `:313`,
   `Reports.tsx:43`, `Students.tsx:677`, `Teachers.tsx:321`,
   `src/components/layout/TopBar.tsx:91`, `src/components/overlays/ActionSheet.tsx:94`).
+  **The `Attendance.tsx:51` entry is now historical and must not be read as a live line number:** M5
+  rewrote the file, and the honest `info` toast it blessed no longer exists — a real awaited write
+  replaced it, and the environment-dependent «دمو» wording disappeared with it rather than being
+  routed through `useIsDemoEnvironment()` (see **I12**, closed clause by clause). The remaining
+  entries are unchanged.
   `src/views/DesignSystemView.tsx:178` is the design-system showcase, not a product surface.
 - **Done when:** every success toast is the result of an awaited repository call with an honest
   failure path, and a test asserts that no success notification can fire without a write.
@@ -159,6 +233,17 @@ drift — re-grep before editing.
   `src/views/Finance.tsx`, `src/views/Reports.tsx`) keep the second form; **M5's attendance half is
   still outstanding**, and the sites that already wrote for real keep satisfying it and are the
   "not fake" list below.
+  **Update (2026-09-14, M5):** `src/views/Attendance.tsx` has left that list in the same direction,
+  and it now satisfies the **first** form. Its success messages follow awaited `record`, `bulkRecord`
+  and `correct` calls (`src/views/Attendance.tsx:304`, `:349`, `:390`), asserted by
+  `src/views/__tests__/attendanceWrites.test.tsx` (22 cases) and
+  `src/views/__tests__/attendanceNoFixtures.test.ts` (31 cases), and
+  `src/__tests__/writeFeedbackHonesty.test.ts` tracks it in the same `GRADUATED_VIEWS` ratchet,
+  asserted in both directions: the file must reach `getAttendanceRepository(` **and** report a success
+  it can honestly claim. **Two views remain on the fixture list — `src/views/Finance.tsx` and
+  `src/views/Reports.tsx` — and both are **I2** and M9's**, because neither has a domain layer to be
+  wired to. So this item's "Done when" is satisfied for every view that *has* a domain, and the two
+  that remain cannot satisfy it until M9 creates one.
 
 ### H3. Real writes are labelled "demo data" in domain views (found while writing these docs, 2026-09-08)
 - **Status: ✅ LANDED by M2** for the five audited sites (its commit SHA is registered in
@@ -214,6 +299,18 @@ drift — re-grep before editing.
   have no relation to stored records — including in EMPTY, where there are zero records.
 - **Deferred because:** the correct fix is deriving every number from live repositories
   (`useAcademyMetrics` already exists for the hero metrics), which is product-phase work.
+- **Update (2026-09-14, M5):** this item's own four panels are untouched, but one more instance of
+  its **shape** is gone. `src/views/Attendance.tsx` used to print a hardcoded «نرخ حضور امروز» of 92٪
+  against a fabricated «میانگین ماه» of 89٪ plus a per-instrument breakdown nobody computed — the same
+  defect, in a view rather than a panel. M5 **removed** those figures rather than recomputing them:
+  no percentage, no trend, no per-instrument breakdown and no «آخرین حضور» projection, because the
+  bounded window the view reads cannot support an academy-wide rate honestly, and `attendanceTrend`
+  and `attendanceByDay` are pinned as forbidden by
+  `src/views/__tests__/attendanceNoFixtures.test.ts` ("computes no percentage", "carries none of the
+  five fabricated figures", "draws no trend, ring or meter over data it does not have"). The only
+  aggregate this domain still feeds is the dashboard's hero metric, in
+  `src/domains/shared/useAcademyMetrics.ts`. `src/views/Reports.tsx` still renders `attendanceByDay`
+  (**I2**, M9's).
 - **Done when:** each insight is computed from loaded data, states «داده‌ای نیست» when the
   input set is empty (via `src/lib/stats.ts` + `NO_DATA`), and a test renders the dashboard in
   EMPTY asserting no fabricated figure or sentence survives.
@@ -367,6 +464,13 @@ it needs live counters, not a lifecycle change.)
 precision, idempotency and gateway behaviour are backend requirements — see
 `docs/production-handoff.md`. **Done when:** both follow the Students pattern with demo *and*
 API implementations, tests, and no fixture imports.
+- **Update (2026-09-14, M5):** these are now the **only two views left on
+  `src/__tests__/writeFeedbackHonesty.test.ts`'s `FIXTURE_DRIVEN_VIEWS` list** — scheduling graduated
+  at M4 and attendance at M5 — and `src/views/Reports.tsx:143` is the **last shipped consumer of the
+  attendance fixtures**, still rendering `attendanceByDay` from `src/data/records.ts`. The wired
+  attendance view reads neither `attendanceTrend` nor `attendanceByDay`, so this item's Reports half
+  now also owns the only place a fabricated attendance chart survives. Cleaning the fixtures
+  themselves up is **D5**/**M10**, not M9's wiring work.
 
 ### I3. Learning-content → level assignment UI — ✅ CLOSED (2026-09-13, landed and completed by M3)
 The learning domain models `Piece` vs `LearningContent`, programs, levels, placement history,
@@ -565,7 +669,7 @@ recovery and the zero-record tests both remaining green.
   [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §10.2 is correct for a refetch of
   the *same* query and is now caveated there for this case.
 
-### I12. Attendance's «ثبت نهایی» toast reports a local state change as a demo recording (raised during M2, deferred to M5 by decision)
+### I12. Attendance's «ثبت نهایی» toast reports a local state change as a demo recording — ✅ CLOSED (2026-09-14, by M5)
 - **What:** `submit()` in `src/views/Attendance.tsx` marks the roster `recorded` in React state,
   attributes it to a hardcoded fixture teacher («آرمان احمدی»), and reports «حضور و غیاب در دمو ثبت
   شد». Its tone is `info` and it does say that permanent recording needs a server, which is why H2's
@@ -581,6 +685,43 @@ recovery and the zero-record tests both remaining green.
   an awaited `record`/`bulkRecord` with an honest failure path — at which point `recordedBy` must
   come from the authenticated user rather than a fixture name, and the demo wording must come from
   `useIsDemoEnvironment()` if any environment-dependent wording survives at all.
+- **Status (2026-09-14): ✅ CLOSED by M5 at `9505ade4011b37a34e3488fd51206512829205ec`, and the
+  closure is clause by clause against the definition above rather than a restatement of it.**
+  - *"M5 wires the view to `src/domains/attendance`"* — done: `useSessionAttendance`,
+    `useAttendanceRecords` (twice) and `useAttendanceCorrections` from
+    `src/domains/attendance/useAttendance.ts`, plus `getAttendanceRepository()` for the writes
+    (`src/views/Attendance.tsx:208`, `:215`, `:217`, `:219`, `:241`).
+  - *"this toast becomes the result of an awaited `record`/`bulkRecord` with an honest failure path"*
+    — done: `record` at `:304` and `bulkRecord` at `:349` are both `await`ed, and success is announced
+    only after the promise resolves, naming only what happened (`… ثبت شد` for one mark,
+    «{faNum(n)} حضور ثبت شد» for a bulk save). A refusal reaches the operator in `danger` with
+    `apiErrorFromThrown(cause).message`, so `ATTENDANCE_DUPLICATE`, `ATTENDANCE_RECORDER_REQUIRED` and
+    the rest are the repository's own sentences. Nothing is mutated optimistically, so a refusal leaves
+    the register exactly as it was. **The retracted claim «همه حاضر ثبت شدند» — H2's site 3 — no longer
+    exists and is pinned as a forbidden string** by
+    `src/views/__tests__/attendanceNoFixtures.test.ts` ("renders none of the retired narratives"); the
+    bulk control is labelled with the count it will write, «همه حاضر (N)», and is **withdrawn** rather
+    than disabled when there is nothing to write.
+  - *"`recordedBy` must come from the authenticated user rather than a fixture name"* — done: the
+    hardcoded «آرمان احمدی» attribution is gone and `recorderId = user?.id` (`:174`) is what every
+    write is attributed to, asserted by `attendanceNoFixtures` ("attributes every write to the
+    authenticated principal", "hands the correction dialog no provenance of its own") and by
+    `attendanceWrites` ("attributes the mark to whoever is signed in", "performs no write when nobody
+    is signed in").
+  - *"the demo wording must come from `useIsDemoEnvironment()` **if any environment-dependent wording
+    survives at all**"* — the conditional resolved to **no**: the word «دمو» appears nowhere in
+    `src/views/Attendance.tsx`, `src/views/attendance/RegisterPanel.tsx` or
+    `src/views/attendance/CorrectMarkDialog.tsx`, and neither file imports `useIsDemoEnvironment`,
+    because the writes are real in both modes and the honest `info` sentence the old toast carried —
+    «ثبت دائمی و اطلاع‌رسانی به مدرس به سرور نیاز دارد» — was split rather than kept: its persistence
+    half is now a real awaited write, and its notification half is stated where it belongs, with the
+    register panel and the correction dialog each saying out loud that no teacher, student or guardian
+    is notified (**D1**, **I7**). **This is a deviation from the spec's Tests clause, which asked that
+    the sentence be preserved literally, and it is recorded as a deviation rather than presented as
+    compliance** — see [PHASES.md](PHASES.md) → "Product phase — M5" → "What completion does NOT
+    claim", and **L6** below for the two stale claims left in the view's own header comment.
+  - **What closure does not mean:** no notification is sent, there is no un-record, no edit and no
+    delete of a mark or of a correction, and **browser QA is NOT VERIFIED**.
 
 ### I13. A list hook publishes the previous query's rows, with no loading marker, when its params change (found 2026-09-12 while triaging I11)
 - **Status (2026-09-13): IN PROGRESS — Checkpoints 1 (A′), 2, 3A and 3B implemented and validated;
@@ -659,6 +800,27 @@ recovery and the zero-record tests both remaining green.
   `src/views/scheduling/SessionWriteDialogs.tsx` and `useGenerationPreview` in
   `src/views/scheduling/GenerateSessionsDialog.tsx` — so 3B's fix is now live on a real path rather
   than only on a test one. `useSessionRoster` is still unconsumed and stays M5's. **This item is
+  unchanged in substance and still OPEN.**
+  **Post-M5 (2026-09-14, measured at `9505ade4011b37a34e3488fd51206512829205ec`): M5 has landed, and
+  it made one of the three remaining readers reachable in shipped UI *without fixing it*.**
+  `useSessionAttendance` (`src/domains/attendance/useAttendance.ts:80`) now backs the register in
+  `src/views/Attendance.tsx:241`, still carries no query key, and still has the doc comment that
+  claims a guarantee it does not deliver. M5's authorization froze every file under `src/domains/`,
+  so the hook could not be changed; what the view does instead is **guard the exposure at its own
+  boundary**: it compares the register it holds against the session it selected
+  (`attendance.sessionId === selectedSessionId`, `src/views/Attendance.tsx:250`) and withholds the
+  register — rendering an in-flight state — while they disagree, so a crossed frame can neither be
+  rendered nor written against. Two tests keep that mitigation honest rather than letting it read as a
+  fix: `src/views/__tests__/attendanceNoFixtures.test.ts` carries a case named "keeps the upstream
+  defect visible rather than claiming a fix" (plus "compares the register's session with the one
+  selected" and "withholds a register that answers for another session"), and
+  `src/views/__tests__/attendanceWrites.test.tsx` asserts "does not render a register that answers for
+  another session". Removing the guard is **mutation-checked**: it fails 2 of the 53 cases across the
+  two files. **That is a mitigation in one consumer, not a closure — this item stays OPEN, and the
+  hook is now the one unfixed reader that shipped UI depends on.** `useSessionRoster`, meanwhile, was
+  **not** consumed by M5 after all: the attendance view reads the attendance domain's own derived
+  register, so the roster a session really has is rendered from attendance and that scheduling verb
+  **now belongs to no milestone**. `useStudentProgress` still has no consumer (M6/M7). **This item is
   unchanged in substance and still OPEN.**
 - **What (as it was, before Checkpoint 1):** `useResourceList`
   (`src/domains/shared/useResource.ts`) kept its page in state and set `loading` **inside an
@@ -756,7 +918,9 @@ recovery and the zero-record tests both remaining green.
     student-scoped), `useStudentProgress` (`src/domains/progress/useProgress.ts:62`), `useDerivedRead`
     (`src/domains/scheduling/useScheduling.ts:115` — the `:66` this line first quoted was its pre-fix
     location), `useSessionAttendance`
-    (`src/domains/attendance/useAttendance.ts:69`). Three carried doc comments claiming a guarantee
+    (`src/domains/attendance/useAttendance.ts:80` — the `:69` this line first quoted was its location
+    before **C2** made `per_page` a compile-time requirement and the file grew). Three carried doc
+    comments claiming a guarantee
     they did not deliver — "cannot paint the previous session's register", "cannot paint the previous
     student's data": the ticket guard they cite discards a late *response*, it cannot retract an
     already-committed *state*. **`useDerived` was the one with a real consumer**, and it is fixed —
@@ -764,9 +928,15 @@ recovery and the zero-record tests both remaining green.
     about to create**, and it is fixed as **Checkpoint 3B** (`fba826f`, see the status bullet above) —
     hardened *before* the view exists rather than after, which is the order Checkpoint 1 established.
     *(The view now exists: M4's CP1–CP3 wired it, so two of those three consumers are shipped and one —
-    `useSessionRoster` — is still M5's.)*
+    `useSessionRoster` — is still M5's. **Correction, 2026-09-14:** M5 landed and did **not** consume
+    `useSessionRoster`; it reads the attendance domain's own derived register instead, so that verb now
+    belongs to no milestone.)*
     `useSessionAttendance`'s comment still claims the guarantee it does not deliver, and that is M5's
-    exposure to face, not M4's. **An honest reachability correction, found while
+    exposure to face, not M4's. **It faced it by guarding, not by fixing:** the reader is now reachable
+    in shipped UI, the hook is unchanged, and the view compares the register's session against the
+    selected one and withholds a mismatch (see the Post-M5 paragraph above). The comment's false
+    guarantee therefore now sits behind a real consumer, which raises this reader's priority within the
+    item even though nothing about the hook changed. **An honest reachability correction, found while
     investigating 3A:** the stale frame was *not* observable through the app's own navigation today,
     because `src/App.tsx` keys the view subtree on `detailId`
     (`key={\`${view}-${filter ?? ""}-${detailId ?? ""}\`}`), so switching students remounts
@@ -785,7 +955,15 @@ recovery and the zero-record tests both remaining green.
     `useSessionAttendance` has **no view consumer** (tests only) and becomes reachable at **M5**;
     `useStudentProgress` has none and becomes reachable at **M6/M7**; every `useStudentList` call site
     passes constant params, so it is structurally defective but unreachable. **None of the three was
-    modified.**
+    modified.** *(Updated 2026-09-14, after M5: `useSessionAttendance` **is** reachable now and still
+    unmodified, guarded at the view boundary rather than fixed. `useStudentList` gained a **fourth**
+    call site in `src/views/Attendance.tsx:211`, alongside `EnrollmentDialog.tsx:36`,
+    `Students.tsx:558` and the hook's own definition — and like the others it passes a **constant**
+    params object (`{ per_page: SUPPORT_PER_PAGE }`), so the reader remains structurally defective and
+    unreachable. Note for whoever fixes this next: `useStudentList` is **not** among the hooks
+    `src/__tests__/architectureBoundaries.test.ts` polices in `PAGE_SIZE_CALLERS`, and it is not
+    `Paged<>`, so neither a gate nor the compiler enforces a page size on it — see **I16**. None of the
+    three was modified by M5 either.)*
   - **`useDomainSearch` was touched**, and only because CommandPalette is one of the authorized six:
     its gate is meaningless while the hook starts `loading: false` and keeps the previous query's
     results across a keystroke. It now carries the same key identity. No other hand-rolled reader was
@@ -978,7 +1156,7 @@ recovery and the zero-record tests both remaining green.
 - **Done when:** a list that means "everything" either pages or says it truncated, and every count a
   user reads comes from `total`.
 - **Status:** recorded 2026-09-13, **deferred, not authorized, not started — and still OPEN after
-  M4's mitigation below.** Distinct from **I14**
+  M4's *and* M5's mitigations below.** Distinct from **I14**
   (`per_page: 0` meaning "load nothing"), which is untouched and still deferred.
 - **What C2 changed (2026-09-13, `7e72887761f07f48e115160611a9785bfaae9060`).** Omitting `per_page`
   is now a **compile error** for two hooks, because their params are `Paged<…>`
@@ -1022,6 +1200,32 @@ recovery and the zero-record tests both remaining green.
   truncating. Group A's own whole-window read uses `per_page: 500`
   (`src/domains/scheduling/__tests__/registry.test.ts:190`).
 
+- **M5's mitigation — the same four clauses, at the attendance register, IMPLEMENTED and still not a
+  closure of this item (measured at `9505ade4011b37a34e3488fd51206512829205ec`).** A register is the
+  second surface where a silent ceiling is dangerous, because a truncated page of students looks
+  exactly like a complete one to a teacher about to save it. So the wired view: bounds its session read
+  with an explicit `from`/`to` window derived from the mode the operator chose
+  (`src/views/Attendance.tsx:201`, read at `:208`) and bounds both record reads by that same window
+  (`:215`, `:217`); states `per_page` explicitly on **all seven** of its bounded reads, sized above
+  the window's plausible maximum rather than above today's data — `SESSIONS_PER_PAGE`,
+  `SUPPORT_PER_PAGE` (classes, teachers and students) and `RECORDS_PER_PAGE` at **200**, and
+  `CORRECTIONS_PER_PAGE` at **50** for the one list that grows without bound (`:112`); consumes
+  `Page.meta.total` for every count rather than `items.length` (`:415`, `:432`, `:436`); and announces
+  truncation in its own words whenever `items.length < total` (`:496` sessions, `:649` absences, `:727`
+  records, `:779` corrections). **Asserted by** `src/views/__tests__/attendanceNoFixtures.test.ts`
+  ("states a page size on every bounded read", "bounds the record reads by the window it is showing")
+  and `src/views/__tests__/attendanceWrites.test.tsx` ("says when the window holds more sessions than
+  the page it got") — asserted rather than mutation-checked, because no mutation of a page size was
+  performed. **What this does not change:** no pager is introduced, the roughly twenty other sites are
+  untouched, and `items.length`-based counts elsewhere stay as they are. **One honest gap this view
+  adds, recorded rather than left implied:** its fourth `useStudentList` call site (`:211`) is policed
+  by neither the compiler (the hook is not `Paged<>`) nor `PAGE_SIZE_CALLERS` (the list holds
+  `useSessions`, `useAttendanceRecords`, `useAttendanceCorrections`, `useLibraryList`, `useClasses`,
+  `useRooms` and `useTeachers` — not `useStudentList`), so that ceiling is held by review and by
+  `attendanceNoFixtures` alone. With more than 200 students a roster row would resolve no name; the
+  view renders `NO_DATA` in that case rather than inventing one, but the ceiling is real and this item
+  is where it belongs.
+
 ### I17. Level-content link order is written and honoured for students but invisible to the operator (found 2026-09-13 during M3's acceptance audit)
 - **What:** `attachContent` appends with `sortOrder: siblings.length`
   (`src/domains/learning/demoRepository.ts:269`) and the student-facing eligibility list sorts by it
@@ -1048,17 +1252,31 @@ recovery and the zero-record tests both remaining green.
   repository-backed result honesty (it already reports «چیزی پیدا نشد» rather than inventing rows).
 - **L2. Dead code:** `TeacherNote` is declared at `src/data/records.ts:31` and never used
   anywhere. Delete it or land the feature that needs it.
-- **L3. Domain README stubs contradict the code — half retired.** `src/domains/scheduling/README.md`
+- **L3. Domain README stubs contradict the code — ✅ both retired (2026-09-14).** `src/domains/scheduling/README.md`
   said "Planned domain — **not implemented in Phase A**" while the domain was implemented and
   protected, and sketched a contract that does not exist (`POST /sessions/{id}/move`, a version-checked
   `409 SCHEDULE_VERSION_CONFLICT`); it was **rewritten to describe the real domain** in M4's CP0
   documentation reconciliation (`84fb7cb4a4a703d52de78cd701ed21d4d242d7c5`), because M4's implementer
   reads that file before touching the view, and **reconciled again after the milestone landed**, so it
   now describes a *wired* view: which of the eleven verbs shipped UI consumes, which five it does not
-  and why, what the calendar's pagination mitigation is, and that `useSessionRoster` is M5's.
-  `src/domains/attendance/README.md` **still carries the same false stub** and is deliberately left to
-  M5, which is the milestone that wires that domain — retiring it here would have widened CP0 into a
-  second domain's documentation.
+  and why, and what the calendar's pagination mitigation is.
+  `src/domains/attendance/README.md` **carried the same false stub** — eight lines saying "Planned
+  domain — **not implemented in Phase A**" about a domain that was implemented, registered and
+  protected by 79 frozen tests — and was deliberately left to M5, because retiring it in CP0 would
+  have widened that pass into a second domain's documentation. **M5's documentation reconciliation
+  retired it:** the file is rewritten to describe the real domain — its append-only model, the derived
+  roster, all eight verbs with the six shipped UI now calls and the two it does not (each with its
+  reason), the invariants enforced in the repository rather than in a view, the correction trail, what
+  does **not** exist (no update/delete, no notification, no academy-wide analysis, no backend
+  aggregation, an unregistered `apiRepository.ts`), the legacy fixtures the wired view replaced, and
+  **I13**'s surviving defect with its view-boundary mitigation.
+  **Two further falsehoods were found in the scheduling README while reconciling M5, and corrected in
+  the same pass:** it said `useSessionRoster` "becomes reachable at M5" — M5 landed and did **not**
+  consume it, so that verb now belongs to no milestone — and it described the attendance register as
+  still fixture-driven. **Six statements in that file were falsified by M5 in total**, each corrected
+  here rather than left to mislead the next reader. What L3 does **not** cover is **L6** below: two
+  stale claims inside `src/views/Attendance.tsx`'s own header comment, which a documents-only pass may
+  not edit.
 - **L4. No browser QA has ever run** — see [PROJECT_STATE.md](PROJECT_STATE.md) §5 for the exact
   manual checklist. This is a permanent gap until a human or a browser-capable environment
   performs it.
@@ -1075,8 +1293,43 @@ recovery and the zero-record tests both remaining green.
   author/committer timestamps of a commit that no longer exists. **Rule for every session:** push
   approved checkpoints promptly and verify any recorded SHA with `git cat-file -e <sha>^{commit}`
   before trusting it — see `docs/engineering/PROJECT_STATE.md` §2 and its recovery contract.
+  **It has now happened twice more, and the second time it destroyed completed work (2026-09-14).**
+  During M5's implementation the workspace was recycled between turns: the commit and its branch
+  pointer stopped existing as Git objects while the files survived on disk, so the milestone was
+  re-implemented from its recorded scope and committed once, cleanly, as
+  `9505ade4011b37a34e3488fd51206512829205ec`. Then the **documentation** reconciliation for that
+  milestone was measured, edited, validated (full suite green, 52 gates green, three mutation checks
+  taken and reverted) and committed locally — and the workspace was recycled **again** before its push
+  landed. The clone, and a `git format-patch` backup written *outside* the clone, both disappeared, so
+  that commit is unrecoverable and `git log` will never show it. Two lessons, both now written into the
+  workflow rather than left as advice: **(1)** a backup outside the repository does not survive
+  recycling either, so it is not a mitigation; **(2)** commit and push must happen **in the same
+  operation**, never across a turn boundary. The pass recorded in these documents is therefore a
+  **replay**: every number was re-measured from scratch on a fresh full clone of the authoritative
+  pushed tip rather than copied from the lost record, the mutation checks were taken in a throwaway
+  `git worktree` so that no product file in the working tree was ever altered, and the replayed commit
+  carries a **different SHA** with no claim of byte-identity to the lost one.
   **Done when:** the platform preserves the local object store across turns, or the workflow no
-  longer depends on an unpushed commit.
+  longer depends on an unpushed commit. Until then the rule is mechanical: `git commit && git push`
+  in one command, then verify with `git ls-remote origin refs/heads/<branch>`.
+
+- **L6. Two claims in the wired attendance view's own header comment are false, and a documents-only
+  pass did not fix them** (`src/views/Attendance.tsx:6` and `:12`). The comment says the view used to
+  render `todayAttendance` "(nine registers keyed by session ids `g7`–`g15` …)" where
+  `src/data/records.ts:436` holds **eight** — the keys are `g7`, `g8`, `g9`, `g10`, `g11`, `g13`,
+  `g14`, `g15`, and `g12` appears in no register, although
+  `src/views/__tests__/attendanceNoFixtures.test.ts:126` forbids all nine ids (a deliberately
+  conservative gate, and the reason the mistake is easy to make). It also says "Attendance has had a
+  complete domain since M1", where the domain landed in **Phase A**: `git log --oneline --reverse --
+  src/domains/attendance` in a full clone starts at `2acca0a` · *feat(architecture): Phase A — API
+  client, error model, repository contracts and demo/API boundary*, which is **before** the recorded
+  baseline `292b8b86ce7dd328b3a1510047f994e39c443a4e` — verified from Git in this pass, not from
+  recollection, and verifiable only because the clone in use was full rather than shallow. Neither
+  claim affects behaviour, and both are **L3**'s defect one layer down: prose that outlives the code it
+  describes. **Recorded, not fixed** — this reconciliation pass is documents-only, and editing product
+  source to tidy a documentation checkpoint would put a code change inside a commit whose own record
+  says it made none. **Done when:** whoever next has authority over `src/views/` corrects the two
+  sentences, or rewrites the comment from the code rather than from memory.
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 

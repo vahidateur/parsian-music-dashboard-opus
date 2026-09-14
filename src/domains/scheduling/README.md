@@ -8,10 +8,23 @@ engines (generation, conflicts), a calendar bridge, a demo implementation, an un
 implementation and a read layer. **M4 closed the gap that used to be recorded here** — the view no
 longer renders the legacy fixtures in `src/data/records.ts`; it reads `Session` rows through
 `useSessions` for a bounded date window and writes through `rescheduleSession`, `cancelSession` and
-`generateSessions`. **H1a is closed.** What is still true: **H1 stays OPEN** on its attendance half
-(**H1b**, M5's), five of this domain's eleven verbs have no shipped caller (§3), the roster is not
-rendered, and **browser QA has never run**. M4 changed **no file in this directory except this
-README** — the model, the engines, the repository, the hooks and Group A are exactly as they were. See
+`generateSessions`. **H1a is closed.** What is still true: five of this domain's eleven verbs have no
+shipped caller (§3), and **browser QA has never run**. M4 changed **no file in this directory except
+this README** — the model, the engines, the repository, the hooks and Group A are exactly as they were.
+
+**Two of those three "still true" claims were falsified by M5 (2026-09-14) and are corrected here
+rather than left to mislead.** **H1 is now closed on both halves:** M5 wired
+`src/views/Attendance.tsx` to the attendance domain at
+`9505ade4011b37a34e3488fd51206512829205ec`, so **H1b** is closed and the umbrella item with it. And a
+roster **is** now rendered in shipped UI — but **not by this domain**: M5 derives it through
+attendance's own `useSessionAttendance`, which joins the roster resolved from active Enrollment with
+the marks that exist in one repository pass, instead of consuming this domain's `sessionRoster` verb.
+So `sessionRoster` and the `useSessionRoster` hook behind it are **still unconsumed and now belong to
+no milestone** (§3, §8), the verb count in §3 is unchanged at five, and that choice is registered as
+**D13** in [docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md). **M5 changed no
+file in this directory at all** — `git diff --name-only 24caf3a..9505ade` lists nothing under
+`src/domains/`, this README included; the corrections you are reading were made by the documentation
+pass that follows the milestone. See
 [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) and
 [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md).
 
@@ -104,7 +117,7 @@ omission:
 | `create` | M4's writes are the operations this domain already guards. A generic create in the UI would offer a path around `rescheduleSession`'s linked-replacement rule and `generateSessions`' idempotency, and no hand-made-session need was authorized |
 | `update` | The same reason, sharper: `update` marks a session `manual`, so exposing it would let an operator edit a generated session out from under the generation engine's protections. `RescheduleInput` and `cancelSession` cover the two edits the product decided to allow |
 | `delete` | Excluded by **E-2**, the clause of M4's own authorization that keeps a hard delete out of the UI (applied at `src/views/Scheduling.tsx:45` and `src/views/scheduling/GenerateSessionsDialog.tsx:35`). Cancellation *is* this domain's destructive operation, because a hard delete destroys the record that a session ever existed — which is exactly what a parent disputes. `delete` stays a contract a backend may need and the UI must not offer |
-| `sessionRoster` | Deferred to **M5**, the milestone that wires attendance. Rendering a roster here would put a second consumer on the attendance-presence boundary M5 owns, and `useSessionRoster` is already key-carrying (I13 Checkpoint 3B) and waiting for it |
+| `sessionRoster` | **Deferred to M5 — and M5 landed without taking it (2026-09-14).** The attendance view derives its register through its own domain's `sessionAttendance` (`useSessionAttendance`), which already joins the Enrollment-derived roster with the marks in one pass, so consuming this verb too would put a second roster in shipped UI for the view to reconcile — and a view that reconciles two rosters can disagree with both. The reasoning is registered as **D13**. `useSessionRoster` remains key-carrying (I13 Checkpoint 3B) and unconsumed, so **this verb now belongs to no milestone**; it is not a gap M6 inherits by default |
 
 Errors are typed values, not thrown strings — `SESSION_ERRORS` in `types.ts`:
 `SESSION_NOT_FOUND`, `SESSION_INVALID`, `SESSION_CLASS_NOT_FOUND`, `SESSION_CLASS_ARCHIVED`,
@@ -195,8 +208,11 @@ re-open a fixed exposure — and **M4 was what made those readers reachable in s
 why the checkpoint landed before the milestone rather than inside it. It has now landed, so the fix is
 live on a real path for two of the three: `useConflictCheck` in
 `src/views/scheduling/SessionWriteDialogs.tsx` and `useGenerationPreview` in
-`src/views/scheduling/GenerateSessionsDialog.tsx`. `useSessionRoster` is still unconsumed, and is
-**M5**'s.
+`src/views/scheduling/GenerateSessionsDialog.tsx`. `useSessionRoster` is still unconsumed — **and M5
+did not consume it**: the attendance view derives its register through attendance's own
+`useSessionAttendance` instead (**D13**), so this hook now belongs to no milestone. It stays
+key-carrying and off-limits to weakening all the same, because the fix it carries is what makes the
+other two readers safe on their real paths.
 
 ## 9. The legacy fixtures this domain replaced (and what M4 did not silently keep)
 
@@ -212,7 +228,9 @@ now the view that does. The shapes were never the domain's:
 | `rooms[].occupancy`, `attendanceAvg` | not this domain's to redefine — `Room.occupancy` semantics are unchanged by M4, and the attendance projection stays where it is |
 
 **M4 stopped this *view* from reading the fixtures. It did not delete the fixture collections:**
-`src/views/Classes.tsx` and `src/views/Attendance.tsx` still read them, and their fate is a separate
+`src/views/Classes.tsx` still reads them — **`src/views/Attendance.tsx` no longer does, as of M5**
+(`9505ade4011b37a34e3488fd51206512829205ec`), and the only shipped reader of the *attendance* fixtures
+left anywhere is `src/views/Reports.tsx:143`, which renders `attendanceByDay`. Their fate is a separate
 decision (**D5**, to be recorded at **M10** and known from M4 onward) under which
 `src/data/records.ts` is *split by role* — entity types to their owning domains, the canonical DEMO
 seed under `src/domains/demo/`, and only the third role, fake data for unwired views, deleted once
@@ -223,6 +241,9 @@ repository, the hooks and Group A are byte-identical to what they were at
 ## 10. Where the authoritative state lives
 
 - [docs/engineering/PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md) — current phase, checkpoints, validation evidence, browser-QA status (NOT VERIFIED for every milestone).
-- [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) — **H1** (H1a, this view, **closed by M4**; H1b, attendance, is **M5**'s and keeps the item OPEN), **I13** (Checkpoints 1, 2, 3A, 3B landed; three hand-rolled readers remain), **I14**, **I16** (this domain's calendar mitigation implemented, the item still open).
-- [docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md) — §11 (CLASS vs RECURRENCE vs SESSION), §10 (domain boundaries), §15 (honesty rules).
-- [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md) — the **M4** milestone (scope, protected areas, demo/api behaviour, tests, acceptance, out-of-scope, rollback boundary) with its **LANDED** record at the end of that section, and the **M5** milestone that follows it.
+- [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) — **H1** (✅ **closed on both halves**: H1a, this view, by M4; H1b, attendance, by M5), **I13** (Checkpoints 1, 2, 3A, 3B landed; three hand-rolled readers remain), **I14**, **I16** (this domain's calendar mitigation implemented, the item still open).
+- [docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md) — §11 (CLASS vs RECURRENCE vs SESSION — with M5's correction that a roster is now rendered, just not by
+this domain), §10 (domain boundaries), §12 (attendance and progress are append-only — in front of users
+since M5), §15 (honesty rules) and **D13** (a wired view derives its own selection and renders the
+register its own domain derives, which is why `sessionRoster` went unconsumed).
+- [docs/engineering/PRODUCT_PHASE_SPECIFICATION.md](../../../docs/engineering/PRODUCT_PHASE_SPECIFICATION.md) — the **M4** and **M5** milestones (scope, protected areas, demo/api behaviour, tests, acceptance, out-of-scope, rollback boundary) with its **LANDED** record at the end of that section, and the **M5** milestone that follows it.
