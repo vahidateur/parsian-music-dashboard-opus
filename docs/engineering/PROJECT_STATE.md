@@ -57,9 +57,9 @@
   [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. Seventeen are **named** so far — an eighteenth is the commit carrying
-  this paragraph, which cannot name itself (see the rule immediately below), and it must be
-  registered by whichever documentation commit comes next: `68b4fe3` (these documents and their gate),
+  but no product behaviour. Eighteen are **named** so far — a nineteenth is the commit carrying this
+  paragraph, which cannot name itself (see the rule immediately below) and must be registered by
+  whichever documentation commit comes next: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
   truthful — the one permitted exception, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) H3),
   `f1fe114` (the retired test-harness race, recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) I11),
@@ -78,7 +78,9 @@
   scheduling README), `24caf3a` (**M4's final reconciliation**, the same five documents brought
   in line with the milestone that had landed) and `9190da0` (**M5's reconciliation**, which had to
   wait for a later docs commit before it could be named at all — the no-self-reference rule below
-  and §7 item 14). They
+  and §7 item 14) and `e6ab6f90901496be376e2278aa28695e5ab32ab6` (**M6's documentation
+  reconciliation**, named here by the next documentation commit rather than by itself, as that rule
+  requires). They
   are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
   commit this ledger does not explain.
 
@@ -158,8 +160,9 @@ rollback boundary. **M6 (contracts without UI — chat management, attachments, 
 after M5's documentation reconciliation (`9190da0`, documents only) across four checkpoints** — CP1
 `43e7882` (the chat contract), CP2 `42c54f4` (conversation management and composer state safety), CP3
 `563b8d8` (attachments) and CP4 `4e03b87` (conversation export) — **106 new tests, 17 files, no file
-outside the chat domain and the Messages surface**; its documentation pass is the commit carrying this paragraph, and the
-milestone's own section follows below. **M7–M11 have not started**, and the ledger in
+outside the chat domain and the Messages surface**; its documentation pass is `e6ab6f90901496be376e2278aa28695e5ab32ab6` plus the commit carrying this
+paragraph (the first marks the milestone complete and adds `src/domains/chat/README.md`; the second
+records the coverage matrix in §4), and the milestone's own section follows below. **M7–M11 have not started**, and the ledger in
 [PHASES.md](PHASES.md) marks the product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
@@ -667,10 +670,72 @@ named. And **no browser has ever rendered this register.**
 | **Rollback boundary** | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` (M5's documentation reconciliation — the commit CP1 was built on). Rolling back further would drop M6 entirely; M5's own boundary is unchanged |
 | **Environment note** | The CP4 session began with the sandbox having restored a **shallow** tree at the base commit with CP1–CP3 present as uncommitted work; the pushed tip was treated as authority, the WIP was backed up, **367/367 files were verified identical by hash before anything moved**, restoration used `git reset --mixed` (never a working-tree-destructive form), `npm ci` was run because `node_modules` was absent, and `git fetch --unshallow` restored the expected history (4 → 55 commits, and the 10 shallow-artifact `projectState` failures collapsed back to the single known one) |
 
+### M6 coverage matrix — every CP1–CP4 requirement answered, one by one
+
+**Vocabulary, and it is applied strictly. PASS** = implemented *and* pinned by named tests — never
+inferred from a control's existence. **PARTIAL** = the capability is delivered but something the
+requirement named is deliberately absent, and the absence is recorded. **DEFERRED** = the honest
+answer is a server or a later milestone, and no frontend imitation was shipped. **OUT OF SCOPE** = the
+milestone declared it out before it started and did not quietly absorb it. **NOT VERIFIED** = measured
+only under jsdom and never in a browser. **The matrix has no "N/A" and no blank cell:** what a
+requirement asked for is either answered or named as missing.
+
+| # | Requirement (spec M6 scope · the checkpoint that took it) | Status | Evidence |
+|---|---|---|---|
+| 1 | Rename / topic / pin wired end-to-end (CP2) | **PASS** | `src/domains/chat/demoRepository.ts` `updateConversation` (trim + ≥ 2-char refusal); `src/views/messages/ConversationManagerDialog.tsx`; `src/views/__tests__/messagesConversationManagement.test.tsx` (13) — "renames a conversation and the new name survives a fresh repository read", "edits the topic and persists it", "refuses a one-character name in the dialog, and writes nothing", "reports a refused write in the repository's own words, with no success"; domain half: `conversationLifecycle.test.ts` (16) — "trims what it stores instead of keeping the operator's padding", "leaves fields the patch did not mention untouched" |
+| 2 | Archiving is reversible, hidden by default, discoverable, restorable, persisted (CP1 + CP2) | **PASS** | `conversationLifecycle.test.ts` — "hides an archived thread from the list by default", "reveals an archived thread through the archived-inclusive filter", "restores persistently — a fresh instance sees the thread again", "round-trips archive → restore → archive without losing the thread", "combines archive with a rename in one call, without dropping either"; `messagesConversationManagement.test.tsx` — "archives: the conversation leaves the default list and the pane says why", "discovers an archived conversation through the explicit filter, marked as archived", "restores: visible in the DEFAULT list again, and the restore persists", "keeps an archived conversation's messages" |
+| 3 | `archiveConversation` as a *consumed* verb | **PARTIAL — deliberately unconsumed** | The capability passes (row 2) through the one write path the dialog uses; the verb itself is a tested one-line delegation (`demoRepository.ts:101`) with **no shipped caller** — **D14**, and stated in `src/domains/chat/README.md` §1 as a fact, not left to look like an oversight |
+| 4 | Attachment is a **reference**; resolution before provider delivery and before any write; no metadata copied onto the message (CP1) | **PASS** | `src/domains/chat/types.ts:79`/`:110` (the only contract additions); `demoRepository.ts:137`; `src/domains/chat/__tests__/messageAttachments.test.ts` (15) — "keeps the attachment as a REFERENCE — a megabyte of bytes never enters the dataset" (measured: the row grows < 500 characters), "refuses an unknown mediaId, and writes no message at all", "names the offending field, so a form can report it on the control", "refuses before delivery — no thread preview is written for a refused send", "refuses a reference whose bytes were removed — a dangling metadata row", "does not copy the asset's filename or mime type onto the message", "exposes the uploaded asset's metadata for rendering", "reports missing bytes as undefined rather than an empty file" |
+| 5 | Attachment surface: real picker, contract-derived limits, two awaited writes before one claim, duplicate-submit protection, asset released on a failed message write, honest missing-bytes rendering (CP3) | **PASS** | `src/views/messages/AttachmentField.tsx`, `attachmentRules.ts`, `MessageAttachment.tsx`; `src/views/__tests__/messagesAttachments.test.tsx` (19) — "opens the browser's file picker and advertises the contract's types", "accepts a file exactly at the ceiling: the rule is above, not at", "claims nothing until the upload AND the message write have resolved", "sends one upload and one message when the operator submits repeatedly", "reports a failed message write, frees the stored asset, and allows a retry", "keeps the metadata, says the file is unavailable, and offers no open or download", "never turns a failed attachment send into an empty conversation", "shows a real picker once a conversation exists, and still seeds nothing" |
+| 6 | A failed message read is a failure, never an empty thread (CP2 · I15 at this site) | **PASS at this site** | `src/views/__tests__/messagesStateSafety.test.tsx` (9) — "renders a failure with the reason, and no empty-thread claim", "retries the read and then shows what the repository returns"; **I15 itself stays OPEN** with the other thirteen consumers untouched and its register line now stale, recorded in §7 item 15 rather than edited |
+| 7 | Composer state belongs to its conversation; a late send cannot clear another thread's draft (CP2 · **D16**) | **PASS** | `src/views/messages/useComposer.ts` (keyed record, `clearFor(id)` only for its own id); `messagesStateSafety.test.tsx` — "never shows the previous conversation's draft under the new header", "discards the draft rather than caching it for the way back", "keeps each conversation's own typing while both are visited", "does not wipe the new conversation's draft when a send for the old one resolves late", "survives a clearFor aimed at another conversation, and is cleared by its own" |
+| 8 | Export coverage — *only* where a genuine repository read exists (CP4) | **PASS, and the boundary is the evidence** | `src/views/messages/conversationExport.ts` reads `getConversation(id)` + `listMessages({ conversationId, per_page })`; `messagesConversationExport.test.tsx` (21) — "reads that conversation by id, its own messages, and nothing else"; **no entity was added to `ExportEntity`** (`src/domains/export/exportService.ts:25` unchanged) and **no export verb exists** (`D14`) |
+| 9 | The export contains what is really stored: BOM'd UTF-8 text, real senders/timestamps/status, attachment metadata, honest empty state, disclosed truncation (CP4) | **PASS** | `conversationExport.test.tsx` — "returns a .txt artifact whose bytes are UTF-8 text with a BOM, and no attachment content", "records a message's real delivery status instead of claiming it was sent", "carries attachment metadata and denies that the bytes are included", "describes an attachment whose metadata no longer resolves instead of inventing one", "discloses the ceiling when the read stopped short", "writes an honest empty file for a conversation with no messages, and fabricates none", "keeps user-controlled bodies as literal text — never markup" |
+| 10 | The download happens only after the read resolved, and never retargets (CP4 · **D16**) | **PASS** | `src/views/Messages.tsx` lines 382–386 (identity captured, artifact downloaded after the await); `conversationExport.test.tsx` — "claims nothing until the repository read resolves", "reports a failed read honestly, downloads nothing, and stays usable", "guards against duplicate work when the control is clicked repeatedly", "keeps an in-flight export pinned to the conversation it started for", "hands the finished artifact to the browser only through the export domain's download seam". Mutation-checked: moving the download before the await fails 8 cases |
+| 11 | The surface reads no fixtures, no browser storage and no raw HTML; nothing claims a write before it lands | **PASS** | `src/views/__tests__/messagesNoFixtures.test.ts` (13) — a directory-discovered scan of the whole surface forbidding `@/data/records`, `services/demoStore`, `localStorage`, `innerHTML`/`dangerouslySetInnerHTML`, `console.*`, and requiring `downloadBlob(` while forbidding `getBlob(`/`createElement(`; the honesty gates `noSuccessWithoutWrite.test.tsx` and `writeFeedbackHonesty.test.ts` stay green inside the 278/278 sweep (§4 table above) |
+| 12 | Protected areas untouched: media domain, blob store, DECISIONS §13, the spreadsheet escaping for any new export entity | **PASS — measured, not promised** | `git diff --name-only 9190da0..4e03b87 -- src/domains/media src/services src/context src/api src/components src/domains/export src/domains/import` prints **nothing**; no new entity means the CSV/XLSX formula-injection path was never in play |
+| 13 | Demo/API behaviour: chat resolves to Demo in both modes; `in_app` is the only provider that truly delivers | **PASS as designed — not silently "fixed"** | `src/domains/registry.ts:147`; `provider.ts` has exactly two behaviours (`inAppProvider` → `sent`, `backendRequiredProvider` → `unavailable` with a reason). Real transports stay **OUT OF SCOPE (provider integration)** and **DEFERRED** under **D1**/**I7** |
+| 14 | Attachment ownership / authorization, signed URLs, server-side sniffing, virus scanning | **DEFERRED — backend-required** | `src/domains/media/types.ts:22` ("BACKEND REQUIRED"); the chat check is resolution only and says so (`demoRepository.ts:137`); no frontend guarantee is claimed anywhere, including the README (§3) |
+| 15 | Server persistence, a shared thread, an API chat repository | **DEFERRED** | `registry.ts:147` returns Demo in both modes; no `ApiChatRepository` exists — the server half belongs to **M11 (D8)**, and §7 item 15 states it as a limitation rather than a to-do M6 completed |
+| 16 | Attachment **binary** export, bulk/multi-conversation export, PDF/ZIP/CSV pipeline for chat | **OUT OF SCOPE — declared before CP4** | `src/domains/chat/README.md` §4/§6; the artifact is one conversation, text only, metadata-only for attachments |
+| 17 | Notifications domain; group moderation | **OUT OF SCOPE — unchanged from the spec** | spec M6 → "Out of scope"; nothing in M6 touches them, and `Messages.tsx`'s send path still reports the provider's real status instead of simulating a notification |
+| 18 | The spec's Tests clause for chat: rename/pin/archive round-trips persist; an attachment whose bytes are missing renders the honest *unavailable* state; no success is claimed without a write | **PASS** | Domain round-trips are re-read through **fresh repository instances** (rows 1–5); "keeps the metadata, says the file is unavailable, and offers no open or download" and "says the reference no longer resolves when the asset metadata is gone too" (row 5); "claims nothing until the upload AND the message write have resolved" (row 5) and "claims nothing until the repository read resolves" (row 10) |
+| 19 | "A thread survives a reload" for the **view** (unmount + remount) | **PARTIAL — not tested, and recorded** | No M6 suite unmounts and remounts the view, so persistence rests on the demo store's single-persistence-authority path — the same honest gap M3 and M5 recorded for their surfaces (§7 item 15) |
+| 20 | Browser QA of the real file picker and the real download | **NOT VERIFIED** | §5; jsdom implements neither `URL.createObjectURL` nor a download, so the export suite stubs that one API and asserts the artifact's bytes plus anchor invocation at the seam |
+| 21 | Acceptance: "every chat capability either has a UI or is recorded in the docs as deliberately UI-less" | **PASS** | Two capabilities are recorded as deliberately UI-less with their reasons — `archiveConversation` (**D14**) and the export's use of existing reads (**D14**) — in `src/domains/chat/README.md` §1 ("Verbs with no shipped caller") and spec M6 → "Acceptance" |
+
+**What M6 delivered, and what remains before production-ready — in four labelled categories, with
+nothing blurred into "mostly complete":**
+
+- **IMPLEMENTED / VERIFIED** — a wired Messages surface over the chat contract: rename/topic/pin,
+  reversible archive with an archived filter and badge, real attachments (picker → media write →
+  message write → render, with the limits derived from the media contract), conversation-keyed
+  composer state, honest read-failure and missing-bytes states, and a single-conversation plain-text
+  export composed from the reads that already existed. 106 tests, 14 mutation checks, 278/278 focused
+  sweep, full suite 1 655 passed / 8 skipped at `4e03b87` (§4 table above).
+- **HONEST LIMITATIONS** — attachment ownership/authorization is *not* enforced here (resolution ≠
+  authorization); attachment bytes are browser-local and excluded from every export; the export is
+  single-conversation with a disclosed 1 000-message ceiling; `archiveConversation` and the export's
+  read path are deliberately UI-less/verb-less (**D14**); **I13** and **I15** stay OPEN with the
+  `Messages.tsx` site fixed and no general remediation; no view-level reload round-trip is tested;
+  **browser QA is NOT VERIFIED**.
+- **DEFERRED** — server persistence and a shared thread; per-object authorization, signed and
+  expiring URLs, server-side sniffing and virus scanning; a chat API repository; attachment binary
+  export; bulk/multi-conversation export; a PDF/ZIP/CSV pipeline for chat; provider integration and
+  any notifications domain (**D1**, **I7**, **M11/D8**).
+- **KNOWN ENVIRONMENTAL LIMITATION** — `src/__tests__/projectState.test.ts:299` fails in this
+  session's sandbox because the recorded working branch
+  (`arena/01a07c61-parsian-music-dashboard-opus`) is not the branch actually checked out
+  (`arena/01a0a068-parsian-music-dashboard-opus`); it is identical at the pre-M6 base `9190da0` and at
+  every checkpoint, and it is **not** fixed, skipped, suppressed, re-recorded or accommodated — §7
+  item 16.
+
 **The documentation pass that carries this block (M6's CP5) is documents-only and did not re-run the
 full suite** — it changes no source and no test. What it did run is the documentation gate itself
-(`src/__tests__/projectState.test.ts`), which is the gate over the very files it edits: 51 passed /
-1 failed — the same known environmental branch-name case, unchanged.
+(`src/__tests__/projectState.test.ts`), which is the gate over the very files it edits: **51 passed /
+1 failed**, measured on **both halves** of the pass (the reconciliation `e6ab6f90901496be376e2278aa28695e5ab32ab6`, and the
+documentation commit that adds this matrix and registers it) — the same known environmental
+branch-name case each time, unchanged.
 
 ### M4 validation (measured at `df701488362cb90cf32ccefad277879477571cf7`, the acceptance-coverage checkpoint that ends the M4 chain)
 

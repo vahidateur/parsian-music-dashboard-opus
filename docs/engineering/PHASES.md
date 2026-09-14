@@ -1188,8 +1188,10 @@ download path are exactly what jsdom cannot exercise, which is why the export su
 `URL.createObjectURL` and asserts the artifact's real bytes instead of pretending a download happened.
 The milestone registered **two deliberately UI-less capabilities** rather than implying coverage:
 `archiveConversation` and the export's use of existing reads. **M6's documentation reconciliation is
-this commit**, which is documents plus the chat domain's README — no product source, no test, no
-dependency.
+`e6ab6f90901496be376e2278aa28695e5ab32ab6` plus the documentation commit that follows it** — the first marks the milestone COMPLETE,
+decides **D14–D16** and adds `src/domains/chat/README.md`; the second records the milestone's
+requirement-by-requirement **coverage matrix** in [PROJECT_STATE.md](PROJECT_STATE.md) §4 and
+registers the first. Both are documents only: no product source, no test, no dependency.
 
 **Rollback boundaries.** **Spec:** `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` (the commit M6 was built
 on). **Effective safe:** the same commit — nothing before it in the M6 chain is independently
@@ -1226,7 +1228,8 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `eab30d3bfa2476b8d995f7cdb942497afce25238` | F3's correction of its own evidence: the M3-completion row in [PROJECT_STATE.md](PROJECT_STATE.md) §4 quoted F1's diff as "64 insertions / 10 deletions", which was never measured — `git diff --numstat` reports 148/55 and `-w` reports 38/6 in the component, so the row now carries both figures with their commands | none (documents only) | ✅ |
 | `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` | **M4's CP0** — the pre-implementation reconciliation of the five `docs/engineering/` documents and `src/domains/scheduling/README.md` against the tree at `7e72887761f07f48e115160611a9785bfaae9060`: the scheduling README's false "not implemented in Phase A" stub and its invented `POST /sessions/{id}/move` / `409 SCHEDULE_VERSION_CONFLICT` contract retired (**L3**), M4's scope restated so it names the frozen files, the two rollback boundaries recorded, and every claim about the scheduling view checked against the code as it stood *before* CP1 | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 | `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` | **M4's final reconciliation** — the five `docs/engineering/` documents brought in line with the milestone that had just landed: M4 marked ✅ COMPLETE against its measured evidence (110 files / 1502 tests / 0 failed / 0 skipped at `df701488362cb90cf32ccefad277879477571cf7`), **H1a** closed, **I16**'s calendar mitigation recorded as a mitigation and not as a closure, the two rollback boundaries named, and the scheduling README reconciled again so it describes a **wired** view | none (documents only — no product source, no test, no dependency, no build) | ✅ |
-| `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` | **Latest recorded.** **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*) — M5 registered as ✅ COMPLETE against its measured evidence, the chain's own accounting corrected to what actually happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — **no amend, no force-push, no reset, no rebase**), and the M5 documentation checkpoint **lost unpushed** recorded as **L5** happening twice rather than papered over, including the note that the replay re-measured every number on a fresh full clone instead of copying the lost record. It is also the commit **M6 was built on** | none (documents only — no product source, no test, no dependency, no build) | ✅ |
+| `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` | **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*) — M5 registered as ✅ COMPLETE against its measured evidence, the chain's own accounting corrected to what actually happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — **no amend, no force-push, no reset, no rebase**), and the M5 documentation checkpoint **lost unpushed** recorded as **L5** happening twice rather than papered over, including the note that the replay re-measured every number on a fresh full clone instead of copying the lost record. It is also the commit **M6 was built on** | none (documents only — no product source, no test, no dependency, no build) | ✅ |
+| `e6ab6f90901496be376e2278aa28695e5ab32ab6` | **Latest recorded.** **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*) — M6 registered as ✅ **COMPLETE** against its measured evidence: the four checkpoints CP1–CP4, **106 new tests** (31 domain, 75 view/gate), **14 mutation checks** reverted byte-identically, 17 files and `+4321/−61` with `git diff --name-only 9190da0..4e03b87` showing **nothing outside the chat domain and the Messages surface**, the full-suite result at `4e03b87` (119 files / 1655 passed / 8 skipped / 1 known environmental failure) and browser QA kept at NOT VERIFIED — plus the new `src/domains/chat/README.md` and **D14–D16** decided. The reconciliation's second half (the M6 **coverage matrix**, which registers this SHA) follows it as the next documentation commit, because a commit cannot name itself | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 
 **M6's chain is registered in the M6 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: four product commits —
@@ -1234,9 +1237,11 @@ that `git log` shows nothing unexplained: four product commits —
 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management and composer state safety — 5
 files, 1217/39), `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments — 7 files, 1527/25) and
 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export — 4 files, 1063/1) — followed by its
-documentation reconciliation, **this commit** — the **eighteenth** documentation checkpoint, which
-cannot be named here for the reason above and must be registered by whichever documentation commit
-comes next.
+documentation reconciliation, `e6ab6f90901496be376e2278aa28695e5ab32ab6` — the **eighteenth** documentation checkpoint,
+**named here by the next documentation commit** (the one carrying this paragraph, which is the
+nineteenth and cannot name itself). The reconciliation's second half is that commit: the M6
+**coverage matrix** in [PROJECT_STATE.md](PROJECT_STATE.md) §4, where every CP1–CP4 requirement is
+answered one by one as PASS / PARTIAL / DEFERRED / OUT OF SCOPE / NOT VERIFIED.
 
 **M5's chain is registered in the M5 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: one product commit,

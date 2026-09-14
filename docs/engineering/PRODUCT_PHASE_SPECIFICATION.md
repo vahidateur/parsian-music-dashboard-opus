@@ -631,6 +631,12 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   gate sweep 278/278 across 21 files; typecheck and `git diff --check` clean). Milestone record in
   [PHASES.md](PHASES.md) → "Product phase — M6"; the domain's own contract is documented in
   [`src/domains/chat/README.md`](../../src/domains/chat/README.md).
+- **Coverage, answered requirement by requirement.** Every clause in this section — scope,
+  dependencies, protected areas, demo/API behaviour, tests, acceptance and out-of-scope — is answered
+  **PASS / PARTIAL / DEFERRED / OUT OF SCOPE / NOT VERIFIED** with its evidence in
+  [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M6 coverage matrix", including the clauses M6 could not
+  answer in full (the unconsumed `archiveConversation` verb, the untested view-level reload, the
+  browser-QA gap). Nothing there is inferred from a control's existence.
 - **Acceptance, restated against what actually shipped rather than the M0 wording alone.** The clause
   was *"every chat capability either has a UI or is recorded in the docs as deliberately UI-less"*. Two
   capabilities are **deliberately UI-less and recorded as such**: `archiveConversation`, which now
