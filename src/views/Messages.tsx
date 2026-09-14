@@ -1,20 +1,49 @@
 /**
- * Messages — repository-backed chat.
+ * Messages — repository-backed chat with conversation management.
  *
- * Previously this view read a static fixture and answered every send with a
- * toast saying the message was "recorded in the demo". It now writes through
- * `ChatRepository`, so a sent message genuinely persists, appears immediately,
- * and survives a reload.
+ * The view reads through `ChatRepository` and writes through it, so a sent
+ * message genuinely persists, appears immediately, and survives a reload.
  *
  * Delivery honesty (§37): in-app messages are really delivered (the recipient
  * reads the same store) and are shown as sent. Any other transport needs a
  * server, so those messages are stored with an `unavailable` status and the
  * row says so — nothing claims a send that did not happen.
  *
+ * CONVERSATION MANAGEMENT (M6 / CP2)
+ *
+ * Rename, topic, pin, archive and restore call the verbs the domain has exposed
+ * since Phase A with zero callers. Archive is reversible: `updateConversation`
+ * takes `archived`, so the same surface archives and restores. Archived threads
+ * are hidden by default and discoverable through an explicit filter chip.
+ *
+ * STATE SAFETY
+ *
+ * Composer state (text AND pending attachment) is keyed to the conversation it
+ * was typed for — see `useComposer`. Switching threads cannot carry A's draft
+ * into B, and a send that resolves after the operator has switched away cannot
+ * wipe the draft they have since started typing.
+ *
+ * SELECTION IS EXPLICIT
+ *
+ * A filter, a search term or hiding archived threads can take the selected
+ * conversation out of the list. The view then says exactly that, with the way
+ * back, and never silently re-points the thread pane at another conversation:
+ * a write must target what the operator believes is selected.
+ *
  * The layout, spacing and design tokens are unchanged from the original view.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowRight, Megaphone, Paperclip, Pin, Send, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Archive,
+  ArrowRight,
+  Megaphone,
+  Paperclip,
+  Pin,
+  Send,
+  Settings2,
+  Sparkles,
+} from "lucide-react";
 import { messageTemplates } from "@/data/records";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -26,6 +55,8 @@ import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
 import type { ChatMessage, ChatParticipantRole } from "@/domains/chat/types";
 import { cn } from "@/utils/cn";
+import { useComposer } from "./messages/useComposer";
+import { ConversationManagerDialog } from "./messages/ConversationManagerDialog";
 
 const roleMeta: Record<ChatParticipantRole, { label: string; tone: "gold" | "violet" | "info" | "neutral" }> = {
   teacher: { label: "مدرس", tone: "gold" },
@@ -88,21 +119,41 @@ export function MessagesView() {
   const { notify } = useApp();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<ChatParticipantRole | "all">("all");
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [mobileThread, setMobileThread] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
 
   const listParams = useMemo(
-    () => ({ per_page: 100, ...(role !== "all" ? { role } : {}), ...(query ? { search: query } : {}) }),
-    [role, query],
+    () => ({
+      per_page: 100,
+      ...(role !== "all" ? { role } : {}),
+      ...(query ? { search: query } : {}),
+      ...(includeArchived ? { includeArchived: true } : {}),
+    }),
+    [role, query, includeArchived],
   );
   const { items: threads, loading, error, reload } = useConversations(listParams);
   // `messagesLoading` is read, not ignored: the params carry the active thread,
   // so switching threads would otherwise show the previous thread's messages
   // under this thread's header — with the composer below still writing to the
   // newly selected one (I13).
-  const { items: messages, loading: messagesLoading } = useMessages(activeId ?? undefined);
+  //
+  // `messagesError` is read for the same reason, one step further: a failed
+  // read used to render as «هنوز پیامی رد و بدل نشده», which is a claim about
+  // the conversation made from an error (I15). The read now has its own state.
+  const {
+    items: messages,
+    loading: messagesLoading,
+    error: messagesError,
+    reload: reloadMessages,
+  } = useMessages(activeId ?? undefined);
+
+  // Composer state belongs to a conversation, not to the component. See the
+  // hook: the exposed draft is empty the moment the selection changes.
+  const composer = useComposer(activeId ?? undefined);
+  const draft = composer.draft;
 
   // Select the first thread once the list arrives, without clobbering a manual
   // choice or re-selecting after the user filters it away.
@@ -111,6 +162,15 @@ export function MessagesView() {
   }, [activeId, threads]);
 
   const active = threads.find((t) => t.id === activeId);
+  /**
+   * A conversation IS selected, but the current query does not return it —
+   * because of the search text, the role filter, or (most often) archived
+   * threads being hidden. Distinguishing this from "nothing is selected" is the
+   * whole of the selection-honesty rule: the pane must not answer a filtered-out
+   * selection with either another conversation's messages or a blank "pick one".
+   */
+  const selectionHidden = activeId !== null && active === undefined;
+  const filtersActive = query.trim().length > 0 || role !== "all";
   const unread = threads.reduce((sum, t) => sum + t.unread, 0);
 
   // Opening a thread clears its unread badge — a real persisted write.
@@ -126,10 +186,14 @@ export function MessagesView() {
   const send = useCallback(async () => {
     const body = draft.trim();
     if (!body || !activeId || sending) return;
+    // Captured before the await: the write targets the conversation the
+    // operator was composing in, and the draft is cleared only if that is still
+    // the conversation on screen (`clearFor`).
+    const target = activeId;
     setSending(true);
     try {
-      const message = await getChatRepository().sendMessage({ conversationId: activeId, body });
-      setDraft("");
+      const message = await getChatRepository().sendMessage({ conversationId: target, body });
+      composer.clearFor(target);
       // The toast reports what actually happened, per message status.
       if (message.status === "sent") {
         notify({ tone: "success", title: "پیام ارسال شد", detail: "پیام در گفتگوی داخلی ثبت و ذخیره شد." });
@@ -145,7 +209,30 @@ export function MessagesView() {
     } finally {
       setSending(false);
     }
-  }, [draft, activeId, sending, notify]);
+  }, [draft, activeId, sending, notify, composer]);
+
+  const createConversation = useCallback(async () => {
+    try {
+      const created = await getChatRepository().createConversation({
+        name: "گفتگوی جدید",
+        role: "staff",
+        topic: "بدون موضوع",
+      });
+      setActiveId(created.id);
+      setMobileThread(true);
+      notify({
+        tone: "success",
+        title: "گفتگو ساخته شد",
+        detail: "نام و موضوع را از «مدیریت گفتگو» می‌توانید ویرایش کنید.",
+      });
+    } catch (cause) {
+      notify({
+        tone: "danger",
+        title: "ساخت گفتگو ناموفق بود",
+        detail: apiErrorFromThrown(cause).message,
+      });
+    }
+  }, [notify]);
 
   if (loading) return <LoadingState className="py-32" label="در حال بارگذاری گفتگوها…" />;
   if (error)
@@ -179,28 +266,7 @@ export function MessagesView() {
             >
               <Megaphone className="size-3.5" /> اطلاعیهٔ عمومی
             </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              onClick={async () => {
-                try {
-                  const created = await getChatRepository().createConversation({
-                    name: "گفتگوی جدید",
-                    role: "staff",
-                    topic: "بدون موضوع",
-                  });
-                  setActiveId(created.id);
-                  setMobileThread(true);
-                  notify({ tone: "success", title: "گفتگو ساخته شد", detail: "نام و موضوع را می‌توانید ویرایش کنید." });
-                } catch (cause) {
-                  notify({
-                    tone: "danger",
-                    title: "ساخت گفتگو ناموفق بود",
-                    detail: apiErrorFromThrown(cause).message,
-                  });
-                }
-              }}
-            >
+            <Button size="sm" variant="primary" onClick={() => void createConversation()}>
               گفتگوی جدید
             </Button>
           </>
@@ -228,9 +294,16 @@ export function MessagesView() {
                   onClick={() => setRole(role === r ? "all" : r)}
                 />
               ))}
+              {/* The explicit way to discover archived threads — hidden by default. */}
+              <Chip
+                label="بایگانی‌شده‌ها"
+                tone="violet"
+                active={includeArchived}
+                onClick={() => setIncludeArchived((v) => !v)}
+              />
             </div>
           </div>
-          <ul className="stagger max-h-[520px] flex-1 space-y-1 overflow-y-auto p-2">
+          <ul aria-label="فهرست گفتگوها" className="stagger max-h-[520px] flex-1 space-y-1 overflow-y-auto p-2">
             {threads.length === 0 && (
               <EmptyState className="m-2" title="گفتگویی پیدا نشد" description="فیلتر یا عبارت جستجو را تغییر دهید." />
             )}
@@ -256,6 +329,11 @@ export function MessagesView() {
                     </span>
                     <span className="mt-0.5 block truncate text-[11px] text-ink-400">{c.topic}</span>
                     <span className="mt-1 block truncate text-[11.5px] text-ink-300">{c.lastMessagePreview}</span>
+                    {c.archived && (
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-1.5 py-0.5 text-[10px] text-violet-300">
+                        <Archive className="size-2.5" aria-hidden /> بایگانی‌شده
+                      </span>
+                    )}
                   </span>
                   {c.unread > 0 && (
                     <span className="nums mt-1 flex size-4.5 min-w-[18px] items-center justify-center rounded-full bg-gold-500/20 px-1 text-[10px] font-semibold text-gold-300">
@@ -283,10 +361,27 @@ export function MessagesView() {
                 </button>
                 <Avatar name={active.name} size="md" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-semibold text-ink-50">{active.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    {active.pinned && <Pin className="size-3.5 shrink-0 text-gold-400" aria-label="سنجاق‌شده" />}
+                    <span className="truncate text-[14px] font-semibold text-ink-50">{active.name}</span>
+                    {active.archived && (
+                      <span className="shrink-0 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-1.5 py-0.5 text-[10px] text-violet-300">
+                        بایگانی‌شده
+                      </span>
+                    )}
+                  </div>
                   <div className="truncate text-[11.5px] text-ink-400">{active.topic}</div>
                 </div>
                 <StatusBadge tone={roleMeta[active.role].tone} label={roleMeta[active.role].label} glyph={false} />
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  className="shrink-0"
+                  onClick={() => setManagerOpen(true)}
+                  aria-label="مدیریت گفتگو"
+                >
+                  <Settings2 className="size-3.5" /> مدیریت
+                </Button>
               </header>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -294,6 +389,14 @@ export function MessagesView() {
                   // This thread exists and its messages are being read: in
                   // flight, not «هنوز پیامی رد و بدل نشده».
                   <LoadingState className="m-2" label="در حال بارگذاری این گفتگو…" />
+                ) : messagesError ? (
+                  // A read that failed is a failure, never an empty thread.
+                  <ErrorState
+                    className="m-2"
+                    title="بارگذاری پیام‌های این گفتگو ناموفق بود"
+                    description={messagesError.message}
+                    onRetry={reloadMessages}
+                  />
                 ) : messages.length === 0 ? (
                   <EmptyState
                     className="m-2"
@@ -329,7 +432,7 @@ export function MessagesView() {
                   <textarea
                     id="chat-draft"
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => composer.setDraft(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -354,6 +457,43 @@ export function MessagesView() {
                 <p className="mt-2 text-[10.5px] text-ink-500">Enter برای ارسال · Shift + Enter برای خط جدید</p>
               </div>
             </>
+          ) : selectionHidden ? (
+            /*
+              The operator's conversation is still selected; the list query just
+              does not return it. Saying so — with the way back — is the only
+              honest answer. Auto-selecting another thread here would silently
+              retarget the composer, and an empty "pick a conversation" would
+              contradict the fact that one IS selected.
+            */
+            <div className="m-4 flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-white/[0.07] px-6 py-10 text-center">
+              <div className="flex size-11 items-center justify-center rounded-2xl border border-violet-500/25 bg-violet-500/10 text-violet-300">
+                <Archive className="size-5" strokeWidth={1.7} />
+              </div>
+              <h3 className="text-sm font-semibold text-ink-50">این گفتگو در فهرست فعلی نمایش داده نمی‌شود</h3>
+              <p className="max-w-sm text-xs leading-relaxed text-ink-300">
+                گفتگوی انتخاب‌شده حذف نشده است؛ یکی از حالت‌های زیر آن را از فهرست بیرون برده است. برای بازگشت به آن،
+                فیلتر مناسب را بردارید.
+              </p>
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+                {filtersActive && (
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    onClick={() => {
+                      setQuery("");
+                      setRole("all");
+                    }}
+                  >
+                    پاک‌کردن جستجو و فیلتر
+                  </Button>
+                )}
+                {!includeArchived && (
+                  <Button size="sm" variant="primary" onClick={() => setIncludeArchived(true)}>
+                    نمایش گفتگوهای بایگانی‌شده
+                  </Button>
+                )}
+              </div>
+            </div>
           ) : (
             <EmptyState
               className="m-4 flex-1"
@@ -371,7 +511,7 @@ export function MessagesView() {
                 <li key={t.id}>
                   <button
                     type="button"
-                    onClick={() => setDraft(t.text)}
+                    onClick={() => composer.setDraft(t.text)}
                     className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-right transition-colors hover:border-gold-500/30 hover:bg-gold-500/[0.04]"
                   >
                     <div className="text-[12.5px] font-medium text-ink-50">{t.label}</div>
@@ -394,6 +534,35 @@ export function MessagesView() {
           </Panel>
         </div>
       </div>
+
+      {/*
+        Mounted for the SELECTED conversation, so the draft it rebuilds on open
+        is always the right record's (H6). Success is reported only from the
+        callbacks, both of which run after the repository's promise resolved.
+      */}
+      {active && (
+        <ConversationManagerDialog
+          open={managerOpen}
+          conversation={active}
+          onClose={() => setManagerOpen(false)}
+          onSaved={(updated) =>
+            notify({
+              tone: "success",
+              title: "گفتگو به‌روزرسانی شد",
+              detail: `نام «${updated.name}» و موضوع آن ذخیره شد.`,
+            })
+          }
+          onArchived={(updated) =>
+            notify({
+              tone: "success",
+              title: updated.archived ? "گفتگو بایگانی شد" : "گفتگو بازگردانی شد",
+              detail: updated.archived
+                ? "برای دیدن آن، فیلتر «بایگانی‌شده‌ها» را فعال کنید."
+                : "گفتگو دوباره در فهرست پیش‌فرض دیده می‌شود.",
+            })
+          }
+        />
+      )}
     </div>
   );
 }
