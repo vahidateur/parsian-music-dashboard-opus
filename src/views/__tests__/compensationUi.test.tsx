@@ -40,7 +40,7 @@
  * No case waits on a timer, and none treats "the spinner went away" as settlement:
  * every wait is on data, on a toast, or on a named control.
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { Toasts } from "@/components/overlays/ActionSheet";
@@ -200,6 +200,17 @@ function successRings(): number {
 
 async function expectToast(contains: string) {
   await waitFor(() => expect(toastText()).toContain(flat(contains)), { timeout: 8000 });
+}
+
+/**
+ * The summary strip, addressed by its own landmark.
+ *
+ * Scoping is the whole point of the count cases below: "the strip shows no
+ * fabricated zero" is only checkable if the strip can be named, and a screen-wide
+ * text query would be satisfied by unrelated chrome.
+ */
+function summaryStrip(): HTMLElement {
+  return screen.getByRole("region", { name: "نوار خلاصه" });
 }
 
 /* ------------------------------------------------------------------ */
@@ -600,6 +611,101 @@ describe("a make-up that was cancelled", () => {
 /* ------------------------------------------------------------------ */
 /* Failure is not emptiness                                            */
 /* ------------------------------------------------------------------ */
+
+describe("a summary count that has no answer", () => {
+  it("shows no number at all while the count read is still in flight", async () => {
+    await signInAs();
+    // A real obligation, so the screen is showing data and the claim below is about
+    // the counts rather than about an empty ledger.
+    await registered();
+    const real = getCompensationRepository();
+    setCompensationRepository(
+      withStubs(real, {
+        // ONE row per count read (`per_page: 1`), held open; the ledger's own page
+        // (200) answers normally, so the surface is alive and only the strip is waiting.
+        list: (params) => (params?.per_page === 1 ? new Promise<never>(() => {}) : real.list(params)),
+      }),
+    );
+    renderView();
+    await settled();
+
+    expect(await screen.findByText(PRIVATE_STUDENT_NAME)).toBeTruthy();
+    // Loading is not failure: nothing is claimed to have gone wrong either.
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    const strip = summaryStrip();
+    expect(within(strip).getAllByText("—")).toHaveLength(4);
+    expect(within(strip).queryByText("۰")).toBeNull();
+    // The attention chip borrows one of these numbers; it must not invent one either.
+    for (const button of screen.getAllByRole("button", { name: /نیازمند توجه/ })) {
+      expect(flat(button.textContent ?? "")).not.toContain("۰");
+    }
+  }, FLOW_TIMEOUT);
+
+  it("says a failed count was not read, and retries exactly that read", async () => {
+    await signInAs();
+    const compensation = await registered();
+    const real = getCompensationRepository();
+    let failing = true;
+    setCompensationRepository(
+      withStubs(real, {
+        list: async (params) => {
+          if (params?.per_page === 1 && failing) {
+            throw new ApiError({
+              kind: "network",
+              code: "OFFLINE",
+              message: "شمارش خلاصه خوانده نشد.",
+            });
+          }
+          return real.list(params);
+        },
+      }),
+    );
+    renderView();
+
+    // A count that failed is NAMED, in its own words, next to its own retry.
+    const alert = await screen.findByRole("alert");
+    expect(flat(alert.textContent ?? "")).toContain(flat("شمارش خلاصه خوانده نشد"));
+    expect(flat(alert.textContent ?? "")).toContain(flat("نیازمند جبرانی"));
+
+    const strip = summaryStrip();
+    expect(within(strip).getAllByText("—")).toHaveLength(4);
+    expect(within(strip).queryByText("۰")).toBeNull();
+    for (const button of screen.getAllByRole("button", { name: /نیازمند توجه/ })) {
+      expect(flat(button.textContent ?? "")).not.toContain("۰");
+    }
+
+    // The retry re-runs the failed reads' own `reload`, and the real totals arrive.
+    failing = false;
+    fireEvent.click(within(alert).getByRole("button", { name: /تلاش دوباره/ }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 8000 });
+
+    const answered = summaryStrip();
+    expect(within(answered).queryByText("—")).toBeNull();
+    expect(within(answered).getByText("۱")).toBeTruthy();
+    expect(
+      (await getCompensationRepository().list({ per_page: 1 })).meta.total,
+      "the strip agrees with the repository once the read answers",
+    ).toBe(1);
+    expect(compensation.status).toBe("required");
+  }, FLOW_TIMEOUT);
+
+  it("renders the real total, including a real zero", async () => {
+    await signInAs();
+    await registered();
+    await registered();
+    renderView();
+    await settled();
+
+    const strip = summaryStrip();
+    // Two obligations exist, so "۲" is a fact; the other three are GENUINELY zero and
+    // are still shown as zero — the fix hides unread numbers, not real ones.
+    expect(within(strip).getByText("۲")).toBeTruthy();
+    expect(within(strip).getAllByText("۰")).toHaveLength(3);
+    expect(within(strip).queryByText("—")).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  }, FLOW_TIMEOUT);
+});
 
 describe("a failed read", () => {
   it("is reported as an error, never as an empty ledger", async () => {

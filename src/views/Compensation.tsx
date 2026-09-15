@@ -113,11 +113,13 @@ import { useRooms } from "@/domains/rooms/useRooms";
 import { addDays, isoToJalaliDisplay } from "@/domains/scheduling/dateBridge";
 import { SESSION_STATUS_LABEL, type Session } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
-import { academyNow } from "@/domains/shared/clock";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { useStudentList } from "@/domains/students/useStudents";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime } from "@/lib/format";
+// The academy day comes from the ONE shared conversion (`views/relations/academyDay`),
+// never from a private copy of it (audit M-2).
+import { academyIsoDate } from "@/views/relations/academyDay";
 import { RescheduleSessionDialog } from "@/views/scheduling/SessionWriteDialogs";
 import {
   CompleteCompensationDialog,
@@ -142,20 +144,6 @@ const SUPPORT_PER_PAGE = 200;
 const CANDIDATES_PER_PAGE = 200;
 const CANDIDATE_DAYS_BACK = 365;
 const CANDIDATE_DAYS_FORWARD = 120;
-
-/**
- * The academy clock's own calendar date as `YYYY-MM-DD`.
- *
- * `academyNow()` is the single source of "now" (a frozen time of day in demo, the
- * real clock in production); this only reformats it, with local getters, because
- * the academy's day is the day on its own wall clock. No date library and no inline
- * `new Date()` anywhere in this view.
- */
-function isoFromAcademyDate(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 /** A Jalali day as the product reads it. Only the day is a fact. */
 function jalaliDay(iso: string): string {
@@ -283,6 +271,37 @@ function statusExplanation(compensation: SessionCompensation): string {
   return "هنوز جلسهٔ جبرانی برای این تعهد ثبت نشده است؛ لغو جلسه به‌تنهایی جبرانی نمی‌سازد.";
 }
 
+/**
+ * One row of the summary strip: the label, the read that answers it, and where it
+ * navigates to.
+ *
+ * The four rows are ONE list because the strip, the attention chip and the failure
+ * note under it all address the same four numbers — and because a number nobody has
+ * read yet must not be rendered as `0`. `useResourceList` starts from an empty page,
+ * so `total` is `0` while a read is in flight and stays `0` when it fails: the value
+ * is taken from the read's own STATE, never from the number it happens to hold
+ * (audit M-1).
+ */
+interface CountEntry {
+  label: string;
+  /** The explanation shown once the read has answered. */
+  hint: string;
+  tone: Tone;
+  read: { total: number; loading: boolean; error: ApiError | null; reload: () => void };
+  onClick: () => void;
+}
+
+/** A count that is still loading, or that failed, has no value. It is NOT `0`. */
+function countValue(entry: CountEntry): string {
+  return entry.read.loading || entry.read.error !== null ? NO_DATA : faNum(entry.read.total);
+}
+
+/** The hint tracks the read's state, so it never explains a number that is absent. */
+function countHint(entry: CountEntry): string {
+  if (entry.read.error !== null) return "خوانده نشد";
+  return entry.read.loading ? "در حال خواندن…" : entry.hint;
+}
+
 const STATUS_TABS = [
   { id: "all", label: "همه" },
   { id: "required", label: "نیازمند جبرانی" },
@@ -315,7 +334,7 @@ export function CompensationView() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ compensation: SessionCompensation; session: Session } | null>(null);
 
-  const todayIso = useMemo(() => isoFromAcademyDate(academyNow()), []);
+  const todayIso = useMemo(() => academyIsoDate(), []);
 
   /* ---------------- reads ---------------- */
 
@@ -421,12 +440,20 @@ export function CompensationView() {
       .filter((entry): entry is CompensationCandidate => entry.klass !== undefined && isCompensableOriginal(entry.session, entry.klass));
   }, [cancelledSessions.items, classIndex, ledger.items]);
 
-  const stats: StatDef[] = [
+  /**
+   * The four numbers, each paired with the read that answers it.
+   *
+   * `error` is read here on purpose: a count that failed is NAMED in the note under
+   * the strip — with a retry that re-runs exactly those reads — instead of quietly
+   * becoming `0`, and the strip shows the indeterminate value until a real answer
+   * exists. Nothing is derived from a truncated ledger page.
+   */
+  const countEntries: CountEntry[] = [
     {
       label: "نیازمند جبرانی",
-      value: faNum(requiredCount.total),
+      hint: "تعهد باز، بدون جلسهٔ فعال",
       tone: "warn",
-      hint: requiredCount.loading ? "در حال خواندن…" : "تعهد باز، بدون جلسهٔ فعال",
+      read: requiredCount,
       onClick: () => {
         setTab("required");
         setAttentionOnly(false);
@@ -434,9 +461,9 @@ export function CompensationView() {
     },
     {
       label: "جبرانی ثبت‌شده",
-      value: faNum(scheduledCount.total),
+      hint: "تعهد با یک جلسهٔ فعال",
       tone: "gold",
-      hint: scheduledCount.loading ? "در حال خواندن…" : "تعهد با یک جلسهٔ فعال",
+      read: scheduledCount,
       onClick: () => {
         setTab("scheduled");
         setAttentionOnly(false);
@@ -444,9 +471,9 @@ export function CompensationView() {
     },
     {
       label: "انجام‌شده",
-      value: faNum(completedCount.total),
+      hint: "وضعیت نهایی",
       tone: "ok",
-      hint: completedCount.loading ? "در حال خواندن…" : "وضعیت نهایی",
+      read: completedCount,
       onClick: () => {
         setTab("completed");
         setAttentionOnly(false);
@@ -454,15 +481,27 @@ export function CompensationView() {
     },
     {
       label: "نیازمند توجه",
-      value: faNum(attentionCount.total),
+      hint: "جلسهٔ ثبت‌شده لغو، حذف یا غیرقابل‌ردیابی شده",
       tone: "danger",
-      hint: attentionCount.loading ? "در حال خواندن…" : "جلسهٔ ثبت‌شده لغو، حذف یا غیرقابل‌ردیابی شده",
+      read: attentionCount,
       onClick: () => {
         setAttentionOnly(true);
         setTab("all");
       },
     },
   ];
+
+  const stats: StatDef[] = countEntries.map((entry) => ({
+    label: entry.label,
+    value: countValue(entry),
+    tone: entry.tone,
+    hint: countHint(entry),
+    onClick: entry.onClick,
+  }));
+
+  /** Counts that failed. Named below; the attention chip shows no number either. */
+  const failedCounts = countEntries.filter((entry) => entry.read.error !== null);
+  const attentionCountKnown = !attentionCount.loading && attentionCount.error === null;
 
   const columns: Column<SessionCompensation>[] = [
     {
@@ -616,7 +655,31 @@ export function CompensationView() {
         }
       />
 
-      <StatStrip stats={stats} className="mb-4" />
+      {/* The summary gets a named landmark: it is one unit, and a count that failed
+          must be distinguishable from a count that is genuinely zero. */}
+      <section aria-label="نوار خلاصه">
+        <StatStrip stats={stats} className="mb-4" />
+      </section>
+
+      {/*
+        A count that could not be read is SAID, not zeroed. The retry calls each
+        failed read's own `reload`, so the strip returns to real numbers without
+        inventing any in the meantime — and the note names which numbers are missing.
+      */}
+      {failedCounts.length > 0 && (
+        <ErrorState
+          className="mb-4"
+          title="شمارش خلاصه خوانده نشد"
+          description={`شمارش ${failedCounts
+            .map((entry) => `«${entry.label}»`)
+            .join("، ")} خوانده نشد؛ تا پیش از پاسخ، این عددها نامشخص («${NO_DATA}») نمایش داده می‌شوند${
+            attentionCount.error !== null ? " و نشان «نیازمند توجه» هم عددی نشان نمی‌دهد" : ""
+          }.`}
+          onRetry={() => {
+            failedCounts.forEach((entry) => entry.read.reload());
+          }}
+        />
+      )}
 
       <FilterBar
         className="mb-3"
@@ -640,7 +703,7 @@ export function CompensationView() {
               label="نیازمند توجه"
               tone="violet"
               active={attentionOnly}
-              count={attentionCount.total}
+              count={attentionCountKnown ? attentionCount.total : undefined}
               onClick={() => {
                 setAttentionOnly((value) => !value);
                 setTab("all");
