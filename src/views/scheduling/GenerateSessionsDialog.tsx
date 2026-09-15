@@ -52,15 +52,9 @@ import { useGenerationPreview } from "@/domains/scheduling/useScheduling";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { NO_DATA, faNum, faTime } from "@/lib/format";
 import { cn } from "@/utils/cn";
+// Shared with the other scheduling-shaped forms — see views/shared/jalaliInput (S-7).
+import { jalaliInputValue } from "@/views/shared/jalaliInput";
 import { jalaliDayLabel } from "./SessionWriteDialogs";
-
-/** Jalali, as the user reads it and as `jalaliToIso` reads it back. */
-const DATE_INPUT_OPTIONS = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
-
-function jalaliInputValue(iso: string): string {
-  const display = isoToJalaliDisplay(iso, DATE_INPUT_OPTIONS);
-  return display.length > 0 ? display : "";
-}
 
 /** A short Jalali range, for the dialog's own description line. */
 function jalaliRange(from: string, to: string): string {

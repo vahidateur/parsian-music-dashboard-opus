@@ -59,6 +59,7 @@ import {
   resetRegistry,
   setAuthRepository,
   setCompensationRepository,
+  setSchedulingRepository,
   setUserRepository,
 } from "@/domains/registry";
 import { addDays, isoToJalaliDisplay, jalaliToIso, weekdayIndex } from "@/domains/scheduling/dateBridge";
@@ -484,9 +485,16 @@ describe("booking the make-up", () => {
     fireEvent.click(Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent?.trim() === "ثبت جلسه")!);
 
     await expectToast("جلسهٔ جبرانی ثبت شد");
-    // The disclosure reaches the operator as INFORMATION, in the same breath as the
-    // success — and the write was not refused.
-    has("هنرجو در فهرست این روز نیست");
+
+    /*
+     * The disclosure reaches the operator as INFORMATION, in the same breath as the
+     * success — and the write was not refused. It is asserted INSIDE the drawer that
+     * states it, not against the whole document (audit S-5): the success toast
+     * carries the same sentence, so a `document.body` query could pass without any
+     * disclosure ever reaching the drawer.
+     */
+    const drawer = await screen.findByRole("dialog", { name: PRIVATE_STUDENT_NAME });
+    expect(within(drawer).getByText(/هنرجو در فهرست این روز نیست/)).toBeTruthy();
 
     const after = await getCompensationRepository().get(compensation.id);
     expect(after.status).toBe("scheduled");
@@ -727,5 +735,175 @@ describe("a failed read", () => {
     has("اتصال به سرویس برقرار نشد.");
     hasNot("جبرانی‌ای ثبت نشده است");
     expect(successRings()).toBe(0);
+  }, FLOW_TIMEOUT);
+
+  it("keeps the rows it has, names the failed refresh, and retries that read", async () => {
+    await signInAs();
+    await registered();
+    const real = getCompensationRepository();
+    let ledgerReads = 0;
+    let failing = true;
+    setCompensationRepository(
+      withStubs(real, {
+        list: async (params) => {
+          // Only the LEDGER read (a full page) is made to fail, and only after the
+          // first one: the four one-row count reads are separate reads of the same
+          // repository and must keep answering, or the case would prove two things.
+          if (params?.per_page === 200) {
+            ledgerReads += 1;
+            if (ledgerReads > 1 && failing) {
+              throw new ApiError({
+                kind: "network",
+                code: "OFFLINE",
+                message: "اتصال به سرویس برقرار نشد.",
+              });
+            }
+          }
+          return real.list(params);
+        },
+      }),
+    );
+    renderView();
+    await settled();
+
+    const rowsBefore = within(screen.getByRole("table")).getAllByRole("row").length;
+    expect(ledgerReads).toBe(1);
+
+    /*
+     * A real write bumps the data version, so the ledger re-reads with the SAME
+     * params — and that re-read fails. This is the state the audit found silent
+     * (S-1): rows on screen, no marker that they were no longer being refreshed.
+     */
+    await registered(addDays(ORIGINAL_DATE, 7)!);
+
+    const alert = await screen.findByRole("alert", {}, { timeout: 8000 });
+    const alertText = flat(alert.textContent ?? "");
+    expect(alertText).toContain(flat("فهرست جبرانی‌ها تازه‌سازی نشد"));
+    expect(alertText).toContain(flat("اتصال به سرویس برقرار نشد."));
+    // The rows stay, and they are SAID to be the last successful read — never
+    // presented as freshly loaded.
+    expect(alertText).toContain(flat("آخرین خواندن موفق"));
+    expect(within(screen.getByRole("table")).getAllByRole("row")).toHaveLength(rowsBefore);
+    hasNot("جبرانی‌ای ثبت نشده است");
+
+    // The retry re-runs the ledger's own read: the row the write created arrives.
+    failing = false;
+    fireEvent.click(within(alert).getByRole("button", { name: /تلاش دوباره/ }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull(), { timeout: 8000 });
+    expect(
+      within(screen.getByRole("table")).getAllByRole("row").length,
+      "the retry re-read, and the second obligation is on screen",
+    ).toBe(rowsBefore + 1);
+  }, FLOW_TIMEOUT);
+});
+
+/* ------------------------------------------------------------------ */
+/* The bounded candidate search                                        */
+/* ------------------------------------------------------------------ */
+
+describe("the candidate search", () => {
+  it("states its window and its page cap, and discloses a truncated read", async () => {
+    await signInAs();
+    const scheduling = getSchedulingRepository();
+    setSchedulingRepository(
+      withStubs(scheduling, {
+        /*
+         * The read answers with more rows in the window than it returned: the page
+         * cap was reached. A list that stops at 200 and says nothing looks complete,
+         * and an operator would conclude the lesson they are looking for was never
+         * cancelled (audit S-4).
+         */
+        list: async (params, signal) => {
+          const page = await scheduling.list(params, signal);
+          return { ...page, meta: { ...page.meta, total: page.meta.total + 400 } };
+        },
+      }),
+    );
+    renderView();
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /ثبت جبرانی/ }));
+    const dialog = await screen.findByRole("dialog", { name: "ثبت جبرانی" });
+    const text = flat(dialog.textContent ?? "");
+
+    // The window is stated, not implied: 365 days back, 120 forward, 200 rows.
+    expect(text).toContain(flat("جستجوی این فهرست محدود است"));
+    expect(text).toContain(flat("۳۶۵ روز پیش تا ۱۲۰ روز بعد"));
+    expect(text).toContain(flat("حداکثر ۲۰۰ ردیف"));
+    // Truncated: said out loud, next to the list it bounds.
+    expect(text).toContain(flat("به سقف ۲۰۰ ردیف رسید"));
+    // And the empty state does not claim completeness it does not have.
+    expect(text).toContain(flat("در همین جستجوی محدود جلسهٔ لغوشدهٔ واجد شرطی پیدا نشد"));
+    expect(text).toContain(flat("ممکن است جلسهٔ موردنظر بیرون از بازهٔ بالا باشد"));
+  }, FLOW_TIMEOUT);
+
+  it("offers no candidate and names the window when nothing in it qualifies", async () => {
+    await signInAs();
+    renderView();
+    await settled();
+
+    fireEvent.click(screen.getByRole("button", { name: /ثبت جبرانی/ }));
+    const dialog = await screen.findByRole("dialog", { name: "ثبت جبرانی" });
+
+    // The demo's one cancelled session is a group class, so nothing qualifies — and
+    // the dialog says which search came up empty rather than that nothing exists.
+    expect(within(dialog).getAllByRole("option")).toHaveLength(1);
+    expect(flat(dialog.textContent ?? "")).toContain(flat("جستجوی این فهرست محدود است"));
+  }, FLOW_TIMEOUT);
+});
+
+/* ------------------------------------------------------------------ */
+/* A failed read of the make-up                                        */
+/* ------------------------------------------------------------------ */
+
+describe("a make-up whose read failed", () => {
+  it("is named as a failed read, not as missing data, and blocks the move until it answers", async () => {
+    await signInAs();
+    const compensation = await booked(await registered());
+    const effectiveId = compensation.currentAttempt!.sessionId;
+
+    const scheduling = getSchedulingRepository();
+    let failing = true;
+    setSchedulingRepository(
+      withStubs(scheduling, {
+        get: async (id, signal) => {
+          // Only the EFFECTIVE session is made unreadable; the cancelled original is
+          // read normally, so the case isolates the state under test.
+          if (id === effectiveId && failing) {
+            throw new ApiError({
+              kind: "network",
+              code: "OFFLINE",
+              message: "اتصال به سرویس برقرار نشد.",
+            });
+          }
+          return scheduling.get(id, signal);
+        },
+      }),
+    );
+
+    renderView();
+    await settled();
+    const drawer = await openDrawer();
+
+    // The id says a session EXISTS, so this is a failed read with its own retry —
+    // never the "not traceable" wording that belongs to a genuinely missing one.
+    expect(await within(drawer).findByText(/جلسهٔ کنونی خوانده نشد/)).toBeTruthy();
+    expect(flat(drawer.textContent ?? "")).toContain(flat("اتصال به سرویس برقرار نشد."));
+    expect(within(drawer).queryByText(/قابل ردیابی نیست/)).toBeNull();
+    // The cells say "not read" instead of the "no data" dash the missing case shows.
+    expect(within(drawer).getAllByText("خوانده نشد").length).toBeGreaterThanOrEqual(2);
+
+    // The move needs that read, so it stays unavailable while it is unavailable.
+    const moveButton = () =>
+      within(drawer).getByRole("button", { name: /جابه‌جایی جلسه/ }) as HTMLButtonElement;
+    expect(moveButton().disabled).toBe(true);
+    expect(flat(drawer.textContent ?? "")).toContain(flat("جابه‌جایی تا خوانده‌شدن جلسهٔ کنونی ممکن نیست."));
+
+    // The retry re-runs the by-id read; the move becomes available with it.
+    failing = false;
+    fireEvent.click(within(drawer).getByRole("button", { name: /تلاش دوباره/ }));
+    await waitFor(() => expect(moveButton().disabled).toBe(false), { timeout: 8000 });
+    expect(within(drawer).queryByText(/جلسهٔ کنونی خوانده نشد/)).toBeNull();
+    expect(within(drawer).queryByText("خوانده نشد")).toBeNull();
   }, FLOW_TIMEOUT);
 });

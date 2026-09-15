@@ -166,6 +166,8 @@ interface SessionRowState {
   session: Session | undefined;
   loading: boolean;
   error: ApiError | null;
+  /** Re-runs this read: the only way a failed by-id read is retried (audit S-3). */
+  reload: () => void;
 }
 
 /**
@@ -187,6 +189,7 @@ function useSessionRow(id: string | undefined): SessionRowState {
     error: null,
   });
   const latest = useRef(0);
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -207,13 +210,15 @@ function useSessionRow(id: string | undefined): SessionRowState {
         setState({ key: id, loading: false, error: normalized });
       });
     return () => controller.abort();
-  }, [id, dataVersion]);
+  }, [id, dataVersion, nonce]);
 
   const answers = id !== undefined && state.key === id;
   return {
     session: answers ? state.session : undefined,
     loading: id !== undefined && (!answers || state.loading),
     error: answers ? state.error : null,
+    // Stable identity: a retry re-runs the read and nothing else.
+    reload: useCallback(() => setNonce((value) => value + 1), []),
   };
 }
 
@@ -243,7 +248,8 @@ function makeUpSummary(compensation: SessionCompensation): string {
  *
  * `true` says nothing (the ordinary case needs no sentence), `false` states the fact
  * and its consequence in one breath — the booking stands — and `undefined` says it
- * could not be determined. None of the three hides or disables anything.
+ * could not be determined. None of the three hides or disables anything, and the
+ * `undefined` branch is documented where it is decided, below.
  */
 function rosterDisclosure(compensation: SessionCompensation): string | null {
   const attempt = compensation.currentAttempt;
@@ -251,6 +257,21 @@ function rosterDisclosure(compensation: SessionCompensation): string | null {
   if (attempt.studentOnRoster === false) {
     return "هنرجو در فهرست این روز نیست (ثبت‌نام او برای این تاریخ فعال نیست). این فقط برای اطلاع شماست؛ جبرانی ثبت‌شده معتبر است.";
   }
+  /*
+   * KEPT DELIBERATELY, and unreachable through today's read model (audit S-5).
+   *
+   * The domain answers `undefined` only when the attempt's lineage cannot be
+   * resolved, and such a row is already `missing` — returned from above, where no
+   * make-up state is claimed at all. So this branch guards the TYPE
+   * (`studentOnRoster?: boolean`), not a state the domain produces today, and no
+   * test fabricates one: inventing `scheduled` + `undefined` would be inventing a
+   * read model the domain cannot return.
+   *
+   * It stays because the alternative is a fail-open: if a future read model ever
+   * reported a live session whose roster could not be determined, silence here
+   * would read as "on the roster", and the operator would be told nothing while the
+   * screen knew it did not know. It hides and disables nothing either way.
+   */
   if (attempt.studentOnRoster === undefined) {
     return "وضعیت هنرجو در فهرست این روز قابل تشخیص نبود.";
   }
@@ -713,6 +734,23 @@ export function CompensationView() {
         }
       />
 
+      {/*
+        A refresh that FAILED while rows remain is SAID (audit S-1). These rows are
+        the last successful read, and this screen never lets them pass for a fresh
+        one: the note names the failure, says where the rows came from, and retries
+        the same read. The empty case never reaches this line — a first read that
+        failed is reported above as an error, not as an empty ledger (D12), so a
+        failed read can never become an empty-state success.
+      */}
+      {ledger.error !== null && (
+        <ErrorState
+          className="mb-3"
+          title="فهرست جبرانی‌ها تازه‌سازی نشد"
+          description={`آخرین خواندن فهرست شکست خورد: ${ledger.error.message} ردیف‌های زیر از آخرین خواندن موفق‌اند و ممکن است با سامانه یکی نباشند.`}
+          onRetry={() => ledger.reload()}
+        />
+      )}
+
       <Surface className="overflow-hidden">
         {ledger.loading && ledger.items.length === 0 ? (
           <LoadingState label="در حال خواندن جبرانی‌ها…" />
@@ -841,17 +879,21 @@ export function CompensationView() {
                       <>
                         <dt className="text-ink-400">تاریخ و ساعت</dt>
                         <dd className="nums text-ink-100">
-                          {drawerEffective.loading && !drawerEffective.session
-                            ? "در حال خواندن…"
-                            : jalaliDayTime(drawerEffective.session?.date, drawerEffective.session?.startTime)}
+                          {drawerEffective.error !== null
+                            ? "خوانده نشد"
+                            : drawerEffective.loading && !drawerEffective.session
+                              ? "در حال خواندن…"
+                              : jalaliDayTime(drawerEffective.session?.date, drawerEffective.session?.startTime)}
                         </dd>
                         <dt className="text-ink-400">اتاق و مدرس</dt>
                         <dd className="text-ink-100">
-                          {drawerEffective.session
-                            ? `${roomIndex.get(drawerEffective.session.roomId)?.name ?? NO_DATA} · ${
-                                teacherIndex.get(drawerEffective.session.teacherId)?.name ?? NO_DATA
-                              }`
-                            : NO_DATA}
+                          {drawerEffective.error !== null
+                            ? "خوانده نشد"
+                            : drawerEffective.session
+                              ? `${roomIndex.get(drawerEffective.session.roomId)?.name ?? NO_DATA} · ${
+                                  teacherIndex.get(drawerEffective.session.teacherId)?.name ?? NO_DATA
+                                }`
+                              : NO_DATA}
                         </dd>
                       </>
                     )}
@@ -872,6 +914,30 @@ export function CompensationView() {
                       </>
                     )}
                   </p>
+
+                  {/*
+                    A failed read of the make-up is DISTINCT from a make-up that is
+                    not there (audit S-3): the id says a session exists, so silence
+                    or "—" would read as "no data" when the truth is "not read".
+                    Said visibly, with a retry — never only in a hover title — and
+                    the move below stays unavailable until a read answers.
+                  */}
+                  {drawerEffective.error !== null && (
+                    <div className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-danger-200">
+                      <p>
+                        جلسهٔ کنونی خوانده نشد: {drawerEffective.error.message} تا خوانده‌شدن آن، تاریخ، اتاق و
+                        مدرس این جلسه نامعلوم‌اند و جابه‌جایی ممکن نیست.
+                      </p>
+                      <Button
+                        variant="subtle"
+                        size="sm"
+                        className="mt-2"
+                        onClick={() => drawerEffective.reload()}
+                      >
+                        تلاش دوباره
+                      </Button>
+                    </div>
+                  )}
 
                   {rosterDisclosure(open) && (
                     <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-warn-200">
@@ -941,6 +1007,11 @@ export function CompensationView() {
                     >
                       جابه‌جایی جلسه
                     </Button>
+                    {drawerEffective.error !== null && (
+                      <span className="text-[11.5px] text-warn-200">
+                        جابه‌جایی تا خوانده‌شدن جلسهٔ کنونی ممکن نیست.
+                      </span>
+                    )}
                   </>
                 )}
                 {open.status === "completed" && (
@@ -953,6 +1024,10 @@ export function CompensationView() {
       </Drawer>
 
       {/* ---------------- dialogs ---------------- */}
+
+      {/* S-4: what the candidate list is a list OF is stated rather than implied —
+          the window, the page cap, whether the read hit that cap, and whether the
+          "already registered" exclusion was computed over a partial ledger page. */}
       {registerOpen && actor && (
         <RegisterCompensationDialog
           open
@@ -961,6 +1036,16 @@ export function CompensationView() {
           candidatesUnavailable={
             cancelledSessions.error?.message ?? classes.error?.message ?? null
           }
+          candidatesWindow={{
+            ...candidateWindow,
+            daysBack: CANDIDATE_DAYS_BACK,
+            daysForward: CANDIDATE_DAYS_FORWARD,
+            perPage: CANDIDATES_PER_PAGE,
+          }}
+          candidatesTruncated={
+            !cancelledSessions.loading && cancelledSessions.total > cancelledSessions.items.length
+          }
+          alreadyRegisteredIsPartial={truncated}
           onSubmit={(values) => ledger.register({ ...values, actor })}
           onRejected={registerRefused}
           onWritten={registerDone}

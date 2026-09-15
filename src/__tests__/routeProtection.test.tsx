@@ -82,6 +82,34 @@ describe("route protection", () => {
     expect(nav.textContent).toContain("حضور و غیاب");
   });
 
+  /*
+   * S-8: the compensation surface is reached through the REAL route, in the real
+   * shell. A view that is only ever mounted directly by its own suite can be
+   * unreachable in the product — a hash the shell quietly ignores and replaces with
+   * the dashboard looks identical from the inside.
+   */
+  it("honours the compensation deep link without falling back to the dashboard", async () => {
+    window.location.hash = "#/compensation";
+    const repo = useIsolatedAuth();
+    await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "جبرانی" })).toBeTruthy());
+    expect(window.location.hash).toBe("#/compensation");
+    // The dashboard's own headline is the tell that the hash was ignored.
+    expect(screen.queryByText("نبض آموزشگاه")).toBeNull();
+  });
+
+  it("refuses the compensation deep link for a role that may not read the schedule", async () => {
+    window.location.hash = "#/compensation";
+    const repo = useIsolatedAuth();
+    await repo.login({ email: "finance@demo.local", password: DEMO_PASSPHRASE });
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText("دسترسی ندارید")).toBeTruthy());
+    expect(screen.queryByRole("heading", { name: "جبرانی" })).toBeNull();
+  });
+
   it("an administrator sees the privileged sections", async () => {
     const repo = useIsolatedAuth();
     await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });

@@ -40,22 +40,39 @@ import { compensationDefaultFor } from "@/domains/compensation/derive";
 import type { SessionCompensation } from "@/domains/compensation/types";
 import type { AcademyClass } from "@/domains/classes/types";
 import type { Room } from "@/domains/rooms/types";
-import { isoToJalaliDisplay, jalaliToIso, toMinutes } from "@/domains/scheduling/dateBridge";
+import { jalaliToIso, toMinutes } from "@/domains/scheduling/dateBridge";
 import type { Session } from "@/domains/scheduling/types";
 import { useSessionRoster } from "@/domains/scheduling/useScheduling";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import type { Teacher } from "@/domains/teachers/types";
 import { NO_DATA, faNum, faTime } from "@/lib/format";
+// The same Jalali boundary and the same field vocabulary the scheduling dialogs
+// use, from ONE place — see views/shared/jalaliInput (audit S-7).
+import { FIELD_MESSAGES, jalaliInputValue } from "@/views/shared/jalaliInput";
 
 /** One shared empty draft: a fieldless dialog has nothing else to reset. */
 const NO_DRAFT: Record<string, never> = {};
 
-/** Jalali, as the product types it and as `jalaliToIso` reads it back. */
-const DATE_INPUT_OPTIONS = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
-
-/** The same shape the scheduling dialogs use, so an untouched date round-trips. */
-function jalaliInputValue(iso: string): string {
-  return isoToJalaliDisplay(iso, DATE_INPUT_OPTIONS);
+/**
+ * The ONE place a refused write is announced and re-thrown (audit S-9).
+ *
+ * `useEntityForm.submit` never rejects: it catches what the callback throws, turns
+ * it into `formError` and returns `undefined`. A refusal must therefore be BOTH
+ * recorded on the form and announced to the surface — announced before the throw,
+ * because the surface's toast is the copy the operator keeps after the dialog is
+ * closed. All three dialogs need exactly that, so the wrapper lives once; the
+ * in-flight state, the thrown error and `onSuccess` stay `useEntityForm`'s.
+ */
+async function announceRefusal<TResult>(
+  run: () => Promise<TResult>,
+  onRejected: (cause: unknown) => void,
+): Promise<TResult> {
+  try {
+    return await run();
+  } catch (cause) {
+    onRejected(cause);
+    throw cause;
+  }
 }
 
 /** What the register dialog hands back. The actor is added by the surface. */
@@ -129,6 +146,9 @@ export function RegisterCompensationDialog({
   candidates,
   candidatesLoading,
   candidatesUnavailable,
+  candidatesWindow,
+  candidatesTruncated,
+  alreadyRegisteredIsPartial,
   onSubmit,
   onRejected,
   onClose,
@@ -139,6 +159,21 @@ export function RegisterCompensationDialog({
   candidatesLoading: boolean;
   /** A failed candidate read is REPORTED, never rendered as "nothing to register" (D12). */
   candidatesUnavailable: string | null;
+  /**
+   * The bounded search behind the list, so the dialog can STATE it (audit S-4):
+   * a list whose limits cannot be read looks like the whole world.
+   */
+  candidatesWindow: {
+    from: string;
+    to: string;
+    daysBack: number;
+    daysForward: number;
+    perPage: number;
+  };
+  /** The read reached the page cap: there may be more in the window than is shown. */
+  candidatesTruncated: boolean;
+  /** The ledger page behind the "already registered" exclusion was itself partial. */
+  alreadyRegisteredIsPartial: boolean;
   onSubmit: (values: RegisterValues) => Promise<SessionCompensation>;
   /** The repository refused. The surface announces it; the dialog stays open. */
   onRejected: (cause: unknown) => void;
@@ -160,21 +195,20 @@ export function RegisterCompensationDialog({
         // state that could produce it. The sentence is Persian because it is shown.
         throw new Error("هنرجوی این جلسه هنوز خوانده نشده است؛ یک لحظه بعد دوباره تلاش کنید.");
       }
-      try {
-        return await onSubmit({
-          originalSessionId: candidate.session.id,
-          // The student is the roster row the scheduling domain derived for that
-          // date and the one the operator can see on screen — never a typed value.
-          studentId: roster[0].studentId,
-          reason: draft.reason.trim(),
-          ...(draft.acknowledged ? { acknowledgedOriginalAttendance: true } : {}),
-        });
-      } catch (cause) {
-        // Announced by the surface AND recorded by the form: a refusal must be
-        // heard even when the operator is looking at the list behind the dialog.
-        onRejected(cause);
-        throw cause;
-      }
+      // Announced by the surface AND recorded by the form: a refusal must be heard
+      // even when the operator is looking at the list behind the dialog.
+      return announceRefusal(
+        () =>
+          onSubmit({
+            originalSessionId: candidate.session.id,
+            // The student is the roster row the scheduling domain derived for that
+            // date and the one the operator can see on screen — never a typed value.
+            studentId: roster[0].studentId,
+            reason: draft.reason.trim(),
+            ...(draft.acknowledged ? { acknowledgedOriginalAttendance: true } : {}),
+          }),
+        onRejected,
+      );
     },
     onSuccess: onWritten,
   });
@@ -240,6 +274,19 @@ export function RegisterCompensationDialog({
       }
     >
       <div className="space-y-3">
+        {/* Always shown: the window is the operator's policy and is readable whether
+            the read answered, is in flight, or failed. */}
+        <p className="text-[11px] leading-relaxed text-ink-400">
+          جستجوی این فهرست محدود است: جلسه‌های لغوشدهٔ{" "}
+          <span className="nums">{jalaliInputValue(candidatesWindow.from)}</span> تا{" "}
+          <span className="nums">{jalaliInputValue(candidatesWindow.to)}</span> — یعنی{" "}
+          {faNum(candidatesWindow.daysBack)} روز پیش تا {faNum(candidatesWindow.daysForward)} روز بعد — و حداکثر{" "}
+          {faNum(candidatesWindow.perPage)} ردیف.
+          {alreadyRegisteredIsPartial && (
+            <> حذف جلسه‌هایی که پیش‌تر جبرانی برایشان ثبت شده از روی فهرست جبرانی‌های خوانده‌شده انجام می‌شود و آن فهرست کامل نیست؛ ثبت تکراری همان جلسه را سامانه در زمان نوشتن رد می‌کند.</>
+          )}
+        </p>
+
         {candidatesUnavailable ? (
           <p className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-200">
             فهرست جلسه‌های لغوشده خوانده نشد: {candidatesUnavailable}
@@ -248,10 +295,17 @@ export function RegisterCompensationDialog({
           <p className="text-[12px] text-ink-400">در حال خواندن جلسه‌های لغوشده…</p>
         ) : candidates.length === 0 ? (
           <p className="rounded-xl border border-white/[0.08] bg-white/[0.02] px-3 py-2 text-[12px] text-ink-300">
-            جلسهٔ لغوشدهٔ واجد شرطی نیست. فقط جلسه‌های لغوشدهٔ کلاس خصوصی که پیش‌تر جبرانی برایشان ثبت نشده
-            باشد اینجا دیده می‌شوند.
+            در همین جستجوی محدود جلسهٔ لغوشدهٔ واجد شرطی پیدا نشد. فقط جلسه‌های لغوشدهٔ کلاس خصوصی که پیش‌تر
+            جبرانی برایشان ثبت نشده باشد اینجا دیده می‌شوند؛ ممکن است جلسهٔ موردنظر بیرون از بازهٔ بالا باشد.
           </p>
         ) : null}
+
+        {candidatesTruncated && (
+          <p className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-warn-200">
+            این خواندن به سقف {faNum(candidatesWindow.perPage)} ردیف رسید؛ ممکن است جلسهٔ لغوشدهٔ واجد شرطی در
+            همین بازه بیرون از این ردیف‌ها باشد.
+          </p>
+        )}
 
         <Field label="جلسهٔ لغوشده" required error={form.errors.originalSessionId}>
           {(a) => (
@@ -346,9 +400,9 @@ interface ScheduleDraft {
  */
 function validateSchedule(draft: ScheduleDraft): FieldErrors<ScheduleDraft> {
   const errors: FieldErrors<ScheduleDraft> = {};
-  if (jalaliToIso(draft.date) === null) errors.date = "تاریخ را به شکل ۱۴۰۴/۰۷/۰۱ وارد کنید.";
-  if (toMinutes(draft.startTime) === null) errors.startTime = "ساعت را به شکل ۱۴:۰۰ وارد کنید.";
-  if (toMinutes(draft.endTime) === null) errors.endTime = "ساعت را به شکل ۱۵:۳۰ وارد کنید.";
+  if (jalaliToIso(draft.date) === null) errors.date = FIELD_MESSAGES.date;
+  if (toMinutes(draft.startTime) === null) errors.startTime = FIELD_MESSAGES.startTime;
+  if (toMinutes(draft.endTime) === null) errors.endTime = FIELD_MESSAGES.endTime;
   if (draft.roomId.trim().length === 0) errors.roomId = "اتاق را انتخاب کنید.";
   if (draft.teacherId.trim().length === 0) errors.teacherId = "مدرس را انتخاب کنید.";
   return errors;
@@ -411,19 +465,18 @@ export function ScheduleCompensationDialog({
     submit: async (draft) => {
       const date = jalaliToIso(draft.date);
       if (date === null) throw new Error("invalid date");
-      try {
-        return await onSubmit({
-          date,
-          startTime: draft.startTime,
-          endTime: draft.endTime,
-          roomId: draft.roomId,
-          teacherId: draft.teacherId,
-          ...(draft.acknowledgeWarnings ? { acknowledgeWarnings: true } : {}),
-        });
-      } catch (cause) {
-        onRejected(cause);
-        throw cause;
-      }
+      return announceRefusal(
+        () =>
+          onSubmit({
+            date,
+            startTime: draft.startTime,
+            endTime: draft.endTime,
+            roomId: draft.roomId,
+            teacherId: draft.teacherId,
+            ...(draft.acknowledgeWarnings ? { acknowledgeWarnings: true } : {}),
+          }),
+        onRejected,
+      );
     },
     onSuccess: onWritten,
   });
@@ -532,11 +585,25 @@ export function ScheduleCompensationDialog({
           </Field>
         </div>
 
+        {/*
+          The consent is GENERALISED because the rule it satisfies is (audit S-2):
+          the scheduling domain refuses while ANY warning is unacknowledged, and the
+          old label named only the off-schedule one — an operator could tick it and
+          still meet a refusal they were never told about. The kinds are listed; what
+          makes each one a warning, and what is refused regardless, is the domain's
+          and is not restated here.
+        */}
         <Toggle
           checked={form.draft.acknowledgeWarnings}
           onChange={(v) => form.set("acknowledgeWarnings", v)}
-          label="اگر روز انتخابی از روزهای معمول کلاس نیست، هشدار برنامه‌ریزی را می‌پذیرم."
+          label="هشدارهای برنامه‌ریزی این ثبت را می‌پذیرم."
         />
+
+        <p className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-ink-400">
+          این پذیرش همهٔ هشدارهایی را پوشش می‌دهد که سامانه برای این تاریخ و ساعت می‌دهد: روز خارج از روزهای
+          معمول کلاس، هم‌زمانی با جلسهٔ دیگری که هنرجوهایش با این کلاس مشترک‌اند، و غیرفعال بودن مدرس یا اتاق در
+          آن بازه.
+        </p>
 
         <p className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-2 text-[11px] leading-relaxed text-ink-400">
           وضعیت «هنرجو در فهرست این روز» پس از ثبت جلسه از خود سامانه خوانده می‌شود و فقط برای اطلاع شماست؛
@@ -587,14 +654,7 @@ export function CompleteCompensationDialog({
   const form = useEntityForm<Record<string, never>, SessionCompensation>({
     open,
     initial: NO_DRAFT,
-    submit: async () => {
-      try {
-        return await onSubmit();
-      } catch (cause) {
-        onRejected(cause);
-        throw cause;
-      }
-    },
+    submit: () => announceRefusal(() => onSubmit(), onRejected),
     onSuccess: onWritten,
   });
 

@@ -39,14 +39,9 @@ import { useConflictCheck } from "@/domains/scheduling/useScheduling";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { NO_DATA, faTime } from "@/lib/format";
 import { cn } from "@/utils/cn";
-
-/** Jalali, as the user reads it and as `jalaliToIso` reads it back. */
-const DATE_INPUT_OPTIONS = { year: "numeric", month: "2-digit", day: "2-digit" } as const;
-
-/** The form's own copy of the session's day, so an untouched date round-trips. */
-function jalaliInputValue(iso: string): string {
-  return isoToJalaliDisplay(iso, DATE_INPUT_OPTIONS);
-}
+// The Jalali input boundary and the field vocabulary are shared with the other
+// scheduling-shaped forms — see views/shared/jalaliInput (audit S-7).
+import { FIELD_MESSAGES, jalaliInputValue } from "@/views/shared/jalaliInput";
 
 /* ================================================================== */
 /* Reschedule                                                          */
@@ -86,9 +81,9 @@ function toDraft(session: Session): RescheduleDraft {
  */
 function validate(draft: RescheduleDraft): FieldErrors<RescheduleDraft> {
   const errors: FieldErrors<RescheduleDraft> = {};
-  if (jalaliToIso(draft.date) === null) errors.date = "تاریخ را به شکل ۱۴۰۴/۰۷/۰۱ وارد کنید.";
-  if (toMinutes(draft.startTime) === null) errors.startTime = "ساعت را به شکل ۱۴:۰۰ وارد کنید.";
-  if (toMinutes(draft.endTime) === null) errors.endTime = "ساعت را به شکل ۱۵:۳۰ وارد کنید.";
+  if (jalaliToIso(draft.date) === null) errors.date = FIELD_MESSAGES.date;
+  if (toMinutes(draft.startTime) === null) errors.startTime = FIELD_MESSAGES.startTime;
+  if (toMinutes(draft.endTime) === null) errors.endTime = FIELD_MESSAGES.endTime;
   if (draft.reason.trim().length === 0) errors.reason = "دلیل جابه‌جایی الزامی است.";
   return errors;
 }
