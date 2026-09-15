@@ -12,7 +12,9 @@
 > hardened by `79fd44e` and `79ec13d`, documented at `d18d3e3`, and the boundary gate that closed the
 > workstream's last open audit finding at `bf8bd911` — all pushed, the first of them on base `f0bdecd`
 > (the workstream's final domain-gate reconciliation). **It is a workstream, not a milestone:** the
-> phase-checkpoint row stays at `33b1031`, the M0–M11 sequence is unchanged, and **M8 has not started**.
+> phase-checkpoint row stays at `33b1031`, the M0–M11 sequence is unchanged, and **M8 — the milestone
+> after the workstream in the sequence — is ✅ COMPLETE** (`735617d`, authorized by the owner on
+> 2026-09-16).
 > **There is still no `apiRepository`, no server and no seeded compensable case** (**I20**),
 > group/class-wide compensation and any coordination flow are still unbuilt (**I18**), the surface is
 > jsdom-verified only with browser QA **NOT VERIFIED** (§5), and the tenth audit finding — per-surface gate
@@ -36,9 +38,10 @@
 > **I1 is closed at the level it was defined** (`navGroups` carries no number, the one badge with an
 > honest source is read from the chat repository, and the badge with no scoped source was **removed**
 > rather than estimated). That pass was M7's **documentation reconciliation** (`e7a6d72`):
-> `docs/engineering/` only, no product source, no test, no dependency, and **M8 has not started** — and
-> the pass you are reading is the Class Compensation **workstream's** documentation reconciliation,
-> documents only.
+> `docs/engineering/` only, no product source, no test, no dependency, and **M8 had not started at that
+> point** — the pass that followed was the Class Compensation **workstream's** documentation
+> reconciliation, documents only, and **M8 has since been authorized and landed** (see §3 and §4 →
+> "M8 validation").
 
 ---
 
@@ -60,9 +63,10 @@
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
 | **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3/M4/M5/M6/M7, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — **M4** sits after those, implemented across three checkpoints, `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1, the reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2, the two writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3, generation), with its acceptance-coverage checkpoint at `df701488362cb90cf32ccefad277879477571cf7` and its final documentation reconciliation at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — and **M5**, the attendance *view* wiring, sits after that at `9505ade4011b37a34e3488fd51206512829205ec` with its own documentation reconciliation at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — and **M6**, the contracts-without-UI milestone, sits after that, implemented across four checkpoints, CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (the chat contract), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management and composer state safety), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export) — and **M7**, the relation de-fixturing milestone, sits after M6's documentation reconciliation (`8131c5cd49c35a7163543082475a9635914aba40`), implemented across four checkpoints, CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts), all pushed; §3 carries the current phase. The **non-milestone** Class Compensation P1 workstream (`a21311d7e32c82e3a46b1581c94f6b3478bf646c`) sits after M7's reconciliation (`e7a6d72`) and does **not** advance this row: a workstream is not a phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `3acb5f3be275a67726376adbfed3f3fdf2f1282b` — **the D2 record** (*docs(governance): record decision D2 before M8*): **D2** decided with its row, its four-field section and the register's counts (fourteen decided, four open), the shipped default name «آموزشگاه موسیقی پارسیان» recorded, the M8 references reconciled where they still said the decision was required, and `9fcf008` registered as the twenty-fourth documentation checkpoint. Documents only — four `docs/engineering/` documents, 63 insertions / 32 deletions; no product source, no test, no dependency. **The twenty-fifth** documentation checkpoint, which could not name itself — the next documentation commit names it — and the commit **this documentation pass was built on** |
-| Previous documentation checkpoint | `9fcf00891d07db18c718296ccaddc79919c793c1` — **the I21 closure and the S-6 gate registration** (*docs(compensation): close I21 and register the S-6 boundary gate*): the dedicated per-surface boundary gate's landing (`bf8bd91150d6fca3392115c7eccd6c738e9091ee`) registered as a **chain commit** rather than counted here, **I21** closed with its closure record, the S-6 validation block and the gate's own mutation evidence written into §4 of this file, and the six gate-architecture findings kept deferred. Documents only — four `docs/engineering/` documents, 158 insertions / 37 deletions; no product source, no test, no dependency. **The twenty-fourth** documentation checkpoint, which could not name itself — the next documentation commit names it — and the commit **the D2 record was built on** |
-| Documentation checkpoint before that | `d18d3e39b513a9031ba8cc8383e7b98d7ae99c99` — **the Class Compensation UI's documentation reconciliation** (*docs(governance): reconcile compensation UI checkpoints*): the secretary surface's chain registered (`fc83d6d` the surface, `79fd44e` and `79ec13d` its two hardening packages), the audit findings **S-1**…**S-9** recorded as closed with **S-6** left open as **I21**, the surface's validation block written into §4 of this file, the test catalogue in §6 and the limitations in §7 and §9 brought up to it, and the decision and backlog records reconciled with what had landed. Documents only — five `docs/engineering/` documents, 309 insertions / 79 deletions; no product source, no test, no dependency. **The twenty-third** documentation checkpoint, which could not name itself — `9fcf008` names it — and the commit **the S-6 boundary gate was built on** |
+| **Documentation checkpoint (pushed)** | `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` — **the M8 boundary reconciliation** (*docs(m8): reconcile the M8 base/rollback boundary and register checkpoint 25*): §5's M8 checkpoint paragraph corrected so the boundary it names is the twenty-fourth documentation checkpoint `9fcf008` instead of M7's superseded reconciliation `e7a6d72` — whose M7 *product* record nevertheless stands — described consistently with the rollback rule and the no-self-reference rule below, `3acb5f3` registered as the twenty-fifth documentation checkpoint, and the milestone table's M8 row left stating that M8 was **not authorized**. Documents only — three `docs/engineering/` documents, 32 insertions / 15 deletions; no product source, no test, no dependency. **The twenty-sixth** documentation checkpoint, which could not name itself — this pass names it — and the commit **M8 was built on** |
+| Previous documentation checkpoint | `3acb5f3be275a67726376adbfed3f3fdf2f1282b` — **the D2 record** (*docs(governance): record decision D2 before M8*): **D2** decided with its row, its four-field section and the register's counts (fourteen decided, four open), the shipped default name «آموزشگاه موسیقی پارسیان» recorded, the M8 references reconciled where they still said the decision was required, and `9fcf008` registered as the twenty-fourth documentation checkpoint. Documents only — four `docs/engineering/` documents, 63 insertions / 32 deletions; no product source, no test, no dependency. **The twenty-fifth** documentation checkpoint, which could not name itself — `a039ab0` names it — and the checkpoint **the owner authorized M8 against**, immediately behind the boundary M8 was built on |
+| Documentation checkpoint before that | `9fcf00891d07db18c718296ccaddc79919c793c1` — **the I21 closure and the S-6 gate registration** (*docs(compensation): close I21 and register the S-6 boundary gate*): the dedicated per-surface boundary gate's landing (`bf8bd91150d6fca3392115c7eccd6c738e9091ee`) registered as a **chain commit** rather than counted here, **I21** closed with its closure record, the S-6 validation block and the gate's own mutation evidence written into §4 of this file, and the six gate-architecture findings kept deferred. Documents only — four `docs/engineering/` documents, 158 insertions / 37 deletions; no product source, no test, no dependency. **The twenty-fourth** documentation checkpoint, which could not name itself — `3acb5f3` names it — and its boundary role is the one the `a039ab0` pass corrected |
+| Earlier documentation checkpoints (kept as written from the rows the pass above advanced past) | `d18d3e39b513a9031ba8cc8383e7b98d7ae99c99` — **the Class Compensation UI's documentation reconciliation** (*docs(governance): reconcile compensation UI checkpoints*): the secretary surface's chain registered (`fc83d6d` the surface, `79fd44e` and `79ec13d` its two hardening packages), the audit findings **S-1**…**S-9** recorded as closed with **S-6** left open as **I21**, the surface's validation block written into §4 of this file, the test catalogue in §6 and the limitations in §7 and §9 brought up to it, and the decision and backlog records reconciled with what had landed. Documents only — five `docs/engineering/` documents, 309 insertions / 79 deletions; no product source, no test, no dependency. **The twenty-third** documentation checkpoint, which could not name itself — `9fcf008` names it — and the commit **the S-6 boundary gate was built on** |
 | Earlier documentation checkpoints (kept as written from the rows the pass above advanced past) | `f0bdecdc39b03bae03c85d3bc8913e87d53bba57` — **the Class Compensation workstream's final domain-gate reconciliation** (*docs(compensation): reconcile final domain gate records*): the chain's last three product commits registered, **D20** decided, **I18**'s status brought up to those packages and the ten mutation checks recorded. It is the commit **the compensation surface was built on** (`fc83d6d` → `79fd44e` → `79ec13d`), and therefore that workstream's **effective safe rollback boundary**. Documents only, three `docs/engineering/` files (103/30); the twenty-second documentation checkpoint (named by `d18d3e3`) |
 | Earlier documentation checkpoints (kept as written from the rows the pass above advanced past) | `e7a6d72e561bdbb0d22280e4617141281b62d8b5` — **M7's documentation reconciliation** (*docs(m7): reconcile the relation phase record and close I1*): M7 registered ✅ COMPLETE against its measured evidence, **D17** decided, **I1** closed and **I19** recorded. It is the commit **Class Compensation P1 was built on**. Documents only; the twentieth documentation checkpoint, and `8131c5cd49c35a7163543082475a9635914aba40` — **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*): the milestone's requirement-by-requirement matrix in §4 of this file, which also **registers** M6's reconciliation `e6ab6f90901496be376e2278aa28695e5ab32ab6` because no entry may carry its own SHA; and `e6ab6f90901496be376e2278aa28695e5ab32ab6` — **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*): M6 registered ✅ COMPLETE against its measured evidence, **D14–D16** decided, and `src/domains/chat/README.md` added. Documents only |
 | Earlier documentation checkpoints (kept as written from the rows the pass above advanced past) | `8131c5cd49c35a7163543082475a9635914aba40` — **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*): the milestone's requirement-by-requirement matrix in §4 of this file, which also **registers** M6's reconciliation `e6ab6f90901496be376e2278aa28695e5ab32ab6` because no entry may carry its own SHA; and `e6ab6f90901496be376e2278aa28695e5ab32ab6` — **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*): M6 registered ✅ COMPLETE against its measured evidence, **D14–D16** decided, and `src/domains/chat/README.md` added. Documents only |
@@ -82,7 +86,7 @@
   [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. **Twenty-five** are **named** so far — the twenty-sixth is the commit carrying
+  but no product behaviour. **Twenty-six** are **named** so far — the twenty-seventh is the commit carrying
   this paragraph, which cannot name itself (see the rule immediately below) and must be registered
   by whichever documentation commit comes next: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
@@ -116,7 +120,9 @@
   more) and `9fcf00891d07db18c718296ccaddc79919c793c1` (**the I21 closure and the S-6 gate
   registration**, named by the commit after it — the same rule again) and
   `3acb5f3be275a67726376adbfed3f3fdf2f1282b` (**the D2 record**, named by the commit after it — the same
-  rule again). They are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log`
+  rule again) and `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` (**the M8 boundary reconciliation**, the
+  commit M8 was built on, named by this pass — the same rule once more). They are listed in
+  [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log`
   never shows a commit this ledger does not explain.
 
 **No self-referential SHAs.** A document cannot contain the SHA of the commit that carries it —
@@ -163,10 +169,11 @@ recovered in full, but its SHA could not be reproduced. Consequences for any ses
 
 | Field | Value |
 |---|---|
-| Current phase | **Product-feature phase — M7 (relation de-fixturing + sidebar badges, **I1**)** |
-| Phase status | ✅ **COMPLETE** — M7 was implemented across four checkpoints, CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (the relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and the navigation counts), built on M6's documentation reconciliation `8131c5cd49c35a7163543082475a9635914aba40` — which is therefore M7's **effective safe rollback boundary** — and this documentation pass reconciles the record. All pushed. **Accepted with recorded limitations** — see §3 → "Last completed work (M7…)" and §4 → "M7 validation". **I1 is closed at the level it was defined**: `navGroups` carries no number, the one badge with an honest source (unread messages) is read from the chat repository only while that read is complete, and the badge with no scoped source (unrecorded attendance) was **removed** rather than estimated. **H1 is not re-opened**, and the milestone's own limitations are §7 item 17. |
-| Previous phase status | ✅ **COMPLETE** — **M6** (contracts without UI: chat management, attachments, export coverage) landed across CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0`, CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76`, CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2`, was reconciled at `e6ab6f90901496be376e2278aa28695e5ab32ab6` plus the coverage-matrix commit `8131c5cd49c35a7163543082475a9635914aba40`, and is **accepted with recorded limitations** (attachment ownership/authorization backend-required, browser-local bytes, a metadata-only single-conversation export with a disclosed ceiling, browser QA NOT VERIFIED — §5, §7 item 15). Before it, **M5** (attendance *view* wiring, **H1b**, and with it the umbrella **H1** and **I12**) landed at `9505ade4011b37a34e3488fd51206512829205ec` and was reconciled at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **M4** at CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5`, CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511`, CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d`, CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48`, coverage `df701488362cb90cf32ccefad277879477571cf7` and reconciliation `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b`; and **M3** at `e5b0a57` → `3bec881`. All pushed, each with its own §4 validation block, kept for audit. |
-| Next phase | Product-feature phase — **M8 (branding application & visual identity, D2)** — ❌ **NOT STARTED**, not authorized; **D2 is ✅ recorded (2026-09-16)**, so the decision that gated M8 is discharged and only the authorization remains |
+| Current phase | **Product-feature phase — M8 (branding application & visual identity, **D2**)** |
+| Phase status | ✅ **COMPLETE** — **M8** (branding application & visual identity, **D2**) was implemented in **one** checkpoint, `735617d0324a8f4ba2e243846eedf069d389751a` (*feat(m8): render the persisted branding in the shell, the login screen and the tokens* — 6 files, 360/26, one new test file with **15 cases**), **explicitly authorized by the owner on 2026-09-16** and built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` — the pre-M8 boundary, which is therefore M8's **effective safe rollback boundary** — and this documentation pass reconciles the record. The persisted `BrandingSettings` is now the identity the product renders: `applyBranding`/`useApplyBranding` (`src/domains/branding/useBranding.ts`) is mounted in `src/App.tsx` below the lifecycle gate and above `AuthProvider`, the four `--brand-*` custom properties are consumed by the design-system tokens in `src/index.css`, and `src/components/layout/Sidebar.tsx` and `src/views/Login.tsx` read `branding.academyName` / `branding.tagline` instead of the demo fixture. All pushed. **Accepted with recorded limitations** — see §3 → "Last completed work (M8…)", §4 → "M8 validation" and §7 item 20; **browser QA NOT VERIFIED** (§5). |
+| Previous phase status | ✅ **COMPLETE** — **M7** (relation de-fixturing + sidebar badges, **I1**) landed after M6's coverage matrix, across CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (the relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and the navigation counts), built on M6's coverage-matrix commit `8131c5cd49c35a7163543082475a9635914aba40` — which is therefore M7's **effective safe rollback boundary** — and its record was reconciled at `e7a6d72e561bdbb0d22280e4617141281b62d8b5`, which stands as written. **Accepted with recorded limitations** — see §4 → "M7 validation". **I1 is closed at the level it was defined**: `navGroups` carries no number, the one badge with an honest source (unread messages) is read from the chat repository only while that read is complete, and the badge with no scoped source (unrecorded attendance) was **removed** rather than estimated. **H1 is not re-opened**, and the milestone's own limitations are §7 item 17. |
+| Earlier phase status (kept as written from the row the pass above advanced past) | ✅ **COMPLETE** — **M6** (contracts without UI: chat management, attachments, export coverage) landed across CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0`, CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76`, CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2`, was reconciled at `e6ab6f90901496be376e2278aa28695e5ab32ab6` plus the coverage-matrix commit `8131c5cd49c35a7163543082475a9635914aba40`, and is **accepted with recorded limitations** (attachment ownership/authorization backend-required, browser-local bytes, a metadata-only single-conversation export with a disclosed ceiling, browser QA NOT VERIFIED — §5, §7 item 15). Before it, **M5** (attendance *view* wiring, **H1b**, and with it the umbrella **H1** and **I12**) landed at `9505ade4011b37a34e3488fd51206512829205ec` and was reconciled at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **M4** at CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5`, CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511`, CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d`, CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48`, coverage `df701488362cb90cf32ccefad277879477571cf7` and reconciliation `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b`; and **M3** at `e5b0a57` → `3bec881`. All pushed, each with its own §4 validation block, kept for audit. |
+| Next phase | Product-feature phase — **M9 (dashboard insight from live data, **H4**, with **I9** guards landing first)** — ❌ **NOT STARTED**, not authorized; M8 is ✅ complete behind it, and M9's own gates are still unrecorded |
 | Working tree | Clean at every recorded checkpoint — **verify, do not trust**: `git status --porcelain` must print nothing |
 
 M0 (`f2ebc09`, spec + decision register, documents only), M1 (`689a7c1`, the recovery UX), M2
@@ -177,7 +184,9 @@ learning-content assignment UI), **M4** (CP1 `0f875a7`, CP2 `f8c3472`, CP3 `6f54
 **M6** (CP1 `43e7882`, CP2 `42c54f4`, CP3 `563b8d8`, CP4 `4e03b87` — the chat milestone: contracts,
 management, attachments and a single-conversation export) and
 **M7** (CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6`, CP4 `f1ec0dd` — the relation de-fixturing and
-navigation-count milestone) are
+navigation-count milestone) and **M8** (one implementation checkpoint `735617d` — the branding
+application and visual identity, authorized by the owner on 2026-09-16 and built on the pre-M8 boundary
+`a039ab0`) are
 the product phase's completed milestones. M3's surface, its
 wiring and its 16 tests are pushed, it went through a formal acceptance audit and it was **accepted
 with recorded limitations**; what is *not* true of it — or of any milestone — is browser QA, which
@@ -203,8 +212,10 @@ records the coverage matrix in §4), and the milestone's own section follows bel
 that reconciliation** — four checkpoints, `0d9fc01` (the relation plumbing), `5726435` (student
 relations), `ede3ad6` (teacher relations) and `f1ec0dd` (class relations and the navigation counts) —
 closing **I1** at the level it was defined; M7's record was reconciled at `e7a6d72`, **Class
-Compensation P1** landed on top of it at `a21311d` as a **non-milestone workstream** (§3 below), and
-**M8–M11 have not started** — the ledger in
+Compensation P1** landed on top of it at `a21311d` as a **non-milestone workstream** (§3 below), the
+workstream's secretary surface and its boundary gate followed, and **M8** landed on top of all of it at
+`735617d` — one implementation checkpoint, built on `a039ab0` (§3 → "Last completed work (M8…)" and
+§4 → "M8 validation") — after which **M9–M11 have not started**: the ledger in
 [PHASES.md](PHASES.md) marks the product-feature phase's remaining milestones NOT STARTED.
 
 ### Last completed work (Phase 2, in one paragraph)
@@ -709,6 +720,31 @@ open as **I21** and has since been delivered by the surface's own dedicated boun
 (`bf8bd91150d6fca3392115c7eccd6c738e9091ee`, the workstream's last commit). See §4 → "Compensation
 UI validation" and "S-6 boundary gate validation".
 
+### Last completed work (M8, in one paragraph)
+
+M8 — **branding application & visual identity** — was authorized by the owner on 2026-09-16 (the D2
+record at `3acb5f3` had discharged the decision it was gated on) and landed in **one** implementation
+checkpoint, `735617d0324a8f4ba2e243846eedf069d389751a`, built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`.
+The persisted `BrandingSettings` became the identity the product renders: `src/App.tsx` mounts a
+`BrandingApplication` that reads the record through the branding domain's own `useBranding` and writes it
+through its existing tested seam `useApplyBranding` (below `DataLifecycleGate`, above `AuthProvider`, so
+the login screen — which lives outside the authenticated shell — is branded too); `src/index.css` consumes
+all four properties the seam writes, with `--brand-primary` / `--brand-accent` driving the **default**
+accent scale and the four formerly hardcoded gold tiers via `color-mix`, `--brand-font-fa` leading the
+Persian stack with the bundled Vazirmatn kept directly behind it as the guaranteed fallback, and
+`--brand-text` as the body text colour — every `var()` carrying the pre-branding value as its own
+fallback, so a build with no readable record renders exactly as before, and the two per-viewer accents
+(«کهربای ساز», «بنفش رزونانس») untouched; and `src/components/layout/Sidebar.tsx` and
+`src/views/Login.tsx` read `branding.academyName` / `branding.tagline` instead of the demo fixture. The
+shipped default name «آموزشگاه موسیقی پارسیان» was already `DEFAULT_BRANDING.academyName`, so M8 renames
+nothing; the fixture «آکادمی موسیقی آوا» remains demo seed material. One new test file carries the
+milestone's 15 cases, including the applier running over a real `<App />`, a saved change reaching
+`document.documentElement`, and the token wiring read from `src/index.css`. Six files, 360 insertions /
+26 deletions; **no dependency, no model change and no CSP change** — and **browser QA is NOT VERIFIED**
+(§5). The out-of-scope fixture leakage the milestone deliberately did not touch (`src/components/hero/Hero.tsx`
+still renders the fixture name, and `src/domains/demo/seed.ts` derives the demo organization settings from
+`src/data/academy.ts`) is recorded at §7 item 20 and stays with M9/M10.
+
 ### Work landed since the Phase 2 checkpoint
 
 Three documentation checkpoints first — documents, validation gates, one labelling fix and one
@@ -784,6 +820,31 @@ The commits themselves are listed in [PHASES.md](PHASES.md) → "Documentation c
 file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
+
+### M8 validation (measured at `735617d0324a8f4ba2e243846eedf069d389751a`, the milestone's single implementation checkpoint)
+
+M8 landed in **one** product commit on top of the pre-M8 boundary
+`a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` (the M8 boundary-reconciliation documentation checkpoint,
+whose parent is the **D2** record `3acb5f3be275a67726376adbfed3f3fdf2f1282b` the owner authorized M8
+against). The numbers below were measured on that tree:
+
+| Check | Result |
+|---|---|
+| Starting point | ✅ `git rev-parse HEAD` == `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`, `git status --porcelain` empty, `git ls-remote origin refs/heads/arena/01a0a068-parsian-music-dashboard-opus` returning the same SHA, and the working clone full (`git fetch --unshallow` run first, because the provisioned checkout arrived **shallow at the fork point** — the branch was re-attached from the authoritative remote with no reset, no rebase and no history rewrite) |
+| Baseline first | ✅ `npm ci` (176 packages), then `npm run typecheck`, `npm test`, `git diff --check` and `npm run build` on the pre-M8 tree — **1 908 passed / 2 failed of 1 910**, the recorded environmental pair (§7 items 16 and 18) |
+| What M8 changed | ✅ 6 files, **360 insertions / 26 deletions** — `src/index.css` (30/8), `src/App.tsx` (18/0), `src/components/layout/Sidebar.tsx` (10/3), `src/views/Login.tsx` (9/3), the new `src/domains/branding/__tests__/brandingApplication.test.tsx` (277/0) and §5's M8 paragraph in [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) (16/12). **`git diff --name-only a039ab0..735617d -- src/services src/api src/context src/domains/demo src/domains/auth` prints nothing**, and no existing test, gate or config file was edited |
+| Dependencies | ✅ none added, removed or changed — `package.json` and the lockfile are absent from the diff |
+| New suite | ✅ **15/15** — `src/domains/branding/__tests__/brandingApplication.test.tsx`: the shipped default name as a literal; the default's tagline/colours/font shape; an EMPTY academy keeping the shipped default rather than a fabricated identity; the four-property write with `style.length === 4` (the seam invents no other property); per-property refusal of values that fail re-validation; no overwrite of an already-validated value by a refused one; a real `<App />` writing the record onto `document.documentElement`; a **saved** change reaching it and replacing the previous value; the four token bindings in `src/index.css` each with a fallback; the default accent scale resolving tier by tier through the brand colours; the sidebar and the login screen showing the stored name and tagline and **not** the fixture's, and both moving when the record is renamed |
+| Focused batch | ✅ **193 passed / 1 failed of 194** across thirteen suites — the branding domain, `cspCompatibility` (against a **real `dist/` build**), `architectureBoundaries`, `privacyPosture`, `projectState`, `Login`, `loginEmptyEnvironment`, `loginDemoIsolation`, `emptyEnvironment`, `emptyEnvironmentPanels`, `navigationCounts`, `writeFeedbackHonesty` and `honestWriteCopy`; the one failure is the recorded environmental branch-name case (§7 item 16) |
+| Full suite | ✅ **1 923 passed / 2 failed of 1 925** (136 files) — exactly the 15 new cases over the 1 908/1 910 baseline, and the same two recorded environmental failures, unchanged |
+| `npm run typecheck` | ✅ clean (zero output, exit 0) |
+| `npm run build` | ✅ exit 0, **4.55 s**; the pre-existing chunk-size warning is unchanged (**I6**), and the build artifact is what `cspCompatibility` parses |
+| Mutation / reversion probes | ⚠️ the implementer's own: **eight** source mutations, each killed by the new file and each restored **byte-identically** (`sha256sum -c` against recorded baselines) — the sidebar and login identities reverted to the fixture (2 failures, 4 failures), the applier unmounted from `src/App.tsx` (2), `--accent-500` taken back to its literal (1), `--brand-primary` removed from the token file altogether (2), and `--brand-text` / `--brand-font-fa` unwired (1 each). **No independent audit re-measured them.** A first pass of this probe set left the per-tier wiring unpinned (the literal `--accent-500` mutation survived), which is why the tier-by-tier assertion exists |
+| Security / CSP | ✅ the injection guard is intact and still the gate before every write (`isHexColor` / `isPersianFont`; an invalid colour never reaches the CSSOM, asserted per property); writes stay CSSOM-only; no inline `style` attribute or `dangerouslySetInnerHTML` was added (grep over the commit: 0); `logoMediaId` / `faviconMediaId` remain `MediaAsset.id`; **no `BrandingSettings` model change and no CSP policy change** |
+| Acceptance (A–G) | ✅ all seven answered: the shipped default name is a test literal; the four tokens receive the persisted values and invalid ones are refused; the shell and login render the stored identity, not the fixture; a persisted change moves what is rendered (asserted on the real app, so it cannot be a string coincidence); EMPTY keeps the shipped default; the existing branding and CSP guarantees stay green against a real build |
+| Browser QA | ❌ **NOT VERIFIED** (§5) — the two rewired surfaces and the token-driven theme are jsdom-verified only; no browser pass ran and none is claimed |
+| What the closure does not claim | ❌ **the fixture identity is not gone from the product**, only from the two surfaces M8 was authorized to rewire: `src/components/hero/Hero.tsx` still renders `academy.name` and `src/domains/demo/seed.ts` still derives the demo organization settings from `src/data/academy.ts` — outside M8's scope by the milestone's own out-of-scope clause, recorded at §7 item 20 and left for M9/M10. Branding still resolves to Demo in both modes (**D8**), the logo/favicon upload redesign stays out of scope, and no export path was audited for the academy name |
+| Remote | ✅ pushed as a fast-forward (`a039ab0..735617d`) and verified with `git ls-remote`, which returned the same SHA |
 
 ### Compensation UI validation (measured at `79ec13d0ab2671a612a578605a1fa7a91effc435`, the last of the UI implementation packages)
 
@@ -1431,7 +1492,13 @@ drawer states, its indeterminate counts, its refresh-failure banner, its three d
 candidate list, the warning acknowledgement and the Persian Jalali date fields), its move dialog, and
 its focus, Escape and RTL behaviour at tablet/mobile breakpoints are **jsdom-verified only** until this
 checklist is performed. Recorded at the workstream's documentation reconciliation rather than after a
-browser pass, and not discharged by its landing.
+browser pass, and not discharged by its landing. **M8 adds one, and it is open:** the shell chrome, the
+login screen and the token-driven theme have never been opened in a browser. The branding name and
+tagline in `src/components/layout/Sidebar.tsx` and `src/views/Login.tsx`, the applied `--brand-*`
+properties and the whole accent scale they drive — including whether a saved colour actually reads as
+the academy's colour on screen, and whether the Persian face chosen in Settings renders as intended —
+are **jsdom-verified only** until this checklist is performed. Recorded at M8's documentation pass
+rather than after a browser pass, and not discharged by its landing.
 
 ## 6. Protected domains and invariants
 
@@ -1692,6 +1759,22 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     **Browser QA has never run** (§5), where the surface's own checklist item is now recorded: the
     surface is jsdom-verified only, and no browser pass discharges it.
 
+20. **M8's own limitations, none of them closed by declaring the milestone complete.** **The fixture
+    identity is not gone from the product — only from the two surfaces M8 was authorized to rewire.**
+    `src/components/hero/Hero.tsx` still renders the fixture name, and `src/domains/demo/seed.ts` still
+    derives the demo organization settings from `src/data/academy.ts`; that is outside the milestone's
+    own **Out of scope** clause (it named the shell and the login screen, not the whole product), it is
+    not hidden by the acceptance record, and it stays with **M9/H4** and **M10/D5**. **Branding still
+    resolves to Demo in both modes and has no `apiRepository`** (**D8**, M11 / **I20**'s family): the
+    persisted record is real, the store behind it is the demo dataset. **The logo/favicon upload
+    redesign remains out of scope** — `logoMediaId` / `faviconMediaId` stay `MediaAsset.id` references
+    and no part of the brand model was changed. **No export path was audited for the academy name**, so
+    D2's "shell, login and exports" is enforced in the two surfaces M8 rewired and **unverified**
+    anywhere else. **No browser pass has run** (§5): the rendered identity, the accent scale it drives
+    and the Persian face chosen in Settings are jsdom-verified only. And **no independent acceptance
+    audit ran** for M8, so the milestone carries no audit findings and no **B**-numbered coverage
+    items: the eight mutation probes in §4 → "M8 validation" are the implementer's own measurement.
+
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
 called a real write demo data (**H7**). Both are recorded as landed in
@@ -1706,15 +1789,17 @@ was dropped.
 
 ## 9. Immediate next action
 
-**D2 is ✅ RECORDED (2026-09-16) — the decision M8 was gated on — and it authorizes nothing.** The owner
-fixed the shipped default name at «آموزشگاه موسیقی پارسیان», the value
-`DEFAULT_BRANDING.academyName` already carries in `src/domains/branding/types.ts`; the fixture's
-«آکادمی موسیقی آوا» stays demo seed material, never the product's name. The entry, its row and the
-register's counts are in [DECISIONS.md](DECISIONS.md) **§19**, and the recorded status is echoed where
-M8 is planned ([PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §4, §5's M8 block and
-§7's summary table, and [PHASES.md](PHASES.md)'s milestone table). **M8 itself remains ❌ NOT STARTED
-and not authorized:** the dependency is discharged, the work order is not, and the milestone order
-(M8 → M9 → M10 → M11) is unchanged.
+**M8 is ✅ COMPLETE (2026-09-16) at `735617d0324a8f4ba2e243846eedf069d389751a`, and M9 is not authorized.**
+The owner authorized M8 on 2026-09-16 — the **D2** record at `3acb5f3` had already fixed the shipped
+default name at «آموزشگاه موسیقی پارسیان», the value `DEFAULT_BRANDING.academyName` carries in
+`src/domains/branding/types.ts`, so the milestone renamed nothing — and it landed in **one**
+implementation checkpoint, built on the pre-M8 boundary `a039ab0`, with its measured evidence in
+§4 → "M8 validation" and its limitations at §7 item 20. The milestone order (M8 → **M9** → M10 → M11) is
+unchanged, so the next work is **M9 — dashboard insight from live data (**H4**), with the **I9** guards
+landing first** (`src/components/ds/primitives.tsx` and
+`src/components/panels/BusinessIntelligence.tsx` — [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md)
+§5's M9 block) — and it is **not authorized**: the owner's word is what starts a milestone, and nothing
+in this pass gives it.
 
 **The current state in one line, updated: the Class Compensation workstream is ✅ SHIPPED — the domain at
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c` and its secretary surface at `fc83d6d`, hardened by `79fd44e`
@@ -1725,9 +1810,10 @@ route cases — and **still no `apiRepository`, no server and no seeded compensa
 implementation is the only thing answering for the contract, and a hand-run still needs a cancelled
 private session created first. The
 phase-checkpoint row does **not** move (`33b1031`, Phase 2), the M0–M11 sequence is unchanged, **M7
-remains ✅ COMPLETE**, and **M8 (branding application & visual identity, D2) is ❌ NOT STARTED and not
-authorized — D2, the decision that gated it, is ✅ recorded (2026-09-16), so the authorization is what
-remains.**
+remains ✅ COMPLETE**, and **M8 (branding application & visual identity, D2) is ✅ COMPLETE at
+`735617d0324a8f4ba2e243846eedf069d389751a`**, authorized by the owner and built on `a039ab0` — so **M9
+(dashboard insight from live data, H4) is ❌ NOT STARTED and not authorized**, together with M10 and
+M11.**
 
 **P1 is complete *with limitations*, and they are not closed by declaring it shipped.** Preserve them in
 any future report, in full, from §7 item 19: no server and no `apiRepository` — the surface and the read
@@ -1745,12 +1831,13 @@ of P1**; and **browser QA has never run** (§5), on this or any other surface.
 
 **This pass is documents-only, and the next work is not authorized.** It changes **`docs/engineering/`
 only — no product source, no test, no dependency, no fixture, no config and no gate** — and it re-runs
-the documentation gate (**51 passed / 1 environmental failure**, the recorded branch-name case) and the
-workstream's own suites against the files it edits. Before **M8** begins, the recorded checkpoints must
-be confirmed against Git (§2 and the recovery contract at the end of this file), a green baseline
-re-established (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`,
-`git diff --check`, `npm run build`), and **D2 recorded** (✅ 2026-09-16 — see
-[DECISIONS.md](DECISIONS.md) §19 → **D2**). Of the two things P1 left undone, the
+the documentation gate (**51 passed / 1 environmental failure**, the recorded branch-name case, still
+present and unmodified) and M8's own suite against the files it edits. Before **M9** begins, the
+recorded checkpoints must be confirmed against Git (§2 and the recovery contract at the end of this
+file), a green baseline re-established (`npm ci` if `node_modules` is absent, then
+`npm run typecheck`, `npm test`, `git diff --check`, `npm run build`), and **M9's own gates respected —
+the **I9** guards land first, in that order** ([PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md)
+§5's M9 block). Of the two things P1 left undone, the
 **UI** has since been authorized and built (`fc83d6d`/`79fd44e`/`79ec13d`); a **REST implementation**
 (`apiRepository`), **group/class-wide compensation**, **any coordination flow**, **notifications**,
 **server-side enforcement** remain unauthorized
@@ -1761,12 +1848,15 @@ findings deferred.
 **The state at M7's closure, kept for audit: M7 (relation de-fixturing + sidebar badges, I1) is ✅ COMPLETE and
 pushed, implemented across CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6` and CP4 `f1ec0dd` on top of
 M6's coverage-matrix commit `8131c5c`, with its documentation pass (`e7a6d72`) reconciling the record;
-**M8 (branding application & visual identity, D2) is ❌ NOT STARTED and not authorized.** The M6, M5,
+**M8 (branding application & visual identity, D2) is ❌ NOT STARTED and not authorized.** *(Correction,
+2026-09-16: M8 was authorized afterwards and is ✅ COMPLETE at
+`735617d0324a8f4ba2e243846eedf069d389751a` — see §3 and §4 → "M8 validation"; the sentence above is kept
+as the state at M7's closure, which is what it describes.)* The M6, M5,
 M4 and M3 records that follow are kept for audit, each with its own §4 validation block.
 
 **M7 is complete *with limitations*, and they are not closed by declaring it complete.** Preserve them in any future report, in full, from §7 item 17: the fixtures themselves survive (**M10/D5**) — M7 removed readers, not data; `useStudentList` is still un-keyed (**I13**) and M7 reached it from three surfaces with the consumer-side key guard the gate requires, recorded as a mitigation rather than a closure; the `per_page: 200` ceilings stay (**I16**); `src/views/Messages.tsx`, `src/views/Library.tsx`, `src/views/Settings.tsx` and the dashboard panels still read fixture content (**M9**, **M10**), which the milestone's original scope named but the authorized checkpoints did not include; the palette's substring matching is untouched (**L1**); no acceptance audit ran, so there are no audit findings and no **B**-numbered items; and **browser QA has never run and is NOT VERIFIED** (§5). Completion says the three profile surfaces now read their relations from their own domains and the chrome shows a number only where a repository answered one — not that a human has used either in a browser.
 
-**M7's reconciliation is documents-only, and the next work is not authorized.** This pass changed **`docs/engineering/` only: no product source, no test, no dependency**, and it re-ran the M7 suites (**67/67**) and the documentation gate (**51 passed / 1 environmental failure**) against the files it edits. Before **M8** — branding application and visual identity — begins, the recorded checkpoints must be confirmed against Git (§2, and the recovery contract at the end of this file), a green baseline re-established (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run build`), **D2 recorded first** (✅ recorded 2026-09-16) because `DEFAULT_BRANDING.academyName` («آموزشگاه موسیقی پارسیان») contradicts the fixture name on screen, and only then the [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M8 scope started — with Groups A and D frozen exactly as §6 records, together with the 9-case `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, the M7 gate and its five per-surface suites, and the M5/M6 suites that pin the attendance and chat surfaces. **M7 handed M8 one thing it did not consume:** the relation plumbing (`src/views/relations/academyDay.ts`, `indexById.ts`) is generic and available, but the branding work needs none of it.
+**M7's reconciliation is documents-only, and the next work is not authorized.** This pass changed **`docs/engineering/` only: no product source, no test, no dependency**, and it re-ran the M7 suites (**67/67**) and the documentation gate (**51 passed / 1 environmental failure**) against the files it edits. Before **M8** — branding application and visual identity — begins, the recorded checkpoints must be confirmed against Git (§2, and the recovery contract at the end of this file), a green baseline re-established (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run build`), **D2 recorded first** (✅ recorded 2026-09-16) because `DEFAULT_BRANDING.academyName` («آموزشگاه موسیقی پارسیان») contradicts the fixture name on screen, and only then the [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M8 scope started — with Groups A and D frozen exactly as §6 records, together with the 9-case `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, the M7 gate and its five per-surface suites, and the M5/M6 suites that pin the attendance and chat surfaces. **M7 handed M8 one thing it did not consume:** the relation plumbing (`src/views/relations/academyDay.ts`, `indexById.ts`) is generic and available, but the branding work needs none of it. *(Correction, 2026-09-16: that pass's "not authorized, D2 first" reading was followed — D2 was recorded at `3acb5f3` and M8 was then authorized and landed at `735617d` on `a039ab0`; the paragraph above is kept as the record of what the M7 pass wrote.)*
 
 **M3 (learning-content assignment UI, I3 — UI only) is ✅ COMPLETE, and I3 with it.** Implemented at
 `e5b0a57d8f33dc04838670a2cd4158a88dd34022` on top of I13 Checkpoint 3A
@@ -1899,12 +1989,16 @@ authorized afterwards and has since landed** — four implementation checkpoints
 paragraph stated — that the first step is not implementation — was followed, not skipped:** the
 recorded checkpoints were confirmed against Git and the baseline re-established before CP1, and
 **Groups A and D stayed frozen exactly as §6 records** — no checkpoint changed any file under
-`src/domains/` outside the chat domain. **Correction (2026-09-15, M7's reconciliation): M7 was authorized afterwards and has since landed** — four implementation checkpoints, CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6` and CP4 `f1ec0dd`, built on M6's coverage-matrix commit `8131c5c` — and it is ✅ **COMPLETE** (§3 carries the current phase; §4 → "M7 validation" carries the measured evidence). The same rule was followed again: the recorded checkpoints were confirmed against Git and the baseline re-established before CP1, and **Groups A and D stayed frozen** — `git diff --name-only 8131c5c..f1ec0dd -- src/domains/` prints nothing. The recovery contract it names is unchanged and now applies to
-**M8, which is not authorized**: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded
+`src/domains/` outside the chat domain. **Correction (2026-09-15, M7's reconciliation): M7 was authorized afterwards and has since landed** — four implementation checkpoints, CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6` and CP4 `f1ec0dd`, built on M6's coverage-matrix commit `8131c5c` — and it is ✅ **COMPLETE** (§3 carries the current phase; §4 → "M7 validation" carries the measured evidence). The same rule was followed again: the recorded checkpoints were confirmed against Git and the baseline re-established before CP1, and **Groups A and D stayed frozen** — `git diff --name-only 8131c5c..f1ec0dd -- src/domains/` prints nothing. **Correction (2026-09-16, M8's closure):** this contract named **M8** while M8 was pending; M8 was
+authorized afterwards and has since landed at `735617d` on the pre-M8 boundary `a039ab0`, so the contract
+is unchanged and now applies to
+**M9, which is not authorized** — and the scope it points at is M9's, the milestone after M8 in §4's
+sequence (the paragraph below named M7's scope, which was already the milestone behind it when it was
+written). It reads: re-read [OPEN_ITEMS.md](OPEN_ITEMS.md), confirm the recorded
 checkpoints against Git (§2, and the recovery contract at the end of this file), re-establish a green
 baseline (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`,
 `git diff --check`, `npm run build`), and only then start from the
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M7 scope, with Groups A and D frozen
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) → M9 scope, with Groups A and D frozen
 exactly as §6 records — together with the 9-case
 `src/domains/scheduling/__tests__/useDerivedRead.test.tsx` suite, which is *not* Group A and is no less
 off-limits, the two view suites M5 added, which pin the attendance surface, and the seven M6 suites,

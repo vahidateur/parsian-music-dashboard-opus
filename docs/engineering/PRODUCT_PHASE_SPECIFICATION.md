@@ -8,7 +8,8 @@ M1, M2, M2.1, **M3**, **M4**, **M5** and **M6** have since landed — M3 complet
 recorded limitations, M4, M5 and M6 complete on the same terms, **M7** complete and reconciled on the
 same terms — and the **Class Compensation P1 workstream** (not an M-milestone, and the sequence below is
 unchanged by it) shipped at `a21311d7e32c82e3a46b1581c94f6b3478bf646c` for the private one-to-one case
-recorded in §9, while **M8 onward has not started** —
+recorded in §9, **M8** has since landed (2026-09-16, `735617d` — the branding application, authorized by
+the owner) while **M9 onward has not started** —
 the live status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
@@ -87,10 +88,10 @@ required.
 | 5 | Instruments | **A** | `src/domains/instruments/` incl. the read-through `catalog.ts`; only the *type provenance* is fixture-bound | M10 |
 | 6 | Learning levels / placement | **B** | `src/domains/learning/`, `src/domains/progress/`; placement + eligibility already surfaced in `StudentLearningPanel.tsx` | M3 |
 | 7 | Learning content ↔ level assignment | **B — UI only** | `LevelContentLink` (`src/domains/learning/types.ts:183`), `listLinks`/`attachContent`/`detachContent` (`src/domains/learning/repository.ts:56-58`), demo impl + `CONTENT_ALREADY_LINKED` (`src/domains/learning/demoRepository.ts:238,246`). **Only tests call them** | **M3** |
-| 8 | Login / visual identity | **C** | login itself is real (throttle, gates, generated access path); the *identity* is fixture (`src/components/layout/Sidebar.tsx:94-95`, `src/views/Login.tsx:135,153` ← `src/data/academy.ts:126`) | M8 |
+| 8 | Login / visual identity | **A** — *advanced at M8's landing (2026-09-16), which is the change this row itself named: it was written while the identity was fixture, and it no longer is* | login itself is real (throttle, gates, generated access path); **the identity half of this row is closed by M8** — `src/components/layout/Sidebar.tsx` and `src/views/Login.tsx` read `branding.academyName` / `branding.tagline` through `useBranding` (`src/domains/branding/useBranding.ts`) and no longer import `src/data/academy.ts`, and the applied record drives the design-system tokens. **What the A does not cover, stated so the grade is not read as more than it is:** branding resolves to Demo in both modes and has no `apiRepository` (**D8**, M11), the fixture name still reaches other surfaces (the hero panel and the demo seed — outside M8's authorized scope, [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 20), and **browser QA is NOT VERIFIED** | M8 ✅ **complete** (`735617d`); the server half stays with M11 **(D8)** |
 | 9 | Teacher workspace | **G** | [OPEN_ITEMS.md](OPEN_ITEMS.md) I4 — authorization scope is a backend concern | **deferred** |
 | 10 | Student workspace / student role | **G** | I5; no `student` in `ROLES`; *"FRONTEND RBAC IS UX ONLY"* (`src/domains/auth/permissions.ts`) | **deferred (D1)** |
-| 11 | Branding / Settings | **B** | `BrandingSettings` complete (`src/domains/branding/types.ts:22-40`), panel writes and persists — but `applyBranding` (`src/domains/branding/useBranding.ts:65`) has **only test callers** (`src/domains/branding/__tests__/branding.test.ts:105,113`) and `--brand-*` has **zero consumers** | M8 |
+| 11 | Branding / Settings | **A** — *advanced at M8's landing (2026-09-16): the two defects this row named — `applyBranding` had only test callers, and `--brand-*` had zero consumers — are both closed* | `BrandingSettings` complete (`src/domains/branding/types.ts`), the panel writes and persists, **`useApplyBranding` is mounted in `src/App.tsx`** (below the lifecycle gate, above `AuthProvider`) and the four `--brand-*` properties are consumed by the design-system tokens in `src/index.css`, so the saved identity is the rendered one. **What the A does not cover:** branding resolves to Demo in both modes and has no `apiRepository` (**D8**, M11 / row 20); the logo/favicon upload redesign is out of M8's scope; no export path was audited for the name; **browser QA is NOT VERIFIED** | M8 ✅ **complete** (`735617d`); M11 for the server half |
 | 12 | Audio player | **A** | `useMediaObjectUrl` + real bytes in IndexedDB; CSP `media-src 'self' blob:` | — |
 | 13 | Gallery | **A** | real upload path in `GalleryPanel.tsx`; `galleryImages` seeded empty *by design* (a seeded row would point at missing bytes) | M11 (disclosure only) |
 | 14 | Performance | **C** | 13 static view imports in `src/App.tsx`, zero `lazy`/`Suspense`; no budget in `vite.config.ts`; **every size figure must be re-measured — `dist/` is absent** | M11 |
@@ -122,7 +123,7 @@ M4  Scheduling view wiring (H1a)       ← Group A domain frozen, view rewritten
 M5  Attendance view wiring (H1b)       ← Group D domain frozen; needs M4's real session ids
 M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b87
 M7  Relation de-fixturing + sidebar badges (I1)            ✅ landed f1ec0dd
-M8  Branding application & visual identity (D2 recorded 2026-09-16)
+M8  Branding application & visual identity (D2 recorded 2026-09-16)  ✅ landed 735617d
 M9  Dashboard insight from live data (H4) — I9 guards land FIRST
 M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3
 M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + release gate
@@ -806,7 +807,7 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   clean, Groups A and D untouched. **Browser QA: NOT VERIFIED**, and P1 adds nothing to that checklist
   because it ships no view.
 
-### M8 — Branding application & visual identity (**D2 recorded 2026-09-16**)
+### M8 — Branding application & visual identity (**D2 recorded 2026-09-16**) — ✅ **COMPLETE** at `735617d`
 
 - **Scope.** Call the seam that already exists and is already tested:
   `applyBranding(branding, document.documentElement)` / `useApplyBranding`
@@ -821,8 +822,10 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   پارسیان» (`DEFAULT_BRANDING.academyName`, `src/domains/branding/types.ts:54`), so M8 renames nothing;
   the fixture name on screen («آکادمی موسیقی آوا») is demo seed material to be replaced by
   `branding.academyName`. M7 (fixtures out of the shell) is ✅ landed. **M8 was authorized by the owner
-  on 2026-09-16** and implemented in the single checkpoint that carries this paragraph, whose SHA is
-  registered by the documentation checkpoint that follows it (the no-self-reference rule below).
+  on 2026-09-16** and implemented in a single checkpoint,
+  `735617d0324a8f4ba2e243846eedf069d389751a`, built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` — the
+  pre-M8 boundary. It is registered in [PHASES.md](PHASES.md)'s milestone table and chain paragraph by
+  the documentation pass that follows it (the no-self-reference rule below).
 - **Protected areas.** CSP: writes must stay in the CSSOM — `style-src 'self'` with
   `style-src-attr 'unsafe-inline'` as the *one* narrow exception
   (`deploy/nginx.conf:174-178`, `deploy/Caddyfile:40-42`); the existing injection guard
@@ -831,27 +834,37 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   (§13).
 - **Demo/API behaviour.** Branding resolves to Demo in both modes
   (`src/domains/registry.ts:166`).
-- **Tests.** Name/colour/font verifiably applied in shell, login and exports; the injection guard
-  still green; CSP suite green against a real build.
-- **Acceptance.** The identity on screen is the identity the customer saved. **Visual confirmation
-  is impossible in this environment** → recorded as NOT VERIFIED until browser QA (M11 / L4).
+- **Tests.** **Met, with one honest gap:** the name, the tagline and the three colours plus the font
+  are verifiably applied and rendered in the shell and the login screen, the injection guard is still
+  green, and `src/__tests__/cspCompatibility.test.ts` is green against a real build. **No export path
+  was audited for the name** — D2's "shell, login and exports" is enforced on the two surfaces M8
+  rewired and unverified beyond them.
+- **Acceptance.** The identity on screen is the identity the customer saved — **met** at the
+  assertion level M8 could reach: the record is applied to `document.documentElement` by the running
+  app, a saved change moves it, the tokens consume it, and both rewired surfaces render the stored
+  name and tagline instead of the fixture's. **Visual confirmation is impossible in this environment**
+  → recorded as NOT VERIFIED until browser QA (M11 / L4).
 - **Out of scope.** A logo/favicon upload redesign; per-tenant theming; any change to the
   `BrandingSettings` model.
 - **Checkpoint & rollback.** Phase checkpoint — the visual blast radius is the whole design system — so
-  the boundary below is what a rollback returns to. **Corrected 2026-09-16, before M8 starts:** M7's last
+  the boundary below is what a rollback returns to. **Reconciled 2026-09-16, when M8 closed:** M7's last
   *product* commit remains `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, but every checkpoint after it —
-  the Class Compensation workstream and the documentation passes that registered it — supersedes the
-  boundary the earlier note named (M7's reconciliation, `e7a6d72`). The commit M8 is built on is
-  `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`, **the twenty-sixth documentation checkpoint** (the
-  documents-only pass that reconciled this paragraph), and it is therefore M8's **effective safe
-  rollback boundary**. Immediately behind it sits
-  `3acb5f3be275a67726376adbfed3f3fdf2f1282b`, **the twenty-fifth** — the **D2** record, and the
+  the Class Compensation workstream and the documentation passes that registered it — supersedes M7's
+  reconciliation, `e7a6d72e561bdbb0d22280e4617141281b62d8b5`, whose M7 *product* record nevertheless
+  stands. **M8 was implemented at `735617d0324a8f4ba2e243846eedf069d389751a`** (*feat(m8): render the
+  persisted branding in the shell, the login screen and the tokens* — 6 files, 360 insertions /
+  26 deletions), and it was built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`, **the twenty-sixth
+  documentation checkpoint** (the documents-only pass that reconciled this paragraph): **that is M8's
+  effective safe rollback boundary**, and rolling back to it drops M8 entirely while keeping M7, the
+  Class Compensation workstream and its boundary gate. Immediately behind it stands
+  `3acb5f3be275a67726376adbfed3f3fdf2f1282b`, **the twenty-fifth** — the **D2** record and the
   checkpoint the owner authorized M8 against — with
   `9fcf00891d07db18c718296ccaddc79919c793c1` (the twenty-fourth: the **I21** closure and the S-6
-  boundary-gate registration) behind that. Rolling back to `a039ab0` drops M8 entirely and keeps M7, the
-  Class Compensation workstream and its boundary gate. This milestone's own SHA cannot appear here
+  boundary-gate registration) behind that. Neither `e7a6d72` nor `9fcf008` was M8's implementation
+  parent. This milestone's own completion cannot be registered here
   ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule and §12 of this document): the
-  documentation checkpoint that follows registers it, and is named by the one after that.
+  documentation checkpoint that carries this paragraph is the one that registers `735617d`, and is named
+  by the one after that.
 
 ### M9 — Dashboard insight from live data (**H4**), **I9 guards first**
 
@@ -876,7 +889,9 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Acceptance.** No number on the dashboard exists that the stored records do not support.
 - **Out of scope.** Any AI/ML claim — §15 keeps "academy intelligence" a UX pattern over display
   data; recommendations stay deterministic.
-- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M8's SHA.
+- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M8's implementation checkpoint
+  `735617d0324a8f4ba2e243846eedf069d389751a` (M8's own pre-implementation boundary, the commit it was
+  built on, is `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`).
 
 ### M10 — Fixture / type / seed separation (**D5**) + documentation drift + hygiene
 

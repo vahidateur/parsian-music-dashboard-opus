@@ -24,7 +24,7 @@ be derived, it is marked **not recorded** rather than guessed.
 | Product-feature phase — M5 (attendance **view** wiring) | `9505ade4011b37a34e3488fd51206512829205ec` | ✅ yes (pushed) | ✅ **COMPLETE** — one implementation checkpoint, built directly on M4's final documentation reconciliation `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b`; **H1b** closed and with it the umbrella **H1**, **I12** closed, **no file under `src/domains/` changed at all**; its documentation reconciliation follows as its own commit |
 | Product-feature phase — M6 (contracts without UI: chat management, attachments, export coverage) | `4e03b8762bebcb87e46cf7044af5da99d709b4d2` | ✅ yes (pushed) | ✅ **COMPLETE** — four implementation checkpoints built on M5's documentation reconciliation `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`: CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (the chat contract), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management + composer state safety), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export) — **106 new tests**, 17 files, `+4321/−61`, no file outside the chat domain and the Messages surface, **no dependency**; limitations recorded (ownership/authorization backend-required, browser-local bytes, metadata-only single-conversation export with a disclosed ceiling), browser QA NOT VERIFIED; its documentation reconciliation follows as its own commit |
 | Product-feature phase — M7 (relation de-fixturing + sidebar badges, **I1**) | `f1ec0ddde783aec14d6429ac2457f085f851ad9a` | ✅ yes (pushed) | ✅ **COMPLETE** — four implementation checkpoints built on M6's coverage-matrix commit `8131c5cd49c35a7163543082475a9635914aba40`: CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing — the academy-day and id-index modules, the per-surface fixture gate, the through-route suite), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations + navigation counts) — **67 new tests** in six new files, 13 files, `+4842/−321`, **nothing under `src/domains/`, `src/services/`, `src/api/` or `src/context/`**, no dependency; **I1 closed at the level it was defined** (the one honest badge is read from the chat repository and disappears at zero and on an incomplete read; the attendance badge was removed rather than estimated); limitations recorded, browser QA NOT VERIFIED; its documentation reconciliation follows as its own commit |
-| Product-feature phase | — | — | M3, M4, M5, M6 and M7 ✅ **COMPLETE** (rows above); remaining milestones M8–M11 ❌ **NOT STARTED** |
+| Product-feature phase | — | — | M3, M4, M5, M6, M7 and M8 ✅ **COMPLETE** (rows above); remaining milestones M9–M11 ❌ **NOT STARTED** |
 
 Pushed commits that change **documents or validation gates only** are not phases and are listed
 separately, at the end of this ledger → "Documentation checkpoints".
@@ -161,7 +161,7 @@ carried into [OPEN_ITEMS.md](OPEN_ITEMS.md).
 
 ---
 
-## Product-feature phase — SPECIFIED (M0); M1, M2, M2.1, M3, M4, M5, M6 and M7 LANDED; M8–M11 NOT STARTED
+## Product-feature phase — SPECIFIED (M0); M1, M2, M2.1, M3, M4, M5, M6, M7 and M8 LANDED; M9–M11 NOT STARTED
 
 **Durable SHA:** none for M0 itself — it changes documents only, and a documentation checkpoint is
 not a phase (see "Two kinds of checkpoint" below). **Pushed:** n/a. **Status:** spec ✅ landed ·
@@ -181,7 +181,11 @@ and `07f89db`, and the **secretary surface** at `fc83d6d`, hardened by `79fd44e`
 reconciled in documents at `d18d3e3`, and the boundary gate that closed **I21** at `bf8bd911` — a
 **non-milestone workstream**, with the M0–M11 sequence and the milestone table unchanged
 (see "Workstream — Class Compensation P1" below) ·
-M8–M11 ❌ **not started, not authorized**.
+**M8 ✅ complete** (one implementation checkpoint `735617d0324a8f4ba2e243846eedf069d389751a`,
+**explicitly authorized by the owner on 2026-09-16**, built on the pre-M8 boundary
+`a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` — see the milestone table below and "M8's chain" under
+"Documentation checkpoints") ·
+M9–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -205,7 +209,7 @@ gaining a verb).
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ✅ **complete** — one implementation checkpoint `9505ade4011b37a34e3488fd51206512829205ec`, built on M4's final reconciliation `24caf3a`; **H1b closed** and with it the umbrella **H1**, **I12 closed**, **no file under `src/domains/` changed at all**, 53 new view cases and three gates re-driven; reconciled by `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **I13** and **I16** stay OPEN with view-boundary mitigations only, browser QA NOT VERIFIED |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ✅ **complete** — CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (chat contract: `mediaId`, the reversible `archived` patch, resolution before delivery), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management, conversation-keyed composer, failed-read honesty), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments through the media seam) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (single-conversation text export), built on `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **106 new tests** (+106 on the suite), 14 mutation checks, **no dependency and nothing outside the chat domain and the Messages surface**; **I15's `Messages.tsx` site fixed** while I15 stays OPEN, **I13** inherited by the attachment card without being reachable there; limitations recorded (backend-required ownership/authorization, browser-local bytes, metadata-only export with a 1 000-message ceiling), browser QA NOT VERIFIED |
 | M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ✅ **complete** — CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts), reconciled at `e7a6d72e561bdbb0d22280e4617141281b62d8b5`; **67 new tests in six new files**, `git diff --name-only 8131c5c..f1ec0dd` outside `src/views/`, `src/data/academy.ts` and `src/components/layout/Sidebar.tsx` prints nothing; both full-suite failures recorded as environmental; **I1 closed**, browser QA NOT VERIFIED |
-| M8 — branding application | the identity that is saved becomes the identity rendered (**D2** ✅ recorded 2026-09-16; base/rollback boundary `9fcf008`) | ❌ not started — **not authorized**, implementation pending the owner's word |
+| M8 — branding application | the identity that is saved becomes the identity rendered (**D2** ✅ recorded 2026-09-16) | ✅ **COMPLETE** — one implementation checkpoint `735617d0324a8f4ba2e243846eedf069d389751a` (*feat(m8): render the persisted branding in the shell, the login screen and the tokens* — 6 files, 360 insertions / 26 deletions, one new 277-line test file with 15 cases), **explicitly authorized by the owner on 2026-09-16** and built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`, the pre-M8 boundary and therefore M8's **effective safe rollback boundary**; this pass registers it and cannot name itself; **browser QA NOT VERIFIED** |
 | M9 — dashboard insight from live data | **H4**, with **I9** guards landing first | ❌ not started |
 | M10 — fixture / type / seed separation | **D5**, the documentation-drift table, **L2**, **L3** | ❌ not started |
 | M11 — performance, api disclosure, a11y, browser QA | **I6**, **D7**, **D8**, **D9**, **L4** | ❌ not started |
@@ -1500,7 +1504,8 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `f0bdecdc39b03bae03c85d3bc8913e87d53bba57` | **the Class Compensation workstream's final domain-gate reconciliation** (*docs(compensation): reconcile final domain gate records*) | The chain's last three product commits registered (`b7a97b3` write authorization and lifetime uniqueness, `cd91ed6` the C-1/C-1.1 lineage rules, `07f89db` C-2's **D20**), **D20** decided with its row and its section, the ten mutation checks recorded, **I18**'s status brought up to those packages — and the per-surface gate coverage left open. **The twenty-second** documentation checkpoint: **documents only** (three `docs/engineering/` documents, 103 insertions / 30 deletions), no product source, no test, no dependency. It could not name itself — the compensation chain paragraph below names it, and `git log -- docs/engineering` is the authority for anything newer than this row. It is the commit **the secretary surface was built on** | none (documents only) | ✅ |
 | `d18d3e39b513a9031ba8cc8383e7b98d7ae99c99` | **the Class Compensation UI's documentation reconciliation** (*docs(governance): reconcile compensation UI checkpoints*) | The secretary surface's chain registered (`fc83d6d` the surface, `79fd44e` and `79ec13d` its two hardening packages), the audit findings **S-1**…**S-9** recorded as closed with **S-6** left open as **I21**, the surface's validation block written into [PROJECT_STATE.md](PROJECT_STATE.md) §4, the test catalogue and the limitations brought up to it, and the decision and backlog records (D18–D20, **I18**, **I20**) reconciled with what had landed. **The twenty-third** documentation checkpoint: **documents only** (five `docs/engineering/` documents, 309 insertions / 79 deletions), no product source, no test, no dependency. It could not name itself — this pass names it — and it is the commit **the S-6 boundary gate was built on** | none (documents only) | ✅ |
 | `9fcf00891d07db18c718296ccaddc79919c793c1` | **the I21 closure and the S-6 gate registration** (*docs(compensation): close I21 and register the S-6 boundary gate*) | The dedicated per-surface boundary gate registered as a **chain commit** (`bf8bd911`, one new 768-line test file, 40 cases), **I21** closed, and the six gate-architecture findings left deferred | none (documents only) | ✅ |
-| `3acb5f3be275a67726376adbfed3f3fdf2f1282b` | **Latest recorded here.** **the D2 record** (*docs(governance): record decision D2 before M8*) | **D2** decided with its row, its four-field section and the register's counts (fourteen decided, four open) — the shipped default name «آموزشگاه موسیقی پارسیان» — and `9fcf008` registered as the twenty-fourth documentation checkpoint | none (documents only) | ✅ |
+| `3acb5f3be275a67726376adbfed3f3fdf2f1282b` | **the D2 record** (*docs(governance): record decision D2 before M8*) | **D2** decided with its row, its four-field section and the register's counts (fourteen decided, four open) — the shipped default name «آموزشگاه موسیقی پارسیان» — and `9fcf008` registered as the twenty-fourth documentation checkpoint | none (documents only) | ✅ |
+| `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` | **Latest recorded here.** **the M8 boundary reconciliation** (*docs(m8): reconcile the M8 base/rollback boundary and register checkpoint 25*) | §5's M8 checkpoint paragraph corrected so the boundary it names is the twenty-fourth documentation checkpoint `9fcf008` instead of M7's superseded reconciliation `e7a6d72` — whose M7 *product* record nevertheless stands — described consistently with §12's rollback rule and [PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule; `3acb5f3` registered as the twenty-fifth documentation checkpoint in the table and in the chain paragraph; and the M8 row in the milestone table left stating explicitly that M8 was **not authorized** at that point. It is the commit **M8 was built on** | none (documents only — three `docs/engineering/` documents, 32 insertions / 15 deletions; no product source, no test, no dependency, no build) | ✅ |
 
 **M6's chain is registered in the M6 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: four product commits —
@@ -1608,9 +1613,32 @@ exactly as this one registers `9fcf008`, `d18d3e3`, `2600667` and `f0bdecd`.
 that names the paragraph above (*docs(governance): record decision D2 before M8* — four
 `docs/engineering/` documents, 63 insertions / 32 deletions; no product source, no test, no dependency,
 and the **D2** record with the shipped default name «آموزشگاه موسیقی پارسیان» inside it). It could not
-name itself either: **the commit carrying this paragraph is the twenty-sixth** — the documentation pass
-that reconciles M8's base/rollback boundary to `9fcf008` — and the next documentation commit registers
-it, exactly as this one registers `3acb5f3`, `9fcf008`, `d18d3e3`, `2600667` and `f0bdecd`.
+name itself either: the commit that carried its paragraph was the twenty-sixth, which is also the
+documentation checkpoint **the owner authorized M8 against**.
+
+**`a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` is the twenty-sixth documentation checkpoint** and the one
+that names the paragraph above (*docs(m8): reconcile the M8 base/rollback boundary and register
+checkpoint 25* — three `docs/engineering/` documents, 32 insertions / 15 deletions; no product source, no
+test, no dependency, no build): M8's checkpoint paragraph was corrected so the boundary it names is the
+twenty-fourth checkpoint `9fcf008` rather than M7's superseded reconciliation `e7a6d72`, whose M7
+*product* record nevertheless stands, and `3acb5f3` was registered as the twenty-fifth. It is the commit
+**M8 was built on**, and it could not name itself either: **the commit carrying this paragraph is the
+twenty-seventh** — the documentation pass that closes M8 — and the next documentation commit registers
+it, exactly as this one registers `a039ab0`, `3acb5f3`, `9fcf008`, `d18d3e3`, `2600667` and `f0bdecd`.
+
+**M8's chain is registered here and in the milestone table**, so that `git log` shows nothing
+unexplained: one product commit,
+`735617d0324a8f4ba2e243846eedf069d389751a` (*feat(m8): render the persisted branding in the shell, the
+login screen and the tokens* — 6 files, 360 insertions / 26 deletions, of which the new
+`src/domains/branding/__tests__/brandingApplication.test.tsx` is 277 lines and 15 cases), **explicitly
+authorized by the owner on 2026-09-16** and built on `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046` — the
+checkpoint immediately above. It carries its own documentation reconciliation (M8's base and effective
+safe rollback boundary is `a039ab0`; the **D2** record `3acb5f3` sits immediately behind it and is the
+checkpoint the owner authorized against; `9fcf008` remains the twenty-fourth; `e7a6d72` stays
+superseded and was never the implementation parent) **and it does not name itself**. **M8's effective
+safe rollback boundary is therefore `a039ab0`** — rolling back to it drops M8 entirely and keeps M7, the
+Class Compensation workstream and its boundary gate — and its measured evidence is
+[PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M8 validation".
 
 **M5's chain is registered in the M5 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: one product commit,

@@ -516,12 +516,19 @@ success toast (§15). Two names cannot both be the product's, and the name the c
 the name on screen.
 
 **Enforced by.** `src/domains/branding/useBranding.ts`, `src/domains/branding/types.ts`,
-`src/domains/branding/__tests__/branding.test.ts`, and — once M8 lands — the design-system token
-definitions in `src/index.css` plus a test asserting the saved identity is the rendered identity.
+`src/domains/branding/__tests__/branding.test.ts`, and — since M8 landed at `735617d` (2026-09-16) — the
+design-system token definitions in `src/index.css`, where the four `--brand-*` properties feed the accent
+scale, the Persian font stack and the body text colour, plus
+`src/domains/branding/__tests__/brandingApplication.test.tsx`, which asserts that the saved identity is the
+rendered one as well as the written one.
 
 **Status.** ✅ **Decided — recorded 2026-09-16, before M8.** **D2 blocked M8 until it was recorded, and
-it is now recorded**, so that dependency is discharged and M8's remaining gate is its own
-**authorization** — which this entry does not give, and which nothing here authorizes. Constraints that
+it is now recorded**, so that dependency is discharged; **M8 was then authorized by the owner and landed
+at `735617d0324a8f4ba2e243846eedf069d389751a` on 2026-09-16**, built on `a039ab0`, so this decision is
+enforced in the product rather than pending one. What remains outside it is the milestone's own recorded
+limits: branding still resolves to Demo in both modes (**D8**, M11), the fixture name survives on
+surfaces M8 was not authorized to rewire, and no browser pass has run
+([PROJECT_STATE.md](PROJECT_STATE.md) §7 item 20). Constraints that
 are not negotiable: writes stay in the CSSOM (`style-src 'self'` with `style-src-attr 'unsafe-inline'`
 as the one narrow exception — see `deploy/nginx.conf` and
 `src/__tests__/cspCompatibility.test.ts`), and `logoMediaId` / `faviconMediaId` remain `MediaAsset.id`
