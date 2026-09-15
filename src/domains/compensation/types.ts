@@ -27,8 +27,19 @@
  * `required` → `scheduled` → `completed` is DERIVED from the recorded facts:
  *
  *     completed  ⇔ `completedAt` is set
- *     scheduled  ⇔ the newest attempt's session exists and is not `cancelled`
+ *     scheduled  ⇔ the newest attempt's EFFECTIVE session exists and is not
+ *                  `cancelled`
  *     required   ⇔ otherwise
+ *
+ * The EFFECTIVE session is the end of the attempt's RESCHEDULE LINEAGE: the
+ * session the ledger line recorded (the entry), or whatever Scheduling moved it
+ * to afterwards. `rescheduleSession` implements a move as "cancel the old row,
+ * create a linked replacement", so reading the entry's own status would report a
+ * moved make-up as cancelled — and would let a second make-up be booked while the
+ * moved one is still on the calendar. A move is a continuation, and the lineage
+ * (`attemptLineageOf` in `derive.ts`) is how that continuation is read without
+ * writing anything: the ledger is never re-pointed, and the moves themselves stay
+ * Scheduling's records.
  *
  * That is what makes the owner's rule — "if the compensation session is
  * cancelled before completion, the requirement returns to `required`, and the
@@ -94,15 +105,22 @@ export const COMPENSATION_STATUS_LABEL: Record<CompensationStatus, string> = {
 };
 
 /**
- * One booking of the make-up.
+ * One booking of the make-up — a BOOKING ACT, not a pointer at a live row.
  *
- * Append-only: a line is never edited and never removed — including when its
- * session is cancelled, which is exactly the case that must stay traceable. The
- * CURRENT attempt is the newest line, so there is no separate current-pointer to
- * fall out of step with the history.
+ * Append-only: a line is never edited and never removed — the session is
+ * cancelled, or the booking is MOVED to another slot, and the line still records
+ * exactly what was created. The CURRENT attempt is the newest line, so there is
+ * no separate current-pointer to fall out of step with the history, and no ledger
+ * line is ever re-pointed at a replacement session.
  */
 export interface CompensationAttempt {
-  /** The `Session` this attempt booked. */
+  /**
+   * The `Session` this attempt booked: the ENTRY of its reschedule lineage.
+   *
+   * Where the make-up is NOW is derived, by following Scheduling's own
+   * `rescheduledToId` links from this id (`attemptLineageOf`); the read model
+   * reports both (`currentAttempt.sessionId` / `bookedSessionId`).
+   */
   sessionId: string;
   /** ISO-8601 timestamp of the booking act. */
   scheduledAt: string;
@@ -160,16 +178,67 @@ export interface SessionCompensationRecord {
   updatedAt: string;
 }
 
-/** Live state of a session an attempt points at. `missing` = hard-deleted. */
+/**
+ * What the session an attempt's ledger line names currently is.
+ *
+ * `scheduled` / `cancelled` / `completed` are the session row's own status.
+ *
+ * `missing` has TWO meanings, and both are facts rather than errors, which is why
+ * neither is reported as a thrown failure:
+ *
+ *   - the row was hard-deleted — scheduling allows deleting a session that has no
+ *     attendance; or
+ *   - the booking's RESCHEDULE LINEAGE could not be walked to a real row at all:
+ *     a chain that ends in nothing, a cycle, or more moves than
+ *     `ATTEMPT_LINEAGE_MAX_MOVES` (`derive.ts`).
+ *
+ * Either way it means "the make-up could not be resolved", which is why the
+ * derived status returns to `required` and `attemptBroken` is true.
+ *
+ * WHENEVER IT IS `missing`, THE IDS REPORTED BESIDE IT ARE HISTORICAL, NOT
+ * NAVIGABLE IDENTIFIERS: they record what was booked and how far the walk got, and
+ * must never be opened, cancelled or rescheduled on the strength of that state.
+ */
 export type AttemptSessionState = SessionStatus | "missing";
 
 /** The READ model: the stored facts plus everything derived from them. */
 export interface SessionCompensation extends SessionCompensationRecord {
   /** Derived. See the header for the exact rules. */
   status: CompensationStatus;
-  /** The newest attempt with its session's live state. Absent when never booked. */
-  currentAttempt?: { sessionId: string; sessionStatus: AttemptSessionState };
-  /** True when the current attempt's session is `cancelled` or `missing`. */
+  /**
+   * The newest attempt, with the session the make-up stands on NOW.
+   *
+   * Five fields, because the ledger's fact and the calendar's fact are different
+   * facts once a make-up has been moved:
+   *
+   *   - `sessionId` — the EFFECTIVE session: what every derived rule above was
+   *     computed from, and what a caller acts on. While `sessionStatus` is a real
+   *     status this is the session to open, cancel or reschedule, and the safe
+   *     default: a caller that ignores `bookedSessionId` still points at the live
+   *     make-up. WHEN `sessionStatus` IS `missing` IT IS NOT NAVIGABLE — it is the
+   *     last id the walk accepted, which may name a row that no longer exists, and
+   *     it is kept as evidence rather than as a target;
+   *   - `sessionStatus` — its live state, produced by the same walk. `missing`
+   *     means the lineage could not be resolved at all: a deleted row, a chain that
+   *     ends in nothing, a cycle or an absurd length (see `AttemptSessionState`).
+   *     Reported, never guessed at, and never something to act on;
+   *   - `bookedSessionId` — the session the attempt's own ledger line recorded.
+   *     Equal to `sessionId` until the booking is moved, and kept afterwards so
+   *     the move is visible instead of being silently absorbed;
+   *   - `rescheduleCount` — how many moves separate the two. `0` means the booking
+   *     is still on its original session.
+   */
+  currentAttempt?: {
+    sessionId: string;
+    sessionStatus: AttemptSessionState;
+    bookedSessionId: string;
+    rescheduleCount: number;
+  };
+  /**
+   * True when the current attempt's EFFECTIVE session is `cancelled` or
+   * `missing` — i.e. the make-up is genuinely off, or cannot be resolved.
+   * Moving a booking never sets this: a move keeps the make-up live.
+   */
   attemptBroken: boolean;
   /** True when the original session row no longer resolves. */
   originalMissing: boolean;
@@ -303,7 +372,12 @@ export interface CompensationListParams extends ListParams {
   status?: CompensationStatus;
   /** `required` or `scheduled` (i.e. not completed). */
   openOnly?: boolean;
-  /** Reverse lookup: the obligation whose CURRENT attempt is this session. */
+  /**
+   * Reverse lookup: the obligation whose current attempt's LINEAGE contains this
+   * session — the entry the ledger recorded, or any replacement a reschedule
+   * created. A screen open on the session currently on the calendar finds the
+   * obligation, and so does one open on the booking's original row.
+   */
   compensationSessionId?: string;
   /** Obligations whose current attempt was cancelled or deleted. */
   needsAttention?: boolean;
@@ -337,6 +411,22 @@ export const COMPENSATION_ERRORS = {
   ORIGINAL_ATTENDANCE_UNACKNOWLEDGED: "COMPENSATION_ORIGINAL_ATTENDANCE_UNACKNOWLEDGED",
   ALREADY_OPEN: "COMPENSATION_ALREADY_OPEN",
   ALREADY_SETTLED: "COMPENSATION_ALREADY_SETTLED",
+  /**
+   * The obligation already carries a LIVE make-up, and a second one is refused.
+   *
+   * An obligation has at most one live make-up — the one its derived `scheduled`
+   * state is about. A second booking is therefore not a supersede and never a
+   * replacement: this domain does not cancel, re-point or overwrite a session an
+   * operator booked and a family may already have been told about. **Moving** a
+   * make-up is the scheduling domain's own correction (`rescheduleSession`),
+   * which keeps one booking and its history instead of swapping it behind the
+   * ledger — and a moved make-up is STILL live, because liveness is read from the
+   * end of the booking's reschedule lineage. Only a make-up whose chain ends in a
+   * cancelled or unresolvable session is not live: the obligation is then back to
+   * `required` and booking a new one is allowed again.
+   */
+  ALREADY_SCHEDULED: "COMPENSATION_ALREADY_SCHEDULED",
+  /** No live make-up to discharge: the current booking's effective session is cancelled, deleted or unresolvable. */
   NOT_SCHEDULED: "COMPENSATION_NOT_SCHEDULED",
   SESSION_ALREADY_LINKED: "COMPENSATION_SESSION_ALREADY_LINKED",
   ACTOR_REQUIRED: "COMPENSATION_ACTOR_REQUIRED",

@@ -181,6 +181,49 @@ describe("an actor without `schedule.write` is refused", () => {
     expect(reread.completedAt).toBeUndefined();
   });
 
+  /**
+   * C-1 added a refusal to `schedule`, and it must sit BEHIND the gate, not
+   * beside it: an unauthorized caller is refused as FORBIDDEN and is never told
+   * whether the obligation already has a live booking.
+   */
+  it("keeps the live-attempt refusal behind the permission, with nothing disclosed", async () => {
+    const compensation = await registered(ADMIN);
+    await repo.schedule(compensation.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "16:00",
+      endTime: "17:00",
+      actor: ADMIN,
+    });
+    const sessionsBefore = store.scheduledSessions.all().length;
+    const secondBooking = {
+      date: ON_SCHEDULE_DATE,
+      startTime: "18:00",
+      endTime: "19:00",
+    };
+
+    // An authorized caller would now be refused ALREADY_SCHEDULED. This one is
+    // refused earlier, and learns nothing about the booking.
+    const error = await errorOf(
+      repo.schedule(compensation.id, { ...secondBooking, actor: actorOf("teacher", "usr_teacher_1") }),
+    );
+    expect(error?.code).toBe(COMPENSATION_ERRORS.FORBIDDEN);
+    expect(error?.kind).toBe("authorization");
+
+    // An unnamed actor is still a malformed request — the same validation code it
+    // has always been — and also not a disclosure of the booking state.
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          ...secondBooking,
+          actor: { userId: "   ", permissions: permissionsForRole("administrator") },
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ACTOR_REQUIRED);
+
+    expect(store.scheduledSessions.all()).toHaveLength(sessionsBefore);
+    expect((await repo.get(compensation.id)).attempts).toHaveLength(1);
+  });
+
   it("refuses an accountant the same way: the rule is the permission, not the job title", async () => {
     const compensation = await registered(ADMIN);
 

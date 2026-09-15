@@ -23,9 +23,24 @@ import type {
  *
  * The three verbs are the domain's whole write surface: registering the
  * obligation, booking an attempt, and discharging it. There is deliberately no
- * `reopen` — cancelling an attempt returns the obligation to `required` by
- * derivation (see `derive.ts`), and re-booking is another `schedule` call
- * (DECISIONS D14).
+ * `reopen` — the obligation returns to `required` by DERIVATION (see `derive.ts`)
+ * and re-booking is another `schedule` call (DECISIONS D14).
+ *
+ * WHICH CANCELLATION REOPENS IT, AND WHICH DOES NOT
+ *
+ * A booking is read as a LINEAGE, not as a row. Moving a make-up with the
+ * scheduling domain's `rescheduleSession` cancels the row it moved FROM and
+ * creates a linked replacement — so a moved-from session is `cancelled` as the
+ * NORMAL state of a booking that has been moved, and cancelling it (or finding it
+ * cancelled) does NOT return the obligation to `required`. The make-up stays
+ * LIVE on the session it was moved TO, a second booking stays refused, and the
+ * obligation stays completable.
+ *
+ * Only cancelling or deleting the EFFECTIVE session — the END of the chain —
+ * returns the obligation to `required` and makes re-booking legal. A screen must
+ * therefore act on `currentAttempt.sessionId` (the effective session) and must
+ * never treat `currentAttempt.bookedSessionId` (the session the ledger line
+ * recorded) as the make-up for a cancel, reschedule or completion decision.
  *
  * THE CALLER SUPPLIES THE ACTOR, AND THE DOMAIN CHECKS IT
  *

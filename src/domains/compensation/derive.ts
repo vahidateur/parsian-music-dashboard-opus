@@ -11,6 +11,9 @@
  * "cancelled attempt returns the obligation to `required`" rule: the function
  * reads the CURRENT state of the attempt's session, so cancelling that session
  * changes the answer without any write, listener or hook inside `cancelSession`.
+ * The session it reads is the EFFECTIVE one — `attemptLineageOf` follows
+ * scheduling's reschedule links first, because a move is a continuation and not
+ * a cancellation.
  *
  * Nothing here reads the wall clock. `compensationDefaultFor` formats timestamps
  * the scheduling domain already recorded, through the scheduling domain's own
@@ -51,9 +54,159 @@ export function attemptStateOf(
   return session?.status ?? "missing";
 }
 
+/* ------------------------------------------------------------------ */
+/* Reschedule lineage                                                  */
+/* ------------------------------------------------------------------ */
+
+/** One session as the lineage walk needs to see it. `Session` satisfies this. */
+export interface LineageSession {
+  id: string;
+  status: AttemptSessionState;
+  /** Scheduling's own link to the session this one was moved to. */
+  rescheduledToId?: string;
+}
+
+/**
+ * How far a make-up may be moved before the walk refuses to interpret the chain.
+ *
+ * A cap exists because the walk must terminate on ANY payload, including one a
+ * hand-edited backup produced: it is deliberately far above any real chain (a
+ * make-up moved thirty-two times is not a schedule, it is corrupt data).
+ */
+export const ATTEMPT_LINEAGE_MAX_MOVES = 32;
+
+/**
+ * Where a booked attempt's make-up stands NOW.
+ *
+ * `entrySessionId` is the session the ledger line recorded — a fact the
+ * compensation domain owns and never rewrites. `effectiveSessionId` is the
+ * session the make-up is on after every move: scheduling's `rescheduleSession`
+ * cancels the row it moved and creates a replacement, so following
+ * `rescheduledToId` to the end is what turns "moved" into "still booked".
+ *
+ * `chain` is the accepted path, entry first and effective last, so a reverse
+ * lookup can answer for every session the booking has ever stood on.
+ *
+ * `resolvable` is the honest answer to "could the walk follow the booking to a
+ * real row?". A chain that ends at a deleted row, or that cannot be walked at
+ * all (a cycle, or more hops than `maxMoves`), is reported as unresolvable with
+ * `effectiveStatus: "missing"` — never guessed at, and never silently treated as
+ * a plain cancellation.
+ */
+export interface AttemptLineage {
+  entrySessionId: string;
+  effectiveSessionId: string;
+  effectiveStatus: AttemptSessionState;
+  /** How many reschedules were followed. `0` = the entry is still the make-up. */
+  moves: number;
+  resolvable: boolean;
+  /** The accepted path, entry first. Never empty. */
+  chain: string[];
+}
+
+/**
+ * Resolves the make-up a booked attempt stands on, by walking Scheduling's own
+ * reschedule links. PURE: the two lookups are passed in, so the rule is testable
+ * with a map and the same code serves the demo store and a server.
+ *
+ * THE TWO LOOKUPS
+ *
+ *   - `lookup(sessionId)` — the session row itself (`Session` satisfies it);
+ *   - `successorOf(sessionId)` — the session whose `rescheduledFromId` is that
+ *     id, i.e. the replacement scheduling created when it moved it.
+ *
+ * A forward link is authoritative. The reverse relation is consulted only when
+ * the row cannot stand as the make-up — it is gone, or it was cancelled and its
+ * forward link went with it — which is how a lineage survives a hard delete of a
+ * moved-from row. Because every replacement carries `rescheduledFromId`, that
+ * lookup recovers the booking's continuation instead of reporting a debt that is
+ * actually being honoured.
+ */
+export function attemptLineageOf(
+  entrySessionId: string,
+  lookup: (sessionId: string) => LineageSession | undefined,
+  successorOf: (sessionId: string) => LineageSession | undefined,
+  maxMoves: number = ATTEMPT_LINEAGE_MAX_MOVES,
+): AttemptLineage {
+  const visited = new Set<string>([entrySessionId]);
+  let currentId = entrySessionId;
+  let moves = 0;
+
+  for (;;) {
+    const row = lookup(currentId);
+
+    const forward = row?.rescheduledToId;
+    let nextId = forward !== undefined && forward.length > 0 ? forward : undefined;
+    if (nextId === undefined && (row === undefined || row.status === "cancelled")) {
+      nextId = successorOf(currentId)?.id;
+    }
+
+    if (nextId === undefined) {
+      // The chain ends here: a live or plainly cancelled row, or nothing at all.
+      return {
+        entrySessionId,
+        effectiveSessionId: currentId,
+        effectiveStatus: row?.status ?? "missing",
+        moves,
+        resolvable: row !== undefined,
+        chain: [...visited],
+      };
+    }
+
+    if (visited.has(nextId) || moves >= maxMoves) {
+      // A cycle, or a chain this walk refuses to follow. Reported, not guessed:
+      // the effective id stays the last ACCEPTED one, and the state says the
+      // make-up could not be resolved.
+      return {
+        entrySessionId,
+        effectiveSessionId: currentId,
+        effectiveStatus: "missing",
+        moves,
+        resolvable: false,
+        chain: [...visited],
+      };
+    }
+
+    visited.add(nextId);
+    currentId = nextId;
+    moves += 1;
+  }
+}
+
+/**
+ * Is the attempt still able to fulfil the obligation?
+ *
+ * This is the domain's own definition of "live", in one place, because two rules
+ * depend on it and they must not drift apart:
+ *
+ *   - `compensationStatusOf` reports `scheduled` rather than `required` exactly
+ *     when this is true;
+ *   - `schedule` refuses a second booking while this is true
+ *     (`COMPENSATION_ALREADY_SCHEDULED`): an obligation has at most ONE live
+ *     make-up, and a second booking is not a supersede.
+ *
+ * THE INPUT IS THE EFFECTIVE SESSION, never the attempt's entry session: a
+ * reschedule is a MOVE, and moving the make-up must not read as cancelling it.
+ * Callers resolve the lineage first (`attemptLineageOf`) and pass its
+ * `effectiveStatus`.
+ *
+ * `cancelled` and `missing` are both NOT live — the owner's rule returns the
+ * obligation to `required` when the make-up is cancelled, and a session that
+ * cannot be resolved must never be reported as if the booking still stood. With
+ * no attempt at all it is false: nothing is booked, so nothing is live.
+ */
+export function attemptIsLive(
+  record: Pick<SessionCompensationRecord, "attempts">,
+  currentSession: { status: AttemptSessionState } | undefined,
+): boolean {
+  if (record.attempts.length === 0) return false;
+  const state = attemptStateOf(currentSession);
+  return state !== "missing" && state !== "cancelled";
+}
+
 /**
  * The obligation's state, derived from the recorded facts plus the live state of
- * the current attempt's session.
+ * the current attempt's EFFECTIVE session (see `attemptLineageOf`).
  *
  * Order matters. `completedAt` is checked FIRST and is terminal: the owner's rule
  * returns an obligation to `required` when its attempt is cancelled *before
@@ -71,9 +224,7 @@ export function compensationStatusOf(
     return { status: "completed", attemptBroken: broken };
   }
 
-  const state = attemptStateOf(currentSession);
-  const live = record.attempts.length > 0 && state !== "missing" && state !== "cancelled";
-  return { status: live ? "scheduled" : "required", attemptBroken: broken };
+  return { status: attemptIsLive(record, currentSession) ? "scheduled" : "required", attemptBroken: broken };
 }
 
 /**

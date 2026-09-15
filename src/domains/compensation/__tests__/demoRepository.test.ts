@@ -518,7 +518,15 @@ describe("booking the make-up", () => {
     ).toBe(SESSION_ERRORS.CONFLICT);
   });
 
-  it("appends to the ledger instead of replacing the previous attempt", async () => {
+  /**
+   * C-1. This case used to pin the opposite — a second booking appending a second
+   * attempt beside the live one — and that behaviour is now refused. The refusal
+   * is the point: a make-up an operator booked may already have been promised to
+   * the family, so it is never superseded, re-pointed or silently cancelled. The
+   * obligation's attempt ledger gains a line only when the previous attempt has
+   * stopped being live (cancelled or deleted — the cases below).
+   */
+  it("refuses a second booking while the current attempt is live, and appends nothing", async () => {
     const compensation = await registered();
 
     const first = await repo.schedule(compensation.id, {
@@ -527,16 +535,56 @@ describe("booking the make-up", () => {
       endTime: "17:00",
       actor: ACTOR,
     });
-    const second = await repo.schedule(compensation.id, {
+    const sessionsBefore = store.scheduledSessions.all().length;
+    const attemptSessionId = first.currentAttempt!.sessionId;
+
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          date: ON_SCHEDULE_DATE,
+          startTime: "18:00",
+          endTime: "19:00",
+          actor: ACTOR,
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_SCHEDULED);
+
+    // No session was created and no attempt was appended: the live make-up and
+    // the obligation are exactly as they were.
+    expect(store.scheduledSessions.all()).toHaveLength(sessionsBefore);
+    const reread = await repo.get(compensation.id);
+    expect(reread.attempts).toHaveLength(1);
+    expect(reread.attempts[0].sessionId).toBe(attemptSessionId);
+    expect(reread.currentAttempt!.sessionId).toBe(attemptSessionId);
+    expect(reread.currentAttempt!.sessionStatus).toBe("scheduled");
+    expect(reread.status).toBe("scheduled");
+    expect(reread.attemptBroken).toBe(false);
+  });
+
+  it("refuses the second booking for every authorized role, not just the one that booked first", async () => {
+    // The rule is about the obligation's state, not about who is asking: a manager
+    // cannot supersede a secretary's booking either. An actor WITHOUT the write
+    // permission is refused one step earlier — as FORBIDDEN rather than
+    // ALREADY_SCHEDULED, learning nothing about the record — which
+    // `authorization.test.ts` pins.
+    const compensation = await registered();
+    await repo.schedule(compensation.id, {
       date: ON_SCHEDULE_DATE,
-      startTime: "18:00",
-      endTime: "19:00",
+      startTime: "16:00",
+      endTime: "17:00",
       actor: ACTOR,
     });
 
-    expect(second.attempts).toHaveLength(2);
-    expect(second.attempts[0].sessionId).toBe(first.currentAttempt!.sessionId);
-    expect(second.currentAttempt!.sessionId).not.toBe(first.currentAttempt!.sessionId);
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          date: ON_SCHEDULE_DATE,
+          startTime: "18:00",
+          endTime: "19:00",
+          actor: { userId: "usr_manager", permissions: permissionsForRole("manager") },
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_SCHEDULED);
   });
 
   it("re-checks the class kind at booking time", async () => {
@@ -579,6 +627,235 @@ describe("booking the make-up", () => {
   });
 });
 
+/**
+ * A MOVE IS NOT A CANCELLATION (C-1.1).
+ *
+ * `rescheduleSession` implements a move as "cancel the row, create a linked
+ * replacement" — its audit device, not a statement that the lesson was called
+ * off. Reading the attempt's own session would call that a broken make-up and
+ * re-open the debt while the make-up is still on the calendar, and would let a
+ * second one be booked. The domain therefore reads the booking's RESCHEDULE
+ * LINEAGE: the ledger keeps its entry, the derived answers follow the chain, and
+ * nothing is ever re-pointed.
+ */
+describe("a rescheduled make-up is still the same make-up", () => {
+  /** Books the make-up and moves it once; returns both ends of the move. */
+  async function bookedAndMoved() {
+    const compensation = await registered();
+    const booked = await repo.schedule(compensation.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "16:00",
+      endTime: "17:00",
+      actor: ACTOR,
+    });
+    const entrySessionId = booked.currentAttempt!.sessionId;
+    const replacement = await scheduling.rescheduleSession(entrySessionId, {
+      date: OFF_SCHEDULE_DATE,
+      startTime: "09:00",
+      endTime: "10:00",
+      reason: "درخواست خانواده برای جابه‌جایی",
+      acknowledgeWarnings: true,
+    });
+    return { compensation, entrySessionId, replacement };
+  }
+
+  it("follows the move: the obligation stays scheduled, on the replacement, with one ledger line", async () => {
+    const { compensation, entrySessionId, replacement } = await bookedAndMoved();
+
+    // Scheduling's own record of the move: a replacement linked from the moved
+    // row, which is cancelled with the reason kept on it.
+    expect(replacement.rescheduledFromId).toBe(entrySessionId);
+    expect((await scheduling.get(entrySessionId)).rescheduledToId).toBe(replacement.id);
+
+    const after = await repo.get(compensation.id);
+    expect(after.status).toBe("scheduled");
+    expect(after.attemptBroken).toBe(false);
+    // The read model names the EFFECTIVE session and keeps the booked one visible.
+    expect(after.currentAttempt!.sessionId).toBe(replacement.id);
+    expect(after.currentAttempt!.sessionStatus).toBe("scheduled");
+    expect(after.currentAttempt!.bookedSessionId).toBe(entrySessionId);
+    expect(after.currentAttempt!.rescheduleCount).toBe(1);
+    // The ledger did not grow and was not re-pointed: one line, still naming the
+    // session the booking created.
+    expect(after.attempts).toHaveLength(1);
+    expect(after.attempts[0].sessionId).toBe(entrySessionId);
+    // A move is not something to draw attention to.
+    expect((await repo.list({ needsAttention: true })).data).toHaveLength(0);
+  });
+
+  it("still refuses a second booking after the move, and discharges against the moved session", async () => {
+    const { compensation, replacement } = await bookedAndMoved();
+    const sessionsBefore = store.scheduledSessions.all().length;
+
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          date: ON_SCHEDULE_DATE,
+          startTime: "18:00",
+          endTime: "19:00",
+          actor: ACTOR,
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_SCHEDULED);
+    expect(store.scheduledSessions.all()).toHaveLength(sessionsBefore);
+
+    const done = await repo.complete(compensation.id, { actor: ACTOR });
+    expect(done.status).toBe("completed");
+    expect(done.completedAt).toBeTruthy();
+    expect(done.currentAttempt!.sessionId).toBe(replacement.id);
+    expect(done.attempts).toHaveLength(1);
+  });
+
+  it("follows a second move: three sessions, one live make-up, one ledger line", async () => {
+    const { compensation, entrySessionId, replacement } = await bookedAndMoved();
+
+    const third = await scheduling.rescheduleSession(replacement.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "16:00",
+      endTime: "17:00",
+      reason: "تغییر دوبارهٔ زمان",
+    });
+
+    const after = await repo.get(compensation.id);
+    expect(after.status).toBe("scheduled");
+    expect(after.attemptBroken).toBe(false);
+    expect(after.currentAttempt!.sessionId).toBe(third.id);
+    expect(after.currentAttempt!.bookedSessionId).toBe(entrySessionId);
+    expect(after.currentAttempt!.rescheduleCount).toBe(2);
+    expect(after.attempts).toHaveLength(1);
+
+    // Exactly one live make-up: the calendar holds the third session, and the two
+    // the moves left behind are cancelled.
+    expect((await scheduling.get(entrySessionId)).status).toBe("cancelled");
+    expect((await scheduling.get(replacement.id)).status).toBe("cancelled");
+    expect((await scheduling.get(third.id)).status).toBe("scheduled");
+
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          date: ON_SCHEDULE_DATE,
+          startTime: "18:00",
+          endTime: "19:00",
+          actor: ACTOR,
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_SCHEDULED);
+    expect((await repo.complete(compensation.id, { actor: ACTOR })).currentAttempt!.sessionId).toBe(
+      third.id,
+    );
+  });
+
+  it("returns to required only when the END of the chain is cancelled", async () => {
+    const { compensation, replacement } = await bookedAndMoved();
+
+    await scheduling.cancelSession(replacement.id, "هنرجو بیمار شد");
+
+    const back = await repo.get(compensation.id);
+    expect(back.status).toBe("required");
+    expect(back.attemptBroken).toBe(true);
+    expect(back.currentAttempt!.sessionStatus).toBe("cancelled");
+    // The booked entry and the move count stay readable: history is not erased.
+    expect(back.currentAttempt!.rescheduleCount).toBe(1);
+    expect(back.attempts).toHaveLength(1);
+    expect((await repo.list({ needsAttention: true })).data.map((c) => c.id)).toEqual([
+      compensation.id,
+    ]);
+    expect(await codeOf(repo.complete(compensation.id, { actor: ACTOR }))).toBe(
+      COMPENSATION_ERRORS.NOT_SCHEDULED,
+    );
+
+    // And now — and only now — booking another make-up is the right answer.
+    const rebooked = await repo.schedule(compensation.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "18:00",
+      endTime: "19:00",
+      actor: ACTOR,
+    });
+    expect(rebooked.status).toBe("scheduled");
+    expect(rebooked.attemptBroken).toBe(false);
+    expect(rebooked.attempts).toHaveLength(2);
+    expect(rebooked.currentAttempt!.bookedSessionId).toBe(rebooked.currentAttempt!.sessionId);
+    expect(rebooked.currentAttempt!.rescheduleCount).toBe(0);
+  });
+
+  it("treats a deleted END of the chain as broken too", async () => {
+    const { compensation, replacement } = await bookedAndMoved();
+    await scheduling.delete(replacement.id);
+
+    const after = await repo.get(compensation.id);
+    expect(after.status).toBe("required");
+    expect(after.attemptBroken).toBe(true);
+    expect(after.currentAttempt!.sessionStatus).toBe("missing");
+  });
+
+  it("resolves the move even when the moved-from row was deleted", async () => {
+    const { compensation, entrySessionId, replacement } = await bookedAndMoved();
+
+    // A cancelled row with no attendance is deletable by design, and the row that
+    // holds the forward link is exactly that row. The reverse
+    // `rescheduledFromId` relation is what keeps the booking's continuation
+    // reachable, so a deleted row cannot re-open a debt that is being honoured.
+    await scheduling.delete(entrySessionId);
+    expect(store.scheduledSessions.find(entrySessionId)).toBeUndefined();
+
+    const after = await repo.get(compensation.id);
+    expect(after.status).toBe("scheduled");
+    expect(after.attemptBroken).toBe(false);
+    expect(after.currentAttempt!.sessionId).toBe(replacement.id);
+    expect(after.currentAttempt!.bookedSessionId).toBe(entrySessionId);
+    expect(after.currentAttempt!.rescheduleCount).toBe(1);
+
+    expect(
+      await codeOf(
+        repo.schedule(compensation.id, {
+          date: ON_SCHEDULE_DATE,
+          startTime: "18:00",
+          endTime: "19:00",
+          actor: ACTOR,
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_SCHEDULED);
+  });
+
+  it("fails visible, without guessing, when the lineage cannot be resolved", async () => {
+    const { compensation, entrySessionId, replacement } = await bookedAndMoved();
+    // Both ends gone: there is nothing left to walk, and the replacement's own
+    // link went with the entry row.
+    await scheduling.delete(replacement.id);
+    await scheduling.delete(entrySessionId);
+
+    const after = await repo.get(compensation.id);
+    expect(after.status).toBe("required");
+    expect(after.attemptBroken).toBe(true);
+    expect(after.currentAttempt!.sessionStatus).toBe("missing");
+    expect((await repo.list({ needsAttention: true })).data.map((c) => c.id)).toEqual([
+      compensation.id,
+    ]);
+    // Reported, never guessed and never replaced: the ledger still names what it
+    // booked, and the read model says the make-up could not be resolved.
+    expect(after.attempts).toHaveLength(1);
+    expect(after.attempts[0].sessionId).toBe(entrySessionId);
+    expect(after.currentAttempt!.bookedSessionId).toBe(entrySessionId);
+  });
+
+  it("matches any session in the lineage for the reverse lookup and the status filter", async () => {
+    const { compensation, entrySessionId, replacement } = await bookedAndMoved();
+
+    expect((await repo.list({ status: "scheduled" })).data.map((c) => c.id)).toEqual([
+      compensation.id,
+    ]);
+    // The entry the ledger recorded, and the session the make-up is on now.
+    expect(
+      (await repo.list({ compensationSessionId: entrySessionId })).data.map((c) => c.id),
+    ).toEqual([compensation.id]);
+    expect(
+      (await repo.list({ compensationSessionId: replacement.id })).data.map((c) => c.id),
+    ).toEqual([compensation.id]);
+    expect((await repo.list({ compensationSessionId: "ses_nope" })).data).toHaveLength(0);
+    expect((await repo.list({ status: "required" })).data).toHaveLength(0);
+  });
+});
+
 describe("cancelling the attempt returns the obligation to required", () => {
   it("derives back to required, preserves the cancelled attempt, and refuses completion", async () => {
     const compensation = await registered();
@@ -613,6 +890,35 @@ describe("cancelling the attempt returns the obligation to required", () => {
     expect(rebooked.status).toBe("scheduled");
     expect(rebooked.attempts).toHaveLength(2);
     expect(rebooked.attempts[0].sessionId).toBe(attemptSessionId);
+  });
+
+  it("lets the operator book again once the attempt session is gone", async () => {
+    const compensation = await registered();
+    const first = await repo.schedule(compensation.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "16:00",
+      endTime: "17:00",
+      actor: ACTOR,
+    });
+    const deletedSessionId = first.currentAttempt!.sessionId;
+    await scheduling.delete(deletedSessionId);
+
+    // Nothing is live any more, so the obligation is open and booking is exactly
+    // what should be possible — the refusal only concerns a LIVE attempt.
+    const second = await repo.schedule(compensation.id, {
+      date: ON_SCHEDULE_DATE,
+      startTime: "18:00",
+      endTime: "19:00",
+      actor: ACTOR,
+    });
+
+    expect(second.status).toBe("scheduled");
+    expect(second.attemptBroken).toBe(false);
+    // History is appended to, never rewritten: the deleted session is still there.
+    expect(second.attempts).toHaveLength(2);
+    expect(second.attempts[0].sessionId).toBe(deletedSessionId);
+    expect(second.currentAttempt!.sessionId).not.toBe(deletedSessionId);
+    expect((await scheduling.get(second.currentAttempt!.sessionId)).status).toBe("scheduled");
   });
 
   it("treats a hard-deleted attempt as broken too", async () => {
