@@ -122,7 +122,7 @@ M4  Scheduling view wiring (H1a)       ← Group A domain frozen, view rewritten
 M5  Attendance view wiring (H1b)       ← Group D domain frozen; needs M4's real session ids
 M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b87
 M7  Relation de-fixturing + sidebar badges (I1)            ✅ landed f1ec0dd
-M8  Branding application & visual identity (needs D2)
+M8  Branding application & visual identity (D2 recorded 2026-09-16)
 M9  Dashboard insight from live data (H4) — I9 guards land FIRST
 M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3
 M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + release gate
@@ -806,7 +806,7 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   clean, Groups A and D untouched. **Browser QA: NOT VERIFIED**, and P1 adds nothing to that checklist
   because it ships no view.
 
-### M8 — Branding application & visual identity (**needs D2**)
+### M8 — Branding application & visual identity (**D2 recorded 2026-09-16**)
 
 - **Scope.** Call the seam that already exists and is already tested:
   `applyBranding(branding, document.documentElement)` / `useApplyBranding`
@@ -817,9 +817,11 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   and `src/views/Login.tsx:135,153` (← `src/data/academy.ts:126`, «آکادمی موسیقی آوا») with
   `branding.academyName` / `tagline`, whose own doc comment says the name *"appears in the shell,
   login and exports"* (`src/domains/branding/types.ts:23-27`).
-- **Dependencies.** **D2 recorded first** — `DEFAULT_BRANDING.academyName` is «آموزشگاه موسیقی
-  پارسیان» (`src/domains/branding/types.ts:54`) and contradicts the fixture name on screen. M7
-  (fixtures out of the shell).
+- **Dependencies.** ✅ **D2 recorded 2026-09-16** — the shipped default name is «آموزشگاه موسیقی
+  پارسیان» (`DEFAULT_BRANDING.academyName`, `src/domains/branding/types.ts:54`), so M8 renames nothing;
+  the fixture name on screen («آکادمی موسیقی آوا») is demo seed material to be replaced by
+  `branding.academyName`. M7 (fixtures out of the shell) is ✅ landed. **M8 itself is not yet
+  authorized** — a recorded decision is not a work order.
 - **Protected areas.** CSP: writes must stay in the CSSOM — `style-src 'self'` with
   `style-src-attr 'unsafe-inline'` as the *one* narrow exception
   (`deploy/nginx.conf:174-178`, `deploy/Caddyfile:40-42`); the existing injection guard
@@ -1018,7 +1020,7 @@ it was written with, and the milestone sections are where a reader is pointed.
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
 | **D1** | Does a student (or guardian) get a role in this panel, or a separate app? | **DEFERRED** — resolved by product-owner instruction 2026-09-09; written entry owed | I5, I4 |
-| **D2** | Branding as the source of truth for the academy name, and which name ships | **OPEN — required before M8** | M8 |
+| **D2** | Branding as the source of truth for the academy name, and which name ships | **DECIDED — recorded before M8** (2026-09-16): «آموزشگاه موسیقی پارسیان» ships, the fixture's «آکادمی موسیقی آوا» stays demo seed material | M8 |
 | **D3** | Where the recovery affordance lives (login screen vs the gate) | **DECIDED — M1-specific**, landed with M1 | M1 |
 | **D4** | `clear()` semantics vs the zero-record invariant | **DECIDED — M1-specific**: `clear()` keeps its meaning, recovery is `uninitialize` | M1 |
 | **D5** | Shape of the fixture / type / seed separation | **OPEN — known from M4, executed at M10** | M10 |

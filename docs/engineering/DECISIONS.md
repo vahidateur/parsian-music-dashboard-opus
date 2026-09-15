@@ -425,13 +425,14 @@ Twenty decisions gate the product-feature phase planned in
 [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D20** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Thirteen are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13**
+Fourteen are decided (**D2** by the owner's decision recorded on 2026-09-16, ahead of M8 and before any
+M8 work was authorized, **D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13**
 by M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18**, **D19** and **D20** by the
 **Class Compensation** workstream — **D18**/**D19** at P1's landing
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c`, **D20** at C-2's
-`07f89db779ca4017dbbb22db1ac7624b18fb95be` — the first three decided outside the M0–M11 milestone
+`07f89db779ca4017dbbb22db1ac7624b18fb95be` — the last three decided outside the M0–M11 milestone
 sequence), two are settled by deferral
-(**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
+(**D1**, **D6**), and four are open (**D5**, **D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
@@ -448,7 +449,7 @@ milestone.
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
 | D1 | Student / guardian role in this panel, or a separate app | **DEFERRED** | M-none (I5, I4) |
-| D2 | Branding as the source of truth for the academy identity | **OPEN** | M8 |
+| D2 | Branding as the source of truth for the academy identity | **DECIDED — recorded before M8** | M8 |
 | D3 | Where the environment-recovery affordance lives | **DECIDED — M1-specific** | M1 |
 | D4 | `clear()` semantics against the zero-record invariant | **DECIDED — M1-specific** | M1 |
 | D5 | Shape of the fixture / type / seed separation | **OPEN** | M10 |
@@ -498,28 +499,33 @@ see [OPEN_ITEMS.md](OPEN_ITEMS.md) **H2** and **I7**.
 
 ### D2. Branding is the source of truth for the academy identity
 
-**Decision.** To be recorded before M8: the academy name, tagline, colours and font shown in the
-shell, the login screen and exports come from the persisted `BrandingSettings`, and the fixture
-value in `src/data/academy.ts` is demo seed material only. The shipped default name is decided in
-the same entry — today `DEFAULT_BRANDING.academyName` in `src/domains/branding/types.ts` is
-«آموزشگاه موسیقی پارسیان» while the fixture `academy.name` rendered on screen is «آکادمی موسیقی
-آوا», and the two cannot both be the product's name.
+**Decision.** Recorded by the owner on 2026-09-16, before M8 begins: the academy name, tagline,
+colours and font shown in the shell, the login screen and exports come from the persisted
+`BrandingSettings`, and the fixture value in `src/data/academy.ts` is demo seed material only.
+**The shipped default name is «آموزشگاه موسیقی پارسیان»** — the value `DEFAULT_BRANDING.academyName`
+carries in `src/domains/branding/types.ts` — so the decision renames nothing and requires no
+code change to be recorded. The fixture's «آکادمی موسیقی آوا» is the demo dataset's name, never the
+product's, and the two cannot both be the product's name.
 
 **Why.** `src/domains/branding/useBranding.ts` already implements `applyBranding` with a
 CSS-injection guard and is tested — but it has **only test callers**, and the `--brand-*` custom
 properties it writes have **zero consumers**. Meanwhile `src/components/layout/Sidebar.tsx` and
 `src/views/Login.tsx` render the fixture name. The result is a settings panel that saves an identity
 the product does not use: a write that visibly does nothing is the same dishonesty as a fake
-success toast (§15).
+success toast (§15). Two names cannot both be the product's, and the name the customer saves must be
+the name on screen.
 
 **Enforced by.** `src/domains/branding/useBranding.ts`, `src/domains/branding/types.ts`,
 `src/domains/branding/__tests__/branding.test.ts`, and — once M8 lands — the design-system token
 definitions in `src/index.css` plus a test asserting the saved identity is the rendered identity.
 
-**Status.** 🔶 Open. Blocks M8. Constraints that are not negotiable: writes stay in the CSSOM
-(`style-src 'self'` with `style-src-attr 'unsafe-inline'` as the one narrow exception — see
-`deploy/nginx.conf` and `src/__tests__/cspCompatibility.test.ts`), and `logoMediaId` /
-`faviconMediaId` remain `MediaAsset.id` references, never data URLs (§13).
+**Status.** ✅ **Decided — recorded 2026-09-16, before M8.** **D2 blocked M8 until it was recorded, and
+it is now recorded**, so that dependency is discharged and M8's remaining gate is its own
+**authorization** — which this entry does not give, and which nothing here authorizes. Constraints that
+are not negotiable: writes stay in the CSSOM (`style-src 'self'` with `style-src-attr 'unsafe-inline'`
+as the one narrow exception — see `deploy/nginx.conf` and
+`src/__tests__/cspCompatibility.test.ts`), and `logoMediaId` / `faviconMediaId` remain `MediaAsset.id`
+references, never data URLs (§13).
 
 ### D3. Placement of the environment-recovery affordance
 
