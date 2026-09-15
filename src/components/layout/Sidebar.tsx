@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
 import { academy, navGroups, type ViewId } from "@/data/academy";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { roleLabels } from "@/domains/auth/permissions";
@@ -15,6 +15,7 @@ export const navIcons: Record<ViewId, LucideIcon> = {
   classes: DoorOpen,
   schedule: CalendarDays,
   attendance: ClipboardCheck,
+  compensation: CalendarClock,
   finance: Wallet,
   reports: BarChart3,
   messages: MessageSquare,

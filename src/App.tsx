@@ -21,6 +21,7 @@ import { TeachersView } from "@/views/Teachers";
 import { ClassesView } from "@/views/Classes";
 import { SchedulingView } from "@/views/Scheduling";
 import { AttendanceView } from "@/views/Attendance";
+import { CompensationView } from "@/views/Compensation";
 import { FinanceView } from "@/views/Finance";
 import { ReportsView } from "@/views/Reports";
 import { MessagesView } from "@/views/Messages";
@@ -34,6 +35,7 @@ const VIEWS = {
   classes: ClassesView,
   schedule: SchedulingView,
   attendance: AttendanceView,
+  compensation: CompensationView,
   finance: FinanceView,
   reports: ReportsView,
   messages: MessagesView,

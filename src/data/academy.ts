@@ -10,6 +10,7 @@ export type ViewId =
   | "classes"
   | "schedule"
   | "attendance"
+  | "compensation"
   | "finance"
   | "reports"
   | "messages"
@@ -169,6 +170,7 @@ export const navGroups: NavGroup[] = [
       { id: "classes", label: "کلاس‌ها", hint: "ظرفیت و ثبت‌نام" },
       { id: "schedule", label: "برنامه‌ریزی", hint: "تقویم هفتگی و تعارض‌ها" },
       { id: "attendance", label: "حضور و غیاب", hint: "ثبت حضور جلسات" },
+      { id: "compensation", label: "جبرانی", hint: "تعهدهای جلسه‌های لغوشدهٔ خصوصی" },
     ],
   },
   {
@@ -208,6 +210,7 @@ export const viewTitles: Record<ViewId, string> = {
   classes: "کلاس‌ها",
   schedule: "برنامه‌ریزی",
   attendance: "حضور و غیاب",
+  compensation: "جبرانی",
   finance: "مالی",
   reports: "گزارش‌ها",
   messages: "پیام‌ها",

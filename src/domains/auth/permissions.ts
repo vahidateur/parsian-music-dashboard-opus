@@ -150,6 +150,9 @@ export const viewPermissions: Record<ViewId, Permission> = {
   classes: "classes.read",
   schedule: "schedule.read",
   attendance: "attendance.read",
+  // Compensation reads the schedule and writes sessions through scheduling's own
+  // verbs, so it borrows scheduling's permission pair rather than inventing one.
+  compensation: "schedule.read",
   finance: "finance.read",
   reports: "reports.read",
   messages: "messages.read",
