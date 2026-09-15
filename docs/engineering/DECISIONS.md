@@ -419,15 +419,15 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D16)
+## 19. Product-phase decision register (D1–D17)
 
-Thirteen decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D16** to
+Seventeen decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D17** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Nine are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
-M5's, and **D14**, **D15** and **D16** by M6's), two are settled by deferral (**D1**, **D6**), and
-five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
+Ten are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
+M5's, **D14**, **D15** and **D16** by M6's, and **D17** by M7's), two are settled by deferral
+(**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
@@ -580,7 +580,7 @@ role survives untouched (`src/domains/demo/seed.ts:166` still seeds a legacy `at
 and `src/domains/demo/backup.ts:242` still reads it, so a round-trip stays lossless) and the **type**
 role was never in question. Deleting the fixtures was therefore *not* possible inside M5's
 authorization, and the one remaining shipped reader is `src/views/Reports.tsx:143` (`attendanceByDay`)
-— **I2** and M9's. One deliberate non-change belongs to this entry: `attendance` **stays** in
+— **I2** and M9's. **M7 has now removed the three profile surfaces' *relation* readers** (`f1ec0ddde783aec14d6429ac2457f085f851ad9a`): `src/views/Students.tsx`, `src/views/Teachers.tsx` and `src/views/Classes.tsx` resolve every foreign key, roster, seat count, room and weekly window through the domains and import only **label maps and types** from `@/data/records` — `teacherById`, `studentById`, `classById`, `roomById`, `weekSessions`, `TODAY_INDEX`, `academyClasses` and the denormalized `AcademyClass.studentIds` projection are all forbidden in those files by `src/views/__tests__/relationsNoFixtures.test.ts`, which now enforces five surfaces with empty deferral ledgers. What still reads the fixtures is the *third role* elsewhere and untouched: `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the composer templates in `src/views/Messages.tsx` (`messageTemplates`), `Finance.tsx`/`Reports.tsx` (**I2**) and the dashboard insight panels (**M9/H4**) — so this decision is still **Open**, its **Enforced by** list now includes M7's gate, and the M10 boundary test that will cover *every* view is still to be written. M7 also retired the *count* half of the same habit in the chrome rather than moving it: see **D17**. One deliberate non-change belongs to this entry: `attendance` **stays** in
 `src/views/__tests__/emptyEnvironment.test.tsx`'s fixture list, because that membership asserts
 `inFlightMarkers() === 0` — a semantic claim about issuing no domain read, which a wired view would
 fail — and moving it would have been a test-semantics change the milestone was not authorized to make.
@@ -949,6 +949,57 @@ capturing it before the await fails 8 cases.
 domain has no draft concept and gained none.
 
 ---
+
+### D17. A relation is a bounded repository read, and a count is a claim that needs a complete one
+
+**Decision.** Decided by M7's landing (`f1ec0ddde783aec14d6429ac2457f085f851ad9a`), and binding every
+later milestone:
+
+1. **A displayed relation is resolved by reading the domain that owns it.** A view may not import a
+   fixture resolver (`teacherById`, `classById`, `roomById`, `studentById`) or a fixture collection to
+   answer "who teaches this", "which room", "who is enrolled", "what is scheduled"; it reads the
+   owning domain's page (bounded, with an explicit `per_page`, and with `from`/`to` as well for
+   sessions), builds **one** index per loaded page (`src/views/relations/indexById.ts`) and resolves
+   the foreign key from that.
+2. **A denormalized projection is never a source of truth.** `AcademyClass.studentIds` and
+   `AcademyClass.enrolled` are display projections the enrollment repository keeps in sync; a roster, a
+   seat count or a membership decision is derived from `Enrollment` rows. The identifier is therefore
+   **forbidden in a view by name**, not merely discouraged.
+3. **"Now" comes from the academy clock only.** A window, a weekday column or a "today" marker is
+   reformatted from `academyNow()` through `src/views/relations/academyDay.ts`; `new Date()`,
+   `Date.now()`, a fixture date and a second clock are all out.
+4. **A count in the chrome exists only where a repository answered it completely.** A badge renders a
+   number only when the read behind it succeeded **and** covered the set it counted
+   (`total === items.length`); in flight, failed, partial and zero all render **nothing**. Absence is
+   the honest default and is not the same as zero. Where no scoped, pageable read exists to answer a
+   count, the count is **removed** — inventing an aggregate to keep a badge alive is the defect, not
+   the fix.
+5. **A partial page never masquerades as a complete one.** Where a read stopped short, the surface
+   prints «N ردیف از M» and withholds the values that would otherwise be a count: «—», never `0`.
+
+**Why.** The three profile surfaces rendered relations from `src/data/records.ts` while their own
+domains were complete and tested — a class's roster came from a denormalized projection a real
+enrollment write could contradict, a week came from a fixture grid with no dates at all, and the shell
+showed «۳» and «۵» badges that no read had produced (**I1**). A relation is a *read* and a count is a
+*claim*: the same reasoning as §14 (no-data is an explicit typed value) and §15 (no fabricated metric
+presented as measurement), applied to the boundary the M7 surfaces sit on.
+
+**Enforced by.** `src/views/__tests__/relationsNoFixtures.test.ts` — the per-surface gate over five
+surfaces (plumbing, students, teachers, classes, navigation), each `enforced` with empty deferral
+ledgers, with a both-direction liveness test for every view-scoped rule, a numeric-hint rule covering
+both digit scripts and every quoting style, `studentIds` named as a forbidden relation identifier, a
+required consumer-side identity key per guarded surface (because `useStudentList` is un-keyed, **I13**),
+and relapse replays that re-introduce each retired coupling and assert it is caught — plus the four
+per-surface suites (`relationsPlumbing.test.ts`, `studentsRelations.test.tsx`,
+`teachersRelations.test.tsx`, `classesRelations.test.tsx`) and the navigation suite
+(`navigationCounts.test.tsx`). What makes it concrete is measured in
+[PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 validation": the pre-CP4 reversion that fails 17 of 20
+cases, and the seven gate injections, each of which turns the gate red.
+
+**Status.** ✅ **Landed at M7.** Scope of the claim, stated so it is not read as more than it is: the
+fixtures are **not deleted** (**D5**/**M10**), the gate covers the five surfaces M7 owned rather than
+every view, `useStudentList` still carries no query key (**I13** — mitigated at three consumer mounts,
+not fixed), the `per_page: 200` ceilings stand (**I16**), and no browser QA has run on any of it.
 
 ### Adding a decision
 

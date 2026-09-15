@@ -5,7 +5,8 @@
 document, the decision register and the ledger entry) is documentation work; every milestone
 from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
 M1, M2, M2.1, **M3**, **M4**, **M5** and **M6** have since landed — M3 complete and accepted with
-recorded limitations, M4, M5 and M6 complete on the same terms — and **M7 onward has not started** —
+recorded limitations, M4, M5 and M6 complete on the same terms, **M7** complete and reconciled on the
+same terms — and **M8 onward has not started** —
 the live status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
@@ -18,7 +19,7 @@ adds no new requirements and cancels none.
 **What this document is not.** It does not replace [OPEN_ITEMS.md](OPEN_ITEMS.md) (the backlog of
 record, with the evidence), [DECISIONS.md](DECISIONS.md) (the durable architecture record — the
 D1–D16 register is *recorded* there, at §19 — this document summarises it below as the D1–D12
-table M0 wrote, with D13–D16 referenced by the milestone sections that decided them), or
+table M0 wrote, with D13–D17 referenced by the milestone sections that decided them), or
 [PROJECT_STATE.md](PROJECT_STATE.md) (the recovery document). Where they disagree, **they win**
 and this file is corrected.
 
@@ -79,8 +80,8 @@ required.
 |---|---|---|---|---|
 | 1 | Messaging / Chat | **B** | real send/read/create at `src/views/Messages.tsx`; the "zero UI callers" gap this row recorded is **closed by M6** — `updateConversation`/`archiveConversation` (`src/domains/chat/repository.ts:16-17`), `mediaId` (`src/domains/chat/types.ts:79`) and an export read through the existing reads are all wired and tested (see "M6 update" below). Still **B**, not A: chat resolves to Demo in both modes (`src/domains/registry.ts:147`) and no chat API repository exists | M6 ✅ **complete**; the server half stays with M11 **(D8)** |
 | 2 | Renaming / persistence | **B** | CRUD dialogs write through repositories and persist — **M6 added the chat conversation surface** (rename / topic / pin / archive, persisted through the repository, with archived threads hidden by default and restorable); branding is still the exception (row 11) | M6 ✅ **complete**; **M8** remains (branding) |
-| 3 | Student profiles | **C** | live list/CRUD + national-ID masking; relations still read fixtures (`src/views/Students.tsx`) | M7 |
-| 4 | Teacher profiles | **C** | same shape (`src/views/Teachers.tsx`) | M7 |
+| 3 | Student profiles | **C** — *narrowed at M7's landing (2026-09-15), which is the change this row itself named: it was written when the relations read fixtures, and they no longer do.* | live list/CRUD + national-ID masking; **the relation half of this row is closed by M7** — the profile's class, teacher, room, week and enrolment relations read `useClasses`/`useTeachers`/`useRooms`/`useEnrollments`/`useSessions` through the academy day (`src/views/Students.tsx`, `src/views/relations/`), never the fixture resolvers. Still **C**, not **A**, for reasons that are not relations: the shared `useStudentList` carries no query key (**I13**), `per_page: 200` (**I16**) and every list read stops at a stated ceiling, and the profile has never been opened in a browser (§5) | M7 ✅ **complete** (`f1ec0dd`); its record is [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 validation" |
+| 4 | Teacher profiles | **C** — *narrowed at M7's landing, as row 3* | same shape (`src/views/Teachers.tsx`): the teacher's classes, students, rooms and week read their own domains (`useClasses({ teacherId })`, `useEnrollments`, `useRooms`, `useSessions({ teacherId, from, to })`), `TODAY_INDEX`/`classById`/`studentById`/`weekSessions` are gone, and the detail mounts under `key={detail.id}` because `useStudentList` is still un-keyed (**I13** — mitigated at the consumer, not fixed). Still **C** for the same non-relation reasons as row 3 | M7 ✅ **complete** (`f1ec0dd`) |
 | 5 | Instruments | **A** | `src/domains/instruments/` incl. the read-through `catalog.ts`; only the *type provenance* is fixture-bound | M10 |
 | 6 | Learning levels / placement | **B** | `src/domains/learning/`, `src/domains/progress/`; placement + eligibility already surfaced in `StudentLearningPanel.tsx` | M3 |
 | 7 | Learning content ↔ level assignment | **B — UI only** | `LevelContentLink` (`src/domains/learning/types.ts:183`), `listLinks`/`attachContent`/`detachContent` (`src/domains/learning/repository.ts:56-58`), demo impl + `CONTENT_ALREADY_LINKED` (`src/domains/learning/demoRepository.ts:238,246`). **Only tests call them** | **M3** |
@@ -117,7 +118,7 @@ M3  Learning content assignment (I3)   ← UI over a complete, tested contract; 
 M4  Scheduling view wiring (H1a)       ← Group A domain frozen, view rewritten
 M5  Attendance view wiring (H1b)       ← Group D domain frozen; needs M4's real session ids
 M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b87
-M7  Relation de-fixturing + sidebar badges (I1)
+M7  Relation de-fixturing + sidebar badges (I1)            ✅ landed f1ec0dd
 M8  Branding application & visual identity (needs D2)
 M9  Dashboard insight from live data (H4) — I9 guards land FIRST
 M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3
@@ -691,6 +692,69 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — M6's last *product* commit is CP4 `4e03b87`, the
   milestone's documentation reconciliation follows it, and the commit M7 would be built on is therefore
   the one M6 was built on. Recorded at M6's landing rather than guessed, the same way M5's boundary was.
+  **Recorded now that M7 has landed:** the prediction held in shape and moved by one commit — M7 was
+  built on **M6's coverage matrix `8131c5cd49c35a7163543082475a9635914aba40`** (the nineteenth
+  documentation checkpoint), which is therefore both the spec's boundary and the effective safe one:
+  rolling back to it drops M7 entirely and keeps every document and test M6 left behind.
+
+- **Status (2026-09-15): ✅ COMPLETE, accepted with recorded limitations.** Four implementation
+  checkpoints, all pushed: **CP1** `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` · *feat(m7): add relation
+  surface plumbing* (4 files, 1073/0 — the per-surface gate, the through-route suite, and the
+  `src/views/relations/` academy-day and id-index modules; **no view, no product source**); **CP2**
+  `5726435506bd74748f6165819f3c80e30f359b80` · *feat(m7): de-fixture student relations* (3 files,
+  899/85); **CP3** `ede3ad6a5e26b1cdfc514962b57ac1302309968c` · *feat(m7): de-fixture teacher relations*
+  (3 files, 1330/134); **CP4** `f1ec0ddde783aec14d6429ac2457f085f851ad9a` · *feat(m7): de-fixture classes
+  and navigation* (6 files, 1606/168). **13 files, 4 842 insertions / 321 deletions**
+  (`git diff --shortstat 8131c5c..f1ec0dd`), **67 new tests** in six new files, and
+  `git diff --name-only 8131c5c..f1ec0dd` outside `src/views/`, `src/data/academy.ts` and
+  `src/components/layout/Sidebar.tsx` prints **nothing** — no domain, no service, no API layer, no seed,
+  no fixture, no dependency. Measured evidence in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7
+  validation" (125 files / 1 729 passed / 0 skipped / 2 failed at `f1ec0dd` with `dist/` present, both
+  failures recorded as environmental; typecheck and `git diff --check` clean; the pre-CP4 reversion
+  showing 17 of 20 CP4 cases red; seven gate injections each turning the gate red). Milestone record in
+  [PHASES.md](PHASES.md) → "Product phase — M7".
+- **Coverage, answered requirement by requirement.** Every clause in this section — scope, dependencies,
+  protected areas, demo/API behaviour, tests, acceptance and out-of-scope — is answered **PASS /
+  PARTIAL / REMOVED / OUT OF SCOPE / NOT VERIFIED** with its evidence in
+  [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix", including the clauses M7 could not
+  answer in full (the three views this Scope names that were not in the authorized checkpoints, the
+  un-keyed `useStudentList` behind three surfaces, the ceilings, the absent acceptance audit). Nothing
+  there is inferred from a control's existence.
+- **Acceptance, restated against what actually shipped rather than the M0 wording alone.** The clause was
+  *"H1 closed for these views; I1 closed"*. **H1 was already closed** (H1a by M4, H1b by M5) and M7
+  re-opened nothing; **I1 is closed at the level it was defined** — *"badges come from repositories and
+  disappear at zero"*. Both halves are pinned: the one badge with a real, correctly scoped source (unread
+  messages, summed from the conversation rows the chat repository returns) is read at render and renders
+  **nothing** when that read is in flight, failed, partial or zero (`navigationCounts.test.tsx`), and the
+  badge with **no** source — "N classes unrecorded" — was **removed together with its `NavDef.badge`
+  field and its hint**, because the attendance domain exposes no scoped, pageable read that could answer
+  it and `sessionIdsWithAttendance` is a one-directional protection seam, not a bounded read. Inventing an
+  aggregate to keep a badge alive would have been the defect this milestone exists to remove.
+- **Deviations from this section, recorded rather than presented as compliance.**
+  1. **No CP0**, on M5's and M6's recorded precedent: the scope below was already accurate, so the
+     milestone went straight to implementation (CP1 is a product commit that *also* creates the gate) and
+     the reconciliation happened after its evidence existed.
+  2. **Three of the six views this Scope names were not in the authorized checkpoints.** The owner's
+     M7 authorization covered the **students, teachers and classes** relations plus the **navigation
+     chrome**; `src/views/Messages.tsx`, `src/views/Library.tsx` and `src/views/Settings.tsx` are
+     untouched and still import fixture *content* (`messageTemplates`, `libraryShelves`,
+     `settingsSections`), and the dashboard insight panels named in this document's final-phase DoD are
+     still fixture renderers (**M9/H4**). The spec's Tests clause — *"a new boundary assertion: views do
+     not import `src/data/records.ts` **for data**"* — is delivered **per surface** for the five surfaces
+     the gate names (all `enforced`, empty deferral ledgers), **not** product-wide: the three rewired
+     views import label maps and types only, which the gate's allow-list permits, and the product-wide
+     boundary test remains **M10/D5**.
+  3. **The badge requirement was answered partly by removal, which this section predicted.** The M0 clause
+     *"badges must come from repositories and disappear at zero"* assumed a source existed for each
+     badge; where none does, the milestone removed the claim instead of inventing a contract — recorded
+     here because "closed" must not be read as "every badge was rebuilt".
+  4. **`useStudentList` is still un-keyed (I13).** M7 reached it from three surfaces; each mounts its
+     detail under the row's identity key and the gate **requires** that guard per surface, which is a
+     mitigation and not a closure — fixing the shared hook was explicitly out of scope.
+  5. **Browser QA did not run and is NOT VERIFIED** — the three rewired surfaces and the badge are
+     jsdom-verified only.
+  6. **No acceptance audit ran**, so this milestone has no audit findings and no **B**-numbered coverage
+     items, unlike M3 and M4. The reversion and mutation checks are the implementer's own measurement.
 
 ### M8 — Branding application & visual identity (**needs D2**)
 
@@ -721,7 +785,11 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Out of scope.** A logo/favicon upload redesign; per-tenant theming; any change to the
   `BrandingSettings` model.
 - **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M7's SHA (the visual blast radius
-  is the whole design system).
+  is the whole design system). **Recorded now that M7 has landed:** M7's last *product* commit is
+  `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, and the commit M8 will be built on is M7's
+  **documentation reconciliation**, which follows it and cannot be named in the documents it carries
+  ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule); `git log --oneline --
+  docs/engineering` is the authority for it, and it is M8's **effective safe rollback boundary**.
 
 ### M9 — Dashboard insight from live data (**H4**), **I9 guards first**
 
@@ -942,6 +1010,8 @@ change, not a copy fix) · **L1** command-palette tokenisation · **all backend 
 ([OPEN_ITEMS.md](OPEN_ITEMS.md) → BACKEND) · **L4** browser QA, which stays a permanent gap until a
 browser-capable environment performs it.
 
+**Recorded at M7's closure (2026-09-15), by owner instruction, and explicitly NOT designed here:** a cancelled class or a cancelled teacher session **requires a compensatory session** for the affected students — the product's stated default is a **one-hour session on the same day**, and otherwise the date and time are **coordinated with the secretary**. It is recorded as a *requirement / open design item*: no compensation flow, no entity, no verb, no scheduling redesign and no UI was built in M7, and none of it is authorized. It is catalogued as [OPEN_ITEMS.md](OPEN_ITEMS.md) **I18**, where the backlog of record keeps its evidence; the cancellation path it will eventually touch is `src/views/scheduling/SessionWriteDialogs.tsx` and the scheduling domain's cancel verb (**Group A**, frozen — §8 of this document). **D1** and **I7** are unaffected: the affected families still are not notified by anything this build ships.
+
 Deferral is recorded, never silent: [OPEN_ITEMS.md](OPEN_ITEMS.md) rule 3 — *"Never re-categorise an
 item downward to make a phase look finished."*
 
@@ -1071,9 +1141,8 @@ The phase is complete when **all** of the following are true and evidenced:
    `src/views/__tests__/schedulingNoFixtures.test.ts` is the suite, and the view imports neither
    fixture module. The structural no-fixture check M4 added is
    **M4-local** (one view); the product-wide fixture/type/seed separation and a boundary test covering
-   every view remain **M10 / D5**, and `Attendance.tsx`, `Classes.tsx` and the dashboard panels still
-   read fixtures after M4's landing — so **item 1 of this final-phase DoD is still not met**, now for
-   those reasons rather than for the scheduling view's.
+   every view remain **M10 / D5**. *Written at M4's landing and kept as written; the state after the
+   milestones that followed it is measured below.* **Attendance came off this list at M5** (`9505ade`), **and M7 (`f1ec0dd`) took the three profile surfaces off it as far as their *relations* are concerned**: `Students.tsx`, `Teachers.tsx` and `Classes.tsx` now read every foreign key, roster, seat count and weekly window from `useClasses`/`useTeachers`/`useRooms`/`useEnrollments`/`useSessions`, and import only label maps and types from `@/data/records`, which the per-surface gate (`src/views/__tests__/relationsNoFixtures.test.ts`, 5 surfaces `enforced`) allows. **Item 1 is nevertheless still not met:** `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the chat template list in `src/views/Messages.tsx` (`messageTemplates`), the fixture renderers `Finance.tsx` and `Reports.tsx`, and the dashboard insight panels (`src/components/panels/`) still read fixture *content* — **M9/H4**, **M10/D5** and **I2** — and the product-wide boundary test this item asks for does not exist yet. The M7 authorization covered the three relations and the navigation chrome, and M7 did not quietly claim more ([PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix", row 19).
 2. **EMPTY is honest everywhere:** «داده‌ای نیست» / `NO_DATA`, never a fabricated record, figure or
    sentence — asserted by rendering in EMPTY.
 3. **Zero fake success.** Every `tone: "success"` follows an awaited repository call with an honest
