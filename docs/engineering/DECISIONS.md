@@ -419,16 +419,18 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D19)
+## 19. Product-phase decision register (D1–D20)
 
-Nineteen decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D19** to
+Twenty decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D20** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Twelve are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
-M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18** and **D19** by the **Class
-Compensation P1** workstream's landing `a21311d7e32c82e3a46b1581c94f6b3478bf646c` — the first two
-decided outside the M0–M11 milestone sequence), two are settled by deferral
+Thirteen are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13**
+by M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18**, **D19** and **D20** by the
+**Class Compensation** workstream — **D18**/**D19** at P1's landing
+`a21311d7e32c82e3a46b1581c94f6b3478bf646c`, **D20** at C-2's
+`07f89db779ca4017dbbb22db1ac7624b18fb95be` — the first three decided outside the M0–M11 milestone
+sequence), two are settled by deferral
 (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
@@ -436,8 +438,8 @@ documentation reconciliation, while their sections below already existed; the he
 was right and the table was not. **D13** was added by M5's documentation reconciliation, together with
 its table row and its section, so that neither half drifts the way those three did. **D14–D16** were
 added the same way by M6's documentation reconciliation — each with its row and its section, written
-from M6's measured evidence rather than from its plan. **D18 and D19 were added the same way by Class
-Compensation P1's** — with their rows and their sections, written from what landed. **D17's row is
+from M6's measured evidence rather than from its plan. **D18, D19 and D20 were added the same way by the Class Compensation workstream's reconciliations
+(`2600667` and `f0bdecd`)** — with their rows and their sections, written from what landed. **D17's row is
 repaired here too:** the M7 reconciliation (`e7a6d72`) added its section and updated this heading and
 tally, but the table stopped at D16 — the same "heading right, table wrong" failure this paragraph
 records for the M3 trio, caught this time by the reconciliation that followed rather than by the next
@@ -1055,8 +1057,9 @@ disclosure), **121** cases in eight files in total.
 at-most-one-live-make-up refusal are now evaluated on the effective session at the end of the attempt's
 reschedule **lineage** rather than on the ledger's own row (see **D20** and the C-1.1 package in
 [PHASES.md](PHASES.md)), with the ledger still never re-pointed. Scope of the claim, stated so it is not
-read as more than it is: the flow has **no UI** and **no `apiRepository`** (**I20**), the demo ships **no
-compensable case**, and browser QA has never run on anything. **On mutation checks:** P1's own commit
+read as more than it is: the flow's **surface** landed later in the same workstream (`fc83d6d`,
+hardened at `79fd44e` and `79ec13d`) while there is still **no `apiRepository`** (**I20**), the demo
+ships **no compensable case**, and browser QA has never run on anything. **On mutation checks:** P1's own commit
 carried none; the C-1, C-1.1 and C-2 packages that followed carried **ten** between them (three, five and
 two), each restored byte-identically against a recorded sha256 baseline and recorded in that package's
 change report — not re-measured by this documentation pass.
@@ -1113,8 +1116,9 @@ created through `create()` and carries `origin: "manual"`.
 
 **Status.** ✅ **Landed at P1**, as a **workstream** rather than a milestone ("Workstream — Class
 Compensation P1" in [PHASES.md](PHASES.md); it advances no phase-checkpoint row). **I18 remains OPEN and
-is only PARTLY LANDED:** group and class-wide compensation and any notification are still unbuilt, and
-the flow has no UI.
+is only PARTLY LANDED:** group and class-wide compensation, any notification, any coordination flow and
+every server-side implementation are still unbuilt — the flow's **surface** now exists (`fc83d6d`,
+hardened at `79fd44e` and `79ec13d`), which closes the "no UI" half of **I20** and nothing else.
 
 ### D20. Compensation eligibility at the make-up's date is disclosed on every read, never enforced
 
@@ -1162,8 +1166,9 @@ rule in `src/domains/compensation/repository.ts`; the field's semantics are in `
 
 **Status.** ✅ **Landed with Class Compensation C-2** (2026-09-15), as part of the same workstream as P1
 rather than a milestone. **I18 remains OPEN and only PARTLY LANDED:** group and class-wide compensation,
-any notification, the UI and the server are still unbuilt (**I20**), and no screen renders
-`studentOnRoster` yet.
+any notification and the server are still unbuilt (**I20**); the compensation surface that landed later
+in the same workstream (`fc83d6d`, hardened at `79fd44e`/`79ec13d`) **does** render `studentOnRoster`, as
+the per-read disclosure this decision describes and never as a gate.
 
 ### Adding a decision
 

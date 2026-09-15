@@ -501,17 +501,32 @@ them narrowing what this item records:
 - **`b7a97b325741b1129f6d50a7d067d1aa6459597c`** — the write-authorization and lifetime-uniqueness
   hardening (every verb refuses an actor without `schedule.write` before any read; the `(original,
   student)` pair is re-checked immediately before the write).
+- **`fc83d6d6246a4679425223e271bdf610a027a67b`, `79fd44eea260ed8eec4a2eb592e4568f884bca9b` and
+  `79ec13d0ab2671a612a578605a1fa7a91effc435` — the secretary surface and its two hardening packages.** The
+  read layer and the three write verbs gained their shipped caller (`src/views/Compensation.tsx` and
+  `src/views/compensation/CompensationDialogs.tsx`), gated by `schedule.read` to open the surface and
+  `schedule.write` for register / schedule / complete through the existing permission matrix: the ledger,
+  its counts, the three dialogs, the disclosure C-2 requires, the bounded candidate window with its
+  truncation stated, and one real `#/compensation` route case in `src/__tests__/routeProtection.test.tsx`.
+  **What this does not narrow:** nothing in the requirement above — group and class-wide compensation, any
+  coordination flow (including "no slot can be agreed") and every notification stay unbuilt, the demo
+  still seeds no compensable case, there is still no server and no `apiRepository`, the per-surface gate
+  coverage is deliberately still open (**I21**), and browser QA has never run. Nine findings of the
+  surface's own audit are recorded closed in [PHASES.md](PHASES.md) → the workstream section; the tenth
+  is **I21**.
 
 **Still unbuilt, and why this item stays OPEN:** group and class-wide compensation (the requirement's
 own subject beyond private one-to-one lessons), any coordination flow beyond a form the operator fills —
 including "what happens when no slot can be agreed", which the owner's wording asks for and nothing
-answers — the UI, and a server. Decisions **D18**/**D19**/**D20** in [DECISIONS.md](DECISIONS.md); the
-workstream record is [PHASES.md](PHASES.md) → "Workstream — Class Compensation P1" (which registers this
-chain) and [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation". Automatic completion
+answers — and a server (the **UI** landed after this paragraph was written, as the bullet above
+records). Decisions **D18**/**D19**/**D20** in [DECISIONS.md](DECISIONS.md); the workstream record is
+[PHASES.md](PHASES.md) → "Workstream — Class Compensation P1" (which registers this chain and the
+surface) and [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation" and "Compensation UI
+validation". Automatic completion
 of elapsed sessions is a **separate** workstream with no decision and no implementation, and is not part
 of this item.
 
-### I20. The compensation contract has no UI and no server (found 2026-09-15, by P1's landing)
+### I20. The compensation contract has a UI and no server (found 2026-09-15, by P1's landing; the UI half landed 2026-09-16)
 **The domain is complete, tested and registered; nothing in the product calls it.** The five verbs and
 the read layer (`src/domains/compensation/useCompensations.ts`) have **no shipped caller**: no view
 offers registering an obligation, booking a make-up or discharging one, and `src/domains/compensation/README.md`
@@ -527,6 +542,51 @@ without inventing data that contradicts the seed), and a server implements the p
 api-mode hybrid is disclosed where the flow is offered — the same standard M4/M5 met for scheduling and
 attendance. **What this is not:** a defect in the domain. It is the deliberate scope of the P1
 authorization ("no UI in P1"), recorded so it cannot be mistaken for a delivered capability.
+
+**Status (2026-09-16, the UI packages — the item stays OPEN, and one of its three done-when clauses is
+met).** The **surface** now exists. `fc83d6d6246a4679425223e271bdf610a027a67b`
+(*feat(compensation): add the secretary compensation surface* — 7 files, +2 243/−1) wires the read layer
+and the three write verbs into `src/views/Compensation.tsx` and
+`src/views/compensation/CompensationDialogs.tsx` through the RBAC permission that owns them
+(`schedule.read` to reach the surface, `schedule.write` for register / schedule / complete), and
+`79fd44eea260ed8eec4a2eb592e4568f884bca9b` plus `79ec13d0ab2671a612a578605a1fa7a91effc435` harden it —
+indeterminate counts with a named failure and a per-read retry, a refresh-failure banner that keeps the
+last good rows and says so, a warning-consent toggle that names the warnings it accepts, a failed
+effective-session read reported as a failure with the move disabled, the bounded candidate window (365
+days back / 120 days forward / 200 rows) and its truncation disclosed, the C-2 disclosure rendered as
+information and never as a gate, one shared Jalali date-input boundary
+(`src/views/shared/jalaliInput.ts`), a real `#/compensation` route case, and one submit/refusal wrapper
+for the three dialogs. **The other two clauses are not met and are not claimed:** there is still **no
+`apiRepository`** — api mode keeps serving Demo for an eleventh domain and discloses nothing where the
+flow is offered (**D8**) — and the demo dataset still ships **no compensable case**
+(`sessionCompensations: []`, and its only cancelled session belongs to a group class), so a hand-run
+still needs a cancelled private session created first. **The server clause is untouched:** the
+permission gate, the lifetime `(original, student)` uniqueness and the single-row roster claim are still
+client-side, and server-side enforcement in one transaction remains owed. What the surface also does
+**not** have is per-surface gate coverage — recorded as **I21** below rather than implemented.
+
+### I21. The compensation surface is not named by the per-surface gates (found 2026-09-16, during the UI workstream's own read-only audit — finding **S-6**)
+**The surface is pinned by its own suite and by the gates that scan every view, and by nothing
+list-driven beyond that.** What covers it today: `src/views/__tests__/compensationUi.test.tsx` (16 cases
+— the ledger's loading / empty / error states and the copy that distinguishes them, the indeterminate
+counts, the refresh-failure retry, the three dialogs including the bounded-window and truncation copy,
+the C-2 disclosure scoped to its own drawer, and the Persian Jalali date handling);
+`src/__tests__/routeProtection.test.tsx` (9, two of them this surface's — the real route and the role
+without `schedule.read`); and the *global* view-layer gates
+`src/__tests__/architectureBoundaries.test.ts`, `src/__tests__/privacyPosture.test.ts` and
+`src/__tests__/writeFeedbackHonesty.test.ts`'s rule that a success toast needs a data layer (the surface
+does reach `getSchedulingRepository(`). What does **not** cover it, measured at `79ec13d`:
+`src/views/__tests__/relationsNoFixtures.test.ts`'s `SURFACES` list does not name
+`src/views/Compensation.tsx`; `src/views/__tests__/emptyEnvironment.test.tsx` names it in neither
+`LIVE_VIEWS` nor `FIXTURE_VIEWS`; and `writeFeedbackHonesty`'s `GRADUATED_VIEWS` ratchet has no
+compensation entry — so the rules those lists enforce per surface (a windowed `useSessions` read
+carrying `per_page`/`from`/`to`, empty- and failure-honest rendering, and the fixture/figure rules) hold
+on this surface **by convention, not by gate**. **Done when:** that coverage exists — most likely by
+registering the surface in those lists and adding a dedicated list-driven fixture suite, the way M7 and
+the attendance/chat milestones did. **Deliberately not done here:** those are gate-architecture and
+test-list changes, i.e. exactly the work the UI workstream's authorization excluded, so this item
+records the gap instead of closing it. Evidence: the five test files above and
+[PHASES.md](PHASES.md) → the workstream section's **S-6** entry.
 
 ### I2. Finance and Reports have no domain layer
 `src/views/Finance.tsx` and `src/views/Reports.tsx` are fixture renderers with no

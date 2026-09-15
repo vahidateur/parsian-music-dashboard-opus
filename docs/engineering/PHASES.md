@@ -173,11 +173,12 @@ also M4's effective safe rollback boundary) · **M4 ✅ complete** (CP0 `84fb7cb
 **M5 ✅ complete** (one implementation checkpoint `9505ade`, closed by its documentation
 reconciliation `9190da0`) · **M6 ✅ complete** (CP1 `43e7882`, CP2 `42c54f4`, CP3 `563b8d8`, CP4
 `4e03b87`, reconciled at `e6ab6f9` + `8131c5c` — see "Product phase — M6" below) · **M7 ✅ complete**
-(CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6`, CP4 `f1ec0dd`, with this pass reconciling the record —
+(CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6`, CP4 `f1ec0dd`, reconciled at `e7a6d72` —
 see "Product phase — M7" below) · **Class Compensation ✅ shipped** — P1 at `a21311d` with its
-documentation reconciliation at `2600667`, the uniqueness and write-authorization hardening at
-`b7a97b3`, and the **C-1.1** lineage and **C-2** enrollment-disclosure packages at `cd91ed6` and
-`07f89db` — a **non-milestone workstream**, with the M0–M11 sequence and the milestone table unchanged
+documentation reconciliations at `2600667` and `f0bdecd`, the uniqueness and write-authorization
+hardening at `b7a97b3`, the **C-1.1** lineage and **C-2** enrollment-disclosure packages at `cd91ed6`
+and `07f89db`, and the **secretary surface** at `fc83d6d`, hardened by `79fd44e` and `79ec13d` — a
+**non-milestone workstream**, with the M0–M11 sequence and the milestone table unchanged
 (see "Workstream — Class Compensation P1" below) ·
 M8–M11 ❌ **not started, not authorized**.
 
@@ -1359,6 +1360,73 @@ Compensation P1…)", §4 → "Compensation P1 validation" and §7 item 19; deci
 2 failed** — both failures the recorded environmental pair (the branch-name case and **I19**), unchanged
 by P1 — with Group A at 211 and Group D at 79 untouched and the 69 new cases green.
 
+**The workstream continued past P1 with the secretary surface (2026-09-15/16) — three product commits,
+all pushed, none of them a milestone.** `fc83d6d` (*feat(compensation): add the secretary compensation
+surface* — 7 files, 2 243 insertions / 1 deletion) wires the read layer and the three write verbs into a
+Persian RTL surface on the existing design system: the ledger read and its count reads go through
+`useCompensations`, the domain's own eligibility, frozen-student, derived-state, live/terminal, lineage
+and uniqueness rules are **consumed, never re-derived**, every action addresses the effective attempt's
+`currentAttempt.sessionId` (never `bookedSessionId`), a teacher gets no write control, and the route is
+registered through the RBAC permission that owns it (`schedule.read` to see the surface,
+`schedule.write` for register / schedule / complete) in `src/App.tsx`, `src/data/academy.ts`,
+`src/components/layout/Sidebar.tsx` and `src/domains/auth/permissions.ts`. `79fd44e`
+(*fix(compensation): harden UI count states* — 2 files, 197/28) made an in-flight or failed count render
+the indeterminate `NO_DATA` («—») instead of a number, named the failure and let each read retry itself.
+`79ec13d` (*fix(compensation): complete UI hardening* — 7 files, 478/81) closed the remaining findings
+of a read-only audit of that surface, each with its own case in the focused suite:
+
+- **S-1 — a failed ledger *refresh* is disclosed, not hidden.** The surface keeps the rows of its last
+  successful read and says so («فهرست جبرانیها تازهسازی نشد») with a `ledger.reload()` retry; a
+  failed *first* read is still an error, never an empty ledger.
+- **S-2 — the warning-consent toggle says what it accepts.** Its Persian label names the warning kinds
+  the scheduling engine actually raises instead of only the off-schedule one, with no duplicated
+  conflict semantics and no new warning type.
+- **S-3 — a failed effective-session read is a failure, not missing data.** The drawer names the failed
+  read (not tooltip-only) and refuses the move until it resolves, while the genuinely-missing attempt
+  stays the state it always was.
+- **S-4 — the bounded candidate search is stated.** The register dialog discloses its window (365 days
+  back / 120 days forward) and its 200-row page cap, and reports truncation and an honest empty result
+  instead of implying completeness. No window was expanded and no free-slot search was added.
+- **S-5 — the C-2 disclosure assertion was scoped to the drawer that owns it** (a body-wide assertion
+  could be satisfied by a toast), and the `undefined` branch is documented rather than covered by an
+  impossible-state test. **C-2's semantics are unchanged.**
+- **S-7 — one Jalali date-input boundary.** `src/views/shared/jalaliInput.ts` (`DATE_INPUT_OPTIONS`,
+  `jalaliInputValue`, `FIELD_MESSAGES`) is adopted by both scheduling dialogs and both compensation
+  dialogs; the boundary sits in the view layer, never in the Scheduling domain, and behaviour is
+  exact.
+- **S-8 — the real route is covered.** `src/__tests__/routeProtection.test.tsx` gained the surface's
+  own two cases: an administrator reaching `#/compensation` through the shell (no silent Dashboard
+  fallback) and a role without `schedule.read` being refused, with no routing redesign.
+- **S-9 — one submit/refusal wrapper.** The three dialog submits share one helper; refusal feedback,
+  loading state, thrown-error handling and success behaviour are unchanged.
+- **S-6 — deliberately left open.** The surface is pinned by its own focused suite and by the gates that
+  scan every view, but it is **not** enumerated in the per-surface lists (`relationsNoFixtures`'
+  `SURFACES`, `emptyEnvironment`'s view lists, `writeFeedbackHonesty`'s `GRADUATED_VIEWS`) and has no
+  dedicated list-driven fixture suite. Closing that would change the gate architecture and test lists,
+  which this workstream was not authorized to do — so it is recorded as **I21** in
+  [OPEN_ITEMS.md](OPEN_ITEMS.md) instead of implemented.
+
+**What the surface does *not* claim.** It is **jsdom-verified only**: browser QA has never run
+([PROJECT_STATE.md](PROJECT_STATE.md) §5, NOT VERIFIED, where the workstream's checklist item is now
+recorded). The demo still seeds **no compensable case**; **group and class-wide compensation, any
+coordination flow and every notification are still unbuilt** (**I18** stays OPEN); there is still **no
+`apiRepository`** and no server, so the permission gate, the lifetime `(original, student)` uniqueness
+and the single-row roster claim remain **client-side** (**D8**, **I20**); and the surface is not yet
+named by the per-surface gates (**I21**). No formal acceptance audit ran — the hardening list came from
+an internal read-only audit — and the implementer's own reversion and mutation checks are recorded in
+the packages' change reports, not re-measured by this documentation pass.
+
+**Validation (measured at `79ec13d`, the workstream's last commit).** `npm run typecheck` clean; the
+focused compensation suite **16/16** (`src/views/__tests__/compensationUi.test.tsx`); the route
+protection suite **9/9**; the eight view gate suites **107/107**; `src/views/__tests__` at **420 passed
+/ 1 failed**, the one failure the recorded date-dependent case in `schedulingWrites.test.tsx` (§7 item
+18, **I19**); `npm run build` exit 0 (4.19 s, the pre-existing chunk-size warning unchanged); `git diff
+--check` clean; and the full suite at **1 868 passed / 2 failed of 1 870** — the two failures the
+recorded environmental pair (the branch-name case at `projectState.test.ts:299` and **I19**'s
+date-dependent case), neither of them a compensation regression. Groups A (211) and D (79) and the
+domain's 121 cases are untouched: no commit in the chain lists a file under
+`src/domains/scheduling/`, `src/domains/attendance/` or `src/domains/compensation/`.
+
 ---
 
 ## Documentation checkpoints (pushed, not application phases)
@@ -1393,7 +1461,8 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `e6ab6f90901496be376e2278aa28695e5ab32ab6` | **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*) — M6 registered as ✅ **COMPLETE** against its measured evidence: the four checkpoints CP1–CP4, **106 new tests** (31 domain, 75 view/gate), **14 mutation checks** reverted byte-identically, 17 files and `+4321/−61` with `git diff --name-only 9190da0..4e03b87` showing **nothing outside the chat domain and the Messages surface**, the full-suite result at `4e03b87` (119 files / 1655 passed / 8 skipped / 1 known environmental failure) and browser QA kept at NOT VERIFIED — plus the new `src/domains/chat/README.md` and **D14–D16** decided. The reconciliation's second half (the M6 **coverage matrix**, which registers this SHA) follows it as the next documentation commit, because a commit cannot name itself | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 | `8131c5cd49c35a7163543082475a9635914aba40` | **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*) | The M6 requirement-by-requirement matrix ([PROJECT_STATE.md](PROJECT_STATE.md) §4, 21 rows: PASS / PARTIAL / DEFERRED / OUT OF SCOPE / NOT VERIFIED), which registers M6's reconciliation `e6ab6f9` because a commit cannot name itself | none (documents only) | ✅ |
 | `e7a6d72e561bdbb0d22280e4617141281b62d8b5` | **M7's documentation reconciliation** (*docs(m7): reconcile the relation phase record and close I1*) | M7 registered ✅ COMPLETE against its measured evidence — the four checkpoints, the full-suite result at `f1ec0dd` with both environmental failures recorded, **67 new tests**, the pre-CP4 reversion (17 of 20 cases red) and the seven gate injections — plus **D17** decided, **I1** closed, **I19** recorded, and the M7 record and validation block in [PROJECT_STATE.md](PROJECT_STATE.md). Named by the commit after it, as the no-self-reference rule requires; it is the commit **Class Compensation P1 was built on** | none (documents only) | ✅ |
-| `2600667073b874d2cabb42c1e0b2f5f27234fb55` | **Latest recorded here.** **Class Compensation P1's documentation reconciliation** (*docs(compensation): reconcile the P1 record and register D18/D19*) | P1 registered as ✅ shipped against its measured evidence with the milestone table untouched, **D18**/**D19** decided, **I18** recorded as PARTLY LANDED and left OPEN, and the domain README reconciled with the flow that had landed. **The twenty-first** documentation checkpoint: documents only (the five `docs/engineering/` documents and one domain README), no product source, no test, no dependency. It could not name itself — the compensation chain paragraph below names it and registers the three product commits that followed it, and `git log -- docs/engineering` is the authority for anything newer than this row | none (documents only) | ✅ |
+| `2600667073b874d2cabb42c1e0b2f5f27234fb55` | **Class Compensation P1's documentation reconciliation** (*docs(compensation): reconcile the P1 record and register D18/D19*) | P1 registered as ✅ shipped against its measured evidence with the milestone table untouched, **D18**/**D19** decided, **I18** recorded as PARTLY LANDED and left OPEN, and the domain README reconciled with the flow that had landed. **The twenty-first** documentation checkpoint: documents only (the five `docs/engineering/` documents and one domain README), no product source, no test, no dependency. It could not name itself — the compensation chain paragraph below names it and registers the three product commits that followed it, and `git log -- docs/engineering` is the authority for anything newer than this row | none (documents only) | ✅ |
+| `f0bdecdc39b03bae03c85d3bc8913e87d53bba57` | **Latest recorded here.** **the Class Compensation workstream's final domain-gate reconciliation** (*docs(compensation): reconcile final domain gate records*) | The chain's last three product commits registered (`b7a97b3` write authorization and lifetime uniqueness, `cd91ed6` the C-1/C-1.1 lineage rules, `07f89db` C-2's **D20**), **D20** decided with its row and its section, the ten mutation checks recorded, **I18**'s status brought up to those packages — and the per-surface gate coverage left open. **The twenty-second** documentation checkpoint: **documents only** (three `docs/engineering/` documents, 103 insertions / 30 deletions), no product source, no test, no dependency. It could not name itself — the compensation chain paragraph below names it, and `git log -- docs/engineering` is the authority for anything newer than this row. It is the commit **the secretary surface was built on** | none (documents only) | ✅ |
 
 **M6's chain is registered in the M6 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: four product commits —
@@ -1457,11 +1526,16 @@ change reports and summarised in [DECISIONS.md](DECISIONS.md) **D18**, not re-me
 documentation pass.
 
 Like every workstream these advance no phase-checkpoint row — the row stays at Phase 2 — and P1's own
-effective safe rollback boundary is `e7a6d72e561bdbb0d22280e4617141281b62d8b5`. **The commit carrying
-this paragraph is the twenty-second documentation checkpoint** by the definition above (documents only:
-this ledger, [DECISIONS.md](DECISIONS.md) **D18**/**D19** and [OPEN_ITEMS.md](OPEN_ITEMS.md) **I18**;
-no product source, no test, no dependency), and it cannot name itself either — the next documentation
-commit registers it, exactly as this one registers `2600667`.
+effective safe rollback boundary is `e7a6d72e561bdbb0d22280e4617141281b62d8b5`.
+**`f0bdecdc39b03bae03c85d3bc8913e87d53bba57` is the twenty-second documentation checkpoint** by the
+definition above (*docs(compensation): reconcile final domain gate records* — documents only: this
+ledger, [DECISIONS.md](DECISIONS.md) **D20** and [OPEN_ITEMS.md](OPEN_ITEMS.md) **I18**; no product
+source, no test, no dependency), and it could not name itself either — **the commit carrying this
+paragraph is the twenty-third**, and the next documentation commit registers it, exactly as this one
+registers `2600667` and `f0bdecd`.
+
+**The three UI commits that followed are registered here for the same reason**, so that `git log` shows
+nothing unexplained — the workstream section above carries their full record. `fc83d6d6246a4679425223e271bdf610a027a67b` (*feat(compensation): add the secretary compensation surface* — 7 files, 2 243/1) added the surface, its three dialogs, its focused suite and the four additive route/RBAC integration edits; `79fd44eea260ed8eec4a2eb592e4568f884bca9b` (*fix(compensation): harden UI count states* — 2 files, 197/28) made an in-flight or failed count indeterminate, named it and let it retry; and `79ec13d0ab2671a612a578605a1fa7a91effc435` (*fix(compensation): complete UI hardening* — 7 files, 478/81) closed the audit findings **S-1**…**S-5** and **S-7**…**S-9**, added `src/views/shared/jalaliInput.ts`, added the surface's two route cases and deduplicated the dialog submit wrappers — while **S-6**, the per-surface gate coverage, was deliberately left open and recorded as **I21**. None of them advances the phase-checkpoint row; the surface's effective safe rollback boundary is **`f0bdecd`**, the reconciliation it was built on, and none of them touches `src/domains/`, `src/services/`, `src/api/` or `src/context/`.
 
 **M5's chain is registered in the M5 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: one product commit,

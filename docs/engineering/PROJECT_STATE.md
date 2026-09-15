@@ -6,14 +6,17 @@
 > Sibling documents: [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md)
 >
-> **Last state update: 2026-09-15** — **Class Compensation P1 shipped at
-> `a21311d7e32c82e3a46b1581c94f6b3478bf646c`**: the make-up obligation domain
-> (`src/domains/compensation/`), its registry seam, its dataset collection and **69 tests in five new
-> files**, built on `e7a6d72` (M7's reconciliation) and pushed. **It is a workstream, not a milestone:**
-> the phase-checkpoint row stays at `33b1031`, the M0–M11 sequence is unchanged, and **M8 has not
-> started**. **No UI and no `apiRepository` were built**, so nothing in the product offers the flow yet;
-> see §3 → "Last completed work (Class Compensation P1…)", §4 → "Compensation P1 validation" and §7
-> item 19.
+> **Last state update: 2026-09-16** — **the Class Compensation workstream now has its secretary
+> surface**: the make-up obligation domain shipped at `a21311d7e32c82e3a46b1581c94f6b3478bf646c` (69
+> tests in five new files), and the UI landed after it at `fc83d6d` (*the secretary surface* — 7 files),
+> hardened by `79fd44e` and `79ec13d` — all pushed, the last of them on base `f0bdecd` (the
+> workstream's final documentation reconciliation). **It is a workstream, not a milestone:** the
+> phase-checkpoint row stays at `33b1031`, the M0–M11 sequence is unchanged, and **M8 has not started**.
+> **There is still no `apiRepository`, no server and no seeded compensable case** (**I20**),
+> group/class-wide compensation and any coordination flow are still unbuilt (**I18**), the surface is
+> jsdom-verified only with browser QA **NOT VERIFIED** (§5), and one audit finding — per-surface gate
+> coverage — is recorded as **I21** rather than implemented. See §3 → "Last completed work (Class
+> Compensation UI…)", §4 → "Compensation UI validation" and §7 item 19.
 >
 > **M7's record follows, kept for audit and unedited. M7 (relation de-fixturing + sidebar badges, I1) is
 > ✅ COMPLETE** and pushed, implemented across four checkpoints on top of `8131c5c` — the coverage
@@ -31,7 +34,8 @@
 > honest source is read from the chat repository, and the badge with no scoped source was **removed**
 > rather than estimated). That pass was M7's **documentation reconciliation** (`e7a6d72`):
 > `docs/engineering/` only, no product source, no test, no dependency, and **M8 has not started** — and
-> the pass you are reading is Class Compensation P1's **documentation reconciliation**, documents only.
+> the pass you are reading is the Class Compensation **workstream's** documentation reconciliation,
+> documents only.
 
 ---
 
@@ -53,9 +57,10 @@
 | Working branch | `arena/01a07c61-parsian-music-dashboard-opus` |
 | **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3/M4/M5/M6/M7, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — **M4** sits after those, implemented across three checkpoints, `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1, the reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2, the two writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3, generation), with its acceptance-coverage checkpoint at `df701488362cb90cf32ccefad277879477571cf7` and its final documentation reconciliation at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — and **M5**, the attendance *view* wiring, sits after that at `9505ade4011b37a34e3488fd51206512829205ec` with its own documentation reconciliation at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — and **M6**, the contracts-without-UI milestone, sits after that, implemented across four checkpoints, CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (the chat contract), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management and composer state safety), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export) — and **M7**, the relation de-fixturing milestone, sits after M6's documentation reconciliation (`8131c5cd49c35a7163543082475a9635914aba40`), implemented across four checkpoints, CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts), all pushed; §3 carries the current phase. The **non-milestone** Class Compensation P1 workstream (`a21311d7e32c82e3a46b1581c94f6b3478bf646c`) sits after M7's reconciliation (`e7a6d72`) and does **not** advance this row: a workstream is not a phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
-| **Documentation checkpoint (pushed)** | `e7a6d72e561bdbb0d22280e4617141281b62d8b5` — **M7's documentation reconciliation** (*docs(m7): reconcile the relation phase record and close I1*): M7 registered ✅ COMPLETE against its measured evidence, **D17** decided, **I1** closed and **I19** recorded. It is the commit **Class Compensation P1 was built on**, and therefore **P1's effective safe rollback boundary**. Documents only |
-| Previous documentation checkpoint | `8131c5cd49c35a7163543082475a9635914aba40` — **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*): the milestone's requirement-by-requirement matrix in §4 of this file, which also **registers** M6's reconciliation `e6ab6f90901496be376e2278aa28695e5ab32ab6` because no entry may carry its own SHA. It is the commit M7 was built on, and therefore M7's **effective safe rollback boundary**. Documents only |
-| Documentation checkpoint before that | `e6ab6f90901496be376e2278aa28695e5ab32ab6` — **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*): M6 registered ✅ COMPLETE against its measured evidence, **D14–D16** decided, and `src/domains/chat/README.md` added. Documents only |
+| **Documentation checkpoint (pushed)** | `f0bdecdc39b03bae03c85d3bc8913e87d53bba57` — **the Class Compensation workstream's final domain-gate reconciliation** (*docs(compensation): reconcile final domain gate records*): the chain's last three product commits registered, **D20** decided, **I18**'s status brought up to those packages and the ten mutation checks recorded. It is the commit **the compensation surface was built on** (`fc83d6d` → `79fd44e` → `79ec13d`), and therefore that workstream's **effective safe rollback boundary**. Documents only, three `docs/engineering/` files (103/30); the twenty-second documentation checkpoint, which could not name itself — this pass names it |
+| Previous documentation checkpoint | `2600667073b874d2cabb42c1e0b2f5f27234fb55` — **Class Compensation P1's documentation reconciliation** (*docs(compensation): reconcile the P1 record and register D18/D19*): P1 registered as ✅ shipped against its measured evidence with the milestone table untouched, **D18**/**D19** decided, **I18** recorded as PARTLY LANDED and left OPEN, and the domain README reconciled with the flow that had landed. It is the commit **P1 was built on**, and therefore P1's **effective safe rollback boundary**. Documents only; the twenty-first documentation checkpoint |
+| Documentation checkpoint before that | `e7a6d72e561bdbb0d22280e4617141281b62d8b5` — **M7's documentation reconciliation** (*docs(m7): reconcile the relation phase record and close I1*): M7 registered ✅ COMPLETE against its measured evidence, **D17** decided, **I1** closed and **I19** recorded. It is the commit **Class Compensation P1 was built on**. Documents only; the twentieth documentation checkpoint |
+| Earlier documentation checkpoints (kept as written from the rows the pass above advanced past) | `8131c5cd49c35a7163543082475a9635914aba40` — **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*): the milestone's requirement-by-requirement matrix in §4 of this file, which also **registers** M6's reconciliation `e6ab6f90901496be376e2278aa28695e5ab32ab6` because no entry may carry its own SHA; and `e6ab6f90901496be376e2278aa28695e5ab32ab6` — **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*): M6 registered ✅ COMPLETE against its measured evidence, **D14–D16** decided, and `src/domains/chat/README.md` added. Documents only |
 | Superseded documentation-checkpoint row (kept as written; M5's reconciliation, named in [PHASES.md](PHASES.md)) | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*): M5 registered ✅ COMPLETE, the M5 chain's own accounting corrected to what happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — no amend, no force-push, no reset, no rebase), and the M5 documentation checkpoint that was **lost unpushed** recorded as **L5** happening twice rather than papered over. It is the commit M6 was built on. Documents only |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (the graft boundary **of a shallow checkout** — measure whether your clone is shallow rather than inheriting that; see the note at the end of this section) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
@@ -72,7 +77,7 @@
   [PHASES.md](PHASES.md) and named in §3. Only a phase checkpoint advances "current
   phase" in §3.
 - A **documentation checkpoint** is a pushed commit that changes documents and validation gates
-  but no product behaviour. **Twenty** are **named** so far — the twenty-first is the commit carrying
+  but no product behaviour. **Twenty-two** are **named** so far — the twenty-third is the commit carrying
   this paragraph, which cannot name itself (see the rule immediately below) and must be registered
   by whichever documentation commit comes next: `68b4fe3` (these documents and their gate),
   `77b019ef` (the audit-correction pass, which also made the EMPTY login screen's *labels*
@@ -97,10 +102,13 @@
   reconciliation**, named by the commit after it rather than by itself, as that rule requires) and
   `8131c5cd49c35a7163543082475a9635914aba40` (**M6's coverage matrix**, which registered the
   reconciliation and had to be named by a later commit for the same reason) and
-  `e7a6d72e561bdbb0d22280e4617141281b62d8b5` (**M7's documentation reconciliation**, named by this
-  commit — the same rule again). They
-  are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never shows a
-  commit this ledger does not explain.
+  `e7a6d72e561bdbb0d22280e4617141281b62d8b5` (**M7's documentation reconciliation**, named by the
+  commit after it — the same rule again), `2600667073b874d2cabb42c1e0b2f5f27234fb55` (**Class
+  Compensation P1's documentation reconciliation**, which decided **D18**/**D19** and named `e7a6d72`)
+  and `f0bdecdc39b03bae03c85d3bc8913e87d53bba57` (**the Class Compensation workstream's final
+  domain-gate reconciliation**, which decided **D20** and is named by this commit — the same rule once
+  more). They are listed in [PHASES.md](PHASES.md) → "Documentation checkpoints" so that `git log` never
+  shows a commit this ledger does not explain.
 
 **No self-referential SHAs.** A document cannot contain the SHA of the commit that carries it —
 that SHA does not exist until the commit is made. So the documentation checkpoint above is always
@@ -659,8 +667,36 @@ automatic booking and no free-slot search. The domain ships `src/domains/compens
 verbs (`list`, `get`, `register`, `schedule`, `complete` — deliberately no reopen verb), a registry seam
 at `src/domains/registry.ts:231`, the `sessionCompensations` dataset collection, and **69 tests in five
 new files**. Nothing under `src/domains/scheduling/` or `src/domains/attendance/` changed, `Session` and
-`SessionStatus` are untouched, and there is **no UI and no `apiRepository`** — see §4 →
-"Compensation P1 validation" and §7 item 19.
+`SessionStatus` are untouched — and at that commit there was **no UI and no `apiRepository`**; the
+surface followed in the same workstream (the paragraph below), still without an `apiRepository`. See §4
+→ "Compensation P1 validation" and "Compensation UI validation", and §7 item 19.
+
+### Last completed work (Class Compensation UI — the secretary surface, in one paragraph)
+
+**The compensation surface** shipped in three commits after P1's reconciliation, as the same
+non-milestone workstream: `fc83d6d` (*feat(compensation): add the secretary compensation surface* — 7
+files, +2 243/−1) added `src/views/Compensation.tsx` and
+`src/views/compensation/CompensationDialogs.tsx`, a 16-case focused suite and the four additive
+integration edits (`ViewId`/nav label in `src/data/academy.ts`, the `compensation` entry in
+`src/components/layout/Sidebar.tsx`, `compensation: "schedule.read"` in
+`src/domains/auth/permissions.ts`, the view in `src/App.tsx`); `79fd44e` (*fix(compensation): harden UI
+count states*) made an in-flight or failed count render the indeterminate «—» instead of a number, named
+the failure and let each read retry itself; `79ec13d` (*fix(compensation): complete UI hardening*)
+closed the rest of an internal read-only audit — a failed ledger **refresh** is disclosed instead of
+silently keeping rows, the warning-consent toggle names the warning kinds it accepts, a failed
+effective-session read is shown as a failure with the move disabled while it is unread, the bounded
+candidate search (365 days back / 120 days forward / 200 rows) and its truncation are disclosed, the
+C-2 disclosure assertion was scoped to the drawer that owns it, `src/views/shared/jalaliInput.ts` became
+the one Jalali date-input boundary for the scheduling and compensation dialogs, one real `#/compensation`
+route case joined `src/__tests__/routeProtection.test.tsx`, and the three dialog submit wrappers were
+deduplicated with refusal, loading and success behaviour unchanged. The surface consumes the domain
+through its hooks and verbs only — eligibility, the frozen student, the derived state, the live/terminal
+rules, the lineage, the pair uniqueness and the roster rules are never re-derived in the view — and
+every action addresses `currentAttempt.sessionId`, never `bookedSessionId`; a teacher sees no write
+control. **What it does not claim:** still no `apiRepository` or server and no seeded compensable case
+(**I20**), group/class-wide compensation, coordination and notifications still unbuilt (**I18**),
+jsdom-verified only with browser QA **NOT VERIFIED** (§5), and not yet named by the per-surface gates
+(**I21**). See §4 → "Compensation UI validation".
 
 ### Work landed since the Phase 2 checkpoint
 
@@ -738,6 +774,32 @@ file never records the SHA of the commit carrying the edit (§2).
 
 ## 4. Validation status
 
+### Compensation UI validation (measured at `79ec13d0ab2671a612a578605a1fa7a91effc435`, the UI workstream's last commit)
+
+The surface landed at `fc83d6d` on base `f0bdecd` (the chain's final reconciliation) and was hardened at
+`79fd44e` and `79ec13d`. The numbers below are the ones measured **at `79ec13d`**, the tree that carries
+all three; this documentation pass re-ran the focused suite, the route-protection suite, the eight view
+gate suites, the documentation gate, `npm run typecheck` and `npm run build` against the identical tree
+(documents only, so no other result can have moved) and they agreed.
+
+| Check | Result |
+|---|---|
+| Starting point | ✅ `git rev-parse HEAD` == `79ec13d0ab2671a612a578605a1fa7a91effc435`, `git status --porcelain` empty, and `git ls-remote origin refs/heads/arena/01a0a068-parsian-music-dashboard-opus` returning the same SHA — verified after the push, not assumed |
+| Dependencies | ✅ none added, removed or changed — `git diff --name-only f0bdecd..79ec13d -- package.json package-lock.json` prints nothing |
+| `npm run typecheck` | ✅ clean (zero output, exit 0) |
+| Focused compensation suite | ✅ **16/16** — `src/views/__tests__/compensationUi.test.tsx`: the ledger's loading, empty, first-read-failure and refresh-failure states and the copy that distinguishes them, the indeterminate counts with their named failure and per-read retry, the register / schedule / complete dialogs including the bounded-window and truncation copy and the warning acknowledgement, the C-2 roster disclosure scoped to the drawer that owns it, and the Persian Jalali date handling |
+| Route protection | ✅ **9/9** — `src/__tests__/routeProtection.test.tsx`, including the surface's two cases: a real `#/compensation` route for an administrator (no silent Dashboard fallback) and refusal for a role without `schedule.read` |
+| View gate suites (eight files) | ✅ **107/107** — `relationsNoFixtures` (17), `schedulingNoFixtures` (14), `noSuccessWithoutWrite` (14), `honestWriteCopy` (16), `emptyEnvironment` (22), `navigationCounts` (7), `architectureBoundaries` (11), `writeFeedbackHonesty` (6). **What that does not mean:** the compensation surface is **not** enumerated in `relationsNoFixtures`' `SURFACES`, `emptyEnvironment`'s view lists or `writeFeedbackHonesty`'s `GRADUATED_VIEWS` — **I21** — so those gates pass over it because it is not listed there, not because they police it |
+| `src/views/__tests__` | ✅ **420 passed / 1 failed**, the one failure the recorded date-dependent case in `schedulingWrites.test.tsx` (§7 item 18, **I19**) |
+| `npm run build` | ✅ exit 0, **4.19 s**; the pre-existing chunk-size warning is unchanged (**I6**) |
+| Full suite | ✅ **1 868 passed / 2 failed of 1 870** — the two failures the recorded environmental pair: the branch-name case at `projectState.test.ts:299` (§7 item 16) and **I19**'s date-dependent case (§7 item 18). **Neither is a compensation regression** — both reproduce on the pre-UI tree, and no commit in this chain touches the seed, the clock, the store or the scheduling domain |
+| Group A / Group D / the domain | ✅ untouched and green — `git diff --name-only f0bdecd..79ec13d` lists **no** file under `src/domains/scheduling/`, `src/domains/attendance/` or `src/domains/compensation/`, so Group A (211), Group D (79) and the domain's 121 cases are unchanged |
+| Scope of the diffs | ✅ `fc83d6d` 7 files / +2 243 / −1, `79fd44e` 2 files / +197 / −28, `79ec13d` 7 files / +478 / −81; `git diff --check` clean; nothing under `src/domains/`, `src/services/`, `src/api/` or `src/context/` changed |
+| Acceptance audit | ❌ **none ran, and none is claimed.** The hardening list came from an internal read-only audit by the implementer, whose ten findings are recorded in [PHASES.md](PHASES.md) → the workstream section: nine closed with cases, and **S-6** left open as **I21** |
+| Mutation / reversion checks | ⚠️ the implementer's own, recorded in the packages' change reports (a reversion check of the surface's files against its suite, and mutation proofs at the count-state and hardening packages, each restored byte-identically against a recorded sha256 baseline). **No independent audit re-measured them**, and this documentation pass does not either |
+| Browser QA | ❌ **NOT VERIFIED** (§5) — the surface is jsdom-verified only. A sandbox preview served it over HTTP during development; that is not a browser-QA pass and is not reported as one |
+| Remote | ✅ the three commits were pushed as fast-forwards after `f0bdecd` and verified with `git ls-remote`; §2's rule applies to this documentation commit in exactly the same way |
+
 ### Compensation P1 validation (measured at `a21311d7e32c82e3a46b1581c94f6b3478bf646c`, the workstream's single implementation checkpoint)
 
 Class Compensation P1 landed in **one** product commit on top of M7's documentation reconciliation
@@ -759,7 +821,7 @@ this documentation pass**, with `dist/` present so nothing skipped for want of a
 | Scope of the diffs | ✅ **18 files, 2 976 insertions / 0 deletions**: the new `src/domains/compensation/` (five sources + README + five test files) plus **seven** existing files, every one of them **insertions only** — the dataset field and `DEMO_COLLECTIONS` (`src/domains/demo/types.ts`), both canonical datasets (`src/domains/demo/seed.ts`), the collection and its id prefix (`src/services/demoStore.ts`), the reference-integrity rules (`src/domains/demo/backup.ts`), the registry seam (`src/domains/registry.ts`), and the **two additive integration edits the dataset contract required**: one label in the settings panel's total `COLLECTION_LABELS` record (`src/components/settings/DemoDataPanel.tsx`) and the new collection in the seed suite's own `INTENTIONALLY_EMPTY` set (`src/domains/demo/__tests__/seed.test.ts`). No existing line was deleted or rewritten, and `git diff --check` is clean |
 | Documentation gates | ✅ **52** checks in `src/__tests__/projectState.test.ts`, **51 passed / 1 failed** — the failure is the recorded environmental branch-name case (§7 item 16), present before and after this reconciliation |
 | Acceptance audit | ❌ **none ran, and none is claimed.** P1 was not put through the read-only acceptance audit M3 and M4 had, so this record carries no audit findings and no **B**-numbered coverage items |
-| Browser QA | ❌ **NOT VERIFIED** (§5) — and P1 adds nothing to that checklist because it ships no view: the flow has never been seen by a human, in a browser or otherwise |
+| Browser QA | ❌ **NOT VERIFIED** (§5) — and P1 adds nothing to that checklist because it ships no view; at this commit the flow had never been seen by a human, in a browser or otherwise, and the surface that later offered it carries §5's own open item |
 | Remote | ✅ before this pass began, local `HEAD` and `git ls-remote origin refs/heads/arena/01a0a068-parsian-music-dashboard-opus` agreed on `a21311d7e32c82e3a46b1581c94f6b3478bf646c`. §2's rule — verify the remote with the command, never trust a recorded value — applies to this documentation commit exactly as to every other |
 
 **What this evidence does not say.** A green suite is evidence, not a proof of determinism, and this is
@@ -1328,8 +1390,14 @@ honest limit of the evidence: the artifact is verified, the browser behaviour is
 attachment card's image preview has the same shape — the object URL cannot exist in jsdom, so the
 missing-bytes and withheld-affordance states are what is pinned, and the successful-preview state is
 unverified until a human opens `#/messages`. See `docs/production-handoff.md` → "NOT verified". **M7 added three surfaces and the chrome, and it is still open:** the student, teacher and class profiles now resolve their relations through repository reads, and the sidebar computes its one badge from the chat repository — so the academy-day anchoring (the Saturday-first week, the `academyIsoDate()` window), the partial-page notes, the «—» placeholders, the per-class roster and week panels, the rooms panel and the badge's appearance/disappearance at zero are **jsdom-verified only** until this checklist is performed. Written down at M7's documentation pass rather than after its landing, and not discharged by it. **P1 adds no item to this checklist, and that is a statement
-about scope rather than evidence of coverage:** it ships no view, so there is nothing new to open — and
-the compensation flow itself has therefore never been seen by a human, in a browser or otherwise.
+about scope rather than evidence of coverage.** **The UI workstream that followed P1 adds one, and it is
+open:** the compensation surface (`src/views/Compensation.tsx` and
+`src/views/compensation/CompensationDialogs.tsx`) has never been opened in a browser. Its ledger and
+drawer states, its indeterminate counts, its refresh-failure banner, its three dialogs (the bounded
+candidate list, the warning acknowledgement and the Persian Jalali date fields), its move dialog, and
+its focus, Escape and RTL behaviour at tablet/mobile breakpoints are **jsdom-verified only** until this
+checklist is performed. Recorded at the workstream's documentation reconciliation rather than after a
+browser pass, and not discharged by its landing.
 
 ## 6. Protected domains and invariants
 
@@ -1355,6 +1423,7 @@ lists nothing under `src/domains/scheduling/__tests__/`), and all six are green 
 | **The wired Messages surface and its chat contract** (no fixture read, real writes, attachment validation, honest empty/error states, text-only export) | `src/domains/chat/__tests__/conversationLifecycle.test.ts` (16) · `messageAttachments.test.ts` (15) · `src/views/__tests__/messagesConversationManagement.test.tsx` (13) · `messagesStateSafety.test.tsx` (9) · `messagesAttachments.test.tsx` (19) · `messagesConversationExport.test.tsx` (21) · `messagesNoFixtures.test.ts` (13) — added and re-driven at M6 (CP1–CP4), `4e03b8762bebcb87e46cf7044af5da99d709b4d2`. The two Phase 1 regressions in this area (`messagesDatasetRegression.test.tsx`, `MessagesChat.test.tsx`) stayed green and unweakened |
 | **The M7 relation surfaces and the navigation chrome** (relations read from their own domains, no fixture resolver, no `studentIds` roster, no static count in the chrome) | `src/views/__tests__/relationsNoFixtures.test.ts` (17 — the per-surface gate: 5 surfaces enforced, empty deferral ledgers, both-direction rule liveness, the numeric-hint and option-count rules in both digit scripts, `studentIds` as a forbidden relation identifier, and the relapse replays) · `src/views/__tests__/relationsPlumbing.test.ts` (12) · `studentsRelations.test.tsx` (7) · `teachersRelations.test.tsx` (11) · `classesRelations.test.tsx` (13) · `navigationCounts.test.tsx` (7) — added at M7 (CP1–CP4), `f1ec0ddde783aec14d6429ac2457f085f851ad9a`. The milestone's protected suites (`studentProfileRegression`, `StudentCrud`, `StudentDetail`, `Students`, `DomainCrud`, the national-ID matrix, `emptyEnvironment`) stayed green and unweakened |
 | **The compensation contract** (obligation entity with a typed link, derived state, append-only attempt ledger, explicit registration by `schedule.write`, booking through the scheduling verb, lifetime uniqueness per `(original, student)`, at most one live make-up read through the booking's reschedule lineage, and eligibility at the make-up's date disclosed on read and never gated — **D20**) | `src/domains/compensation/__tests__/derive.test.ts` (31) · `demoRepository.test.ts` (38) · `bookingInvariant.test.ts` (10) · `authorization.test.ts` (11) · `datasetContract.test.ts` (15) · `enrollmentEligibility.test.ts` (9) · `useCompensations.test.tsx` (5) · `persianDate.test.ts` (2) — **121** tests in eight files. The first five came with the Class Compensation P1 workstream (`a21311d7e32c82e3a46b1581c94f6b3478bf646c`); `authorization.test.ts` with the write-authorization and uniqueness hardening (`b7a97b325741b1129f6d50a7d067d1aa6459597c`); `bookingInvariant.test.ts` with C-1's at-most-one-live-make-up rule and C-1.1's lineage semantics (`cd91ed6a75a9c053b60e4e9dbbc10e06cf89a291`); `enrollmentEligibility.test.ts` with C-2. Groups A and D are unchanged by all of it: no commit in that chain lists a file under `src/domains/scheduling/` or `src/domains/attendance/`, and `Session`/`SessionStatus` are untouched |
+| **The compensation surface** (no domain rule re-implemented, actions addressed at `currentAttempt.sessionId`, honest count and failure states, the refresh-failure disclosure, the bounded candidate window, the C-2 disclosure rendered and never gated, and one shared Jalali input boundary) | `src/views/__tests__/compensationUi.test.tsx` (16) · `src/__tests__/routeProtection.test.tsx` (9, two of them this surface's) — added at `fc83d6d`, hardened at `79fd44e` and `79ec13d`. **Caveat, recorded rather than smoothed over:** the per-surface gates do **not** enumerate this view (**I21**) |
 | These engineering documents stay truthful | `src/__tests__/projectState.test.ts` |
 
 **Standing engineering invariants** (full rationale in [DECISIONS.md](DECISIONS.md)):
@@ -1564,10 +1633,15 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
 17. **M7's own limitations, none of them closed by declaring the milestone complete.** **The fixtures are not deleted, and their three roles are untouched** — M7 removed *readers*, not data: `src/data/records.ts` and `src/data/academy.ts` still provide entity types, the canonical DEMO seed (`src/domains/demo/seed.ts`) and the fake data other views still render, and the separation is **M10/D5**. **`useStudentList` is still un-keyed** (**I13**, above): M7 reached it from three surfaces and guarded each mount with the consumer-side key the gate now requires, which is a mitigation and not a closure. **The `per_page: 200` ceilings stay** (**I16**): every M7 read states one and every surface distinguishes a partial page from a complete one in its own words, but the ceiling itself is unchanged and no other consumer was touched. **Three views the milestone's original scope named were not in the authorized checkpoints** — `src/views/Messages.tsx` (`messageTemplates`), `src/views/Library.tsx` (`libraryShelves`) and `src/views/Settings.tsx` (`settingsSections`) still import fixture *content*, and the product-wide boundary test the final-phase DoD asks for does not exist yet (**M10**); the same is true of the dashboard insight panels (`src/components/panels/`), which are **M9/H4**. **The command palette's substring matching is untouched** (**L1**): M7 removed the false *numbers* from the hints, not the loose matching behind them. **No acceptance audit ran** for M7, so it carries no audit findings and no **B**-numbered coverage items — the reversion and mutation checks in §4 are the implementer's own measurement. And **browser QA has never run** (§5): the three rewired surfaces and the badge are jsdom-verified only, and no test unmounts and remounts a surface, so "survives a reload" rests on the demo store's single-persistence-authority code path exactly as M3, M5 and M6 recorded for theirs.
 18. **A second environmental failure appeared during M7, and it is date-dependent — recorded, reproduced, and neither M7's nor the product's.** `src/views/__tests__/schedulingWrites.test.tsx` → *"a real reschedule resolving a real conflict"* asserts that, after the move, the class that owned the contested slot holds **exactly one** scheduled session on `TODAY`, where `TODAY = isoOf(academyNow())` follows the **real calendar date** (the demo clock freezes only the time of day, 10:47 — `src/domains/shared/clock.ts`). The demo seed is anchored to the **fixed** `SEED_DATE = 2026-09-01` window (`src/domains/demo/schedulingSeed.ts`), and the fixture gives `cl2` `days: [3]` — **Tuesday**. On 2026-09-15 the sandbox clock reached that weekday for the first time in this milestone's runs, so `cl2`'s *seeded* 14:00 session fell inside the same-day filter alongside the test's own replacement row: `expected [ 'ses_m_…' ] to deeply equal [ 'ses_m_…', 'ses_cl2_20260915_1400' ]`. **It is not a regression and not caused by M7:** the case fails identically on the **pre-CP4 tree** (measured by restoring the pre-CP4 files, sha256-verified, and re-running), and no M7 commit touches `schedulingWrites.test.tsx`, the scheduling domain, the seed, the store or the clock. It did not appear at M6's measurement because that run happened on **Monday 2026-09-14**. The test is **not** modified, skipped, re-timed or weakened to hide it — recorded here and as [OPEN_ITEMS.md](OPEN_ITEMS.md) **I19**, in the protected scheduling area, which M7 was not authorized to change.
 
-19. **Compensation P1's own limitations, none of them closed by declaring the workstream shipped.**
-    **There is no UI and no `apiRepository`** — the five verbs and the read layer have no shipped
-    caller, so the flow is reachable only from tests, and api mode would silently serve the demo
-    implementation for an eleventh domain (**D8**; catalogued as **I20**). **Nothing notifies anyone** —
+19. **The compensation workstream's own limitations, none of them closed by shipping the domain or the
+    surface.** **There is still no `apiRepository`** — the read layer and the three write verbs now have
+    a shipped caller (`src/views/Compensation.tsx`) while the domain's other verbs do not, and api mode
+    still silently serves the demo implementation for an eleventh domain (**D8**; catalogued as
+    **I20**). **The surface is jsdom-verified only** (§5), and the demo still seeds **no compensable
+    case**. **The surface is not named by the per-surface gates** — `relationsNoFixtures`' `SURFACES`,
+    `emptyEnvironment`'s view lists and `writeFeedbackHonesty`'s `GRADUATED_VIEWS` do not include it, so
+    the rules those lists enforce per surface hold by convention rather than by gate (**I21**,
+    deliberately left open). **Nothing notifies anyone** —
     no SMS, no message row, no provider (**D1**, **I7**). **Group and class-wide compensation are
     refused by design:** eligibility is `AcademyClass.kind === "private"`, never roster size, so the
     broader requirement recorded in **I18** is only **partly landed** and I18 stays OPEN. The demo
@@ -1575,13 +1649,15 @@ demo-only material never reaches an EMPTY environment; missing bytes produce an 
     belongs to a group class), so nothing can be exercised by hand; `needsAttention` has no consumer,
     job or badge behind it; there is **no free-slot search** and **no Settings compensation-limit
     rule**; and the same-day/one-hour default is a **prefill** of the original's own date and room
-    rather than an automatic booking. **No mutation check and no reversion check was performed** for
-    the workstream, so unlike M7 this record has no evidence that any particular guard is
-    load-bearing. **Automatic completion of elapsed sessions is a separate workstream: not
+    rather than an automatic booking. **No independent acceptance audit has run** for this workstream,
+    so its record carries no audit findings and no **B**-numbered coverage items: the review that
+    produced the surface's hardening list was the implementer's own read-only audit, and the reversion
+    and mutation checks recorded in the packages' own change reports are the implementer's own
+    measurement, not an independent one. **Automatic completion of elapsed sessions is a separate workstream: not
     implemented, not authorized and deliberately kept out of P1** — the obligation's `completed` is a
     recorded decision on the obligation, and neither `Session` nor `SessionStatus` was touched.
-    **Browser QA has never run** (§5), and P1 adds nothing to that checklist because it ships no view —
-    a statement about scope, not evidence of coverage.
+    **Browser QA has never run** (§5), where the surface's own checklist item is now recorded: the
+    surface is jsdom-verified only, and no browser pass discharges it.
 
 *Two limitations that were listed here were fixed by M2.1 and removed rather than left as stale
 entries: the edit dialogs that opened with an empty draft (**H6**) and the three Settings panels that
@@ -1597,19 +1673,22 @@ was dropped.
 
 ## 9. Immediate next action
 
-**The current state in one line, updated: Class Compensation P1 is ✅ SHIPPED at
-`a21311d7e32c82e3a46b1581c94f6b3478bf646c`** — a **non-milestone workstream** on base `e7a6d72` (M7's
-reconciliation), which is therefore P1's effective safe rollback boundary. It ships the make-up
-obligation domain, its registry seam, its dataset collection and **69 tests in five new files**, with
-**no UI and no `apiRepository`**: nothing in the product offers the flow, and the demo dataset ships no
-compensable case at all, because its only cancelled session belongs to a group class. The
+**The current state in one line, updated: the Class Compensation workstream is ✅ SHIPPED — the domain at
+`a21311d7e32c82e3a46b1581c94f6b3478bf646c` and its secretary surface at `fc83d6d`, hardened by `79fd44e`
+and `79ec13d`** — a **non-milestone workstream** on base `e7a6d72` (P1's effective safe rollback
+boundary) and `f0bdecd` (the surface's). It ships the make-up obligation domain, its registry seam, its
+dataset collection and **69 tests in five new files**, and then the surface with its focused suite and
+route cases — and **still no `apiRepository`, no server and no seeded compensable case**: the demo
+implementation is the only thing answering for the contract, and a hand-run still needs a cancelled
+private session created first. The
 phase-checkpoint row does **not** move (`33b1031`, Phase 2), the M0–M11 sequence is unchanged, **M7
 remains ✅ COMPLETE**, and **M8 (branding application & visual identity, D2) is ❌ NOT STARTED and not
 authorized.**
 
 **P1 is complete *with limitations*, and they are not closed by declaring it shipped.** Preserve them in
-any future report, in full, from §7 item 19: no view and no server, so the five-verb contract and the read
-layer have no shipped caller and api mode would silently serve Demo (**D8**; catalogued as **I20**); no
+any future report, in full, from §7 item 19: no server and no `apiRepository` — the surface and the read
+layer have a shipped caller now, and api mode would still silently serve Demo (**D8**; catalogued as
+**I20**) — plus a surface whose per-surface gate coverage is deliberately still open (**I21**); no
 notification of any kind (**D1**, **I7**); group/class-wide compensation is refused by design
 (`kind === "private"` is the authority), so **I18 stays OPEN and is only PARTLY LANDED**; the
 same-day/one-hour default is a prefill of the original's own date and room, never an automatic booking
@@ -1618,14 +1697,17 @@ mutation and no reversion checks** exist for this workstream, unlike M7's; **aut
 elapsed sessions is a separate workstream — not implemented, not authorized and deliberately kept out
 of P1**; and **browser QA has never run** (§5), on this or any other surface.
 
-**P1's reconciliation is documents-only, and the next work is not authorized.** This pass changes
-**`docs/engineering/` and one domain README — no product source, no test, no dependency**, and it
-re-runs the documentation gate (**51 passed / 1 environmental failure**) against the files it edits.
-Before **M8** begins, the recorded checkpoints must be confirmed against Git (§2 and the recovery
-contract at the end of this file), a green baseline re-established (`npm ci` if `node_modules` is
-absent, then `npm run typecheck`, `npm test`, `git diff --check`, `npm run build`), and **D2 recorded
-first**. The two things P1 left undone are governed by the same rule: a compensation **UI** and a
-**REST implementation** are each unauthorized until the owner says otherwise.
+**This pass is documents-only, and the next work is not authorized.** It changes **`docs/engineering/`
+only — no product source, no test, no dependency, no fixture, no config and no gate** — and it re-runs
+the documentation gate (**51 passed / 1 environmental failure**, the recorded branch-name case) and the
+workstream's own suites against the files it edits. Before **M8** begins, the recorded checkpoints must
+be confirmed against Git (§2 and the recovery contract at the end of this file), a green baseline
+re-established (`npm ci` if `node_modules` is absent, then `npm run typecheck`, `npm test`,
+`git diff --check`, `npm run build`), and **D2 recorded first**. Of the two things P1 left undone, the
+**UI** has since been authorized and built (`fc83d6d`/`79fd44e`/`79ec13d`); a **REST implementation**
+(`apiRepository`), **group/class-wide compensation**, **any coordination flow**, **notifications**,
+**server-side enforcement** and the **per-surface gate coverage recorded as I21** remain unauthorized
+until the owner says otherwise.
 
 **The state at M7's closure, kept for audit: M7 (relation de-fixturing + sidebar badges, I1) is ✅ COMPLETE and
 pushed, implemented across CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6` and CP4 `f1ec0dd` on top of
