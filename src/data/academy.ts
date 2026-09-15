@@ -135,7 +135,13 @@ export const academy = {
 export interface NavDef {
   id: ViewId;
   label: string;
-  badge?: number;
+  /**
+   * A LIVE count is not part of this data. `navGroups` is static product
+   * identity — which sections exist, what they are called — and a number that
+   * claims to be current state does not belong in it (M7). The sidebar reads the
+   * counts it can stand behind from the repositories and passes them to
+   * `NavItem` at render time; see `src/components/layout/Sidebar.tsx`.
+   */
   hint?: string;
 }
 
@@ -162,7 +168,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { id: "classes", label: "کلاس‌ها", hint: "ظرفیت و ثبت‌نام" },
       { id: "schedule", label: "برنامه‌ریزی", hint: "تقویم هفتگی و تعارض‌ها" },
-      { id: "attendance", label: "حضور و غیاب", badge: 3, hint: "۳ کلاس ثبت‌نشده" },
+      { id: "attendance", label: "حضور و غیاب", hint: "ثبت حضور جلسات" },
     ],
   },
   {
@@ -176,7 +182,7 @@ export const navGroups: NavGroup[] = [
   {
     id: "communication",
     label: "ارتباط",
-    items: [{ id: "messages", label: "پیام‌ها", badge: 5, hint: "مدرسین، هنرجویان و اولیا" }],
+    items: [{ id: "messages", label: "پیام‌ها", hint: "مدرسین، هنرجویان و اولیا" }],
   },
   {
     id: "resources",
@@ -436,7 +442,7 @@ export const quickActions: QuickActionDef[] = [
     hint: "بازهٔ زمانی جدید",
     fields: [
       { label: "عنوان کلاس", placeholder: "مثلاً: پیانو گروهی" },
-      { label: "اتاق", placeholder: "انتخاب اتاق", type: "select", options: ["اتاق ۱", "اتاق ۲", "اتاق ۳", "اتاق ۴ (۵۸٪ آزاد)"] },
+      { label: "اتاق", placeholder: "انتخاب اتاق", type: "select", options: ["اتاق ۱", "اتاق ۲", "اتاق ۳", "اتاق ۴"] },
       { label: "روز و ساعت", placeholder: "سه‌شنبه · ۱۶:۰۰" },
       { label: "مدرس", placeholder: "انتخاب مدرس", type: "select", options: ["سارا احمدی", "محمد رضایی", "علی موسوی", "نرگس حسینی"] },
     ],
@@ -458,7 +464,7 @@ export const quickActions: QuickActionDef[] = [
     label: "ارسال پیام",
     hint: "به هنرجو یا مدرس",
     fields: [
-      { label: "گیرندگان", placeholder: "انتخاب گروه", type: "select", options: ["هنرجویان در معرض ریزش (۵)", "مدرسین", "همهٔ هنرجویان پیانو", "والدین کلاس کودکان"] },
+      { label: "گیرندگان", placeholder: "انتخاب گروه", type: "select", options: ["هنرجویان در معرض ریزش", "مدرسین", "همهٔ هنرجویان پیانو", "والدین کلاس کودکان"] },
       { label: "متن پیام", placeholder: "سلام، یادآوری می‌کنیم که…" },
     ],
     success: "پیام در صف ارسال قرار گرفت",
@@ -501,11 +507,11 @@ export const freeSlotsTuesday = [
 /** Verb-first commands — "چه کاری می‌خواهید انجام دهید؟" */
 export const commandVerbs: { id: string; label: string; hint: string; target: Target }[] = [
   { id: "cv1", label: "مشاهدهٔ کلاس‌های امروز", hint: "برنامه‌ریزی · امروز", target: { view: "schedule" } },
-  { id: "cv2", label: "فاکتورهای سررسید گذشته", hint: "مالی · ۳ مورد", target: { view: "finance", filter: "overdue" } },
+  { id: "cv2", label: "فاکتورهای سررسید گذشته", hint: "مالی · سررسید گذشته", target: { view: "finance", filter: "overdue" } },
   { id: "cv3", label: "برنامهٔ مدرس فردا", hint: "مدرسین · غیبت فردا", target: { view: "teachers", filter: "absent-tomorrow" } },
-  { id: "cv4", label: "گزارش درآمد", hint: "گزارش‌ها · ۶ ماه", target: { view: "reports", id: "rp5" } },
-  { id: "cv5", label: "ثبت حضور و غیاب امروز", hint: "حضور · ۳ کلاس ثبت‌نشده", target: { view: "attendance", filter: "pending" } },
-  { id: "cv6", label: "هنرجویان در معرض ریزش", hint: "هنرجویان · ۵ نفر", target: { view: "students", filter: "at-risk" } },
+  { id: "cv4", label: "گزارش درآمد", hint: "گزارش‌ها · بازهٔ شش‌ماهه", target: { view: "reports", id: "rp5" } },
+  { id: "cv5", label: "ثبت حضور و غیاب امروز", hint: "حضور · کلاس‌های ثبت‌نشده", target: { view: "attendance", filter: "pending" } },
+  { id: "cv6", label: "هنرجویان در معرض ریزش", hint: "هنرجویان · در معرض ریزش", target: { view: "students", filter: "at-risk" } },
 ];
 
 export const nlCommands: NLCommand[] = [

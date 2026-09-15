@@ -5,6 +5,7 @@ import { useAuth } from "@/domains/auth/AuthContext";
 import { roleLabels } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
 import { NavItem } from "@/components/ds/blocks";
+import { useConversations } from "@/domains/chat/useChat";
 import { cn } from "@/utils/cn";
 
 export const navIcons: Record<ViewId, LucideIcon> = {
@@ -63,17 +64,72 @@ function Roles() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* The counts the navigation may show                                  */
+/* ------------------------------------------------------------------ */
+
+/** Rows per badge read. Stated, never inherited from the API default. */
+const NAV_BADGE_PER_PAGE = 200;
+
+/**
+ * Where a navigation badge comes from, and when it is allowed to exist.
+ *
+ * `navGroups` is static product identity: which sections exist and what they
+ * are called. It used to carry two numbers as if they were current state — a
+ * «۳» on حضور و غیاب with the hint «۳ کلاس ثبت‌نشده», and a «۵» on پیام‌ها —
+ * and neither was measured by anything. A badge is a claim about NOW, so it is
+ * read from the repository that owns the fact, at render time:
+ *
+ *   - `messages`: the sum of `unread` over the conversation list the chat
+ *     repository returns for this operator. That is the fact the number means,
+ *     it is scoped to the viewer's own threads, and it moves when a thread is
+ *     opened (the repository clears the counter) because every persisted write
+ *     bumps the data version these reads refresh on.
+ *
+ * WHAT IS DELIBERATELY ABSENT
+ *
+ *   There is no `attendance` badge. "N classes unrecorded" would need to know,
+ *   for each of today's sessions, whether a register exists — and the attendance
+ *   domain exposes no scoped, pageable query for that. Its only set-shaped
+ *   answer, `sessionIdsWithAttendance()`, is the whole table's id set, built as
+ *   a one-directional protection seam for the scheduling planner, not a bounded
+ *   read a navigation chrome may make; counting over a page of attendance rows
+ *   instead would silently under-report for any academy whose trail exceeds one
+ *   page. Inventing an aggregate the domain does not offer is out of scope (M7),
+ *   so the hint beside the item now names the section's subject and claims no
+ *   number at all.
+ *
+ * A badge with nothing measured behind it is not rendered: while a read is in
+ * flight or failed it knows nothing, and a partial page under-reports, so both
+ * states say nothing rather than something wrong.
+ */
+function useNavBadges(): Partial<Record<ViewId, number>> {
+  const conversations = useConversations({ per_page: NAV_BADGE_PER_PAGE });
+  const complete = !conversations.loading && !conversations.error && conversations.total === conversations.items.length;
+  const unread = conversations.items.reduce((total, row) => total + row.unread, 0);
+  return useMemo(() => {
+    if (!complete || unread <= 0) return {};
+    return { messages: unread };
+  }, [complete, unread]);
+}
+
 export function SidebarContent({
   collapsed = false,
   onClose,
   onToggleRail,
   navLabel = "ناوبری اصلی",
+  badges = {},
 }: {
   collapsed?: boolean;
   onClose?: () => void;
   onToggleRail?: () => void;
   /** Distinct per instance so the a11y tree has no ambiguous duplicate landmarks. */
   navLabel?: string;
+  /**
+   * Live counts, resolved once by `Sidebar` from the repositories. An item with
+   * no entry here shows no badge — absence is the honest default, not zero.
+   */
+  badges?: Partial<Record<ViewId, number>>;
 }) {
   const { user, logout, canAccess } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -117,7 +173,7 @@ export function SidebarContent({
                   key={n.id}
                   icon={navIcons[n.id]}
                   label={n.label}
-                  badge={n.badge}
+                  badge={badges[n.id]}
                   active={view === n.id}
                   collapsed={collapsed}
                   onClick={() => {
@@ -201,6 +257,9 @@ export function SidebarContent({
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const { railCollapsed, toggleRail } = useApp();
+  /* Read ONCE per shell, not once per rendered instance: the desktop rail and
+     the wide sidebar are two mounts of the same data. */
+  const badges = useNavBadges();
   return (
     <>
       {/* Desktop: full sidebar at xl, icon rail at lg; collapse state is user-controlled & remembered */}
@@ -212,10 +271,10 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         )}
       >
         <div className="hidden h-full xl:block">
-          <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} />
+          <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} badges={badges} />
         </div>
         <div className="h-full xl:hidden">
-          <SidebarContent collapsed navLabel="ناوبری فشرده" />
+          <SidebarContent collapsed navLabel="ناوبری فشرده" badges={badges} />
         </div>
       </aside>
 
@@ -224,7 +283,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="منو">
           <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
           <aside className="absolute inset-y-0 right-0 w-[86vw] max-w-[320px] animate-sheet-in border-l border-white/[0.06] bg-ink-900 shadow-2xl" style={{ animationName: "sheet-in-rtl" }}>
-            <SidebarContent onClose={onClose} navLabel="ناوبری موبایل" />
+            <SidebarContent onClose={onClose} navLabel="ناوبری موبایل" badges={badges} />
           </aside>
         </div>
       )}

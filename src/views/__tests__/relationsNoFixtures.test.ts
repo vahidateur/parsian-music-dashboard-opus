@@ -197,12 +197,17 @@ const RELATION_IDENTIFIERS = [
   "studentStats",
   "TODAY_INDEX",
   "academyClasses",
+  // Not a fixture export: a FIELD on a fixture collection, and the one §9
+  // forbids outright as a source of truth. Naming it in a view is the roster
+  // built from a denormalized projection, whatever it is called there.
+  "studentIds",
 ] as const;
 
 /** Identifiers above that the fixture module does not export, and why they are here. */
 const RELATION_ALIASES: Record<string, string> = {
   roomById: "rooms.find((r) => r.id === …) — the lookup shape the classes surface uses",
   academyClasses: "`classes` imported under an alias by the students surface",
+  studentIds: "`AcademyClass.studentIds` — the DENORMALIZED display projection (§9); Enrollment is the relationship",
 };
 
 function relationViolations(source: string): string[] {
@@ -229,7 +234,22 @@ const patternFind =
 
 /** Figures and claims that assert a measurement nothing in this build measured. */
 const FABRICATED_FIGURES: readonly Pattern[] = [
-  { pattern: /\bdelta\s*:/, what: "a trend delta nothing measured", probe: "delta: 3.4" },
+  {
+    /*
+      A COMPONENT may not render a trend delta nothing measured. The rule is
+      view-scoped for the same reason the frozen-instant rule is: `@/data/academy`
+      carries the Dashboard's fixture series (`instruments[].delta`), which is the
+      same class of unmeasured figure but belongs to the phase that owns
+      Dashboard/Finance/Reports (OPEN_ITEMS I2) — not to M7's surfaces. On the
+      components M7 does own the rule is unchanged and live: it is what removed
+      `delta: 11` from Students, `delta: 11` from Teachers and `delta: 3.4` /
+      `delta: 2.1` from Classes.
+    */
+    pattern: /\bdelta\s*:/,
+    what: "a trend delta nothing measured",
+    probe: "delta: 3.4",
+    viewOnly: true,
+  },
   { pattern: /\b3_600_000\b|\b3600000\b/, what: "a hardcoded course fee", probe: "{faToman(3_600_000)}" },
   { pattern: /i\s*\*\s*7\s*\+/, what: "a synthesized attendance series", probe: "const seed = (i * 7 + s.attendance) % 10;" },
   { pattern: /عصرها بعد از/, what: "an invented preferred-slot", probe: "<span>عصرها بعد از ۱۶:۰۰</span>" },
@@ -238,6 +258,19 @@ const FABRICATED_FIGURES: readonly Pattern[] = [
     pattern: /options\s*:\s*\[[^\]]*٪/,
     what: "an availability percentage written into a select option",
     probe: 'options: ["اتاق ۱", "اتاق ۴ (۵۸٪ آزاد)"]',
+  },
+  {
+    /*
+      The option lists are chrome copy as well, and they are the other place a
+      number was standing in for a measurement: «هنرجویان در معرض ریزش (۵)» sized
+      a group nobody counted, in a form that cannot count it (the sheet persists
+      nothing and reads no repository). A NAME may contain a digit — «اتاق ۱» is
+      a room — so the rule targets the parenthesised total, in both digit
+      scripts, matching the hint rule above.
+    */
+    pattern: /options\s*:\s*\[[^\]]*\(\s*[\u06F0-\u06F9\d]+\s*\)/,
+    what: "a written-in count inside a select option",
+    probe: 'options: ["هنرجویان در معرض ریزش (۵)", "مدرسین"]',
   },
 ];
 
@@ -267,7 +300,13 @@ const OWN_SOURCE_PATTERNS: readonly Pattern[] = [
 const NAV_COUNT_PATTERNS: readonly Pattern[] = [
   { pattern: /\bbadge\s*:\s*\d/, what: "a static numeric badge", probe: 'badge: 3, hint: "حضور و غیاب"' },
   {
-    pattern: /\bhint\s*:\s*"[^"]*[\u06F0-\u06F9]/,
+    /*
+      A hint may be DERIVED — `hint: \`${faNum(count)} ثبت‌نشده\`` is a live
+      claim and is allowed. What is forbidden is a digit written into the hint
+      itself, in any quoting style: that is a number nobody computed. Both digit
+      scripts are covered, because a count is just as fabricated in Latin digits.
+    */
+    pattern: /\bhint\s*:\s*[\"\'`][^\"\'`]*[\u06F0-\u06F9\d]/,
     what: "a number written into a navigation hint",
     probe: 'hint: "۳ کلاس ثبت‌نشده"',
   },
@@ -470,23 +509,25 @@ const SURFACES: readonly Surface[] = [
   // CP3 turned the teachers surface on: its relations come from the domains, so
   // nothing is deferred and the surface carries no fixture coupling at all.
   relationSurface("teachers", "enforced", [], "src/views/Teachers.tsx"),
-  relationSurface(
-    "classes",
-    "CP4",
-    ["weekSessions", "teacherById(", "delta: 3.4", "delta: 2.1"],
-    "src/views/Classes.tsx",
-  ),
+  // CP4 turned the classes surface on: the roster and the seat counts are the
+  // enrollment relation, the instructor and the studio are the teachers and
+  // rooms repositories, and the week is a windowed session read.
+  relationSurface("classes", "enforced", [], "src/views/Classes.tsx"),
   {
     id: "navigation",
     scope: "navigation",
-    stage: "CP4",
-    // The nav badge, the count in its hint, and the command hints that carry the
-    // same claim. `navGroups` itself is static product identity and stays; the
-    // NUMBERS in it are what CP4 must make real or remove.
-    pendingBecause: ["badge: 3", "badge: 5", "۳ کلاس ثبت‌نشده", "۵۸٪ آزاد", "مالی · ۳ مورد"],
+    stage: "enforced",
+    // `navGroups` itself is static product identity and stays; the NUMBERS are
+    // gone from it. CP4 made the one count it could stand behind real — the
+    // messages badge, summed from the conversation rows the chat repository
+    // returns — and removed the rest: the attendance badge and its «۳ کلاس
+    // ثبت‌نشده» hint (no scoped attendance query exists to answer it), the
+    // command hints that asserted counts, and the room option's availability
+    // percentage.
+    pendingBecause: [],
     files: [ACADEMY_FILE, "src/components/layout/Sidebar.tsx"],
-    enforcedRules: [...ALWAYS_ON_RULES],
-    stagedRules: [...NAVIGATION_STAGED_RULES],
+    enforcedRules: [...SCOPE_RULES["navigation"]],
+    stagedRules: [],
   },
 ];
 
@@ -536,6 +577,12 @@ interface GuardRequirement {
     file: string;
     /** The read made through the un-keyed hook. */
     read: string;
+    /**
+     * The key that varies with what the surface is showing. Giving it to the
+     * un-keyed read is exactly how the stale frame is produced, so the read's
+     * arguments may not mention it.
+     */
+    selectionKey: string;
     /** The consumer-local identity that keeps that read's state per selection. */
     mustContain: string[];
   };
@@ -563,6 +610,32 @@ const GUARD_REQUIREMENTS: readonly GuardRequirement[] = [
     guard: {
       file: "src/views/Teachers.tsx",
       read: "useStudentList",
+      selectionKey: "teacherId",
+      mustContain: ["key={detail.id}"],
+    },
+  },
+  {
+    /*
+      CP4 carries the SAME requirement for the class surface, for the same
+      reason: the roster is students filtered by class membership, read through
+      the hook that has no render-time query-identity invariant. The class
+      surface honours it the same way — membership from the KEY-SAFE
+      class-scoped enrollment read, rows resolved by id, and a fresh instance per
+      class — so the guard is recorded here too, and fails if either half is
+      dropped.
+    */
+    surfaceId: "classes",
+    checkpoint: "CP4",
+    requirement:
+      "the roster-of-a-class relation needs the same CONSUMER-side key guard as the teacher surface: " +
+      "`useStudentList` can commit one frame with the previous query's rows and `loading === false` " +
+      "(OPEN_ITEMS I13). CP4 keeps the read un-keyed, takes membership from the class-scoped enrollment " +
+      "read and mounts the detail per class; fixing the shared hook is a separate issue and not part of M7.",
+    unsafeHook: { file: "src/domains/students/useStudents.ts", keyInvariantMarker: "useResourceList" },
+    guard: {
+      file: "src/views/Classes.tsx",
+      read: "useStudentList",
+      selectionKey: "classId",
       mustContain: ["key={detail.id}"],
     },
   },
@@ -629,8 +702,14 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
     // CP3 turned the teachers surface on — every relation it renders is a
     // repository read, and the deferral ledger below is empty.
     expect(surfaceById("teachers").stage).toBe("enforced");
-    expect(surfaceById("classes").stage).toBe("CP4");
-    expect(surfaceById("navigation").stage).toBe("CP4");
+    // CP4 turned the last two on: every M7 surface is enforced, and no deferral
+    // ledger is allowed to stay behind.
+    expect(surfaceById("classes").stage).toBe("enforced");
+    expect(surfaceById("navigation").stage).toBe("enforced");
+    expect(
+      SURFACES.filter((surface) => surface.stage !== "enforced").map((surface) => surface.id),
+      "M7 is fully enforced; re-opening a deferral must be an explicit edit here, not a quiet stage change",
+    ).toEqual([]);
   });
 
   it("every rule still detects what it names", () => {
@@ -651,11 +730,21 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
         `pattern 「${entry.what}」 did not fire on its own probe — it protects nothing`,
       ).toBe(true);
     }
-    // And the view-scoped pattern is scoped in BOTH directions: it fires on a
-    // component and is silent on the module that defines the constant.
-    const frozenInstant = OWN_SOURCE_PATTERNS.find((entry) => entry.what === "the frozen demo instant")!;
-    expect(patternFind([frozenInstant])(frozenInstant.probe, "src/views/Students.tsx")).not.toEqual([]);
-    expect(patternFind([frozenInstant])(ACADEMY_SOURCE, ACADEMY_FILE)).toEqual([]);
+    // And every view-scoped pattern is scoped in BOTH directions: it fires on a
+    // component and is silent on the data modules, which legitimately carry the
+    // fixture series a later phase still renders.
+    const viewScoped = ALL_PATTERNS.filter((entry) => entry.viewOnly);
+    expect(viewScoped.length, "the gate must still scope something to components").toBeGreaterThanOrEqual(2);
+    for (const entry of viewScoped) {
+      expect(
+        patternFind([entry])(entry.probe, "src/views/Classes.tsx"),
+        `view-scoped pattern 「${entry.what}」 did not fire on a component — it protects nothing`,
+      ).not.toEqual([]);
+      expect(
+        patternFind([entry])(ACADEMY_SOURCE, ACADEMY_FILE),
+        `view-scoped pattern 「${entry.what}」 must not speak about a data module`,
+      ).toEqual([]);
+    }
   });
 
   it("reads the fixture modules' own exports, so a fixture added later is covered", () => {
@@ -667,9 +756,9 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
     }
     expect(FORBIDDEN_ACADEMY_VALUES).toContain("schedule");
     expect(FORBIDDEN_ACADEMY_VALUES).toContain("quickActions");
-    // The two allowed names that are not exports of the fixture module are here
-    // for a reason, and the reason is named.
-    expect(Object.keys(RELATION_ALIASES).sort()).toEqual(["academyClasses", "roomById"]);
+    // The names that are not exports of the fixture module are here for a
+    // reason, and each reason is named.
+    expect(Object.keys(RELATION_ALIASES).sort()).toEqual(["academyClasses", "roomById", "studentIds"]);
     for (const name of RELATION_IDENTIFIERS) {
       if (name in RELATION_ALIASES) continue;
       expect(
@@ -770,6 +859,64 @@ describe("a surface that relapses is caught by the rules it is enforced on", () 
   });
 });
 
+describe("a surface that relapses is caught by the rules it is enforced on", () => {
+  /**
+   * Replays a relapse against a surface's own enforced rules: the source that
+   * really exists, plus one reintroduced coupling. A relapse nobody catches is a
+   * rule that stopped protecting anything, which is the failure this reports.
+   */
+  const replay = (surfaceId: string, relapses: readonly { what: string; source: string }[]) => {
+    const surface = surfaceById(surfaceId);
+    const source = surface.files.map(sourceOf).join("\n");
+    for (const relapse of relapses) {
+      const found = hits(surface.enforcedRules, `${source}\n${relapse.source}`, surface.files[0]);
+      expect(
+        found.map(describeHit).join("\n"),
+        `${surfaceId}: reintroducing ${relapse.what} was not caught: 「${relapse.source}」`,
+      ).not.toBe("");
+    }
+  };
+
+  it("rejects every coupling CP4 retired from the classes surface", () => {
+    replay("classes", [
+      { what: "the fixture template", source: 'import { weekSessions } from "@/data/records";' },
+      { what: "the teacher resolver", source: 'import { teacherById } from "@/data/records";' },
+      { what: "the fixture student collection", source: 'import { students } from "@/data/records";' },
+      { what: "the fixture room array", source: 'import { rooms } from "@/data/records";' },
+      {
+        what: "the denormalized roster projection",
+        source:
+          'import { students } from "@/data/records";\nconst roster = students.filter((s) => c.studentIds.includes(s.id));',
+      },
+      { what: "the projection on its own", source: "const memberIds = new Set(c.studentIds);" },
+      {
+        what: "an aliased room array",
+        source: 'import { rooms as academyRooms } from "@/data/records";\nconst room = academyRooms.find((r) => r.id === c.roomId);',
+      },
+      { what: "a fixture relation named without importing it", source: "const rows = weekSessions.filter((w) => w.classId === c.id);" },
+      { what: "the class resolver named without importing it", source: "const cl = classById(id);" },
+      { what: "the seat-occupancy trend delta", source: "const stat = { label: 'اشغال صندلی', value: 'x', delta: 3.4 };" },
+      { what: "the attendance trend delta", source: "const stat = { label: 'میانگین حضور', value: 'x', delta: 2.1 };" },
+      { what: "an unwindowed session read", source: "const read = useSessions({ classId: c.id });" },
+      { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the wall clock", source: "const weekStart = new Date();" },
+    ]);
+  });
+
+  it("rejects every fabricated number CP4 retired from the navigation chrome", () => {
+    replay("navigation", [
+      { what: "the attendance badge", source: 'items: [{ id: "attendance", label: "حضور و غیاب", badge: 3 }],' },
+      { what: "the messages badge", source: 'items: [{ id: "messages", label: "پیام‌ها", badge: 5 }],' },
+      { what: "the unrecorded-classes hint", source: 'items: [{ id: "attendance", label: "حضور و غیاب", hint: "۳ کلاس ثبت‌نشده" }],' },
+      { what: "the overdue-invoice hint", source: 'const c = { id: "cv2", label: "x", hint: "مالی · ۳ مورد" };' },
+      { what: "the at-risk-students hint", source: 'const c = { id: "cv6", label: "x", hint: "هنرجویان · ۵ نفر" };' },
+      { what: "the room availability percentage", source: 'options: ["اتاق ۱", "اتاق ۴ (۵۸٪ آزاد)"]' },
+      { what: "the browser storage seam", source: 'localStorage.setItem("nav", "1");' },
+      { what: "a wall-clock read", source: "const when = Date.now();" },
+    ]);
+  });
+});
+
 describe("the plumbing this checkpoint adds is held to the rules from day one", () => {
   it("the day primitive reads the academy clock and nothing else", () => {
     const source = sourceOf("src/views/relations/academyDay.ts");
@@ -816,8 +963,8 @@ describe("the guards a checkpoint agrees to are kept after the checkpoint lands"
       for (const args of reads) {
         expect(
           args.replace(/\s+/g, " "),
-          `${entry.surfaceId} keys ${entry.guard.read} on the selected teacher — a params change is the frame the un-keyed hook leaks`,
-        ).not.toMatch(/teacherId/);
+          `${entry.surfaceId} keys ${entry.guard.read} on 「${entry.guard.selectionKey}」 — a params change is the frame the un-keyed hook leaks`,
+        ).not.toContain(entry.guard.selectionKey);
       }
 
       // Second: the surface must still identify that read's owner locally, rather
