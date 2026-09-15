@@ -511,9 +511,11 @@ them narrowing what this item records:
   **What this does not narrow:** nothing in the requirement above — group and class-wide compensation, any
   coordination flow (including "no slot can be agreed") and every notification stay unbuilt, the demo
   still seeds no compensable case, there is still no server and no `apiRepository`, the per-surface gate
-  coverage is deliberately still open (**I21**), and browser QA has never run. Nine findings of the
-  surface's own audit are recorded closed in [PHASES.md](PHASES.md) → the workstream section; the tenth
-  is **I21**.
+  coverage was deliberately left open (**I21**) and **has since been closed** by
+  `bf8bd91150d6fca3392115c7eccd6c738e9091ee` (the surface's own dedicated boundary gate — see I21
+  below), and browser QA has never run. Nine findings of the
+  surface's own audit are recorded closed in [PHASES.md](PHASES.md) → the workstream section; the tenth,
+  **I21**, is closed by the same commit.
 
 **Still unbuilt, and why this item stays OPEN:** group and class-wide compensation (the requirement's
 own subject beyond private one-to-one lessons), any coordination flow beyond a form the operator fills —
@@ -562,10 +564,12 @@ flow is offered (**D8**) — and the demo dataset still ships **no compensable c
 (`sessionCompensations: []`, and its only cancelled session belongs to a group class), so a hand-run
 still needs a cancelled private session created first. **The server clause is untouched:** the
 permission gate, the lifetime `(original, student)` uniqueness and the single-row roster claim are still
-client-side, and server-side enforcement in one transaction remains owed. What the surface also does
-**not** have is per-surface gate coverage — recorded as **I21** below rather than implemented.
+client-side, and server-side enforcement in one transaction remains owed. **Update (2026-09-16, the
+S-6 gate):** that last clause has since been discharged — the surface has its own dedicated boundary
+gate and **I21** is closed at `bf8bd91150d6fca3392115c7eccd6c738e9091ee`; every other clause of this
+item, and the server clause, is untouched.
 
-### I21. The compensation surface is not named by the per-surface gates (found 2026-09-16, during the UI workstream's own read-only audit — finding **S-6**)
+### I21. The compensation surface is not named by the per-surface gates (found 2026-09-16, during the UI workstream's own read-only audit — finding **S-6**) — ✅ CLOSED (2026-09-16: by `bf8bd91150d6fca3392115c7eccd6c738e9091ee`)
 **The surface is pinned by its own suite and by the gates that scan every view, and by nothing
 list-driven beyond that.** What covers it today: `src/views/__tests__/compensationUi.test.tsx` (16 cases
 — the ledger's loading / empty / error states and the copy that distinguishes them, the indeterminate
@@ -587,6 +591,33 @@ the attendance/chat milestones did. **Deliberately not done here:** those are ga
 test-list changes, i.e. exactly the work the UI workstream's authorization excluded, so this item
 records the gap instead of closing it. Evidence: the five test files above and
 [PHASES.md](PHASES.md) → the workstream section's **S-6** entry.
+
+**Status (2026-09-16, the S-6 gate — this item is CLOSED).** The coverage the done-when clause asks for now
+exists, in the form chosen when the gap was designed: a **dedicated list-driven boundary gate in a new
+file**, `src/views/__tests__/compensationNoFixtures.test.ts` (*test(compensation): add dedicated UI
+boundary gate* — one file, 768 insertions / 0 deletions, **40 cases**), rather than registrations added to
+the protected per-surface lists — editing `relationsNoFixtures`' `SURFACES`, `emptyEnvironment`'s view
+lists or `writeFeedbackHonesty`'s `GRADUATED_VIEWS` would change gates this workstream is not authorized
+to change. The gate discovers the surface's own boundary (`src/views/Compensation.tsx`, everything under
+`src/views/compensation/` and `src/views/shared/jalaliInput.ts`) and asserts the discovery itself — the
+exact file set, existence, non-emptiness and a ≥3-file floor — so a **zero-file scan fails** instead of
+passing. Twelve rules are enforced in asserted order, each with its own mutation probe so no rule is
+vacuous: `fixture-import`, `fixture-identifier`, `own-source-of-truth`, `unbounded-read`,
+`fabricated-figure`, `timer`, `hardcoded-iso-date`, `effective-session-target`, `permission-boundary`,
+`dialog-owned-feedback`, `roster-disclosure-not-a-gate` and `read-failure-honesty`. Measured at the
+landing: the new gate **40/40**; the eleven-file batch **172/172**; the full suite **1 908 passed /
+2 failed of 1 910** — exactly the gate's 40 cases over the 1 870 baseline, the two failures the recorded
+environmental pair; `npm run typecheck` clean; `npm run build` exit 0 (4.06 s); sixteen source mutations
+and two discovery proofs killed, each reporting the rule that owns it, with every source file restored
+byte-identically against recorded sha256 baselines. **What the closure does not claim:** the three fixed
+lists above still do not enumerate this surface, and six further **gate-architecture** gaps found while
+building the gate are **deferred, not fixed** — `architectureBoundaries`' demoStore/URL import rules are
+string-blind, `relationsNoFixtures`' `surfaceFiles()` assumes a basename and case this directory breaks,
+`useCompensations` is missing from **both** page-size catalogues, `src/views/shared/jalaliInput.ts` is
+owned by no per-surface gate, the success-toast ratchet accepts any `get*Repository(`, and no
+repository-refusal coverage exists for any compensation verb. (Findings about the global gates — **not**
+the milestones M1–M7.) The full record is [PHASES.md](PHASES.md) → the workstream section's S-6 entry and
+[PROJECT_STATE.md](PROJECT_STATE.md) §4 → "S-6 boundary gate validation".
 
 ### I2. Finance and Reports have no domain layer
 `src/views/Finance.tsx` and `src/views/Reports.tsx` are fixture renderers with no
