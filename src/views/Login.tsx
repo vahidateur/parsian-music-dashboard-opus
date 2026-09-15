@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, Eye, EyeOff, ShieldAlert, TriangleAlert } from "lucide-react";
-import { academy } from "@/data/academy";
+import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
 import { isDemoMode } from "@/api/config";
@@ -39,6 +39,12 @@ import { cn } from "@/utils/cn";
  */
 export function LoginView() {
   const { login, pending, error, clearError } = useAuth();
+  /*
+    The academy's own name and tagline (D2 / M8). The login screen is the first
+    surface a visitor sees, so it renders the persisted identity — the branding
+    domain's record — and not the demo fixture it used to read.
+  */
+  const { branding } = useBranding();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
@@ -135,7 +141,7 @@ export function LoginView() {
           </div>
 
           <p className="text-[11px] text-ink-500">
-            © {new Date().getFullYear()} {academy.name}
+            © {new Date().getFullYear()} {branding.academyName}
           </p>
         </section>
 
@@ -153,7 +159,7 @@ export function LoginView() {
               style={{ background: "rgba(10,12,18,0.42)", backdropFilter: "blur(28px)" }}
             >
               <div className="mb-7">
-                <div className="text-[11px] font-medium tracking-wide text-gold-400">{academy.tagline}</div>
+                <div className="text-[11px] font-medium tracking-wide text-gold-400">{branding.tagline}</div>
                 <h1 className="mt-2 text-[24px] font-semibold leading-tight text-ink-50">خوش آمدید</h1>
                 <p className="mt-2 text-[12.5px] leading-relaxed text-ink-300">
                   برای ورود به پنل مدیریت، اطلاعات حساب خود را وارد کنید.

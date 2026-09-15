@@ -6,6 +6,7 @@ import { defaultViewFor } from "@/domains/auth/permissions";
 import { LoginView } from "@/views/Login";
 import { SessionGuard } from "@/security/SessionGuard";
 import { DataLifecycleGate } from "@/components/lifecycle/DataLifecycleGate";
+import { useApplyBranding, useBranding } from "@/domains/branding/useBranding";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -179,6 +180,22 @@ function ConfigGate({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Applies the persisted academy identity to the document root.
+ *
+ * Placement is the point: it sits BELOW `DataLifecycleGate` (branding is a
+ * domain read, so the environment has to be decided first) and ABOVE
+ * `AuthProvider` and every surface, because the login screen carries the same
+ * identity as the shell. The read is the branding domain's own hook and the
+ * write is its existing tested seam, `useApplyBranding` — the app never touches
+ * the CSS layer itself (docs/engineering/DECISIONS.md, D2).
+ */
+function BrandingApplication() {
+  const { branding } = useBranding();
+  useApplyBranding(branding);
+  return null;
+}
+
+/**
  * Boot order matters:
  *
  * 1. `ConfigGate` — refuse to run on a misconfigured data source.
@@ -195,6 +212,7 @@ export default function App() {
   return (
     <ConfigGate>
       <DataLifecycleGate>
+        <BrandingApplication />
         <AuthProvider>
           <AuthGate />
         </AuthProvider>

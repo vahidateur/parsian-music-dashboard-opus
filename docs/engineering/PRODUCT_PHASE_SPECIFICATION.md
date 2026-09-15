@@ -820,8 +820,9 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Dependencies.** ✅ **D2 recorded 2026-09-16** — the shipped default name is «آموزشگاه موسیقی
   پارسیان» (`DEFAULT_BRANDING.academyName`, `src/domains/branding/types.ts:54`), so M8 renames nothing;
   the fixture name on screen («آکادمی موسیقی آوا») is demo seed material to be replaced by
-  `branding.academyName`. M7 (fixtures out of the shell) is ✅ landed. **M8 itself is not yet
-  authorized** — a recorded decision is not a work order.
+  `branding.academyName`. M7 (fixtures out of the shell) is ✅ landed. **M8 was authorized by the owner
+  on 2026-09-16** and implemented in the single checkpoint that carries this paragraph, whose SHA is
+  registered by the documentation checkpoint that follows it (the no-self-reference rule below).
 - **Protected areas.** CSP: writes must stay in the CSSOM — `style-src 'self'` with
   `style-src-attr 'unsafe-inline'` as the *one* narrow exception
   (`deploy/nginx.conf:174-178`, `deploy/Caddyfile:40-42`); the existing injection guard
@@ -838,16 +839,19 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   `BrandingSettings` model.
 - **Checkpoint & rollback.** Phase checkpoint — the visual blast radius is the whole design system — so
   the boundary below is what a rollback returns to. **Corrected 2026-09-16, before M8 starts:** M7's last
-  *product* commit remains `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, but the Class Compensation
-  workstream and the documentation passes that followed it landed after M7, so the boundary the earlier
-  note named — M7's reconciliation, `e7a6d72` — is superseded. The commit M8 is built on, and therefore
-  M8's **effective safe rollback boundary**, is `9fcf00891d07db18c718296ccaddc79919c793c1`, the
-  **twenty-fourth documentation checkpoint** (the **I21** closure and the S-6 boundary-gate
-  registration): rolling back to it drops M8 entirely and keeps M7, the Class Compensation workstream
-  and its boundary gate. Documentation commits newer than it — the **D2** record among them — sit
-  between it and the tip, are named one pass behind by [PHASES.md](PHASES.md)'s ledger, and
-  `git log --oneline -- docs/engineering` remains the authority for the tip M8 will actually be built on
-  ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule and §12 of this document).
+  *product* commit remains `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, but every checkpoint after it —
+  the Class Compensation workstream and the documentation passes that registered it — supersedes the
+  boundary the earlier note named (M7's reconciliation, `e7a6d72`). The commit M8 is built on is
+  `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`, **the twenty-sixth documentation checkpoint** (the
+  documents-only pass that reconciled this paragraph), and it is therefore M8's **effective safe
+  rollback boundary**. Immediately behind it sits
+  `3acb5f3be275a67726376adbfed3f3fdf2f1282b`, **the twenty-fifth** — the **D2** record, and the
+  checkpoint the owner authorized M8 against — with
+  `9fcf00891d07db18c718296ccaddc79919c793c1` (the twenty-fourth: the **I21** closure and the S-6
+  boundary-gate registration) behind that. Rolling back to `a039ab0` drops M8 entirely and keeps M7, the
+  Class Compensation workstream and its boundary gate. This milestone's own SHA cannot appear here
+  ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule and §12 of this document): the
+  documentation checkpoint that follows registers it, and is named by the one after that.
 
 ### M9 — Dashboard insight from live data (**H4**), **I9 guards first**
 

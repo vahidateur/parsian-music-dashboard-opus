@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
-import { academy, navGroups, type ViewId } from "@/data/academy";
+import { navGroups, type ViewId } from "@/data/academy";
+import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { roleLabels } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
@@ -133,6 +134,12 @@ export function SidebarContent({
   badges?: Partial<Record<ViewId, number>>;
 }) {
   const { user, logout, canAccess } = useAuth();
+  /*
+    The academy's own name and tagline (D2 / M8): read from the branding domain,
+    which is the one owner of the identity, instead of the demo fixture that
+    used to be rendered here.
+  */
+  const { branding } = useBranding();
   const [accountOpen, setAccountOpen] = useState(false);
   /* Navigation only shows what the session may actually open. */
   const visibleGroups = useMemo(
@@ -148,8 +155,8 @@ export function SidebarContent({
         <BrandMark />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-ink-50">{academy.name}</div>
-            <div className="truncate text-[11px] text-ink-400">{academy.tagline} · پنل مدیریت</div>
+            <div className="truncate text-sm font-bold text-ink-50">{branding.academyName}</div>
+            <div className="truncate text-[11px] text-ink-400">{branding.tagline} · پنل مدیریت</div>
           </div>
         )}
         {onClose && (
