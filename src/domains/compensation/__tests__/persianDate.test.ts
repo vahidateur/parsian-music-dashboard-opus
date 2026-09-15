@@ -18,11 +18,21 @@ import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { permissionsForRole } from "@/domains/auth/permissions";
+import type { CompensationActor } from "../types";
 import { DemoCompensationRepository } from "../demoRepository";
 
 const PRIVATE_CLASS = "cl2";
 const PRIVATE_STUDENT = "st7";
-const ACTOR = "usr_admin";
+/**
+ * An administrator, from the REAL role matrix: every permission, so the cases in
+ * this file exercise the domain's own rules rather than RBAC. The authorization
+ * refusals have their own file (`authorization.test.ts`).
+ */
+const ACTOR: CompensationActor = {
+  userId: "usr_admin",
+  permissions: permissionsForRole("administrator"),
+};
 /** ۱۴۰۶/۰۱/۱۵ — outside the seeded window, so nothing can collide with it. */
 const JALALI_MAKEUP = "۱۴۰۶/۰۱/۱۵";
 const ISO_MAKEUP = "2027-04-04";
@@ -65,7 +75,7 @@ describe("Jalali dates", () => {
       originalSessionId: original.id,
       studentId: PRIVATE_STUDENT,
       reason: "لغو جلسه",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     const booked = await repo.schedule(compensation.id, {
@@ -75,7 +85,7 @@ describe("Jalali dates", () => {
       roomId: "r3",
       teacherId: "t2",
       acknowledgeWarnings: true,
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     expect(booked.status).toBe("scheduled");
@@ -104,7 +114,7 @@ describe("Jalali dates", () => {
       originalSessionId: original.id,
       studentId: PRIVATE_STUDENT,
       reason: "لغو جلسه",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     // A `null` from the bridge must never reach a session. The scheduling
@@ -115,7 +125,7 @@ describe("Jalali dates", () => {
           date: "",
           startTime: "09:00",
           endTime: "09:30",
-          scheduledByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(SESSION_ERRORS.INVALID);

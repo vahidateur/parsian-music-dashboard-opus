@@ -14,6 +14,7 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
+import { permissionsForRole } from "@/domains/auth/permissions";
 import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
 import { DemoClassRepository } from "@/domains/classes/demoRepository";
 import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
@@ -21,7 +22,9 @@ import { SESSION_ERRORS } from "@/domains/scheduling/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { DemoCompensationRepository } from "../demoRepository";
-import { COMPENSATION_ERRORS } from "../types";
+import { COMPENSATION_ERRORS,
+  type CompensationActor,
+} from "../types";
 
 /** A seeded PRIVATE class with exactly one enrolled student (`st7`). */
 const PRIVATE_CLASS = "cl2";
@@ -31,7 +34,15 @@ const CANCELLED_GROUP_SESSION = "ses_cl10_20260908_1530";
 /** cl2 meets on day index 3 (Tuesday): one date on its own day, one off it. */
 const ON_SCHEDULE_DATE = "2027-05-11";
 const OFF_SCHEDULE_DATE = "2027-05-12";
-const ACTOR = "usr_admin";
+/**
+ * An administrator, from the REAL role matrix: every permission, so the cases in
+ * this file exercise the domain's own rules rather than RBAC. The authorization
+ * refusals have their own file (`authorization.test.ts`).
+ */
+const ACTOR: CompensationActor = {
+  userId: "usr_admin",
+  permissions: permissionsForRole("administrator"),
+};
 
 let repo: DemoCompensationRepository;
 let scheduling: DemoSchedulingRepository;
@@ -80,7 +91,7 @@ async function registered(date = ON_SCHEDULE_DATE) {
     originalSessionId,
     studentId: PRIVATE_STUDENT,
     reason: "لغو جلسهٔ هنرجو",
-    requiredByUserId: ACTOR,
+    actor: ACTOR,
   });
 }
 
@@ -112,7 +123,7 @@ describe("registration follows cancellation, never causes it", () => {
           originalSessionId: created.id,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ORIGINAL_NOT_CANCELLED);
@@ -129,7 +140,7 @@ describe("registration follows cancellation, never causes it", () => {
           originalSessionId: seeded!.id,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.CLASS_NOT_PRIVATE);
@@ -142,7 +153,7 @@ describe("registration follows cancellation, never causes it", () => {
           originalSessionId: "ses_nope",
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ORIGINAL_NOT_FOUND);
@@ -154,7 +165,7 @@ describe("registration follows cancellation, never causes it", () => {
           originalSessionId,
           studentId: PRIVATE_STUDENT,
           reason: "   ",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.REASON_REQUIRED);
@@ -165,7 +176,7 @@ describe("registration follows cancellation, never causes it", () => {
           originalSessionId,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: "",
+          actor: { userId: "", permissions: permissionsForRole("administrator") },
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ACTOR_REQUIRED);
@@ -195,7 +206,7 @@ describe("the affected student is derived and frozen", () => {
           originalSessionId,
           studentId: "st1",
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.STUDENT_MISMATCH);
@@ -233,7 +244,7 @@ describe("the affected student is derived and frozen", () => {
           originalSessionId: created.id,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.NO_AFFECTED_STUDENT);
@@ -256,7 +267,7 @@ describe("attendance on the cancelled original is asked about, not assumed", () 
       sessionId: created.id,
       studentId: PRIVATE_STUDENT,
       status: "present",
-      recordedByUserId: ACTOR,
+      recordedByUserId: ACTOR.userId,
     });
     await scheduling.cancelSession(created.id, "لغو دیرهنگام");
 
@@ -266,7 +277,7 @@ describe("attendance on the cancelled original is asked about, not assumed", () 
           originalSessionId: created.id,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ORIGINAL_ATTENDANCE_UNACKNOWLEDGED);
@@ -275,7 +286,7 @@ describe("attendance on the cancelled original is asked about, not assumed", () 
       originalSessionId: created.id,
       studentId: PRIVATE_STUDENT,
       reason: "دلیل",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
       acknowledgedOriginalAttendance: true,
     });
 
@@ -304,14 +315,14 @@ describe("attendance on the cancelled original is asked about, not assumed", () 
       sessionId: created.id,
       studentId: PRIVATE_STUDENT,
       status: "present",
-      recordedByUserId: ACTOR,
+      recordedByUserId: ACTOR.userId,
     });
     await scheduling.cancelSession(created.id, "لغو");
     const compensation = await repo.register({
       originalSessionId: created.id,
       studentId: PRIVATE_STUDENT,
       reason: "دلیل",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
       acknowledgedOriginalAttendance: true,
     });
     expect(compensation.originalStudentAttendance).toBe("present");
@@ -320,7 +331,7 @@ describe("attendance on the cancelled original is asked about, not assumed", () 
     await attendance.correct(marks.data[0].id, {
       status: "absent",
       reason: "اصلاح ثبت",
-      changedByUserId: ACTOR,
+      changedByUserId: ACTOR.userId,
     });
 
     const reread = await repo.get(compensation.id);
@@ -338,7 +349,7 @@ describe("duplicate protection is an invariant", () => {
           originalSessionId: compensation.originalSessionId,
           studentId: PRIVATE_STUDENT,
           reason: "دوباره",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ALREADY_OPEN);
@@ -351,9 +362,9 @@ describe("duplicate protection is an invariant", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
-    await repo.complete(compensation.id, { completedByUserId: ACTOR });
+    await repo.complete(compensation.id, { actor: ACTOR });
 
     expect(
       await codeOf(
@@ -361,11 +372,71 @@ describe("duplicate protection is an invariant", () => {
           originalSessionId: compensation.originalSessionId,
           studentId: PRIVATE_STUDENT,
           reason: "دوباره",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ALREADY_SETTLED);
     expect((await repo.get(compensation.id)).status).toBe("completed");
+  });
+
+  /**
+   * The check-then-write window.
+   *
+   * `register` awaits two reads — the derived roster and the attendance answer —
+   * before it writes, and a second registration for the same pair can complete
+   * inside that window (a double submit, a second tab, any concurrent caller).
+   * The pair is therefore re-checked immediately before `create()`, with no await
+   * in between, which is what makes the lifetime-uniqueness rule hold for this
+   * adapter instead of merely being checked early.
+   *
+   * The seam is the injected scheduling repository: `sessionRoster` is the first
+   * of the two suspension points, so completing a rival registration there puts
+   * the duplicate exactly where a real interleaving would — after this call's
+   * first check, before its write. Nothing about the architecture is bent for the
+   * test: the repository is composed from the same two dependencies it always is.
+   */
+  it("refuses the write when the pair becomes duplicated during the awaited reads", async () => {
+    const originalSessionId = await cancelledPrivateSession();
+    const rival = new DemoCompensationRepository(store, { scheduling, attendance });
+
+    let interleaved = false;
+    // `Object.create` keeps every real verb of the scheduling repository and
+    // shadows only the one read this case needs to interleave on.
+    const racingScheduling = Object.create(scheduling) as DemoSchedulingRepository;
+    racingScheduling.sessionRoster = async (sessionId: string) => {
+      const roster = await scheduling.sessionRoster(sessionId);
+      if (!interleaved) {
+        interleaved = true;
+        // A complete, successful registration for the SAME (original, student),
+        // finished before this call resumes from the await.
+        await rival.register({
+          originalSessionId,
+          studentId: PRIVATE_STUDENT,
+          reason: "ثبت همزمان",
+          actor: ACTOR,
+        });
+      }
+      return roster;
+    };
+    const racing = new DemoCompensationRepository(store, { scheduling: racingScheduling, attendance });
+
+    expect(
+      await codeOf(
+        racing.register({
+          originalSessionId,
+          studentId: PRIVATE_STUDENT,
+          reason: "ثبت دوباره",
+          actor: ACTOR,
+        }),
+      ),
+    ).toBe(COMPENSATION_ERRORS.ALREADY_OPEN);
+
+    // Exactly one obligation exists, and it is the one that won the race — the
+    // late check refused the write rather than merging into an upsert.
+    const rows = store.sessionCompensations.all();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].reason).toBe("ثبت همزمان");
+    expect(interleaved).toBe(true);
   });
 });
 
@@ -378,7 +449,7 @@ describe("booking the make-up", () => {
       date: original.date,
       startTime: original.startTime,
       endTime: "15:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     expect(scheduled.status).toBe("scheduled");
@@ -406,7 +477,7 @@ describe("booking the make-up", () => {
       roomId: "r3",
       teacherId: "t2",
       acknowledgeWarnings: true,
-      scheduledByUserId: "usr_manager",
+      actor: { userId: "usr_manager", permissions: permissionsForRole("manager") },
     });
 
     const session = await scheduling.get(scheduled.currentAttempt!.sessionId);
@@ -426,7 +497,7 @@ describe("booking the make-up", () => {
         date: OFF_SCHEDULE_DATE,
         startTime: "09:00",
         endTime: "09:30",
-        scheduledByUserId: ACTOR,
+        actor: ACTOR,
       }),
     );
     expect(refused).not.toBe("OK");
@@ -441,7 +512,7 @@ describe("booking the make-up", () => {
           startTime: "09:00",
           endTime: "09:05",
           acknowledgeWarnings: true,
-          scheduledByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(SESSION_ERRORS.CONFLICT);
@@ -454,13 +525,13 @@ describe("booking the make-up", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     const second = await repo.schedule(compensation.id, {
       date: ON_SCHEDULE_DATE,
       startTime: "18:00",
       endTime: "19:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     expect(second.attempts).toHaveLength(2);
@@ -479,7 +550,7 @@ describe("booking the make-up", () => {
           startTime: "16:00",
           endTime: "17:00",
           acknowledgeWarnings: true,
-          scheduledByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.CLASS_NOT_PRIVATE);
@@ -491,9 +562,9 @@ describe("booking the make-up", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
-    await repo.complete(compensation.id, { completedByUserId: ACTOR });
+    await repo.complete(compensation.id, { actor: ACTOR });
 
     expect(
       await codeOf(
@@ -501,7 +572,7 @@ describe("booking the make-up", () => {
           date: ON_SCHEDULE_DATE,
           startTime: "18:00",
           endTime: "19:00",
-          scheduledByUserId: ACTOR,
+          actor: ACTOR,
         }),
       ),
     ).toBe(COMPENSATION_ERRORS.ALREADY_SETTLED);
@@ -515,7 +586,7 @@ describe("cancelling the attempt returns the obligation to required", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     const attemptSessionId = scheduled.currentAttempt!.sessionId;
 
@@ -529,7 +600,7 @@ describe("cancelling the attempt returns the obligation to required", () => {
     expect(back.attempts).toHaveLength(1);
     expect(back.attempts[0].sessionId).toBe(attemptSessionId);
 
-    expect(await codeOf(repo.complete(compensation.id, { completedByUserId: ACTOR }))).toBe(
+    expect(await codeOf(repo.complete(compensation.id, { actor: ACTOR }))).toBe(
       COMPENSATION_ERRORS.NOT_SCHEDULED,
     );
 
@@ -537,7 +608,7 @@ describe("cancelling the attempt returns the obligation to required", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "18:00",
       endTime: "19:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     expect(rebooked.status).toBe("scheduled");
     expect(rebooked.attempts).toHaveLength(2);
@@ -550,7 +621,7 @@ describe("cancelling the attempt returns the obligation to required", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     await scheduling.delete(scheduled.currentAttempt!.sessionId);
 
@@ -568,15 +639,17 @@ describe("completion", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
-    const done = await repo.complete(compensation.id, { completedByUserId: "usr_manager" });
+    const done = await repo.complete(compensation.id, {
+      actor: { userId: "usr_manager", permissions: permissionsForRole("manager") },
+    });
     expect(done.status).toBe("completed");
     expect(done.completedAt).toBeTruthy();
     expect(done.completedByUserId).toBe("usr_manager");
 
-    expect(await codeOf(repo.complete(compensation.id, { completedByUserId: ACTOR }))).toBe(
+    expect(await codeOf(repo.complete(compensation.id, { actor: ACTOR }))).toBe(
       COMPENSATION_ERRORS.ALREADY_SETTLED,
     );
   });
@@ -584,7 +657,7 @@ describe("completion", () => {
   it("refuses to discharge an obligation that was never booked", async () => {
     const compensation = await registered();
 
-    expect(await codeOf(repo.complete(compensation.id, { completedByUserId: ACTOR }))).toBe(
+    expect(await codeOf(repo.complete(compensation.id, { actor: ACTOR }))).toBe(
       COMPENSATION_ERRORS.NOT_SCHEDULED,
     );
     expect((await repo.get(compensation.id)).completedAt).toBeUndefined();
@@ -596,7 +669,7 @@ describe("completion", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     // The two facts are independent by design: session lifecycle is a different
@@ -604,7 +677,7 @@ describe("completion", () => {
     const marks = await attendance.list({ studentId: PRIVATE_STUDENT });
     expect(marks.data.filter((m) => m.sessionId === compensation.attempts[0].sessionId)).toHaveLength(0);
 
-    expect((await repo.complete(compensation.id, { completedByUserId: ACTOR })).status).toBe(
+    expect((await repo.complete(compensation.id, { actor: ACTOR })).status).toBe(
       "completed",
     );
   });
@@ -618,16 +691,16 @@ describe("reads and filters", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     await repo.schedule(second.id, {
       date: OFF_SCHEDULE_DATE,
       startTime: "09:00",
       endTime: "09:30",
       acknowledgeWarnings: true,
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
-    await repo.complete(first.id, { completedByUserId: ACTOR });
+    await repo.complete(first.id, { actor: ACTOR });
 
     const byOriginal = await repo.list({ originalSessionId: first.originalSessionId });
     expect(byOriginal.data.map((c) => c.id)).toEqual([first.id]);
@@ -653,7 +726,7 @@ describe("reads and filters", () => {
       date: ON_SCHEDULE_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     await scheduling.cancelSession(scheduled.currentAttempt!.sessionId, "لغو");
 
@@ -677,7 +750,7 @@ describe("reads and filters", () => {
   it("refuses an unknown obligation", async () => {
     expect(await codeOf(repo.get("cmp_nope"))).toBe(COMPENSATION_ERRORS.NOT_FOUND);
     expect(
-      await codeOf(repo.complete("cmp_nope", { completedByUserId: ACTOR })),
+      await codeOf(repo.complete("cmp_nope", { actor: ACTOR })),
     ).toBe(COMPENSATION_ERRORS.NOT_FOUND);
   });
 });

@@ -11,7 +11,9 @@ A compensation is a make-up lesson owed to **one student of a cancelled PRIVATE 
 session**. It is not a status on a session, not a note, and not something cancellation creates by
 itself: cancelling changes nothing except the session, and a person — a secretary, a manager or an
 admin holding `schedule.write` — decides, explicitly, that this student is owed a make-up. A teacher
-cannot register, book or discharge one; that is the permission model, not a convention.
+cannot register, book or discharge one, and that is now **enforced, not merely intended**: all three
+writes refuse an actor without `schedule.write` (`COMPENSATION_FORBIDDEN`), through the existing role
+matrix and `can()` — no second permission was invented (see §4 and the honest boundary in §10).
 
 What does **not** exist yet, and why:
 
@@ -32,7 +34,7 @@ What does **not** exist yet, and why:
 Three decisions decide everything else in this directory:
 
 - **A separate entity, keyed to a session by a typed id.** `SessionCompensationRecord`
-  (`types.ts:119`) carries `originalSessionId`, `classId`, the frozen `studentId`, the `reason` and
+  (`types.ts:120`) carries `originalSessionId`, `classId`, the frozen `studentId`, the `reason` and
   its provenance, an append-only `attempts[]` ledger, and the discharge fields. It is a collection of
   its own rather than a field on `Session` because it must **survive its own fulfilment being
   cancelled** and must be listable and countable on its own. The link is a typed id, never free text
@@ -44,7 +46,7 @@ Three decisions decide everything else in this directory:
   returns the requirement to `required`, and the cancelled attempt stays history* — true with **no
   write, no listener, and no hook inside `cancelSession`**. A stored status would be a second source
   of truth that a protected verb would have to be taught to maintain.
-- **The ledger only grows.** An attempt is a line (`CompensationAttempt`, `types.ts:103`) recording
+- **The ledger only grows.** An attempt is a line (`CompensationAttempt`, `types.ts:104`) recording
   the session it booked, when, and by whom. Lines are never edited and never removed, so the newest
   line *is* the current attempt and there is no pointer that can fall out of step with the history.
 
@@ -52,7 +54,7 @@ Three decisions decide everything else in this directory:
 **decision** — recorded with an actor and a timestamp — while the session status is a lifecycle
 transition owned by scheduling. They can disagree (an attempt still `scheduled` while the obligation
 was discharged, or a discharge whose session was cancelled afterwards), and the read model reports
-both instead of hiding the contradiction (`attemptBroken`, `types.ts:172`).
+both instead of hiding the contradiction (`attemptBroken`, `types.ts:173`).
 
 Eligibility is the **class kind**, never the roster size (DECISIONS, P1). A group class with one
 enrolled student on a quiet week is still a group class and is refused. The roster is used only as a
@@ -67,7 +69,7 @@ enrolled student on a quiet week is still a group class and is refused. The rost
 | `repository.ts` | the `CompensationRepository` interface — five verbs, with the composition, no-auto-registration and uniqueness rules in its header |
 | `demoRepository.ts` | the implementation in use. Every invariant and every operator-facing sentence lives here, never in a view |
 | `useCompensations.ts` | the read layer: the list plus the three verbs, resolved from the registry, re-read after each awaited write |
-| `__tests__/` | five new files, **69 tests** — see §8 |
+| `__tests__/` | six new files, **80 tests** — see §8 |
 
 Resolution happens in `src/domains/registry.ts:231` (`getCompensationRepository`), which returns the
 demo implementation **in both demo and api mode** — the same disclosure scheduling and attendance
@@ -78,8 +80,8 @@ never imports another domain's implementation.
 
 ## 3. The contract — five verbs, and no more
 
-`list` (`repository.ts:53`), `get` (`:56`), `register` (`:64`), `schedule` (`:71`), `complete`
-(`:77`).
+`list` (`repository.ts:75`), `get` (`:78`), `register` (`:86`), `schedule` (`:93`), `complete`
+(`:99`).
 
 **There is deliberately no `reopen` verb.** The owner's rule returns an obligation to `required` when
 its attempt is cancelled before completion, and that is a *derivation* of the attempt's live state —
@@ -91,15 +93,16 @@ Reads are filtered by the **typed link** and by the derived state: `originalSess
 attempt is this session) and `needsAttention` (the current attempt was cancelled or deleted), newest
 requirement first.
 
-Errors are typed values, not thrown strings — `COMPENSATION_ERRORS` (`types.ts:294`):
+Errors are typed values, not thrown strings — `COMPENSATION_ERRORS` (`types.ts:326`):
 `COMPENSATION_NOT_FOUND`, `COMPENSATION_ORIGINAL_NOT_FOUND`, `COMPENSATION_ORIGINAL_NOT_CANCELLED`,
 `COMPENSATION_CLASS_NOT_FOUND`, `COMPENSATION_CLASS_NOT_PRIVATE`, `COMPENSATION_NO_AFFECTED_STUDENT`,
 `COMPENSATION_ROSTER_AMBIGUOUS`, `COMPENSATION_STUDENT_MISMATCH`, `COMPENSATION_REASON_REQUIRED`,
 `COMPENSATION_ORIGINAL_ATTENDANCE_UNACKNOWLEDGED`, `COMPENSATION_ALREADY_OPEN`,
 `COMPENSATION_ALREADY_SETTLED`, `COMPENSATION_NOT_SCHEDULED`, `COMPENSATION_SESSION_ALREADY_LINKED`,
-`COMPENSATION_ACTOR_REQUIRED`. Each carries its own Persian sentence from the demo repository
+`COMPENSATION_ACTOR_REQUIRED`, `COMPENSATION_FORBIDDEN` — sixteen in all. Each carries its own Persian
+sentence from the demo repository
 («جبرانی فقط برای کلاس‌های خصوصی (یک‌به‌یک) ثبت می‌شود.», «دلیل نیاز به جبرانی الزامی است.»), and the three
-roster failures are mapped by `AFFECTED_STUDENT_MESSAGES` (`demoRepository.ts:409`) so the caller
+roster failures are mapped by `AFFECTED_STUDENT_MESSAGES` (`demoRepository.ts:474`) so the caller
 reports the sentence rather than paraphrasing it.
 
 ## 4. Invariants enforced in the repository, never in a view
@@ -109,15 +112,23 @@ reports the sentence rather than paraphrasing it.
   human act.
 - **Only a cancelled private session is eligible** — `ORIGINAL_NOT_CANCELLED`, then
   `CLASS_NOT_PRIVATE`, in the order the operator would ask it. The class kind is **re-checked at
-  booking time** (`:239`), because a class can be archived or have its `kind` edited between
+  booking time** (`:255`), because a class can be archived or have its `kind` edited between
   registration and booking.
-- **The affected student is derived from `sessionRoster` and frozen** (`:182`), never from the
+- **The affected student is derived from `sessionRoster` and frozen** (`:183`), never from the
   class's denormalized `studentIds` and never from a mark: an empty roster is
   `NO_AFFECTED_STUDENT`, two or more is `ROSTER_AMBIGUOUS`, and a different single student is
   `STUDENT_MISMATCH`.
-- **A reason and a named actor are required** (`REASON_REQUIRED`, `ACTOR_REQUIRED`). Provenance is
-  recorded, never treated as authorization — the server enforces who may write; this field records
-  who did.
+- **All three writes are protected operations.** `register`, `schedule` and `complete` take an actor
+  (`{ userId, permissions }`) and refuse one that does not hold **`schedule.write`** —
+  `COMPENSATION_FORBIDDEN`, an `authorization`/403 error — checked with the existing `can()` against
+  the existing role matrix. There is **no compensation-specific permission**, and the check is the
+  first statement of each verb, before any read, so a refused caller cannot use the domain as an
+  existence oracle. A teacher (and an accountant) is therefore refused by the code, not by convention.
+  **The boundary this does not cross is documented in §10**: the permissions travel with the call
+  because the browser is where they are known, so the server must re-derive them from the token.
+- **A reason and a named actor are required** (`REASON_REQUIRED`, `ACTOR_REQUIRED`; `actor.userId`
+  must be non-empty even when the permission is held). Provenance is recorded — the `userId` on the
+  record and on each attempt — and is never the authorization decision: the permission check is.
 - **Uniqueness is the `(originalSessionId, studentId)` pair, for its lifetime**: a second
   registration is `ALREADY_OPEN` while the obligation is open and `ALREADY_SETTLED` once it is
   discharged. `register` is therefore **never an upsert** — a discharged obligation cannot be
@@ -127,7 +138,7 @@ reports the sentence rather than paraphrasing it.
   (`ALREADY_SETTLED`). Attendance on the make-up is **not** required — a discharge is a recorded
   decision, and requiring a register would make it a function of another domain's data.
 - **A session may never be the attempt of two obligations** (`SESSION_ALREADY_LINKED`,
-  `demoRepository.ts:358`).
+  `demoRepository.ts:423`).
 
 ## 5. Booking goes through the scheduling repository
 
@@ -153,10 +164,10 @@ Cancelling a session is **not** blocked by attendance (existing behaviour, uncha
 original can already carry a mark — the lesson partly happened. That is not proof that compensation
 is owed, and it is not something to ignore either: registration is **refused** with
 `ORIGINAL_ATTENDANCE_UNACKNOWLEDGED` unless the caller explicitly acknowledges it, and the
-acknowledgement timestamp is stored (`originalAttendanceAcknowledgedAt`, `types.ts:151`).
+acknowledgement timestamp is stored (`originalAttendanceAcknowledgedAt`, `types.ts:152`).
 
 The mark itself is **never copied**: `originalStudentAttendance` is derived from the attendance
-domain on every read (`demoRepository.ts:389-393`), so a correction to the original changes what the
+domain on every read (`demoRepository.ts:454-468`), so a correction to the original changes what the
 obligation shows without a second write. `undefined` means "no mark", which is a different fact from
 "not read" — and a **failed attendance read fails the read** rather than rendering "no mark"
 (**D12**). The rule applies to `register` too: an unreadable attendance answer never silently becomes
@@ -165,14 +176,14 @@ consent to skip the question.
 ## 7. The demo dataset
 
 - The collection is `sessionCompensations` (`demoStore.ts:444`, ids `cmp_…`), declared in
-  `DEMO_COLLECTIONS` (`demo/types.ts:200`) and carried by **both** canonical datasets — as **`[]`**
+  `DEMO_COLLECTIONS` (`demo/types.ts:132`) and carried by **both** canonical datasets — as **`[]`**
   in each (`seed.ts:210`, `:268`). That is a recorded demo limitation, not a missing feature: the
   demo ships no compensable case at all, because its only cancelled session belongs to a group class
   and registration is a human act. The flow is exercised by the tests instead of by seeded fiction.
 - Because it is a dataset collection, it is part of export, import, restore, statistics and the
   destructive paths without any of them being taught about it (the settings panel's collection list
   needed one label — §8) — and `validateDataset`
-  (`backup.ts:319-423`) checks it: a dangling `studentId`/`classId`, a missing typed link, a
+  (`backup.ts:319-424`) checks it: a dangling `studentId`/`classId`, a missing typed link, a
   malformed ledger, two obligations for one `(original, student)` pair, and one session claimed by
   two obligations are all refused.
 - **The `originalSessionId` link is structural, not referential, on purpose.** The scheduling
@@ -182,15 +193,16 @@ consent to skip the question.
 
 ## 8. Tests
 
-**69 tests, five new files** — none of them in a frozen group, and no existing suite was modified:
+**80 tests, six new files** — none of them in a frozen group, and no existing suite was modified:
 
 | File | Cases | What it pins |
 |---|---|---|
 | `__tests__/derive.test.ts` | 20 | the derivation itself, with no environment: the three states, the return to `required` on a cancelled or deleted attempt, terminal completion with the contradiction reported, eligibility by kind, the roster resolution, the prefill (including "no default" when the original is gone) |
-| `__tests__/demoRepository.test.ts` | 27 | the invariants end to end on the demo store: cancellation registers nothing, the refusals and their codes, the frozen student, the attendance gate and its acknowledgement, uniqueness, booking through `create()`, the append-only ledger with the attempt cancelled and re-booked, hard deletion, completion, and every read filter |
+| `__tests__/demoRepository.test.ts` | 28 | the invariants end to end on the demo store: cancellation registers nothing, the refusals and their codes, the frozen student, the attendance gate and its acknowledgement, uniqueness (including the pair becoming duplicated **inside** the awaited reads), booking through `create()`, the append-only ledger with the attempt cancelled and re-booked, hard deletion, completion, and every read filter |
 | `__tests__/datasetContract.test.ts` | 15 | the collection contract: both datasets, the `cmp_` prefix, the registry seam (including overrides of the collaborators), and the backup rules — accepted, refused, and the deliberately accepted orphan |
 | `__tests__/useCompensations.test.tsx` | 5 | the read layer: the list, refresh after each awaited write, a refusal propagated verbatim with no success claimed, and the injected repository being the one asked |
 | `__tests__/persianDate.test.ts` | 2 | a Jalali date typed by the operator lands on the right Gregorian day (۱۴۰۶/۰۱/۱۵ → `2027-04-04`), and a date that does not exist fails closed instead of being guessed |
+| `__tests__/authorization.test.ts` | 10 | the protected operations: the role matrix the gate rests on (`schedule.write` for staff/manager/admin, not for teacher/accountant), a refusal for each unauthorized path with no side effect written, a refusal that precedes every other check (so the domain is not an existence oracle), the unchanged `ACTOR_REQUIRED` for an unnamed actor, reads staying ungated, and an authorized actor carried through the whole flow with provenance recorded |
 
 Adding a collection to the dataset touches the generic suites that enumerate every collection, and
 exactly **two additive edits** were needed outside this directory — recorded here rather than left to
@@ -219,6 +231,22 @@ half is computed on read — no read in this directory seeds, repairs or mutates
 
 - **No UI, no REST implementation** — §the table at the top; the next workstreams, not defects of
   this one.
+- **The authorization gate is client-side, and is exactly as strong as the rest of this product's
+  RBAC and no stronger.** `register`, `schedule` and `complete` refuse an actor without
+  `schedule.write`, at the single point every write passes through — but the permission list arrives
+  **with the call**, because the browser is where the current user's permissions are known
+  (`permissions.ts` states plainly that frontend RBAC is UX-only and bypassable). What that buys is
+  that no caller — today's tests, tomorrow's screen, a future integration — can perform a write
+  without stating an actor that holds the permission, and that a teacher's path is refused by the
+  domain rather than by a hidden button. **What it cannot buy is security:** the server must
+  re-derive the actor and its permissions from the session token and refuse independently, exactly as
+  a server must for every other domain here. A REST implementation of this contract may not trust a
+  payload that names its own permissions.
+- **Uniqueness is enforced in-process, not across clients.** `register` re-checks the
+  `(originalSessionId, studentId)` pair immediately before the write, with no `await` between the
+  check and the synchronous store write, so an interleaved second registration in this adapter cannot
+  slip through. Two browsers do not share that event loop: the server needs the same rule as a unique
+  constraint or a transaction.
 - **A cancelled or deleted attempt is only visible if somebody looks.** Nothing notifies anyone;
   `needsAttention` exists so a future screen can find these, and there is no scheduler, job or badge
   behind it.

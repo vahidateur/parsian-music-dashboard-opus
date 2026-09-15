@@ -1327,7 +1327,10 @@ workstream commit itself is `a21311d7e32c82e3a46b1581c94f6b3478bf646c`.
 
 **What it ships.** An obligation of its own for a cancelled **private (one-to-one)** session, linked to
 that session by the typed `originalSessionId`: registration is an explicit act by a secretary, manager
-or admin holding `schedule.write` (a teacher cannot register, book or discharge), the affected student
+or admin holding `schedule.write` (a teacher cannot register, book or discharge — enforced by the
+domain, which refuses an actor without `schedule.write` with `COMPENSATION_FORBIDDEN` before any read,
+through the existing matrix and `can()`; the same client-side boundary applies, so the server must
+re-derive the actor from the token), the affected student
 is frozen from the scheduling domain's derived roster, the attempt ledger is **append-only**, and the
 state is **derived on read** (`required` → `scheduled` → `completed`) — so cancelling the make-up
 returns the requirement to `required` with no write, no listener and no hook inside `cancelSession`.

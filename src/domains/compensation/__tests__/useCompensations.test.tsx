@@ -16,12 +16,21 @@ import {
   resetRegistry,
   setCompensationRepository,
 } from "@/domains/registry";
+import { permissionsForRole } from "@/domains/auth/permissions";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { CompensationRepository } from "../repository";
-import { COMPENSATION_ERRORS, type SessionCompensation } from "../types";
+import { COMPENSATION_ERRORS, type CompensationActor, type SessionCompensation } from "../types";
 import { useCompensations } from "../useCompensations";
 
-const ACTOR = "usr_admin";
+/**
+ * An administrator, from the REAL role matrix: every permission, so the cases in
+ * this file exercise the domain's own rules rather than RBAC. The authorization
+ * refusals have their own file (`authorization.test.ts`).
+ */
+const ACTOR: CompensationActor = {
+  userId: "usr_admin",
+  permissions: permissionsForRole("administrator"),
+};
 const PRIVATE_CLASS = "cl2";
 const PRIVATE_STUDENT = "st7";
 const BOOKING_DATE = "2027-05-11";
@@ -52,7 +61,7 @@ async function registerOne() {
     originalSessionId,
     studentId: PRIVATE_STUDENT,
     reason: "لغو جلسه",
-    requiredByUserId: ACTOR,
+    actor: ACTOR,
   });
 }
 
@@ -78,7 +87,7 @@ describe("useCompensations", () => {
         originalSessionId,
         studentId: PRIVATE_STUDENT,
         reason: "لغو جلسه",
-        requiredByUserId: ACTOR,
+        actor: ACTOR,
       });
     });
     expect(registered.status).toBe("required");
@@ -102,7 +111,7 @@ describe("useCompensations", () => {
           originalSessionId: groupSession.id,
           studentId: PRIVATE_STUDENT,
           reason: "دلیل",
-          requiredByUserId: ACTOR,
+          actor: ACTOR,
         })
         .catch((cause: unknown) => {
           caught = cause;
@@ -125,7 +134,7 @@ describe("useCompensations", () => {
         date: BOOKING_DATE,
         startTime: "16:00",
         endTime: "17:00",
-        scheduledByUserId: ACTOR,
+        actor: ACTOR,
       });
     });
     await waitFor(() => expect(result.current.items[0]?.status).toBe("scheduled"));
@@ -135,7 +144,7 @@ describe("useCompensations", () => {
     expect((await getSchedulingRepository().get(attemptSessionId)).origin).toBe("manual");
 
     await act(async () => {
-      await result.current.complete(created.id, { completedByUserId: ACTOR });
+      await result.current.complete(created.id, { actor: ACTOR });
     });
     await waitFor(() => expect(result.current.items[0]?.status).toBe("completed"));
   });

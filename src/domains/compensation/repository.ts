@@ -35,6 +35,28 @@ import type {
  *     obligation; `register` is an explicit act by a person.
  *   - **It does not notify anyone.** No SMS, no provider, no message row.
  *
+ * THE THREE WRITES ARE PROTECTED OPERATIONS
+ *
+ * `register`, `schedule` and `complete` each take an actor and refuse one that
+ * does not hold **`schedule.write`** (`COMPENSATION_FORBIDDEN`): the permission
+ * the scheduling domain already owns, because a make-up IS a session write. No
+ * compensation-specific permission exists. The check is the first statement of
+ * each verb, so a refused caller learns nothing about the records it named.
+ *
+ * Implementations MUST refuse an unauthorized actor. They must **not** trust the
+ * permissions a client sends: a server implementation re-derives the actor and
+ * its permissions from the session token, because the permission list travels
+ * with the call only because the browser is where it is known. Reading is not
+ * gated here — `list` and `get` are governed by the caller's own view permission.
+ *
+ * UNIQUENESS ACROSS CLIENTS IS THE SERVER'S
+ *
+ * The lifetime rule below is re-checked immediately before the write, with no
+ * suspension point between the check and the write, so one event loop cannot
+ * interleave two registrations. Two browsers do not share an event loop: a server
+ * MUST enforce the same rule as a unique constraint or transaction. A client-side
+ * re-check cannot stand in for it.
+ *
  * DUPLICATE PROTECTION IS AN INVARIANT, NOT A CONVENTION
  *
  * At most ONE obligation may exist per `(originalSessionId, studentId)`, for the

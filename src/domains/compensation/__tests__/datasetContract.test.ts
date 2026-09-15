@@ -14,6 +14,7 @@
  *     cancelled original was hard-deleted, because that is a state the model
  *     deliberately supports.
  */
+import { permissionsForRole } from "@/domains/auth/permissions";
 import { beforeEach, describe, expect, it } from "vitest";
 import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
 import { validateDataset } from "@/domains/demo/backup";
@@ -30,9 +31,17 @@ import {
 import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import type { SessionCompensationRecord } from "../types";
+import type { CompensationActor, SessionCompensationRecord } from "../types";
 
-const ACTOR = "usr_admin";
+/**
+ * An administrator, from the REAL role matrix: every permission, so the cases in
+ * this file exercise the domain's own rules rather than RBAC. The authorization
+ * refusals have their own file (`authorization.test.ts`).
+ */
+const ACTOR: CompensationActor = {
+  userId: "usr_admin",
+  permissions: permissionsForRole("administrator"),
+};
 const PRIVATE_CLASS = "cl2";
 const PRIVATE_STUDENT = "st7";
 const BOOKING_DATE = "2027-05-11";
@@ -55,7 +64,7 @@ function stored(over: Partial<SessionCompensationRecord> = {}): SessionCompensat
     studentId: PRIVATE_STUDENT,
     reason: "لغو جلسه",
     requiredAt: "2026-09-02T10:00:00.000Z",
-    requiredByUserId: ACTOR,
+    requiredByUserId: ACTOR.userId,
     attempts: [],
     createdAt: "2026-09-02T10:00:00.000Z",
     updatedAt: "2026-09-02T10:00:00.000Z",
@@ -98,7 +107,7 @@ describe("the collection is part of the dataset contract", () => {
       originalSessionId: original.id,
       studentId: PRIVATE_STUDENT,
       reason: "لغو جلسه",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
     });
     // Mints its own id under the domain prefix, like every other collection.
     expect(compensation.id.startsWith("cmp_")).toBe(true);
@@ -107,7 +116,7 @@ describe("the collection is part of the dataset contract", () => {
       date: BOOKING_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
     const json = demoDataManager.exportBackupJson(new Date("2026-09-15T00:00:00.000Z"));
 
@@ -156,14 +165,14 @@ describe("registry seam", () => {
       originalSessionId: original.id,
       studentId: PRIVATE_STUDENT,
       reason: "لغو جلسه",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     const booked = await getCompensationRepository().schedule(compensation.id, {
       date: BOOKING_DATE,
       startTime: "16:00",
       endTime: "17:00",
-      scheduledByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     // The session really went through the injected scheduling repository.
@@ -186,7 +195,7 @@ describe("registry seam", () => {
       originalSessionId: original.id,
       studentId: PRIVATE_STUDENT,
       reason: "لغو جلسه",
-      requiredByUserId: ACTOR,
+      actor: ACTOR,
     });
 
     resetRegistry();
@@ -247,7 +256,7 @@ describe("backup validation", () => {
     const attempt = (sessionId: string) => ({
       sessionId,
       scheduledAt: "2026-09-04T10:00:00.000Z",
-      scheduledByUserId: ACTOR,
+      scheduledByUserId: ACTOR.userId,
     });
     const issues = codes(
       validateDataset(

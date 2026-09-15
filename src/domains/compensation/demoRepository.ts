@@ -1,5 +1,6 @@
 import type { Page } from "@/api/types";
-import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { can } from "@/domains/auth/permissions";
+import { conflict, forbidden, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import type { AttendanceRecord } from "@/domains/attendance/types";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";
@@ -16,6 +17,7 @@ import {
 import type { CompensationRepository } from "./repository";
 import {
   COMPENSATION_ERRORS,
+  type CompensationActor,
   type CompensationListParams,
   type CompleteCompensationInput,
   type RegisterCompensationInput,
@@ -31,6 +33,20 @@ import {
  *
  * Every refusal in `types.ts → COMPENSATION_ERRORS` is decided in this file, and
  * every sentence the operator will read is written here too.
+ *
+ * THE THREE WRITES ARE PROTECTED OPERATIONS
+ *
+ * `register`, `schedule` and `complete` each refuse an actor that does not hold
+ * `schedule.write` (`COMPENSATION_FORBIDDEN`), through the existing role matrix
+ * and `can()` — no second permission was invented. The check sits at the single
+ * point every write passes through, so no caller can reach a write without
+ * naming an actor that holds it. That is real enforcement of the RBAC this
+ * product already has, and it is exactly as strong as the rest of that RBAC and
+ * no stronger: the permissions arrive with the call, because the browser is
+ * where they are known, and a browser can be tampered with. **The server must
+ * re-derive the actor and its permissions from the token and refuse
+ * independently** — the domain API implementation may not trust a payload that
+ * names its own permissions. Documented in `README.md` and in `types.ts`.
  *
  * COMPOSITION, NOT DUPLICATION
  *
@@ -111,7 +127,7 @@ export class DemoCompensationRepository implements CompensationRepository {
   /* ---------------- the obligation ---------------- */
 
   async register(input: RegisterCompensationInput): Promise<SessionCompensation> {
-    this.assertActor(input.requiredByUserId, "requiredByUserId");
+    const actorUserId = this.requireScheduleWrite(input.actor);
 
     if (input.reason.trim().length === 0) {
       throw validationError(COMPENSATION_ERRORS.REASON_REQUIRED, "دلیل نیاز به جبرانی الزامی است.", {
@@ -155,22 +171,7 @@ export class DemoCompensationRepository implements CompensationRepository {
      * obligation exists per (original, student) for the pair's lifetime, so this
      * is never an upsert.
      */
-    const existing = this.store.sessionCompensations
-      .all()
-      .find(
-        (record) =>
-          record.originalSessionId === input.originalSessionId && record.studentId === input.studentId,
-      );
-    if (existing) {
-      throw conflict(
-        existing.completedAt === undefined
-          ? COMPENSATION_ERRORS.ALREADY_OPEN
-          : COMPENSATION_ERRORS.ALREADY_SETTLED,
-        existing.completedAt === undefined
-          ? "برای این جلسه و هنرجو از قبل یک جبرانی باز ثبت شده است."
-          : "جبرانی این جلسه پیش‌تر انجام‌شده ثبت شده است.",
-      );
-    }
+    this.assertPairFree(input.originalSessionId, input.studentId);
 
     /*
      * The affected student, from the scheduling domain's derived roster scoped to
@@ -200,6 +201,21 @@ export class DemoCompensationRepository implements CompensationRepository {
       );
     }
 
+    /*
+     * The pair is re-checked HERE, after both awaits and immediately before the
+     * write, because the two reads above are suspension points: a second
+     * registration for the same pair can complete while this one is waiting for
+     * the roster or the attendance answer. Nothing is awaited between this check
+     * and `create()` — the store write is synchronous — so within this adapter the
+     * check-to-write sequence cannot be interleaved, which is what makes the
+     * lifetime-uniqueness rule an invariant rather than a hope.
+     *
+     * A server must hold the same guarantee across processes, as a unique
+     * constraint or a transaction; a client-side re-check cannot, because two
+     * browsers do not share this event loop. See `repository.ts`.
+     */
+    this.assertPairFree(input.originalSessionId, input.studentId);
+
     const stamp = new Date().toISOString();
     const created = this.store.sessionCompensations.create({
       originalSessionId: original.id,
@@ -207,7 +223,7 @@ export class DemoCompensationRepository implements CompensationRepository {
       studentId: affected.studentId,
       reason: input.reason.trim(),
       requiredAt: stamp,
-      requiredByUserId: input.requiredByUserId,
+      requiredByUserId: actorUserId,
       attempts: [],
       ...(mark ? { originalAttendanceAcknowledgedAt: stamp } : {}),
       createdAt: stamp,
@@ -218,7 +234,7 @@ export class DemoCompensationRepository implements CompensationRepository {
   }
 
   async schedule(id: string, input: ScheduleCompensationInput): Promise<SessionCompensation> {
-    this.assertActor(input.scheduledByUserId, "scheduledByUserId");
+    const actorUserId = this.requireScheduleWrite(input.actor);
 
     const record = this.requireRecord(id);
     if (record.completedAt !== undefined) {
@@ -291,7 +307,7 @@ export class DemoCompensationRepository implements CompensationRepository {
     const updated = this.store.sessionCompensations.update(record.id, {
       attempts: [
         ...record.attempts,
-        { sessionId: session.id, scheduledAt: stamp, scheduledByUserId: input.scheduledByUserId },
+        { sessionId: session.id, scheduledAt: stamp, scheduledByUserId: actorUserId },
       ],
       updatedAt: stamp,
     });
@@ -301,7 +317,7 @@ export class DemoCompensationRepository implements CompensationRepository {
   }
 
   async complete(id: string, input: CompleteCompensationInput): Promise<SessionCompensation> {
-    this.assertActor(input.completedByUserId, "completedByUserId");
+    const actorUserId = this.requireScheduleWrite(input.actor);
 
     const record = this.requireRecord(id);
     if (record.completedAt !== undefined) {
@@ -330,7 +346,7 @@ export class DemoCompensationRepository implements CompensationRepository {
     const stamp = new Date().toISOString();
     const updated = this.store.sessionCompensations.update(record.id, {
       completedAt: stamp,
-      completedByUserId: input.completedByUserId,
+      completedByUserId: actorUserId,
       updatedAt: stamp,
     });
     if (!updated) throw notFound(COMPENSATION_ERRORS.NOT_FOUND, "جبرانی یافت نشد.");
@@ -346,13 +362,62 @@ export class DemoCompensationRepository implements CompensationRepository {
     return record;
   }
 
-  /** A named actor is required on every write; provenance, never authorization. */
-  private assertActor(userId: string, field: string): void {
-    if (!userId || userId.trim().length === 0) {
+  /**
+   * The gate on all three writes, and the one place the actor is read.
+   *
+   * Two separate refusals, in this order:
+   *
+   *   1. an unnamed actor is a malformed request (`ACTOR_REQUIRED`) — the same
+   *      code and sentence this domain already answered with, so nothing that
+   *      used to be a validation failure has become an authorization failure;
+   *   2. a named actor without `schedule.write` is a refused operation
+   *      (`COMPENSATION_FORBIDDEN`, `authorization`/403) — the permission the
+   *      scheduling domain already owns, checked with the existing `can()`.
+   *
+   * Both refusals happen before any read, so an unauthorized caller learns
+   * nothing about the record it named: there is no ordering in which a refusal
+   * leaks whether an obligation exists.
+   *
+   * Returns the validated user id, which the caller records as provenance.
+   * Provenance is NEVER the authorization decision — this method is.
+   */
+  private requireScheduleWrite(actor: CompensationActor | undefined): string {
+    const userId = typeof actor?.userId === "string" ? actor.userId : "";
+    if (userId.trim().length === 0) {
       throw validationError(COMPENSATION_ERRORS.ACTOR_REQUIRED, "کاربر انجام‌دهنده مشخص نیست.", {
-        [field]: ["کاربر مشخص نیست."],
+        actor: ["کاربر مشخص نیست."],
       });
     }
+    if (!can({ permissions: actor?.permissions ?? [] }, "schedule.write")) {
+      throw forbidden(
+        COMPENSATION_ERRORS.FORBIDDEN,
+        "برای ثبت یا مدیریت جبرانی، دسترسی زمان‌بندی لازم است.",
+      );
+    }
+    return userId;
+  }
+
+  /**
+   * The lifetime-uniqueness rule for one `(originalSessionId, studentId)` pair.
+   *
+   * Called twice by `register`: once as the first check (the answer does not
+   * depend on the reads that follow, and a duplicate should not pay for them) and
+   * once immediately before the write, because those reads are suspension points.
+   * Both calls throw the same two codes, so callers see one behaviour.
+   */
+  private assertPairFree(originalSessionId: string, studentId: string): void {
+    const existing = this.store.sessionCompensations
+      .all()
+      .find((record) => record.originalSessionId === originalSessionId && record.studentId === studentId);
+    if (!existing) return;
+    throw conflict(
+      existing.completedAt === undefined
+        ? COMPENSATION_ERRORS.ALREADY_OPEN
+        : COMPENSATION_ERRORS.ALREADY_SETTLED,
+      existing.completedAt === undefined
+        ? "برای این جلسه و هنرجو از قبل یک جبرانی باز ثبت شده است."
+        : "جبرانی این جلسه پیش‌تر انجام‌شده ثبت شده است.",
+    );
   }
 
   private assertNotLinkedElsewhere(sessionId: string): void {

@@ -470,8 +470,10 @@ read layer, a README and 69 tests), registered at `src/domains/registry.ts:231` 
 `sessionCompensations` dataset collection. **What shipped is narrower than what this item records, and
 must not be read as satisfying it:** P1 covers **cancelled sessions of private (one-to-one) classes
 only** — a group class is refused by `kind`, never by roster size; the obligation is registered by an
-**explicit act** of a secretary, manager or admin holding `schedule.write` (a teacher cannot register,
-book or discharge), not created by the cancellation; the "same-day one-hour" default is a **prefill of
+**explicit act** of a secretary, manager or admin holding `schedule.write` — enforced: all three verbs
+refuse an actor without that permission (`COMPENSATION_FORBIDDEN`) before any read, client-side, so the
+server still owes the independent check — (a teacher cannot register, book or discharge), not created
+by the cancellation; the "same-day one-hour" default is a **prefill of
 the original session's own date**, never a computed "today" and never a free-slot search; and **nothing
 notifies anybody** (**D1**, **I7**). **Still unbuilt:** group and class-wide compensation, any
 coordination flow beyond a form the operator fills, the UI, and a server. Decisions **D18**/**D19** in

@@ -1,9 +1,9 @@
 /**
  * Shared demo-repository plumbing.
  *
- * Every demo repository needs the same four things: paging, not-found errors,
- * conflict errors and validation errors. Implementing that once keeps the five
- * domain repositories to their actual business rules.
+ * Every demo repository needs the same five things: paging, not-found errors,
+ * conflict errors, validation errors and authorization errors. Implementing that
+ * once keeps the domain repositories to their actual business rules.
  *
  * This owns no persistence — the DemoStore is still the only writer.
  */
@@ -38,6 +38,17 @@ export function conflict(code: string, message: string, fields?: Record<string, 
 
 export function validationError(code: string, message: string, fields: Record<string, string[]>): ApiError {
   return new ApiError({ kind: "validation", code, message, fields });
+}
+
+/**
+ * A refused protected operation.
+ *
+ * `authorization` is the taxonomy's existing 403 kind, so a domain that gates a
+ * verb on a permission reports the same error a server would return — the caller
+ * pattern-matches on the kind rather than on a per-domain convention.
+ */
+export function forbidden(code: string, message: string): ApiError {
+  return new ApiError({ kind: "authorization", code, message });
 }
 
 /** Case/space-insensitive contains, used by every demo `search` param. */

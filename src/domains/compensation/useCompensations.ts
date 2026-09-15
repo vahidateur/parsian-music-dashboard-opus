@@ -26,6 +26,15 @@ import type {
  * `reopen` — cancelling an attempt returns the obligation to `required` by
  * derivation (see `derive.ts`), and re-booking is another `schedule` call
  * (DECISIONS D14).
+ *
+ * THE CALLER SUPPLIES THE ACTOR, AND THE DOMAIN CHECKS IT
+ *
+ * Each of the three writes takes `actor: { userId, permissions }`; a screen
+ * builds it from `useAuth()` (`{ userId: user.id, permissions }`). The repository
+ * refuses an actor without `schedule.write` before it reads anything, so this
+ * hook cannot be talked into a write by a role that may not perform one. The
+ * permissions are the caller's statement — the browser is where they are known —
+ * so the server still re-derives them from the token (see the domain README, §10).
  */
 export function useCompensations(params: CompensationListParams = {}) {
   const [revision, setRevision] = useState(0);

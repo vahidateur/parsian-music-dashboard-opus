@@ -1056,8 +1056,9 @@ browser-capable environment performs it.
 **Updated 2026-09-15 (Class Compensation P1, `a21311d7e32c82e3a46b1581c94f6b3478bf646c`): the
 requirement has been designed and implemented for the private one-to-one case.** What shipped is the
 obligation domain described in §5 above: the affected student is frozen from the session's derived
-roster, registration is an explicit act by staff holding `schedule.write` (a teacher cannot register,
-book or discharge), and the make-up is an ordinary session booked through the scheduling repository's
+roster, registration is an explicit act by staff holding `schedule.write` — the domain refuses any
+actor without it (`COMPENSATION_FORBIDDEN`, client-side; the server re-derives it from the token) — a
+teacher cannot register, book or discharge, and the make-up is an ordinary session booked through the scheduling repository's
 own `create()`. The "one-hour session the same day" default is expressed as a **prefill of the original
 session's own date and start time** — never computed from "today", never a free-slot search — and the
 coordination with the secretary remains a form the operator fills rather than a flow this build runs.

@@ -1057,8 +1057,17 @@ are **no mutation or reversion checks** for it, and browser QA has never run on 
    roster rows would make eligibility a function of enrolment data that changes.
 2. **Registration is an explicit human act.** Cancelling a session creates nothing. A secretary,
    manager or admin holding `schedule.write` registers the obligation; a teacher cannot register, book
-   or discharge one. The recorded actor is **provenance, never authorization** — the server enforces
-   who may write.
+   or discharge one. The recorded actor is **provenance, never authorization** — the permission is the
+   authorization, and the server is its authority.
+   **Enforcement, as landed (2026-09-15, MF-2):** all three verbs take an actor
+   (`{ userId, permissions }`) and refuse an actor without `schedule.write`
+   (`COMPENSATION_FORBIDDEN`, `authorization`/403) as their first statement, before any read, using the
+   existing role matrix and `can()` — no compensation-specific permission exists. That is enforcement
+   at the point every write passes through, and it is deliberately described as **client-side**: the
+   permissions travel with the call because the browser is where the current user's permissions are
+   known, so a server implementation must re-derive the actor and its permissions from the session
+   token and refuse independently. Nothing in this decision changed; what changed is that the rule is
+   no longer only stated.
 3. **The affected student is derived and frozen.** Exactly one student, from the scheduling domain's
    `sessionRoster` at the original's date — never the class's denormalized `studentIds`, never a mark —
    and it must be the student the caller named.

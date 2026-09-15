@@ -73,6 +73,7 @@
  *     `SessionStatus` member.
  */
 import type { ListParams } from "@/api/types";
+import type { Permission } from "@/domains/auth/permissions";
 import type { AttendanceStatus } from "@/domains/attendance/types";
 import type { AcademyClass } from "@/domains/classes/types";
 import type { Session, SessionStatus } from "@/domains/scheduling/types";
@@ -187,6 +188,40 @@ export interface SessionCompensation extends SessionCompensationRecord {
 /* Inputs                                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * WHO is performing a protected write, and what that actor may do.
+ *
+ * `schedule.write` — the permission the scheduling domain already owns, and the
+ * one the role matrix grants to a secretary (`staff`), a `manager` and an
+ * `administrator`, and withholds from a `teacher` — is the gate on all three
+ * compensation writes. There is deliberately NO second, compensation-specific
+ * permission: the flow creates an ordinary session, so it is the permission that
+ * already governs writing sessions.
+ *
+ * WHAT IS ENFORCED HERE, AND WHAT IS NOT
+ *
+ * The domain enforces this at the ONE point every write passes through, so no
+ * caller — today's tests, tomorrow's screen, a future integration — can perform
+ * the operation without stating an actor that holds `schedule.write`. That is a
+ * real refusal, and it is exactly as strong as the rest of this product's RBAC
+ * and no stronger: `permissions.ts` documents frontend RBAC as UX-level, and
+ * anything reachable from a browser can be tampered with. The permissions travel
+ * with the call because the browser is where they are known; the SERVER must
+ * re-derive the actor and its permissions from the session token and refuse
+ * independently (a domain API implementation may not trust what arrives in the
+ * payload). Until that server exists, this is the enforcement point — see the
+ * repository contract and `README.md`.
+ */
+export interface CompensationActor {
+  /** PROVENANCE, NOT AUTHORIZATION. Recorded; never the basis of the decision. */
+  userId: string;
+  /**
+   * The permissions the caller states for this actor, from the existing role
+   * matrix (`permissionsForRole`, or `useAuth().permissions` in a view).
+   */
+  permissions: readonly Permission[];
+}
+
 export interface RegisterCompensationInput {
   /** Must be an existing session whose `status` is `cancelled`. */
   originalSessionId: string;
@@ -199,8 +234,8 @@ export interface RegisterCompensationInput {
    * original. Without it, registration is refused rather than silently assumed.
    */
   acknowledgedOriginalAttendance?: boolean;
-  /** PROVENANCE, NOT AUTHORIZATION. */
-  requiredByUserId: string;
+  /** The actor performing the write. Must hold `schedule.write`. */
+  actor: CompensationActor;
 }
 
 /**
@@ -223,13 +258,13 @@ export interface ScheduleCompensationInput {
   teacherId?: string;
   /** Same meaning as `CreateSessionInput`: a warning refuses unless acknowledged. */
   acknowledgeWarnings?: boolean;
-  /** PROVENANCE, NOT AUTHORIZATION. */
-  scheduledByUserId: string;
+  /** The actor booking the make-up. Must hold `schedule.write`. */
+  actor: CompensationActor;
 }
 
 export interface CompleteCompensationInput {
-  /** PROVENANCE, NOT AUTHORIZATION. */
-  completedByUserId: string;
+  /** The actor discharging the obligation. Must hold `schedule.write`. */
+  actor: CompensationActor;
 }
 
 /**
@@ -305,4 +340,6 @@ export const COMPENSATION_ERRORS = {
   NOT_SCHEDULED: "COMPENSATION_NOT_SCHEDULED",
   SESSION_ALREADY_LINKED: "COMPENSATION_SESSION_ALREADY_LINKED",
   ACTOR_REQUIRED: "COMPENSATION_ACTOR_REQUIRED",
+  /** The actor does not hold `schedule.write` — any role without it, teachers included. */
+  FORBIDDEN: "COMPENSATION_FORBIDDEN",
 } as const;

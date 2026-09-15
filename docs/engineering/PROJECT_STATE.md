@@ -647,7 +647,10 @@ cancelled attempt stays in the history; a discharge is terminal, and a later can
 as a contradiction (`attemptBroken`) rather than reopening the debt. Eligibility is
 `AcademyClass.kind === "private"` and never roster size; **cancellation registers nothing** — a
 secretary, manager or admin holding `schedule.write` registers it explicitly, and a teacher cannot
-register, book or discharge; an attendance mark on the cancelled original refuses registration unless
+register, book or discharge — all three verbs refuse an actor without `schedule.write`
+(`COMPENSATION_FORBIDDEN`, `authorization`/403), as their first statement, through the existing role
+matrix and `can()`, and that refusal is **client-side**: the server must re-derive the actor from the
+token (MF-2); an attendance mark on the cancelled original refuses registration unless
 it is explicitly acknowledged, and the mark is derived on read rather than copied; at most one
 obligation exists per `(originalSessionId, studentId)` for the pair's lifetime, so `register` is never
 an upsert; and the make-up is an **ordinary session** created through the scheduling repository's own
