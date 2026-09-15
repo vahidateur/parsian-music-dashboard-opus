@@ -836,12 +836,18 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   is impossible in this environment** → recorded as NOT VERIFIED until browser QA (M11 / L4).
 - **Out of scope.** A logo/favicon upload redesign; per-tenant theming; any change to the
   `BrandingSettings` model.
-- **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M7's SHA (the visual blast radius
-  is the whole design system). **Recorded now that M7 has landed:** M7's last *product* commit is
-  `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, and the commit M8 will be built on is M7's
-  **documentation reconciliation**, which follows it and cannot be named in the documents it carries
-  ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule); `git log --oneline --
-  docs/engineering` is the authority for it, and it is M8's **effective safe rollback boundary**.
+- **Checkpoint & rollback.** Phase checkpoint — the visual blast radius is the whole design system — so
+  the boundary below is what a rollback returns to. **Corrected 2026-09-16, before M8 starts:** M7's last
+  *product* commit remains `f1ec0ddde783aec14d6429ac2457f085f851ad9a`, but the Class Compensation
+  workstream and the documentation passes that followed it landed after M7, so the boundary the earlier
+  note named — M7's reconciliation, `e7a6d72` — is superseded. The commit M8 is built on, and therefore
+  M8's **effective safe rollback boundary**, is `9fcf00891d07db18c718296ccaddc79919c793c1`, the
+  **twenty-fourth documentation checkpoint** (the **I21** closure and the S-6 boundary-gate
+  registration): rolling back to it drops M8 entirely and keeps M7, the Class Compensation workstream
+  and its boundary gate. Documentation commits newer than it — the **D2** record among them — sit
+  between it and the tip, are named one pass behind by [PHASES.md](PHASES.md)'s ledger, and
+  `git log --oneline -- docs/engineering` remains the authority for the tip M8 will actually be built on
+  ([PROJECT_STATE.md](PROJECT_STATE.md) §2's no-self-reference rule and §12 of this document).
 
 ### M9 — Dashboard insight from live data (**H4**), **I9 guards first**
 
