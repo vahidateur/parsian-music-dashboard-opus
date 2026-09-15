@@ -466,8 +466,8 @@ it needs live counters, not a lifecycle change.)
 LANDED — the item stays OPEN, and the paragraph above is kept as written.** The *done-when* clause "the
 requirement is turned into a written design" is met, and the design is implemented as a domain:
 `src/domains/compensation/` (types, pure derivation, a five-verb contract, the demo implementation, a
-read layer, a README and 69 tests), registered at `src/domains/registry.ts:231` and backed by a new
-`sessionCompensations` dataset collection. **What shipped is narrower than what this item records, and
+read layer, a README and 69 tests at that commit — **121 tests in eight files** now), registered at
+`src/domains/registry.ts:231` and backed by a new `sessionCompensations` dataset collection. **What shipped is narrower than what this item records, and
 must not be read as satisfying it:** P1 covers **cancelled sessions of private (one-to-one) classes
 only** — a group class is refused by `kind`, never by roster size; the obligation is registered by an
 **explicit act** of a secretary, manager or admin holding `schedule.write` — enforced: all three verbs
@@ -475,12 +475,41 @@ refuse an actor without that permission (`COMPENSATION_FORBIDDEN`) before any re
 server still owes the independent check — (a teacher cannot register, book or discharge), not created
 by the cancellation; the "same-day one-hour" default is a **prefill of
 the original session's own date**, never a computed "today" and never a free-slot search; and **nothing
-notifies anybody** (**D1**, **I7**). **Still unbuilt:** group and class-wide compensation, any
-coordination flow beyond a form the operator fills, the UI, and a server. Decisions **D18**/**D19** in
-[DECISIONS.md](DECISIONS.md); the workstream record is [PHASES.md](PHASES.md) → "Workstream — Class
-Compensation P1" and [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation". Automatic
-completion of elapsed sessions is a **separate** workstream with no decision and no implementation, and
-is not part of this item.
+notifies anybody** (**D1**, **I7**).
+
+**Status (2026-09-15/16, the packages after P1 — this item stays OPEN, and the group and class-wide
+scope below is still the reason why).** Three further packages landed on the same workstream, none of
+them narrowing what this item records:
+
+- **`cd91ed6a75a9c053b60e4e9dbbc10e06cf89a291` (C-1 + C-1.1)** — an obligation carries **at most one live
+  make-up**: a second booking is refused (`COMPENSATION_ALREADY_SCHEDULED`) inside one serialized section
+  shared by `schedule` and `complete`, so a double submit produces one session and one refusal and a
+  booking racing a discharge cannot lose the race silently. A booking is read as **lineage**, not as a
+  row: moving a make-up with scheduling's own `rescheduleSession` cancels the moved-from row and links a
+  replacement, and the derived `scheduled` state, the refusal and the completion gate all follow that
+  chain to the session the make-up is on now — so a **moved** make-up stays booked, still refuses a
+  second one and is discharged against the session it was moved to, while cancelling or deleting the
+  **end** of the chain returns the obligation to `required` with no write. The ledger is never
+  re-pointed, and an unwalkable chain is reported (`attemptBroken`, `needsAttention`) rather than guessed
+  at.
+- **`07f89db779ca4017dbbb22db1ac7624b18fb95be` (C-2)** — **D20**: the frozen student's roster state at
+  the make-up's date is **disclosed per booking** (`currentAttempt.studentOnRoster`, derived on every read
+  from the scheduling domain's roster for the effective session's date, never stored, `undefined` when not
+  determinable) and is **never** a booking or completion gate. The debt is owed to the frozen student, the
+  make-up stays bookable and dischargeable when an enrollment has ended, and the refusal that owns the
+  rule stays in attendance (`ATTENDANCE_STUDENT_NOT_ON_ROSTER`).
+- **`b7a97b325741b1129f6d50a7d067d1aa6459597c`** — the write-authorization and lifetime-uniqueness
+  hardening (every verb refuses an actor without `schedule.write` before any read; the `(original,
+  student)` pair is re-checked immediately before the write).
+
+**Still unbuilt, and why this item stays OPEN:** group and class-wide compensation (the requirement's
+own subject beyond private one-to-one lessons), any coordination flow beyond a form the operator fills —
+including "what happens when no slot can be agreed", which the owner's wording asks for and nothing
+answers — the UI, and a server. Decisions **D18**/**D19**/**D20** in [DECISIONS.md](DECISIONS.md); the
+workstream record is [PHASES.md](PHASES.md) → "Workstream — Class Compensation P1" (which registers this
+chain) and [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation". Automatic completion
+of elapsed sessions is a **separate** workstream with no decision and no implementation, and is not part
+of this item.
 
 ### I20. The compensation contract has no UI and no server (found 2026-09-15, by P1's landing)
 **The domain is complete, tested and registered; nothing in the product calls it.** The five verbs and

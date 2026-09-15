@@ -1040,14 +1040,26 @@ attempt stays in the history — holds with **no write at all**. Keeping the obl
 the row it compensates for: scheduling may hard-delete a session with no attendance, and the read model
 reports `originalMissing` / `attemptBroken` instead of losing the debt.
 
-**Enforced by.** `src/domains/compensation/__tests__/derive.test.ts` (20 cases — the derivation with no
-environment, store or clock) and `demoRepository.test.ts` (27) — including a cancelled attempt returning
-the obligation to `required`, a hard-deleted attempt reported as `missing`, a discharge that stays
-terminal while still reporting the contradiction, and the append-only ledger across a re-booking.
+**Enforced by.** `src/domains/compensation/__tests__/derive.test.ts` (**31** cases — the derivation with
+no environment, store or clock, including the lineage walk: one and two hops, a cancelled end, a deleted
+entry recovered through the reverse link, a cycle and the hop cap) and `demoRepository.test.ts` (**38**)
+— including a cancelled attempt returning the obligation to `required`, a hard-deleted attempt reported
+as `missing`, a discharge that stays terminal while still reporting the contradiction, and the
+append-only ledger across a re-booking. The clauses above are further pinned by `bookingInvariant.test.ts`
+(10 — at most one live make-up, one serialized section, and the lineage cases that keep a moved make-up
+`live`), `authorization.test.ts` (11 — D19's registration clause and its gate), `datasetContract.test.ts`
+(15 — the collection, registry and backup rules) and `enrollmentEligibility.test.ts` (9 — **D20**'s
+disclosure), **121** cases in eight files in total.
 
-**Status.** ✅ **Landed at P1.** Scope of the claim, stated so it is not read as more than it is: the
-flow has **no UI** and **no `apiRepository`** (**I20**), the demo ships **no compensable case**, there
-are **no mutation or reversion checks** for it, and browser QA has never run on anything.
+**Status.** ✅ **Landed at P1**, and **refined by C-1.1 and C-2** — the derived `scheduled` state (clause 3) and the
+at-most-one-live-make-up refusal are now evaluated on the effective session at the end of the attempt's
+reschedule **lineage** rather than on the ledger's own row (see **D20** and the C-1.1 package in
+[PHASES.md](PHASES.md)), with the ledger still never re-pointed. Scope of the claim, stated so it is not
+read as more than it is: the flow has **no UI** and **no `apiRepository`** (**I20**), the demo ships **no
+compensable case**, and browser QA has never run on anything. **On mutation checks:** P1's own commit
+carried none; the C-1, C-1.1 and C-2 packages that followed carried **ten** between them (three, five and
+two), each restored byte-identically against a recorded sha256 baseline and recorded in that package's
+change report — not re-measured by this documentation pass.
 
 ### D19. Compensation is one-to-one only, registered by a person, and the make-up is an ordinary session booked through the scheduling repository
 
@@ -1092,9 +1104,10 @@ booked through a path that ignores the scheduling engine's rules — hence claus
 expresses the owner's "one hour, same day" default as a proposal for a form: computing a slot is the
 free-slot search this phase deliberately does not build.
 
-**Enforced by.** `src/domains/compensation/__tests__/demoRepository.test.ts` (27),
-`datasetContract.test.ts` (15 — the dataset, registry and backup contract) and `persianDate.test.ts`
-(2 — the Jalali date the operator types). The exclusions are enforced the same way rather than promised:
+**Enforced by.** `src/domains/compensation/__tests__/demoRepository.test.ts` (**38**),
+`datasetContract.test.ts` (15 — the dataset, registry and backup contract), `authorization.test.ts`
+(11 — clause 2's gate), `enrollmentEligibility.test.ts` (9 — clauses 1 and 3 as **D20** finalised them) and
+`persianDate.test.ts` (2 — the Jalali date the operator types). The exclusions are enforced the same way rather than promised:
 a group class is refused by code, no notification row is written anywhere, and the make-up session is
 created through `create()` and carries `origin: "manual"`.
 
