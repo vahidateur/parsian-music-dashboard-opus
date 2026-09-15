@@ -228,11 +228,30 @@ half is computed on read — no read in this directory seeds, repairs or mutates
 - **Session lifecycle is not touched.** Automatic completion of elapsed sessions is the separate SL
   workstream and is **not** implemented here; `Session` and `SessionStatus` are unchanged by P1.
 - **The known environment-level test failures are unrelated to this domain**: `projectState.test.ts`
-  asserts a branch name this sandbox does not use, and **I19** is a date-dependent failure of the
-  scheduling-writes filter that reproduces before P1.
+  asserts a branch name this sandbox does not use (recorded, with the owner's standing ruling and the
+  measured "fails identically on the pre-CP4 tree" evidence, as §7 item 16 in
+  [PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md)), and **I19** is a date-dependent
+  failure of the scheduling-writes filter that reproduces before P1 and is recorded as §7 item 18.
 
-Authoritative engineering state:
-[docs/engineering/PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md),
-[docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md) (D1, D8, D12, D14, D17),
-[docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) (I7, I19), and the
-scheduling domain's own [README](../scheduling/README.md).
+Authoritative engineering state — this domain's shipped contract is registered in all four documents,
+and those records are the authority wherever this file and they disagree:
+
+- [docs/engineering/PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md) → §3 "Last completed
+  work (Class Compensation P1…)", §4 "Compensation P1 validation" (measured at
+  `a21311d7e32c82e3a46b1581c94f6b3478bf646c`), §6 (the protected-surface row for this contract) and
+  §7 item 19 (the workstream's limitations, including that there is no UI and no `apiRepository`).
+- [docs/engineering/PHASES.md](../../../docs/engineering/PHASES.md) → "Workstream — Class Compensation
+  P1" — a **non-milestone workstream**, built on `e7a6d72` (M7's reconciliation), which is therefore
+  P1's effective safe rollback boundary.
+- [docs/engineering/DECISIONS.md](../../../docs/engineering/DECISIONS.md) → **D18** (the obligation,
+  the typed link, the derived state, the append-only ledger) and **D19** (one-to-one only, registered
+  by a person, booked through the scheduling repository), plus the older entries this domain depends on
+  — D1, D8, D12, D14, D17.
+- [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) → **I18** (the requirement
+  this domain partly answers: **OPEN and only PARTLY LANDED** — group and class-wide compensation and
+  any notification are still unbuilt), **I20** (no UI and no server), I7 and I19.
+- The scheduling domain's own [README](../scheduling/README.md), whose `create()` verb books the make-up
+  and whose `sessionRoster()` is authoritative for the affected student.
+
+Automatic completion of elapsed sessions (the SL workstream) has **no decision and no implementation**
+in those documents: it is a separate concern, deliberately kept out of P1 (§10 above).

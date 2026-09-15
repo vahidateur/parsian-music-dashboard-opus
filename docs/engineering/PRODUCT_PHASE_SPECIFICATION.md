@@ -6,7 +6,9 @@ document, the decision register and the ledger entry) is documentation work; eve
 from M1 onward still needs its own explicit authorization. *(Written at M0 and kept as written:
 M1, M2, M2.1, **M3**, **M4**, **M5** and **M6** have since landed — M3 complete and accepted with
 recorded limitations, M4, M5 and M6 complete on the same terms, **M7** complete and reconciled on the
-same terms — and **M8 onward has not started** —
+same terms — and the **Class Compensation P1 workstream** (not an M-milestone, and the sequence below is
+unchanged by it) shipped at `a21311d7e32c82e3a46b1581c94f6b3478bf646c` for the private one-to-one case
+recorded in §9, while **M8 onward has not started** —
 the live status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
@@ -18,8 +20,8 @@ adds no new requirements and cancels none.
 
 **What this document is not.** It does not replace [OPEN_ITEMS.md](OPEN_ITEMS.md) (the backlog of
 record, with the evidence), [DECISIONS.md](DECISIONS.md) (the durable architecture record — the
-D1–D16 register is *recorded* there, at §19 — this document summarises it below as the D1–D12
-table M0 wrote, with D13–D17 referenced by the milestone sections that decided them), or
+D1–D19 register is *recorded* there, at §19 — this document summarises it below as the D1–D12
+table M0 wrote, with D13–D19 referenced by the sections that decided them), or
 [PROJECT_STATE.md](PROJECT_STATE.md) (the recovery document). Where they disagree, **they win**
 and this file is corrected.
 
@@ -97,7 +99,8 @@ required.
 | 17 | Attendance | domain **A** / view **A** — *advanced at M5's landing (2026-09-14), which is the precondition this row itself named: it was **D** at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` and must not be read as **A** at any commit before `9505ade4011b37a34e3488fd51206512829205ec`* | domain surface at `src/domains/attendance/repository.ts:40-80`, roster derived (`src/domains/attendance/types.ts:186-189`), **unchanged by M5** (no file under `src/domains/` differs across `24caf3a..9505ade`); the view no longer keeps rosters in local React state — it derives its selected session from the window it read and renders the register `useSessionAttendance` returns | **M5** ✅ |
 | 18 | Finance / Reports | **D + E** | four README stubs only (`src/domains/finance/README.md`, `src/domains/reports/README.md`, `src/domains/messaging/README.md`, `src/domains/notifications/README.md`); reports must be *"authoritative server-side results, not client-side math"* | **deferred (D6)**; fake actions disabled in M2 |
 | 19 | Recovery / lifecycle UX | domain **A** / UX **C** | `uninitializeEnvironment` (`src/domains/demo/lifecycle.ts:265`) + `demoDataManager.uninitialize` (`src/domains/demo/demoDataManager.ts:124-125`) exist with **zero UI callers**; `src/domains/demo/useDemoData.ts:29` wires only `reset｜clear｜import-seed｜restore-backup` | **M1** |
-| 20 | Backend readiness | **E / C** | 9 domains have an `apiRepository.ts` (attendance, classes, enrollments, library, progress, rooms, scheduling, students, teachers) but only **7 registry getters** switch on `isApiMode()` (`src/domains/registry.ts:95-127`); **10 getters** return Demo in *both* modes (`:141,144,147,150,163,166,169,172,198,209`) | M11 (D8) |
+| 20 | Backend readiness | **E / C** | 9 domains have an `apiRepository.ts` (attendance, classes, enrollments, library, progress, rooms, scheduling, students, teachers) but only **7 registry getters** switch on `isApiMode()` (`src/domains/registry.ts:96-130`); **11 getters** return Demo in *both* modes (`:143,146,149,152,165,168,171,174,200,211,231` — the fourth line reference group is post-P1 and the earlier three, `141,144,…,209`, were correct at M0; the line numbers drift, the count is what matters) | M11 (D8) |
+| 21 | Cancelled-session compensation (**I18**) | **B** — *domain shipped, UI absent; narrower than I18 as recorded* | the make-up obligation domain, its five-verb contract and 69 tests in `src/domains/compensation/`; the registry seam at `src/domains/registry.ts:231`; explicit registration with `schedule.write`, the affected student frozen from the derived roster, an append-only attempt ledger, a **derived** state, and booking through the scheduling repository's own `create()` with a prefill-only default. **No UI, no `apiRepository`, no notification** | P1 ✅ **shipped** `a21311d7e32c82e3a46b1581c94f6b3478bf646c` as a **non-milestone workstream**; the class-wide/group and notification halves stay open (**I18**), and the missing caller is **I20** |
 
 **Newly recorded drift (found while writing this, 2026-09-09).**
 `docs/architecture/data-layer.md:265,268` says *"Six domains were added"* and *"These six resolve
@@ -756,6 +759,44 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   6. **No acceptance audit ran**, so this milestone has no audit findings and no **B**-numbered coverage
      items, unlike M3 and M4. The reversion and mutation checks are the implementer's own measurement.
 
+### Class Compensation P1 — a non-milestone workstream (**I18**, private one-to-one) — ✅ SHIPPED at `a21311d`
+
+- **Scope, as authorized and as built.** The make-up obligation owed for a **cancelled private
+  (one-to-one)** session: `SessionCompensationRecord`
+  (`src/domains/compensation/types.ts`) linked by the typed `originalSessionId`, the affected student
+  frozen from the scheduling domain's derived roster, an append-only attempt ledger, a state derived on
+  read (`required` → `scheduled` → `completed`), registration as an explicit act by a secretary,
+  manager or admin holding `schedule.write`, and the make-up created as an ordinary session through
+  `SchedulingRepository.create()`. Decisions **D18**/**D19** in [DECISIONS.md](DECISIONS.md).
+- **This is not an M-milestone.** It occupies no row of §4's milestone order, advances no
+  phase-checkpoint row, and the M0–M11 sequence is unchanged. It is registered as a workstream in
+  [PHASES.md](PHASES.md) → "Workstream — Class Compensation P1".
+- **Dependencies.** None: the scheduling and attendance contracts are consumed unchanged, `Session` and
+  `SessionStatus` are untouched, and no file under either domain differs across `e7a6d72..a21311d`.
+- **Protected areas.** Group A (211 tests) and Group D (79) are frozen and were not touched; the new
+  contract is pinned by its own 69 cases (`src/domains/compensation/__tests__/`), listed in
+  [PROJECT_STATE.md](PROJECT_STATE.md) §6.
+- **Demo/API behaviour.** Resolves to the demo implementation in **both** modes, like scheduling and
+  attendance; there is deliberately **no `apiRepository`**, so the api-mode hybrid disclosure (**D8**,
+  M11) now has an eleventh domain to declare.
+- **Tests.** 69 cases in five new files, plus two additive integration edits required by the dataset
+  contract (one label in the settings panel's total `COLLECTION_LABELS` record, one entry in the seed
+  suite's `INTENTIONALLY_EMPTY` set). No frozen suite was modified.
+- **Acceptance.** **I18 is only partly satisfied and stays OPEN:** the requirement as recorded covers
+  any cancelled class or teacher session and every affected student, while P1 deliberately serves the
+  private one-to-one case only, registers nothing automatically, and notifies nobody.
+- **Out of scope.** Group/class-wide compensation, notification (**D1**, **I7**), a free-slot search, a
+  Settings limit rule, the UI (**I20**), a server, and automatic completion of elapsed sessions — a
+  separate workstream, not designed and not implemented here.
+- **Checkpoint & rollback.** One implementation checkpoint,
+  `a21311d7e32c82e3a46b1581c94f6b3478bf646c` (18 files, 2 976 insertions / 0 deletions), on base
+  `e7a6d72e561bdbb0d22280e4617141281b62d8b5` (M7's documentation reconciliation), which is therefore
+  **P1's effective safe rollback boundary**. Measured evidence:
+  [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation" — full suite
+  130 files / 1 800 tests with the two recorded environmental failures unchanged, typecheck and build
+  clean, Groups A and D untouched. **Browser QA: NOT VERIFIED**, and P1 adds nothing to that checklist
+  because it ships no view.
+
 ### M8 — Branding application & visual identity (**needs D2**)
 
 - **Scope.** Call the seam that already exists and is already tested:
@@ -1012,6 +1053,19 @@ browser-capable environment performs it.
 
 **Recorded at M7's closure (2026-09-15), by owner instruction, and explicitly NOT designed here:** a cancelled class or a cancelled teacher session **requires a compensatory session** for the affected students — the product's stated default is a **one-hour session on the same day**, and otherwise the date and time are **coordinated with the secretary**. It is recorded as a *requirement / open design item*: no compensation flow, no entity, no verb, no scheduling redesign and no UI was built in M7, and none of it is authorized. It is catalogued as [OPEN_ITEMS.md](OPEN_ITEMS.md) **I18**, where the backlog of record keeps its evidence; the cancellation path it will eventually touch is `src/views/scheduling/SessionWriteDialogs.tsx` and the scheduling domain's cancel verb (**Group A**, frozen — §8 of this document). **D1** and **I7** are unaffected: the affected families still are not notified by anything this build ships.
 
+**Updated 2026-09-15 (Class Compensation P1, `a21311d7e32c82e3a46b1581c94f6b3478bf646c`): the
+requirement has been designed and implemented for the private one-to-one case.** What shipped is the
+obligation domain described in §5 above: the affected student is frozen from the session's derived
+roster, registration is an explicit act by staff holding `schedule.write` (a teacher cannot register,
+book or discharge), and the make-up is an ordinary session booked through the scheduling repository's
+own `create()`. The "one-hour session the same day" default is expressed as a **prefill of the original
+session's own date and start time** — never computed from "today", never a free-slot search — and the
+coordination with the secretary remains a form the operator fills rather than a flow this build runs.
+**Still deferred and unbuilt:** group and class-wide compensation, any notification (**D1**, **I7**),
+the UI, and a server. **I18 stays OPEN and is only PARTLY LANDED**; the P1 workstream is not a milestone
+and does not appear in §4's order. Automatic completion of elapsed sessions is a **separate** workstream
+— not designed, not authorized and not part of P1.
+
 Deferral is recorded, never silent: [OPEN_ITEMS.md](OPEN_ITEMS.md) rule 3 — *"Never re-categorise an
 item downward to make a phase look finished."*
 
@@ -1103,6 +1157,11 @@ workspace and every prior figure is a stale measurement — I6 itself dates its 
   workspace being re-cloned between turns).
 - **M0 is a documentation checkpoint, M1–M11 are phase checkpoints.** Only a phase checkpoint
   advances "Current phase" in §3 of that document.
+- **A workstream is neither.** Work authorized outside the M0–M11 sequence — the I13 checkpoints, the
+  two pre-M4 remediation commits, Class Compensation P1 — is registered like a milestone (real SHA, a
+  ledger entry, a rollback boundary, its own validation record) but **advances no phase-checkpoint row
+  and occupies no row of the milestone order**. Its commits and its own documentation reconciliation
+  are listed in [PHASES.md](PHASES.md) so that `git log` shows nothing unexplained.
 - **No self-referential SHAs:** a ledger entry never carries the SHA of the commit that carries it;
   the newest documentation checkpoint listed is always the one *before* it.
 - **Verify, do not trust:** `git ls-remote origin refs/heads/<branch>` before marking anything

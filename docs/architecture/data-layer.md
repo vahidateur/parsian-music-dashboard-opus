@@ -262,16 +262,26 @@ are honest, read-only fixture renderers today.
 
 ## Profiles, learning and media (this phase)
 
-Six domains were added: `instruments`, `learning`, `chat`, `media`, `branding`,
-`gallery`.
+Six domains were added in that phase: `instruments`, `learning`, `chat`, `media`,
+`branding`, `gallery`.
 
-### These six resolve to Demo in BOTH modes
+### These six resolve to Demo in BOTH modes — and so do five more, added since
 
 No server implements them yet. Rather than let production silently fall back to
 demo data (§37), `registry.ts` returns the Demo implementation in both modes and
 documents that at the getter. The interface boundary is already in place, so
 adding an API implementation later is a one-line registry change per domain and
 touches no UI.
+
+**The count is not six any more.** Five further domains now resolve the same way:
+`library` (its `apiRepository.ts` exists, but the download path would need a
+binary-capable client — see its getter), `progress`, `scheduling` and `attendance`
+(both of whose REST contracts exist and compile, with no server serving them), and
+`compensation` — added by the Class Compensation P1 workstream, which deliberately
+ships **no** `apiRepository` at all. **Eleven** registry getters therefore return
+the Demo implementation in BOTH modes, and
+[PRODUCT_PHASE_SPECIFICATION.md](../engineering/PRODUCT_PHASE_SPECIFICATION.md)
+§3 row 20 is the ledger that tracks the count and the line references.
 
 ### Instruments are data, not a union
 

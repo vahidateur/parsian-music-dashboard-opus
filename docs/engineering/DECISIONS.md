@@ -419,14 +419,16 @@ invariant (**I10**).
 
 ---
 
-## 19. Product-phase decision register (D1–D17)
+## 19. Product-phase decision register (D1–D19)
 
-Seventeen decisions gate the product-feature phase planned in
-[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D17** to
+Nineteen decisions gate the product-feature phase planned in
+[PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D19** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Ten are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
-M5's, **D14**, **D15** and **D16** by M6's, and **D17** by M7's), two are settled by deferral
+Twelve are decided (**D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13** by
+M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18** and **D19** by the **Class
+Compensation P1** workstream's landing `a21311d7e32c82e3a46b1581c94f6b3478bf646c` — the first two
+decided outside the M0–M11 milestone sequence), two are settled by deferral
 (**D1**, **D6**), and five are open (**D2**, **D5**, **D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
@@ -434,7 +436,12 @@ documentation reconciliation, while their sections below already existed; the he
 was right and the table was not. **D13** was added by M5's documentation reconciliation, together with
 its table row and its section, so that neither half drifts the way those three did. **D14–D16** were
 added the same way by M6's documentation reconciliation — each with its row and its section, written
-from M6's measured evidence rather than from its plan.
+from M6's measured evidence rather than from its plan. **D18 and D19 were added the same way by Class
+Compensation P1's** — with their rows and their sections, written from what landed. **D17's row is
+repaired here too:** the M7 reconciliation (`e7a6d72`) added its section and updated this heading and
+tally, but the table stopped at D16 — the same "heading right, table wrong" failure this paragraph
+records for the M3 trio, caught this time by the reconciliation that followed rather than by the next
+milestone.
 
 | ID | Decision | Status | Blocks |
 |---|---|---|---|
@@ -454,6 +461,9 @@ from M6's measured evidence rather than from its plan.
 | D14 | An operation the existing contract already expresses gets no new verb and no second write or read path | **DECIDED — landed with M6** | M6 |
 | D15 | An attachment is a reference (`mediaId`), not a copy — resolution is not authorization, and bytes never travel in an export | **DECIDED — landed with M6** | M6 |
 | D16 | Write state and in-flight work are keyed to the identity they started with, not to whatever is on screen when they resolve | **DECIDED — landed with M6** | M6 |
+| D17 | A relation is a bounded repository read, and a count is a claim that needs a complete one | **DECIDED — landed with M7** | M7 |
+| D18 | A compensation is an obligation of its own, keyed by a typed id, with a derived state and an append-only attempt ledger | **DECIDED — landed with Class Compensation P1** | P1 / later consumers |
+| D19 | Compensation is one-to-one only, registered by a person, and the make-up is an ordinary session booked through the scheduling repository | **DECIDED — landed with Class Compensation P1** | P1 / later consumers |
 
 ### D1. Student role — deferred, not designed
 
@@ -1000,6 +1010,88 @@ cases, and the seven gate injections, each of which turns the gate red.
 fixtures are **not deleted** (**D5**/**M10**), the gate covers the five surfaces M7 owned rather than
 every view, `useStudentList` still carries no query key (**I13** — mitigated at three consumer mounts,
 not fixed), the `per_page: 200` ceilings stand (**I16**), and no browser QA has run on any of it.
+
+### D18. A compensation is an obligation of its own, keyed by a typed id, with a derived state and an append-only attempt ledger
+
+**Decision.** Decided by the **Class Compensation P1** workstream's landing
+(`a21311d7e32c82e3a46b1581c94f6b3478bf646c`), and binding on every later consumer of the flow:
+
+1. **The obligation is an entity, not a flag.** `SessionCompensationRecord`
+   (`src/domains/compensation/types.ts`) is a record in its own collection — never a field or a status
+   on `Session`, and never inferred from the mere existence of a cancelled session.
+2. **The link to the cancelled session is the typed `originalSessionId`.** Free-text linkage through
+   `notes` is not a relation: it cannot be filtered, counted or enforced — the rule **D17** applied to
+   displayed relations, applied here to the obligation.
+3. **The state is derived on read and never stored.** `completedAt` set ⇒ `completed`; otherwise a
+   newest attempt whose session exists and is not cancelled ⇒ `scheduled`; otherwise `required`. There
+   is no status column, and nothing was added to `cancelSession` to maintain one.
+4. **The attempt ledger is append-only.** The newest line is the current attempt, so no separate
+   pointer can disagree with the history, and a cancelled attempt stays in the record.
+5. **`completed` on the obligation is a decision, not a session lifecycle.** It records who discharged
+   the debt and when. `Session.status === "completed"` is a different fact about a different thing, and
+   the two are deliberately not derived from each other. Automatic completion of elapsed sessions is a
+   **separate** workstream: not designed here, not authorized, and not part of this decision.
+
+**Why.** A stored status would be a second source of truth that `cancelSession` — a protected verb,
+frozen for this phase — would have to be taught to maintain. Derived on read, the rule this workstream
+was authorized under — cancelling the make-up returns the requirement to `required`, and the cancelled
+attempt stays in the history — holds with **no write at all**. Keeping the obligation separate is also what lets it outlive
+the row it compensates for: scheduling may hard-delete a session with no attendance, and the read model
+reports `originalMissing` / `attemptBroken` instead of losing the debt.
+
+**Enforced by.** `src/domains/compensation/__tests__/derive.test.ts` (20 cases — the derivation with no
+environment, store or clock) and `demoRepository.test.ts` (27) — including a cancelled attempt returning
+the obligation to `required`, a hard-deleted attempt reported as `missing`, a discharge that stays
+terminal while still reporting the contradiction, and the append-only ledger across a re-booking.
+
+**Status.** ✅ **Landed at P1.** Scope of the claim, stated so it is not read as more than it is: the
+flow has **no UI** and **no `apiRepository`** (**I20**), the demo ships **no compensable case**, there
+are **no mutation or reversion checks** for it, and browser QA has never run on anything.
+
+### D19. Compensation is one-to-one only, registered by a person, and the make-up is an ordinary session booked through the scheduling repository
+
+**Decision.** Decided by the same landing, and binding on every later consumer:
+
+1. **Eligibility is the class's `kind`, never the roster size.** `AcademyClass.kind === "private"` is
+   the authority; a group class is refused even when it currently holds exactly one student. Counting
+   roster rows would make eligibility a function of enrolment data that changes.
+2. **Registration is an explicit human act.** Cancelling a session creates nothing. A secretary,
+   manager or admin holding `schedule.write` registers the obligation; a teacher cannot register, book
+   or discharge one. The recorded actor is **provenance, never authorization** — the server enforces
+   who may write.
+3. **The affected student is derived and frozen.** Exactly one student, from the scheduling domain's
+   `sessionRoster` at the original's date — never the class's denormalized `studentIds`, never a mark —
+   and it must be the student the caller named.
+4. **An attendance mark on the cancelled original is asked about, not assumed.** Registration is
+   refused unless the caller acknowledges it explicitly, and the mark itself is derived on read rather
+   than copied onto the obligation.
+5. **At most one obligation per `(originalSessionId, studentId)`, for the pair's lifetime.** `register`
+   is never an upsert: an open pair answers `ALREADY_OPEN`, a discharged one `ALREADY_SETTLED`.
+6. **The make-up is an ordinary session, created through the scheduling repository's own `create()`.**
+   No second session model and no second conflict engine: shape validation, the 15–480 minute bounds,
+   the hard/warning conflict rules and `origin: "manual"` stay in the domain that owns them.
+7. **The default is a prefill, not a booking.** The original's date, room and teacher, one hour long —
+   offered only when the original is readable, never computed from "today", with **no free-slot search**
+   behind it.
+8. **Not built, by decision:** notification of any kind (**D1**, **I7**), group and class-wide
+   compensation, a Settings limit rule, a compensation UI, and any server-side implementation.
+
+**Why.** The requirement this answers (**I18**) is a debt owed to a *specific* student, and the failures
+that matter are a wrong student compensated, a debt silently created by a cancellation, and a make-up
+booked through a path that ignores the scheduling engine's rules — hence clauses 2, 3, 4 and 6. Clause 7
+expresses the owner's "one hour, same day" default as a proposal for a form: computing a slot is the
+free-slot search this phase deliberately does not build.
+
+**Enforced by.** `src/domains/compensation/__tests__/demoRepository.test.ts` (27),
+`datasetContract.test.ts` (15 — the dataset, registry and backup contract) and `persianDate.test.ts`
+(2 — the Jalali date the operator types). The exclusions are enforced the same way rather than promised:
+a group class is refused by code, no notification row is written anywhere, and the make-up session is
+created through `create()` and carries `origin: "manual"`.
+
+**Status.** ✅ **Landed at P1**, as a **workstream** rather than a milestone ("Workstream — Class
+Compensation P1" in [PHASES.md](PHASES.md); it advances no phase-checkpoint row). **I18 remains OPEN and
+is only PARTLY LANDED:** group and class-wide compensation and any notification are still unbuilt, and
+the flow has no UI.
 
 ### Adding a decision
 

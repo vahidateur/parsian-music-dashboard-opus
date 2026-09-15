@@ -459,8 +459,43 @@ zero. (Verified false-in-EMPTY during the Phase 2 audit; deliberately not fixed 
 it needs live counters, not a lifecycle change.)
 - **Status (2026-09-15, M7 `f1ec0ddde783aec14d6429ac2457f085f851ad9a`):** the *done-when* is met, and by the strictest available reading of it — `NavDef` no longer has a `badge` field at all, so a static count cannot be reintroduced without failing `src/views/__tests__/relationsNoFixtures.test.ts`; `Sidebar.tsx` computes its badges once per shell in `useNavBadges()` from `useConversations({ per_page: 200 })`, summing the `unread` field the chat repository returns, and renders the badge **only** while that read is complete (`total === items.length`) and the sum is positive — in flight, failed, partial and zero all render **nothing**. Pinned in both directions by `src/views/__tests__/navigationCounts.test.tsx` (7 cases: the repository's own total, a real `markRead` moving it, and silence on a failed read, a partial page and zero unread). **The attendance badge was REMOVED, not rebuilt:** «۳ کلاس ثبت‌نشده» needed a scoped "sessions with no register" query, the attendance domain exposes none (`sessionIdsWithAttendance` is a one-directional protection seam over the whole table, not a bounded read), and inventing an aggregate was explicitly out of scope — the reason is documented in `src/components/layout/Sidebar.tsx` next to the code. The *hints* half of this item went the same way: the command palette's «مالی · ۳ مورد», «حضور · ۳ کلاس ثبت‌نشده», «هنرجویان · ۵ نفر», «گزارش‌ها · ۶ ماه», the room option «اتاق ۴ (۵۸٪ آزاد)» and the recipient option «هنرجویان در معرض ریزش (۵)» now name a target, a filter, a room or a group and claim no figure; the gate rejects a digit written into any nav or command hint (both digit scripts, every quoting style) and a parenthesised count inside a select option. **What this does not close:** the *fixture identity* still on screen (the academy name in the shell and on the login screen) is a different item — **M8/D2** — and the dashboard panels' fabricated sentences are **M9/H4**. Recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix" (rows 11, 12, 13, 14 and 21) and §7 item 2.
 
-### I18. A cancelled class or teacher requires a compensatory session — **requirement, not designed**
+### I18. A cancelled class or teacher requires a compensatory session — **requirement; PARTLY LANDED (private one-to-one), item still OPEN**
 **Recorded 2026-09-15 at M7's closure, by product-owner instruction. NOT implemented, NOT designed and NOT authorized.** The requirement, in the owner's words: when a class or a teacher is cancelled, the **affected students require a compensatory session**; the stated default is a **one-hour session on the same day**, and otherwise the date and time are **coordinated with the secretary**. Nothing in this build does any of that today: `cancelSession` (the scheduling domain's cancel verb, `src/domains/scheduling/repository.ts`) cancels a session and appends a required reason, the view reports exactly what happened (`src/views/scheduling/SessionWriteDialogs.tsx`), and **no compensation row, entity, verb, reminder or UI exists** — nor may one be inferred, because the current cancellation model is "this session does not happen", not "this session is owed". **Done when (to be designed, not assumed):** the requirement is turned into a written design — what a compensation is (a new `Session` for the same class, a make-up slot, or a credit), who may create it (the secretary, not the teacher), how the same-day one-hour default is expressed against availability and the conflict engine, how students are told (today no notification of any kind is sent — **D1**, **I7**), and what happens when no slot can be agreed. Evidence and boundaries: the cancel path above; the scheduling section of [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §9 (deferred, recorded at M7's closure); **Group A is frozen** — any design that needs a scheduling contract change is a decision before it is code. **M7 did not touch it**, and no part of this item may be reported as started.
+
+**Status (2026-09-15, Class Compensation P1 `a21311d7e32c82e3a46b1581c94f6b3478bf646c`): PARTLY
+LANDED — the item stays OPEN, and the paragraph above is kept as written.** The *done-when* clause "the
+requirement is turned into a written design" is met, and the design is implemented as a domain:
+`src/domains/compensation/` (types, pure derivation, a five-verb contract, the demo implementation, a
+read layer, a README and 69 tests), registered at `src/domains/registry.ts:231` and backed by a new
+`sessionCompensations` dataset collection. **What shipped is narrower than what this item records, and
+must not be read as satisfying it:** P1 covers **cancelled sessions of private (one-to-one) classes
+only** — a group class is refused by `kind`, never by roster size; the obligation is registered by an
+**explicit act** of a secretary, manager or admin holding `schedule.write` (a teacher cannot register,
+book or discharge), not created by the cancellation; the "same-day one-hour" default is a **prefill of
+the original session's own date**, never a computed "today" and never a free-slot search; and **nothing
+notifies anybody** (**D1**, **I7**). **Still unbuilt:** group and class-wide compensation, any
+coordination flow beyond a form the operator fills, the UI, and a server. Decisions **D18**/**D19** in
+[DECISIONS.md](DECISIONS.md); the workstream record is [PHASES.md](PHASES.md) → "Workstream — Class
+Compensation P1" and [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "Compensation P1 validation". Automatic
+completion of elapsed sessions is a **separate** workstream with no decision and no implementation, and
+is not part of this item.
+
+### I20. The compensation contract has no UI and no server (found 2026-09-15, by P1's landing)
+**The domain is complete, tested and registered; nothing in the product calls it.** The five verbs and
+the read layer (`src/domains/compensation/useCompensations.ts`) have **no shipped caller**: no view
+offers registering an obligation, booking a make-up or discharging one, and `src/domains/compensation/README.md`
+records the same fact from the domain's side. There is also **no `apiRepository`** for the domain, so
+api mode would silently serve the demo implementation for an **eleventh** domain — the disclosure
+problem **D8** exists to prevent (M11), which now has one more member: the registry getter
+(`src/domains/registry.ts:231`) resolves demo in **both** modes. Finally, the demo dataset ships **no
+compensable case at all** (`sessionCompensations: []`, and its only cancelled session belongs to a
+group class), so even a hand-run cannot exercise the flow without first creating a cancelled private
+session and registering by hand. **Done when:** a surface wires the read layer and the three write
+verbs (register, schedule, complete) through the RBAC permission that owns them, the demo can produce a compensable case (seeded or by hand,
+without inventing data that contradicts the seed), and a server implements the pinned contract or the
+api-mode hybrid is disclosed where the flow is offered — the same standard M4/M5 met for scheduling and
+attendance. **What this is not:** a defect in the domain. It is the deliberate scope of the P1
+authorization ("no UI in P1"), recorded so it cannot be mistaken for a delivered capability.
 
 ### I2. Finance and Reports have no domain layer
 `src/views/Finance.tsx` and `src/views/Reports.tsx` are fixture renderers with no
@@ -1344,7 +1379,7 @@ Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documenta
 | Document | Stale claim |
 |---|---|
 | `docs/gap-matrix.md` | A "Phase 0 audit" that lists teachers, classes, enrollments, scheduling, attendance, finance, messaging, library, notifications and reports as **NOT IMPLEMENTED**, and uses a different phase numbering from this ledger |
-| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media) |
+| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media); and its registry count — "Six domains were added" / "These six resolve to Demo in BOTH modes", which [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §3 already corrected to ten — is now **eleven** after Class Compensation P1 added `src/domains/registry.ts:231`. **The count sentence only was corrected in place** by this reconciliation (the section now says eleven and names the five additions); the rest of that document's staleness — the claims listed above — is **still recorded here and still unedited**, because they belong to the domain-by-domain migration status, not to the counts |
 | `docs/production-handoff.md` | "Verified in this build … `npm test` — 38 files / 340 tests" (the suite has grown far past that; the live figure lives in [PROJECT_STATE.md](PROJECT_STATE.md) §4, deliberately not duplicated here) |
 | `docs/architecture/auth.md` | "Known limitations" section predates the Phase 2 lifecycle model (the bootstrap-account section added in Phase 2 is current) |
 | `docs/architecture/environments.md` | Lines 56–63 ("Demo-only material must not leak") claim `isDemoMode()` gates every demo affordance and that "the login screen renders no demo panel, passphrase or «بدون امنیت واقعی» banner", citing `src/views/__tests__/loginDemoIsolation.test.tsx`. Both claims hold only in **api** mode — which is exactly the mode that test runs — and both contradict the "Two independent axes" section of the same file (lines 42–52). In code the login panel is gated on the data-source axis and **does** render in EMPTY; its *wording* now comes from `useIsDemoEnvironment()` (see H3). Recorded, not rewritten |

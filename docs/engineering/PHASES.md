@@ -174,7 +174,10 @@ also M4's effective safe rollback boundary) · **M4 ✅ complete** (CP0 `84fb7cb
 reconciliation `9190da0`) · **M6 ✅ complete** (CP1 `43e7882`, CP2 `42c54f4`, CP3 `563b8d8`, CP4
 `4e03b87`, reconciled at `e6ab6f9` + `8131c5c` — see "Product phase — M6" below) · **M7 ✅ complete**
 (CP1 `0d9fc01`, CP2 `5726435`, CP3 `ede3ad6`, CP4 `f1ec0dd`, with this pass reconciling the record —
-see "Product phase — M7" below) · M8–M11 ❌ **not started, not authorized**.
+see "Product phase — M7" below) · **Class Compensation P1 ✅ shipped** at `a21311d` as a
+**non-milestone workstream** — one product commit plus its documentation reconciliation, with the
+M0–M11 sequence and the milestone table unchanged (see "Workstream — Class Compensation P1" below) ·
+M8–M11 ❌ **not started, not authorized**.
 
 **The authoritative spec is [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).** It
 replaces the informal "intended scope as discussed" that stood here before: every milestone carries
@@ -197,7 +200,7 @@ gaining a verb).
 | M4 — scheduling **view** wiring | **H1a** — Group A domain frozen | ✅ **complete** — CP0 `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` (documents only), CP1 `0f875a78c99077e25b67b9cc9cffe34c823ee511` (reads), CP2 `f8c3472895978054c8dc81574bb8a945ef3c326d` (writes), CP3 `6f54caf46dc13baca78e376c606a4aa9667cdb48` (generation), acceptance coverage `df701488362cb90cf32ccefad277879477571cf7`; **H1a closed** and **I3's pattern reused**, Group A untouched at 211, limitations recorded (H1 stays OPEN on H1b, I13, I16, five unconsumed verbs), browser QA NOT VERIFIED. The two pre-M4 remediation commits (**C1** `fba826f`, **C2** `7e72887`) landed ahead of it and are *not* M4 |
 | M5 — attendance **view** wiring | **H1b** — Group D domain frozen | ✅ **complete** — one implementation checkpoint `9505ade4011b37a34e3488fd51206512829205ec`, built on M4's final reconciliation `24caf3a`; **H1b closed** and with it the umbrella **H1**, **I12 closed**, **no file under `src/domains/` changed at all**, 53 new view cases and three gates re-driven; reconciled by `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **I13** and **I16** stay OPEN with view-boundary mitigations only, browser QA NOT VERIFIED |
 | M6 — contracts without UI | chat rename/pin/archive, attachments, export coverage | ✅ **complete** — CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (chat contract: `mediaId`, the reversible `archived` patch, resolution before delivery), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management, conversation-keyed composer, failed-read honesty), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments through the media seam) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (single-conversation text export), built on `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9`; **106 new tests** (+106 on the suite), 14 mutation checks, **no dependency and nothing outside the chat domain and the Messages surface**; **I15's `Messages.tsx` site fixed** while I15 stays OPEN, **I13** inherited by the attachment card without being reachable there; limitations recorded (backend-required ownership/authorization, browser-local bytes, metadata-only export with a 1 000-message ceiling), browser QA NOT VERIFIED |
-| M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ❌ not started |
+| M7 — relation de-fixturing | fixture relations in the profile views + **I1** badges | ✅ **complete** — CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts), reconciled at `e7a6d72e561bdbb0d22280e4617141281b62d8b5`; **67 new tests in six new files**, `git diff --name-only 8131c5c..f1ec0dd` outside `src/views/`, `src/data/academy.ts` and `src/components/layout/Sidebar.tsx` prints nothing; both full-suite failures recorded as environmental; **I1 closed**, browser QA NOT VERIFIED |
 | M8 — branding application | the identity that is saved becomes the identity rendered (needs **D2**) | ❌ not started |
 | M9 — dashboard insight from live data | **H4**, with **I9** guards landing first | ❌ not started |
 | M10 — fixture / type / seed separation | **D5**, the documentation-drift table, **L2**, **L3** | ❌ not started |
@@ -1297,6 +1300,60 @@ rewritten, reset or rebased to make these documents agree.
 
 ---
 
+## Workstream — Class Compensation P1 (make-up for a cancelled one-to-one session) — ✅ SHIPPED at `a21311d`
+
+**Not a milestone, and the M0–M11 sequence is untouched.** P1 is work authorized outside the
+specification's milestone order, like the I13 checkpoints before it: it closes no **M** milestone, it
+occupies no row of the milestone table, and it advances no phase-checkpoint row (that row stays at
+Phase 2 for the ordering reason in [PROJECT_STATE.md](PROJECT_STATE.md) §2). It is registered here
+because a commit this ledger cannot explain is exactly what this document exists to prevent.
+
+**Base and rollback boundary.** P1 was built on M7's documentation reconciliation
+`e7a6d72e561bdbb0d22280e4617141281b62d8b5`, which is therefore its **effective safe rollback
+boundary**: rolling back to it drops P1 entirely and keeps M7 and every document it left behind. The
+workstream commit itself is `a21311d7e32c82e3a46b1581c94f6b3478bf646c`.
+
+**Implementation checkpoint (one) · pushed ✅**
+- `a21311d7e32c82e3a46b1581c94f6b3478bf646c` · *feat(compensation): add the make-up obligation domain*
+  · **18 files, 2 976 insertions, 0 deletions** — the new `src/domains/compensation/` (types, the pure
+  derivation, the five-verb contract, the demo implementation, the read layer, a README and **69 tests
+  in five files**) plus seven existing files, **every one of them insertions only**: the dataset
+  collection (`src/domains/demo/types.ts`, `src/domains/demo/seed.ts`, `src/services/demoStore.ts`), the
+  reference-integrity rules (`src/domains/demo/backup.ts`), the registry seam
+  (`src/domains/registry.ts`), and the two **additive integration edits the dataset contract required**
+  (`src/components/settings/DemoDataPanel.tsx`, `src/domains/demo/__tests__/seed.test.ts`). **Nothing
+  under `src/domains/scheduling/` or `src/domains/attendance/` changed**, `Session` and `SessionStatus`
+  are untouched, and no dependency was added.
+
+**What it ships.** An obligation of its own for a cancelled **private (one-to-one)** session, linked to
+that session by the typed `originalSessionId`: registration is an explicit act by a secretary, manager
+or admin holding `schedule.write` (a teacher cannot register, book or discharge), the affected student
+is frozen from the scheduling domain's derived roster, the attempt ledger is **append-only**, and the
+state is **derived on read** (`required` → `scheduled` → `completed`) — so cancelling the make-up
+returns the requirement to `required` with no write, no listener and no hook inside `cancelSession`.
+The make-up is an ordinary session created through the scheduling repository's own `create()` verb, and
+the one-hour same-day shape is a **prefill** of the original's own date, room and teacher — never an
+automatic booking and never a free-slot search.
+
+**What it does *not* claim.** **No UI and no `apiRepository`** — nothing in the product offers the flow,
+and api mode would silently serve the demo implementation for an eleventh domain (**D8**; catalogued as
+**I20**); **no notification of any kind** (**D1**, **I7**); **group and class-wide compensation are
+refused by design** (eligibility is `kind === "private"`, never roster size), so the requirement
+recorded as **I18** is only **partly landed** and **I18 stays OPEN**; the demo dataset ships **no
+compensable case**; there are **no mutation and no reversion checks** for this workstream; **automatic
+completion of elapsed sessions is a separate workstream — not implemented, not authorized and
+deliberately kept out of P1**; and **browser QA has never run** on any of it, because there is no
+surface to open. Full record: [PROJECT_STATE.md](PROJECT_STATE.md) §3 → "Last completed work (Class
+Compensation P1…)", §4 → "Compensation P1 validation" and §7 item 19; decisions **D18**/**D19** in
+[DECISIONS.md](DECISIONS.md).
+
+**Validation** (measured at `a21311d`, `dist/` present): `npx tsc --noEmit` clean, `npm run build` exit
+0, `git diff --check` clean, and the full suite at **130 files / 1 800 tests → 1 798 passed / 0 skipped /
+2 failed** — both failures the recorded environmental pair (the branch-name case and **I19**), unchanged
+by P1 — with Group A at 211 and Group D at 79 untouched and the 69 new cases green.
+
+---
+
 ## Documentation checkpoints (pushed, not application phases)
 
 Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
@@ -1326,8 +1383,9 @@ Terminology, matching [PROJECT_STATE.md](PROJECT_STATE.md) §2:
 | `84fb7cb4a4a703d52de78cd701ed21d4d242d7c5` | **M4's CP0** — the pre-implementation reconciliation of the five `docs/engineering/` documents and `src/domains/scheduling/README.md` against the tree at `7e72887761f07f48e115160611a9785bfaae9060`: the scheduling README's false "not implemented in Phase A" stub and its invented `POST /sessions/{id}/move` / `409 SCHEDULE_VERSION_CONFLICT` contract retired (**L3**), M4's scope restated so it names the frozen files, the two rollback boundaries recorded, and every claim about the scheduling view checked against the code as it stood *before* CP1 | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 | `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` | **M4's final reconciliation** — the five `docs/engineering/` documents brought in line with the milestone that had just landed: M4 marked ✅ COMPLETE against its measured evidence (110 files / 1502 tests / 0 failed / 0 skipped at `df701488362cb90cf32ccefad277879477571cf7`), **H1a** closed, **I16**'s calendar mitigation recorded as a mitigation and not as a closure, the two rollback boundaries named, and the scheduling README reconciled again so it describes a **wired** view | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` | **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*) — M5 registered as ✅ COMPLETE against its measured evidence, the chain's own accounting corrected to what actually happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — **no amend, no force-push, no reset, no rebase**), and the M5 documentation checkpoint **lost unpushed** recorded as **L5** happening twice rather than papered over, including the note that the replay re-measured every number on a fresh full clone instead of copying the lost record. It is also the commit **M6 was built on** | none (documents only — no product source, no test, no dependency, no build) | ✅ |
-| `e6ab6f90901496be376e2278aa28695e5ab32ab6` | **Latest recorded.** **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*) — M6 registered as ✅ **COMPLETE** against its measured evidence: the four checkpoints CP1–CP4, **106 new tests** (31 domain, 75 view/gate), **14 mutation checks** reverted byte-identically, 17 files and `+4321/−61` with `git diff --name-only 9190da0..4e03b87` showing **nothing outside the chat domain and the Messages surface**, the full-suite result at `4e03b87` (119 files / 1655 passed / 8 skipped / 1 known environmental failure) and browser QA kept at NOT VERIFIED — plus the new `src/domains/chat/README.md` and **D14–D16** decided. The reconciliation's second half (the M6 **coverage matrix**, which registers this SHA) follows it as the next documentation commit, because a commit cannot name itself | none (documents only — no product source, no test, no dependency, no build) | ✅ |
+| `e6ab6f90901496be376e2278aa28695e5ab32ab6` | **M6's documentation reconciliation** (*docs(m6): close chat phase documentation*) — M6 registered as ✅ **COMPLETE** against its measured evidence: the four checkpoints CP1–CP4, **106 new tests** (31 domain, 75 view/gate), **14 mutation checks** reverted byte-identically, 17 files and `+4321/−61` with `git diff --name-only 9190da0..4e03b87` showing **nothing outside the chat domain and the Messages surface**, the full-suite result at `4e03b87` (119 files / 1655 passed / 8 skipped / 1 known environmental failure) and browser QA kept at NOT VERIFIED — plus the new `src/domains/chat/README.md` and **D14–D16** decided. The reconciliation's second half (the M6 **coverage matrix**, which registers this SHA) follows it as the next documentation commit, because a commit cannot name itself | none (documents only — no product source, no test, no dependency, no build) | ✅ |
 | `8131c5cd49c35a7163543082475a9635914aba40` | **M6's coverage matrix** (*docs(m6): record the coverage matrix and register the reconciliation*) | The M6 requirement-by-requirement matrix ([PROJECT_STATE.md](PROJECT_STATE.md) §4, 21 rows: PASS / PARTIAL / DEFERRED / OUT OF SCOPE / NOT VERIFIED), which registers M6's reconciliation `e6ab6f9` because a commit cannot name itself | none (documents only) | ✅ |
+| `e7a6d72e561bdbb0d22280e4617141281b62d8b5` | **Latest recorded.** **M7's documentation reconciliation** (*docs(m7): reconcile the relation phase record and close I1*) | M7 registered ✅ COMPLETE against its measured evidence — the four checkpoints, the full-suite result at `f1ec0dd` with both environmental failures recorded, **67 new tests**, the pre-CP4 reversion (17 of 20 cases red) and the seven gate injections — plus **D17** decided, **I1** closed, **I19** recorded, and the M7 record and validation block in [PROJECT_STATE.md](PROJECT_STATE.md). Named by the commit after it, as the no-self-reference rule requires; it is the commit **Class Compensation P1 was built on** | none (documents only) | ✅ |
 
 **M6's chain is registered in the M6 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: four product commits —
@@ -1348,14 +1406,28 @@ that `git log` shows nothing unexplained: four product commits —
 `5726435506bd74748f6165819f3c80e30f359b80` (student relations — 3 files, 899/85),
 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations — 3 files, 1330/134) and
 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts — 6 files,
-1606/168) — followed by its documentation reconciliation, the commit carrying this paragraph, which
-**cannot name itself** and is therefore registered by whichever documentation commit comes next. That
-commit is the **twentieth** documentation checkpoint by the definition above: documents only, no
-product source, no test and no dependency. None of the four product commits advances the
+1606/168) — followed by its documentation reconciliation, `e7a6d72e561bdbb0d22280e4617141281b62d8b5`,
+which **could not name itself** and is therefore registered by the documentation commit after it — the
+one carrying this paragraph, which also names it in [PROJECT_STATE.md](PROJECT_STATE.md) §2 and in the
+table above. **`e7a6d72` is the twentieth documentation checkpoint by the definition above: documents
+only, no product source, no test and no dependency** (the commit carrying this paragraph is the
+twenty-first, and is registered the same way by the one after it). None of the four product commits advances the
 phase-checkpoint row, which stays at Phase 2 for the ordering reason recorded in
 [PROJECT_STATE.md](PROJECT_STATE.md) §2 — a documentation checkpoint must descend from the phase
 checkpoint it is recorded against. `8131c5cd49c35a7163543082475a9635914aba40` is nevertheless M7's
 **effective safe rollback boundary**, for the reason in the M7 section above.
+
+**Class Compensation P1's chain is registered in the workstream section above**, and is listed here so
+that `git log` shows nothing unexplained: **one product commit**,
+`a21311d7e32c82e3a46b1581c94f6b3478bf646c` (*feat(compensation): add the make-up obligation domain* — 18
+files, 2 976 insertions / 0 deletions; 69 tests in five new files; **no** file under
+`src/domains/scheduling/`, `src/domains/attendance/` or `docs/`), followed by its documentation
+reconciliation, **the commit carrying this paragraph**, which cannot name itself and is therefore
+registered by whichever documentation commit comes next. That commit is the **twenty-first**
+documentation checkpoint by the definition above: documents only (these five documents and one domain
+README), no product source, no test and no dependency. Like every workstream it advances no
+phase-checkpoint row — the row stays at Phase 2 — and P1's own effective safe rollback boundary is
+`e7a6d72e561bdbb0d22280e4617141281b62d8b5`.
 
 **M5's chain is registered in the M5 section above and in the milestone table**, and is listed here so
 that `git log` shows nothing unexplained: one product commit,
