@@ -208,8 +208,8 @@ export interface SessionCompensation extends SessionCompensationRecord {
   /**
    * The newest attempt, with the session the make-up stands on NOW.
    *
-   * Five fields, because the ledger's fact and the calendar's fact are different
-   * facts once a make-up has been moved:
+   * Five fields, because the ledger's fact, the calendar's fact and the roster's
+   * fact are three different facts once a make-up is booked and moved:
    *
    *   - `sessionId` — the EFFECTIVE session: what every derived rule above was
    *     computed from, and what a caller acts on. While `sessionStatus` is a real
@@ -227,12 +227,22 @@ export interface SessionCompensation extends SessionCompensationRecord {
    *     the move is visible instead of being silently absorbed;
    *   - `rescheduleCount` — how many moves separate the two. `0` means the booking
    *     is still on its original session.
+   *   - `studentOnRoster` — whether the FROZEN student is still expected at the
+   *     session above (C-2). The roster is derived from Enrollment **for that
+   *     session's own date**, so an enrollment that has ended, was withdrawn, or
+   *     has not started yet makes this `false` — while the booking stays valid,
+   *     stays schedulable and stays dischargeable. Recomputed on every read from
+   *     the scheduling domain's `sessionRoster` and never stored: a re-enrollment
+   *     or a corrected end date changes it with no write here and no migration.
+   *     Absent when the make-up resolves to no real session — `undefined` is "not
+   *     determinable", never a guess, and never a substitute for `sessionStatus`.
    */
   currentAttempt?: {
     sessionId: string;
     sessionStatus: AttemptSessionState;
     bookedSessionId: string;
     rescheduleCount: number;
+    studentOnRoster?: boolean;
   };
   /**
    * True when the current attempt's EFFECTIVE session is `cancelled` or

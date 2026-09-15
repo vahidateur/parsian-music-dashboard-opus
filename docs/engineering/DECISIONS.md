@@ -464,6 +464,7 @@ milestone.
 | D17 | A relation is a bounded repository read, and a count is a claim that needs a complete one | **DECIDED — landed with M7** | M7 |
 | D18 | A compensation is an obligation of its own, keyed by a typed id, with a derived state and an append-only attempt ledger | **DECIDED — landed with Class Compensation P1** | P1 / later consumers |
 | D19 | Compensation is one-to-one only, registered by a person, and the make-up is an ordinary session booked through the scheduling repository | **DECIDED — landed with Class Compensation P1** | P1 / later consumers |
+| D20 | Compensation eligibility at the make-up's date is disclosed on every read and never enforced — the make-up stays bookable and dischargeable, and the refusal stays with the roster that owns it | **DECIDED — landed with Class Compensation C-2** | P1 / later consumers |
 
 ### D1. Student role — deferred, not designed
 
@@ -1101,6 +1102,55 @@ created through `create()` and carries `origin: "manual"`.
 Compensation P1" in [PHASES.md](PHASES.md); it advances no phase-checkpoint row). **I18 remains OPEN and
 is only PARTLY LANDED:** group and class-wide compensation and any notification are still unbuilt, and
 the flow has no UI.
+
+### D20. Compensation eligibility at the make-up's date is disclosed on every read, never enforced
+
+**Decision.** An obligation freezes its affected student at registration, and the enrollment behind
+that student can change before the make-up is played — it can end, be withdrawn, or start after the
+date an operator picks. That disagreement is **reported, never gated**:
+
+1. **`schedule` does not refuse it, and `complete` does not block on it.** The booking is created, the
+   obligation stays `scheduled`, and the make-up stays dischargeable. The debt is owed to the **frozen
+   student**, not to their current enrollment row: a student who finished a term still attended the
+   cancelled lesson, and a student who is not expected at the make-up is exactly the case the operator
+   must learn about — not a case in which the academy keeps the obligation silently open.
+2. **The read model carries the fact, per booking.** `currentAttempt.studentOnRoster` is derived on
+   every read from the scheduling domain's `sessionRoster` **for the effective session's date** — so it
+   follows a reschedule like every other derived answer (D18's lineage rule), and a re-enrollment or a
+   corrected end date clears it with no write here. It is **never stored**: a stored acknowledgement
+   would freeze a fact that moves, which is the mistake clause 1 of D19 already refuses for
+   eligibility itself.
+3. **`undefined` means "not determinable", never `false`.** With no attempt there is no session to ask
+   about; with an unresolvable lineage the effective id is evidence rather than a target (D18/C-1.1) and
+   is deliberately not looked up.
+4. **The refusal stays where the rule lives.** Attendance refuses a mark for a student the session's
+   roster does not expect (`ATTENDANCE_STUDENT_NOT_ON_ROSTER`), unchanged. This domain neither loosens
+   that rule nor duplicates it: it makes it **predictable at booking time**, because the booking
+   response carries the same fact the register will apply on the day.
+5. **The pre-booking check was rejected as unanswerable and wrong-owned.** The roster is derived for a
+   session's own date and the session does not exist until the scheduling domain's `create()` mints it,
+   so an eligibility check before the write would need an eligibility API the scheduling contract does
+   not have (a scheduling decision, **I18**); a check after the write would refuse with a session
+   already in the calendar that this domain may not cancel or delete. A stored acknowledgement and a
+   new `COMPENSATION_*` error code were both rejected with it.
+
+**Why.** The failures that matter here are a **lost debt** (a make-up refused because a term ended, with
+the lesson never given and nobody tracking it), a **silently surprising register** (the operator finds
+out at the lesson that the mark cannot be recorded), and a **second source of truth for who is
+expected**. Disclosing on read answers all three: the debt stays open and traceable, the operator sees
+the roster's own answer at the moment of booking, and the roster rule stays where it is derived.
+
+**Enforced by.** `src/domains/compensation/__tests__/enrollmentEligibility.test.ts` (9 cases — the
+ordinary booking, an ended and a withdrawn enrollment, the lineage-following disclosure, the same fact
+attendance refuses on, no enrollment write, no stored roster field, the C-1 refusal still answering, the
+teacher still refused, and a session deleted mid-read reported rather than thrown), with the C-1 lineage
+suite and the rest of the domain's 121 tests unchanged. The booking response's own contract states the
+rule in `src/domains/compensation/repository.ts`; the field's semantics are in `types.ts`.
+
+**Status.** ✅ **Landed with Class Compensation C-2** (2026-09-15), as part of the same workstream as P1
+rather than a milestone. **I18 remains OPEN and only PARTLY LANDED:** group and class-wide compensation,
+any notification, the UI and the server are still unbuilt (**I20**), and no screen renders
+`studentOnRoster` yet.
 
 ### Adding a decision
 

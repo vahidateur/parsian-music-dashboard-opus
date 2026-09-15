@@ -1,4 +1,5 @@
 import type { Page } from "@/api/types";
+import { ApiError } from "@/api/errors";
 import { can } from "@/domains/auth/permissions";
 import { conflict, forbidden, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import type { AttendanceRecord } from "@/domains/attendance/types";
@@ -94,6 +95,30 @@ import {
  * read model all go through that one resolution, so no two rules can disagree
  * about which session the make-up is on. Nothing here ever re-points a ledger
  * line, and nothing here ever writes a session.
+ *
+ * ELIGIBILITY AT THE MAKE-UP IS DISCLOSED, NOT ENFORCED (C-2)
+ *
+ * The frozen student and the make-up's date can disagree: an enrollment may end,
+ * be withdrawn, or start later than the date an operator picks. That fact is
+ * REPORTED — `currentAttempt.studentOnRoster`, recomputed on every read from the
+ * scheduling domain's own roster — and it never refuses a booking or blocks a
+ * discharge. Each half of that is deliberate:
+ *
+ *   - it CANNOT be a pre-booking check here. The roster is derived for a session's
+ *     own date, and the session does not exist until `create()` mints it; asking
+ *     before the write would need an eligibility API the scheduling contract does
+ *     not have (a scheduling decision, I18), and asking after it would mean
+ *     refusing with a session already in the calendar that this domain may not
+ *     cancel or delete.
+ *   - it must not be a stored acknowledgement either. Enrollment is live data: a
+ *     re-enrollment or a corrected end date makes the same booking legitimate the
+ *     next day, so a stored decision would freeze a fact that moves — the exact
+ *     mistake D19 clause 1 refuses for eligibility itself.
+ *   - and the enforcement that does exist stays where it belongs: attendance
+ *     refuses a mark for a student who is not on the session's derived roster
+ *     (`ATTENDANCE_STUDENT_NOT_ON_ROSTER`). This domain neither loosens that rule
+ *     nor duplicates it; it makes it predictable, because the booking response
+ *     carries the same fact at the moment the operator books.
  *
  * READING THE DEMO STORE DIRECTLY, FOR SESSIONS ONLY
  *
@@ -705,9 +730,39 @@ export class DemoCompensationRepository implements CompensationRepository {
     return lineage ? { status: lineage.effectiveStatus } : undefined;
   }
 
+  /**
+   * The read model, with ONE protection the C-2 roster read made necessary.
+   *
+   * This read is not atomic: the lineage is walked synchronously from the store,
+   * and then the roster question resolves the session again through the scheduling
+   * repository, which THROWS (`SESSION_NOT_FOUND`) for a row that no longer exists.
+   * A concurrent delete lands exactly in that window — and a read that can report
+   * `missing` (the answer every other path gives for a deleted session, and the
+   * whole reason `attemptStateOf` exists) must not fail with an error instead.
+   *
+   * So a not-found for a session is answered by recomputing once from a fresh read:
+   * the second walk sees the deletion and reports it as `missing`, which is what the
+   * caller has always been promised. Bounded by construction — one retry, no loop —
+   * and deliberately narrow: anything that is not a missing session is the caller's
+   * error and is rethrown untouched.
+   */
   private async readModel(record: SessionCompensationRecord): Promise<SessionCompensation> {
+    try {
+      return await this.buildReadModel(record);
+    } catch (cause) {
+      const fresh =
+        cause instanceof ApiError && cause.code === SESSION_ERRORS.NOT_FOUND
+          ? this.store.sessionCompensations.find(record.id)
+          : undefined;
+      if (!fresh) throw cause;
+      return this.buildReadModel(fresh);
+    }
+  }
+
+  private async buildReadModel(record: SessionCompensationRecord): Promise<SessionCompensation> {
     const { status, attemptBroken, lineage } = this.derive(record);
     const mark = await this.findMark(record.originalSessionId, record.studentId);
+    const studentOnRoster = await this.frozenStudentOnRoster(record, lineage);
 
     return {
       ...record,
@@ -719,6 +774,7 @@ export class DemoCompensationRepository implements CompensationRepository {
               sessionStatus: lineage.effectiveStatus,
               bookedSessionId: lineage.entrySessionId,
               rescheduleCount: lineage.moves,
+              ...(studentOnRoster !== undefined ? { studentOnRoster } : {}),
             },
           }
         : {}),
@@ -726,6 +782,37 @@ export class DemoCompensationRepository implements CompensationRepository {
       originalMissing: this.store.scheduledSessions.find(record.originalSessionId) === undefined,
       ...(mark ? { originalStudentAttendance: mark.status } : {}),
     };
+  }
+
+  /**
+   * C-2 — is the FROZEN student still expected at the make-up's session?
+   *
+   * The obligation freezes its student at registration, and the enrollment behind
+   * that student can change before the make-up is played: it can end, be
+   * withdrawn, or not have started yet. The roster for a session's own date is
+   * derived by the scheduling domain from Enrollment (`sessionRoster`), and this
+   * method simply asks it about the session the make-up currently stands on — the
+   * EFFECTIVE one, so the answer follows a reschedule exactly like every other
+   * derived answer in this file.
+   *
+   * IT DISCLOSES; IT DOES NOT GATE. Nothing here refuses a booking, blocks a
+   * discharge or changes a derived status — see the header, and `repository.ts`
+   * for why the refusal this domain could have invented belongs to nobody.
+   *
+   * `undefined` (the field is omitted) means the question cannot be asked: with no
+   * attempt there is no session, and with an unresolvable lineage the effective id
+   * is evidence rather than a target (C-1.1) and is deliberately not looked up. The
+   * `resolvable` guard is also what keeps this read safe — `sessionRoster` resolves
+   * the session through `get()`, which throws for a deleted row, and a resolvable
+   * lineage is one that ended ON a row.
+   */
+  private async frozenStudentOnRoster(
+    record: SessionCompensationRecord,
+    lineage: AttemptLineage | undefined,
+  ): Promise<boolean | undefined> {
+    if (!lineage?.resolvable) return undefined;
+    const roster = await this.deps.scheduling.sessionRoster(lineage.effectiveSessionId);
+    return roster.some((entry) => entry.studentId === record.studentId);
   }
 }
 

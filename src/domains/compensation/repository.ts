@@ -66,6 +66,27 @@ import type {
  * obligation; a server gets the same property from a transaction or an
  * optimistic-concurrency retry.
  *
+ * THE FROZEN STUDENT'S ELIGIBILITY AT THE MAKE-UP'S DATE IS DISCLOSED, NEVER GATED (C-2)
+ *
+ * The student is frozen at registration and the enrollment behind them can change
+ * before the make-up is played. `schedule` does NOT re-check that: the roster is
+ * derived for a session's own date, the session does not exist before the write,
+ * and an eligibility query invented here would be a second source of truth for
+ * "who is expected" — while a refusal after the write would strand a session this
+ * domain may not cancel. What the read model owes instead is the fact itself, per
+ * booking: `currentAttempt.studentOnRoster` (see `types.ts`), recomputed on every
+ * read and never stored. Implementations MUST report it rather than keep it
+ * silent, and MUST NOT turn it into a booking refusal or a stored
+ * acknowledgement. The enforcement that exists stays in the attendance domain,
+ * which refuses a mark for a student outside the session's derived roster.
+ *
+ * SEPARATELY, THE MAKE-UP NAMES ITS STUDENT EXPLICITLY
+ *
+ * `schedule` creates an ordinary session of the obligation's class — it does not
+ * enrol the student, does not touch Enrollment, and does not write attendance.
+ * Whether the frozen student is expected at that session on that date remains the
+ * roster's answer, and the only thing this domain does with it is say what it is.
+ *
  * SERVER-SIDE TRANSACTIONALITY AND IDEMPOTENCY ARE THE SERVER'S
  *
  * Everything above is enforced in-process for one event loop. Two browsers share
@@ -152,6 +173,13 @@ export interface CompensationRepository {
    * Nothing is created on a refusal: the make-up a caller may already have been
    * promised is never cancelled, superseded or re-pointed, and the only way to
    * move it is the scheduling domain's own `rescheduleSession`.
+   *
+   * Deliberately NOT refused: a date on which the frozen student is no longer
+   * expected (C-2). That is not an eligibility rule of this domain's to make — the
+   * debt is owed to the frozen student and must stay dischargeable — and it is not
+   * answerable before the write. The refusal lives where the rule does (attendance,
+   * for a register), and the fact is disclosed per booking in the returned read
+   * model instead.
    */
   schedule(id: string, input: ScheduleCompensationInput): Promise<SessionCompensation>;
 

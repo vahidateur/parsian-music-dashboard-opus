@@ -75,6 +75,15 @@ Eligibility is the **class kind**, never the roster size (DECISIONS, P1). A grou
 enrolled student on a quiet week is still a group class and is refused. The roster is used only as a
 **safety check** on the named student: exactly one expected, and it must be the one the caller named.
 
+**The frozen student's eligibility at the make-up's date is DISCLOSED, never enforced (C-2, D20).**
+The student is frozen at registration; the enrollment behind them is live data and can end, be
+withdrawn, or start after the date an operator picks. The read model answers that question per booking
+— `currentAttempt.studentOnRoster`, recomputed on every read from the scheduling domain's own roster
+**for the effective session's date** — and nothing else changes: the booking is allowed, the obligation
+stays `scheduled`, it stays dischargeable, and `needsAttention` stays silent. The refusal that exists
+stays in the domain that owns it: attendance refuses a mark for a student the session's roster does not
+expect, and this domain neither loosens that nor duplicates it. See §4 and §5.
+
 ## 2. Files
 
 | File | Responsibility |
@@ -84,7 +93,7 @@ enrolled student on a quiet week is still a group class and is refused. The rost
 | `repository.ts` | the `CompensationRepository` interface — five verbs, with the composition, no-auto-registration and uniqueness rules in its header |
 | `demoRepository.ts` | the implementation in use. Every invariant and every operator-facing sentence lives here, never in a view |
 | `useCompensations.ts` | the read layer: the list plus the three verbs, resolved from the registry, re-read after each awaited write |
-| `__tests__/` | seven new files, **112 tests** — see §8 |
+| `__tests__/` | eight new files, **121 tests** — see §8 |
 
 Resolution happens in `src/domains/registry.ts:231` (`getCompensationRepository`), which returns the
 demo implementation **in both demo and api mode** — the same disclosure scheduling and attendance
@@ -168,6 +177,16 @@ reports the sentence rather than paraphrasing it.
   those two answers consistent instead of racy. Attendance on the make-up is **not** required — a
   discharge is a recorded decision, and requiring a register would make it a function of another
   domain's data.
+- **Eligibility is NOT re-checked at the make-up's date, and the fact is disclosed instead** (C-2,
+  D20). `schedule` refuses for exactly two reasons — the obligation is terminal (`ALREADY_SETTLED`) or
+  it already has a live make-up (`ALREADY_SCHEDULED`) — and never because the frozen student's
+  enrollment has ended, been withdrawn, or not started. Refusing there would lose a debt the owner's
+  rule says is owed, and it is not answerable before the write anyway: the roster is derived for a
+  session's own date and the session does not exist until `create()` mints it. What the read model owes
+  instead is the fact, per booking: `currentAttempt.studentOnRoster` (derived, never stored — a
+  re-enrollment or a corrected end date clears it with no write), `undefined` when there is no real
+  session to ask about. The enforcement belongs to attendance, which refuses the mark
+  (`ATTENDANCE_STUDENT_NOT_ON_ROSTER`).
 - **A session may never be the make-up of two obligations** (`SESSION_ALREADY_LINKED`). The ledger is
   verified **before** the session write (`demoRepository.ts:623`): the id of the session about to be
   created does not exist until `create()` mints it, so what is asserted is the model property — no
@@ -201,6 +220,11 @@ integration is tested, not assumed (§8).
 | what it does | creates a NEW session through `SchedulingRepository.create()` and appends one ledger line | creates a replacement session and cancels the one it moved, linked by `rescheduledFromId`/`rescheduledToId` |
 | when it is allowed | only while the obligation has no live make-up — tested on the EFFECTIVE session, so a moved make-up still refuses a new booking (`ALREADY_SCHEDULED` otherwise) | any live, attendance-free session, with a reason |
 | who owns the rule | this domain | the scheduling domain, unchanged by P1 |
+
+The BOOKING RESPONSE carries `currentAttempt.studentOnRoster`, which is the one place this domain can
+honestly put it: the session exists by then, so the roster question has an answer, and the operator
+learns at booking time what the register will say on the day — instead of discovering it when the
+family arrives. It is a report, not a gate: nothing downstream of it refuses, blocks or rewrites.
 
 So an operator who needs to MOVE a booked make-up moves the session, and the compensation ledger is
 left alone — it is not a place to record a correction. But a move is a **continuation**, not a
@@ -244,7 +268,7 @@ consent to skip the question.
 
 ## 8. Tests
 
-**112 tests, seven new files** — none of them in a frozen group, and no suite that existed **before
+**121 tests, eight new files** — none of them in a frozen group, and no suite that existed **before
 P1** was touched. Four of the seven were extended by the C-1/C-1.1 work, and one Turn-1 case in
 `demoRepository.test.ts` was replaced: it pinned the behaviour the amendment corrects (a moved make-up
 reading as unbooked). Nothing was weakened — the case it replaced is now covered by the lineage suite
@@ -258,6 +282,7 @@ below, on the real behaviour:
 | `__tests__/useCompensations.test.tsx` | 5 | the read layer: the list, refresh after each awaited write, a refusal propagated verbatim with no success claimed, and the injected repository being the one asked |
 | `__tests__/persianDate.test.ts` | 2 | a Jalali date typed by the operator lands on the right Gregorian day (۱۴۰۶/۰۱/۱۵ → `2027-04-04`), and a date that does not exist fails closed instead of being guessed |
 | `__tests__/authorization.test.ts` | 11 | the protected operations: the role matrix the gate rests on (`schedule.write` for staff/manager/admin, not for teacher/accountant), a refusal for each unauthorized path with no side effect written, a refusal that precedes every other check (so the domain is not an existence oracle — including the C-1 refusal, which a refused caller is never told about), the unchanged `ACTOR_REQUIRED` for an unnamed actor, reads staying ungated, and an authorized actor carried through the whole flow with provenance recorded |
+| `__tests__/enrollmentEligibility.test.ts` | 9 | C-2 end to end on the demo store, through the REAL enrollment repository: the ordinary booking saying `true`; an ended/withdrawn enrollment saying `false` while the booking still succeeds, stays `scheduled`, stays one make-up and still discharges; `needsAttention` staying silent; the disclosure following the LINEAGE (a move to a date the enrollment still covers clears it, with one ledger line); the disclosed fact being exactly the one attendance refuses a mark for; booking writing no enrollment and re-enrolling clearing it with no compensation write; no roster field stored anywhere on the record; the C-1 refusal still answering while the student is off the roster; authorization still the only refusal; and a session deleted mid-read being REPORTED as `missing` instead of failing the read |
 | `__tests__/bookingInvariant.test.ts` | 10 | the concurrency cases, which need a real interleaving and therefore live in their own file: the live-make-up refusal from a second adapter and its `conflict` kind, two concurrent bookings of one obligation (one session, one refusal, never two session writes in flight), a booking racing a discharge in BOTH orders, a second booking racing a discharge, the pre-write ledger refusal leaving no stray session — and the lineage cases on top of them: the refusal while the MOVED-TO session is live (then allowed once the chain's end is cancelled), the discharge against the moved-to session while the racing booking is refused, and a session claimed **inside another obligation's lineage** refused before the write |
 
 Adding a collection to the dataset touches the generic suites that enumerate every collection, and
@@ -338,6 +363,10 @@ half is computed on read — no read in this directory seeds, repairs or mutates
   as fail-closed by refusing to book (this domain, which would need the decision first). Both are
   recorded as an open item and neither is implemented; there is no `I`-number assigned to it yet, and
   no behaviour was changed for it.
+- **`studentOnRoster` is reported and nothing renders it yet (C-2).** The field is on every read, and
+  it is the booking response's own answer, but the flow still has no UI (**I20**), so no screen shows
+  it today. A server implementation must compute it the same way — re-deriving the roster for the
+  effective session's date — and there is nothing to store for it.
 - **A cancelled, deleted or unresolvable booking is only visible if somebody looks.** Nothing notifies anyone;
   `needsAttention` exists so a future screen can find these, and there is no scheduler, job or badge
   behind it.
