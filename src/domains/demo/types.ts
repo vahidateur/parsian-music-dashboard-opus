@@ -30,6 +30,7 @@ import type { GalleryAlbum, GalleryImage } from "@/domains/gallery/types";
 import type { Piece, PieceAssignment, ProgressEvent } from "@/domains/progress/types";
 import type { Session } from "@/domains/scheduling/types";
 import type { AttendanceCorrection, AttendanceRecord } from "@/domains/attendance/types";
+import type { SessionCompensationRecord } from "@/domains/compensation/types";
 import type { BrandingSettings } from "@/domains/branding/types";
 import type { RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
@@ -115,6 +116,20 @@ export interface DemoDataset {
   attendanceRecords: AttendanceRecord[];
   /** Append-only audit trail for attendance changes. Never edited. */
   attendanceCorrections: AttendanceCorrection[];
+
+  /**
+   * Make-up obligations for cancelled one-to-one sessions. Owned by the
+   * compensation domain.
+   *
+   * A separate collection rather than a field on `Session` on purpose: the
+   * obligation has its own state, its own decision provenance and its own
+   * lifetime, and it must outlive both the session it compensates for and any
+   * attempt that was later cancelled. Deliberately empty in the canonical seed:
+   * the demo ships NO compensable case (its only cancelled session belongs to a
+   * group class, and group classes are not eligible), so the shape of the record
+   * is never demonstrated with data nobody asked for.
+   */
+  sessionCompensations: SessionCompensationRecord[];
   invoices: Invoice[];
   payments: DemoPayment[];
   conversations: Conversation[];
@@ -182,6 +197,7 @@ export const DEMO_COLLECTIONS = [
   "scheduledSessions",
   "attendanceRecords",
   "attendanceCorrections",
+  "sessionCompensations",
 ] as const;
 
 export type DemoCollectionName = (typeof DEMO_COLLECTIONS)[number];

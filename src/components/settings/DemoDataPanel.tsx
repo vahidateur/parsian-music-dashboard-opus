@@ -42,6 +42,7 @@ const COLLECTION_LABELS: Record<(typeof DEMO_COLLECTIONS)[number], string> = {
   scheduledSessions: "جلسات زمان‌بندی‌شده",
   attendanceRecords: "حضور و غیاب جلسات",
   attendanceCorrections: "اصلاحات حضور و غیاب",
+  sessionCompensations: "جبرانی جلسات لغوشده",
 };
 
 /**

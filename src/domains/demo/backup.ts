@@ -315,6 +315,113 @@ export function validateDataset(dataset: DemoDataset): ValidationIssue[] {
     }
   });
 
+  /*
+   * Compensation obligations (the compensation domain).
+   *
+   * The link to the CANCELLED original is a typed id and is validated
+   * STRUCTURALLY, not referentially, on purpose: the scheduling repository allows
+   * hard-deleting a session that has no attendance, and an obligation deliberately
+   * OUTLIVES the row it compensates for. The read model reports that state
+   * (`originalMissing`, `attemptBroken`) instead of a backup refusing to load — a
+   * debt that cannot be read is worse than a debt whose session is gone.
+   *
+   * The class and the student are entity references in the same sense
+   * `enrollments` carries them, so a dangling one IS an integrity error here, and
+   * so is a second obligation for the same (original, student) pair: uniqueness is
+   * the model's own duplicate protection, and a payload that violates it must not
+   * be importable.
+   */
+  const compensationPairs = new Map<string, string>();
+  const compensationSessions = new Map<string, string>();
+
+  dataset.sessionCompensations.forEach((record, i) => {
+    ref(
+      has("classes", record.classId),
+      `sessionCompensations[${i}].classId`,
+      `جبرانی «${record.id}» به کلاس ناموجود ارجاع دارد.`,
+    );
+    ref(
+      has("students", record.studentId),
+      `sessionCompensations[${i}].studentId`,
+      `جبرانی «${record.id}» به هنرجوی ناموجود ارجاع دارد.`,
+    );
+
+    const originalSessionId = (record as { originalSessionId?: unknown }).originalSessionId;
+    if (typeof originalSessionId !== "string" || originalSessionId.length === 0) {
+      issues.push(
+        issue(
+          "MISSING_ID",
+          `جبرانی «${record.id}» به جلسهٔ لغوشده ارجاع ندارد.`,
+          `sessionCompensations[${i}].originalSessionId`,
+        ),
+      );
+    } else {
+      const key = `${originalSessionId}::${record.studentId}`;
+      const owner = compensationPairs.get(key);
+      if (owner) {
+        issues.push(
+          issue(
+            "DUPLICATE_ID",
+            `برای یک جلسه و یک هنرجو دو جبرانی ثبت شده است («${owner}» و «${record.id}»).`,
+            `sessionCompensations[${i}].originalSessionId`,
+          ),
+        );
+      } else {
+        compensationPairs.set(key, record.id);
+      }
+    }
+
+    if (!Array.isArray(record.attempts)) {
+      issues.push(
+        issue(
+          "INVALID_COLLECTION",
+          `تاریخچهٔ تلاش‌های جبرانی «${record.id}» باید آرایه باشد.`,
+          `sessionCompensations[${i}].attempts`,
+        ),
+      );
+      return;
+    }
+
+    record.attempts.forEach((attempt, j) => {
+      const entry = (attempt ?? {}) as {
+        sessionId?: unknown;
+        scheduledAt?: unknown;
+        scheduledByUserId?: unknown;
+      };
+      if (typeof entry.sessionId !== "string" || entry.sessionId.length === 0) {
+        issues.push(
+          issue(
+            "MISSING_ID",
+            `تلاش جبرانی «${record.id}» به جلسه ارجاع ندارد.`,
+            `sessionCompensations[${i}].attempts[${j}].sessionId`,
+          ),
+        );
+        return;
+      }
+      if (typeof entry.scheduledAt !== "string" || typeof entry.scheduledByUserId !== "string") {
+        issues.push(
+          issue(
+            "INVALID_REFERENCE",
+            `تلاش جبرانی «${record.id}» زمان یا کاربر ثبت ندارد.`,
+            `sessionCompensations[${i}].attempts[${j}]`,
+          ),
+        );
+      }
+      const previous = compensationSessions.get(entry.sessionId);
+      if (previous) {
+        issues.push(
+          issue(
+            "DUPLICATE_ID",
+            `جلسهٔ «${entry.sessionId}» به بیش از یک جبرانی متصل است («${previous}» و «${record.id}»).`,
+            `sessionCompensations[${i}].attempts[${j}].sessionId`,
+          ),
+        );
+      } else {
+        compensationSessions.set(entry.sessionId, record.id);
+      }
+    });
+  });
+
   // Repertoire and progress. A progress event whose assignment vanished would
   // make a history chart unreadable, so these are hard integrity errors.
   dataset.pieces.forEach((piece, i) => {

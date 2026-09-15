@@ -434,6 +434,15 @@ export class DemoStoreImpl {
   /** Append-only: written by corrections, never updated or removed. */
   readonly attendanceCorrections = this.collection("attendanceCorrections", "atc_");
 
+  /* ---- compensation ---- */
+
+  /**
+   * Make-up obligations for cancelled one-to-one sessions. The obligation is the
+   * row; the sessions it points at live in `scheduledSessions`, and its attempt
+   * ledger is nested inside this record rather than duplicated here.
+   */
+  readonly sessionCompensations = this.collection("sessionCompensations", "cmp_");
+
   /**
    * Branding is a singleton record rather than a collection, so it gets a
    * read/patch pair instead of the generic CRUD surface.
@@ -503,6 +512,7 @@ type ArrayCollection =
   | "scheduledSessions"
   | "attendanceRecords"
   | "attendanceCorrections"
+  | "sessionCompensations"
   | "programs"
   | "levels"
   | "learningContent"

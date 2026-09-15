@@ -201,6 +201,13 @@ export function createSeedDataset(): DemoDataset {
     // opens with registers waiting to be taken, which is what exercises the UI.
     attendanceRecords: [],
     attendanceCorrections: [],
+    /*
+      Compensation is REGISTERED by a person, never seeded. The demo also has no
+      compensable case to seed from: its only cancelled session belongs to a group
+      class, and group classes are not eligible for compensation at all. That is a
+      recorded demo-data limitation, not a claim that the flow needs seed data.
+    */
+    sessionCompensations: [],
     pieces: derivePieces(),
     ...(() => {
       const progress = deriveProgress();
@@ -258,5 +265,6 @@ export function createEmptyDataset(): DemoDataset {
     scheduledSessions: [],
     attendanceRecords: [],
     attendanceCorrections: [],
+    sessionCompensations: [],
   };
 }

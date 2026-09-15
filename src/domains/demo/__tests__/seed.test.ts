@@ -28,6 +28,12 @@ describe("canonical seed", () => {
    * Attendance is recorded through the repository rather than seeded: the demo
    * opens with registers waiting to be taken, which is what exercises the UI.
    *
+   * Compensation is empty because there is nothing to seed it FROM, and because
+   * registering an obligation is a human act, never a dataset generation: the
+   * demo's only cancelled session belongs to a group class, and group classes are
+   * not eligible for compensation at all (`domains/compensation`). The flow is
+   * exercised by that domain's own tests rather than by seeded fiction.
+   *
    * `media` is NO LONGER empty: the library ships exactly one document
    * (`demo/librarySeed.ts`). Its metadata is seeded and its bytes are
    * provisioned at bootstrap, and a record whose bytes have not landed yet is a
@@ -38,6 +44,7 @@ describe("canonical seed", () => {
     "galleryImages",
     "attendanceRecords",
     "attendanceCorrections",
+    "sessionCompensations",
   ]);
 
   it("contains every collection with realistic Persian data", () => {

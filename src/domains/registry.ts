@@ -39,6 +39,8 @@ import type { AttendanceRepository } from "@/domains/attendance/repository";
 import { DemoProgressRepository } from "@/domains/progress/demoRepository";
 import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
 import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import type { CompensationRepository } from "@/domains/compensation/repository";
+import { DemoCompensationRepository } from "@/domains/compensation/demoRepository";
 
 /**
  * Composition root. The only place that decides whether a domain is served by
@@ -67,6 +69,7 @@ interface Overrides {
   progress?: ProgressRepository;
   scheduling?: SchedulingRepository;
   attendance?: AttendanceRepository;
+  compensation?: CompensationRepository;
 }
 const overrides: Overrides = {};
 
@@ -210,6 +213,32 @@ export function getAttendanceRepository(): AttendanceRepository {
 }
 
 /**
+ * Compensation (make-up obligations for cancelled one-to-one sessions).
+ *
+ * Resolves to the demo implementation in BOTH modes, like scheduling and
+ * attendance. There is deliberately NO `apiRepository` for this domain yet: the
+ * verbs are pinned in `compensation/repository.ts` for a backend to satisfy, and
+ * registering a REST implementation no server answers would turn every call into
+ * a failing request presented as a feature (the D8 disclosure).
+ *
+ * COMPOSITION, NOT A SECOND COPY. The repository is constructed with the two
+ * domains it composes: scheduling owns session creation and the derived roster,
+ * attendance answers whether the cancelled original already carries a mark. It
+ * receives them as their INTERFACES, so an override injected for either domain
+ * (`setSchedulingRepository`, `setAttendanceRepository`) is honoured here too,
+ * and this domain never imports another domain's implementation.
+ */
+export function getCompensationRepository(): CompensationRepository {
+  return (
+    overrides.compensation ??
+    new DemoCompensationRepository(undefined, {
+      scheduling: getSchedulingRepository(),
+      attendance: getAttendanceRepository(),
+    })
+  );
+}
+
+/**
  * The scheduling ↔ attendance boundary.
  *
  * Returns the ids of sessions that have at least one attendance record, or
@@ -243,6 +272,9 @@ export function setSchedulingRepository(repository: SchedulingRepository | undef
 }
 export function setAttendanceRepository(repository: AttendanceRepository | undefined): void {
   overrides.attendance = repository;
+}
+export function setCompensationRepository(repository: CompensationRepository | undefined): void {
+  overrides.compensation = repository;
 }
 export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
   overrides.instruments = repository;
@@ -308,4 +340,5 @@ export function resetRegistry(): void {
   overrides.gallery = undefined;
   overrides.scheduling = undefined;
   overrides.attendance = undefined;
+  overrides.compensation = undefined;
 }
