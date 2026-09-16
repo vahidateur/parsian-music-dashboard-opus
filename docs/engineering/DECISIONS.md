@@ -443,14 +443,15 @@ Twenty decisions gate the product-feature phase planned in
 [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D20** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Fourteen are decided (**D2** by the owner's decision recorded on 2026-09-16, ahead of M8 and before any
-M8 work was authorized, **D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's, **D13**
-by M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18**, **D19** and **D20** by the
-**Class Compensation** workstream — **D18**/**D19** at P1's landing
+Fifteen are decided (**D2** by the owner's decision recorded on 2026-09-16, ahead of M8 and before any
+M8 work was authorized, **D5** by the owner's decision recorded on 2026-09-16, ahead of M10 and before
+any M10 work was authorized, **D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's,
+**D13** by M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18**, **D19** and
+**D20** by the **Class Compensation** workstream — **D18**/**D19** at P1's landing
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c`, **D20** at C-2's
 `07f89db779ca4017dbbb22db1ac7624b18fb95be` — the last three decided outside the M0–M11 milestone
 sequence), two are settled by deferral
-(**D1**, **D6**), and four are open (**D5**, **D7**, **D8**, **D9**) —
+(**D1**, **D6**), and three are open (**D7**, **D8**, **D9**) —
 each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
 — it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
@@ -470,7 +471,7 @@ milestone.
 | D2 | Branding as the source of truth for the academy identity | **DECIDED — recorded before M8** | M8 |
 | D3 | Where the environment-recovery affordance lives | **DECIDED — M1-specific** | M1 |
 | D4 | `clear()` semantics against the zero-record invariant | **DECIDED — M1-specific** | M1 |
-| D5 | Shape of the fixture / type / seed separation | **OPEN** | M10 |
+| D5 | Shape of the fixture / type / seed separation — one canonical owner per entity type, one shared owner for cross-cutting presentation types, domain vocabulary with its domain, UI/presentation configuration stays presentation-owned, no monolithic replacement | **DECIDED — recorded before M10** | M10 |
 | D6 | Creating the finance and reports domains in this phase | **DEFERRED** | M-none (I2) |
 | D7 | How accessibility is enforced | **OPEN** | M11 |
 | D8 | How the api-mode hybrid is disclosed | **OPEN** | M11 |
@@ -593,26 +594,78 @@ the lockout/recovery tests M1 adds.
 architecture. Clearing removes **records** and keeps the environment and its mode;
 uninitializing removes **the environment itself**, binaries included.
 
-### D5. Fixtures have three roles; only one of them is a defect
+### D5. Fixtures have three roles; each role gets exactly one owner
 
-**Decision.** To be recorded before M10 (and known from M4 onward): `src/data/records.ts` and
-`src/data/academy.ts` are split by role — **entity types** move to their owning domains, the
-**canonical DEMO seed** moves under `src/domains/demo/`, and the third role, **fake data for
-unwired views**, is deleted once M4–M9 have removed every reader. The modules are *relocated*, not
-removed: DEMO is a first-class environment (§2) and its showcase dataset must stay exactly as rich.
+**Decision.** Recorded by the owner on 2026-09-16, ahead of M10 and before any M10 work was
+authorized — this is the record M10's own first dependency asks for ("D5 recorded before
+execution"). The shape of the fixture / type / seed separation is governed by **seven principles**:
 
-**Why.** The two files are 822 and 539 lines with **51 non-test importers**. `src/data/records.ts`
+1. **Every domain/entity type has one canonical owner.** An entity type defined in
+   `src/data/records.ts` today — `Student` at `src/data/records.ts:134`, re-imported by
+   `src/domains/students/types.ts`, `src/domains/teachers/types.ts` and
+   `src/domains/classes/types.ts` — ends up owned by exactly one domain, and the other domains
+   import it from there: the source of truth becomes a place, not a count.
+2. **Cross-cutting presentation/application types have one shared owner.** A type that genuinely
+   belongs to no single domain — a shape several views and components share — gets one shared
+   presentation/application home, imported by every consumer rather than redeclared per surface.
+3. **Domain vocabulary stays with its domain.** Labels, catalogues and wording that describe a
+   domain concept (instruments, statuses, class kinds and the like) move with the type that owns
+   them; they are domain material, not presentation material.
+4. **UI/presentation configuration stays in presentation/application ownership.** Material that
+   configures the interface rather than describing a domain — the library shelf layout
+   (`libraryShelves`), `settingsSections`, the composer's `messageTemplates`, navigation
+   definitions, design-system samples — belongs to the presentation/application layer, not to any
+   domain and no longer to `src/data/`.
+5. **Do not create a monolithic replacement such as `data/ui.ts`.** The separation must not
+   re-create the defect one layer down: no single new dumping-ground module inherits the role the
+   two fixture files play today. Presentation configuration lives with the surfaces that use it,
+   under principle 4.
+6. **The view layer for M10 is `src/views/**` + `src/components/**`.** When M10 executes, "the
+   view layer" and its boundary test mean both directories — the panels, the hero and the chrome
+   are as much the view layer as the routed views.
+7. **D5 does NOT authorize M10.** This record discharges the decision dependency and nothing more:
+   M10 remains NOT STARTED and requires the owner's explicit authorization before any file moves.
+
+The fixture modules are *relocated by role*, not removed wholesale: DEMO is a first-class
+environment (§2) and its showcase dataset must stay exactly as rich.
+
+**Why.** The two files are **822 and 558 lines** at this record
+(`3a16549989f6ac41ba550e18107c62ec896f32a5`), imported by **44 non-test source files** carrying
+64 import statements. `src/data/records.ts`
 defines `Student`, which `src/domains/students/types.ts`, `src/domains/teachers/types.ts` and
 `src/domains/classes/types.ts` re-import so there is one source of truth; and
 `src/domains/demo/seed.ts` *derives* the shipped demo dataset from the same fixtures. Treating the
 files as "fake data to delete" would break the type layer and the seed together — and §16 makes
-that a regression, not a cleanup.
+that a regression, not a cleanup. **One correction to the figures and the premise this entry
+carried from M0 onward:** they read "822 and 539 lines with 51 non-test importers", and the
+decision said the third role would be "deleted once M4–M9 have removed every reader" — the premise
+that the third role is *already unused* after M4–M9. Both are stale as recorded: `src/data/academy.ts`
+has grown to 558 lines, the importer count re-measures at 44 non-test files, and M4–M9 removed the
+third role's *wired-view* readers one surface at a time without emptying it — at this record,
+fixture **content** still reaches `src/views/Library.tsx` (`libraryShelves`),
+`src/views/Settings.tsx` (`settingsSections`), `src/views/Messages.tsx` (`messageTemplates`),
+`src/views/Finance.tsx` and `src/views/Reports.tsx` (**I2**), the design-system gallery
+`src/views/DesignSystemView.tsx` (fixture *samples*) and `src/components/hero/Hero.tsx` (the
+fixture identity), while several further files import **types only** from the two modules. Much of
+what remains is therefore not fake data awaiting deletion but **UI/presentation configuration**,
+and principles 4 and 5 settle its fate: it stays in presentation/application ownership, kept with
+the surfaces that use it, rather than being deleted or re-piled into one new monolith.
 
 **Enforced by.** `src/domains/demo/__tests__/seed.test.ts`,
 `src/services/__tests__/demoStoreMigration.test.ts`, `src/__tests__/architectureBoundaries.test.ts`
-and the new M10 boundary test asserting no view imports those modules at all.
+— and, once M10 is authorized and executes, the M10 boundary test asserting that the view layer
+(`src/views/**` + `src/components/**`, principle 6) imports those modules for no fixture content at
+all. That test does not exist yet: D5 is recorded, M10 is not authorized, and this pass moved no
+file, wrote no test and changed no gate.
 
-**Status.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
+**Status.** ✅ **Decided — recorded 2026-09-16, before M10.** D5 blocked M10 as a decision that had
+to be recorded before execution; it is now recorded, and that dependency is discharged. **The record
+is not an authorization:** principle 7 keeps M10 ❌ NOT STARTED until the owner authorizes it, and
+the separation itself — the moves, the deletions, the boundary test — is M10's work, not this
+record's.
+
+**The paragraph below is the status as it stood while D5 was still Open — kept as written, as the
+record of how M4–M9 constrained themselves against an undecided milestone.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
 or seed roles). **M4 has removed its reader:** `src/views/Scheduling.tsx` imports neither
 `src/data/records.ts` nor `src/data/academy.ts` any more. The scheduling fixtures stay in the dataset
 because `src/views/Classes.tsx` still reads them — the third role retiring one reader at a time, with
@@ -629,6 +682,11 @@ authorization, and the one remaining shipped reader is `src/views/Reports.tsx:14
 `inFlightMarkers() === 0` — a semantic claim about issuing no domain read, which a wired view would
 fail — and moving it would have been a test-semantics change the milestone was not authorized to make.
 Only that file's labels and comments were corrected.
+*(Superseded 2026-09-16 by the decision record above: D5 is **DECIDED**, and the sentences in this
+paragraph saying the decision is "still **Open**", that the **Status** row is unchanged, and that the
+M10 boundary test is "still to be written" describe the pre-decision state and stand only as its
+history. The reader-removal history itself — M4, M5, M7 and M9 each retiring their own surfaces'
+readers — is unchanged and remains the evidence the decision was recorded against.)*
 
 ### D6. Finance and reports domains are not built in this phase
 

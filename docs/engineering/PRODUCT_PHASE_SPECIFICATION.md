@@ -126,7 +126,7 @@ M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b
 M7  Relation de-fixturing + sidebar badges (I1)            ✅ landed f1ec0dd
 M8  Branding application & visual identity (D2 recorded 2026-09-16)  ✅ landed 735617d
 M9  Dashboard insight from live data (H4) — I9 guards land FIRST   [LANDED 2026-09-16 at 8d34eb3]
-M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3   [NOT STARTED — not authorized]
+M10 Fixture / type / seed separation (D5 recorded 2026-09-16) + documentation drift + L2   [NOT STARTED — not authorized; D5 does not authorize M10; L3 already closed 2026-09-14]
 M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + release gate
 ```
 
@@ -148,7 +148,16 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
    seed* (`src/domains/demo/seed.ts:10-23` derives the showcase dataset from them), and *fake data
    for unwired views*. **51 non-test modules import them.** M4–M9 remove the third role
    progressively, so by M10 the separation is a mechanical move guarded by tests instead of a
-   51-file rewrite.
+   51-file rewrite. *(Corrected at D5's record, 2026-09-16: the figures re-measure at **822 and 558
+   lines** and **44 non-test importer files** (64 import statements) at
+   `3a16549989f6ac41ba550e18107c62ec896f32a5` — `src/data/academy.ts` grew from 539 to 558 lines
+   since M0 — and the premise that M4–M9 empty the third role entirely is **stale**: fixture
+   content still reaches `src/views/Library.tsx`, `src/views/Settings.tsx`, `src/views/Messages.tsx`,
+   `src/views/Finance.tsx`/`src/views/Reports.tsx` (**I2**), `src/views/DesignSystemView.tsx` and
+   `src/components/hero/Hero.tsx`, while several files import types only. The recorded **D5**
+   principles — [DECISIONS.md](DECISIONS.md) §19 — decide each role's owner: much of the residue is
+   UI/presentation configuration that stays presentation-owned, so M10 is a split by ownership
+   guarded by tests, not a 44-file deletion.)*
 6. **M11 last.** Its largest win — fixtures out of the bundle — is a *consequence* of M7/M10, and
    splitting routes before the views are rewritten is rework. Its budget cannot exist before its
    measurement (§11 below).
@@ -927,20 +936,30 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 ### M10 — Fixture / type / seed separation (**D5**) + documentation drift + hygiene
 
 - **Scope.** Split the three roles of `src/data/records.ts` (822 lines) and `src/data/academy.ts`
-  (539 lines): **types** move to their owning domains (`src/data/records.ts:134` defines `Student`,
+  (**558 lines** — re-measured at D5's record, 2026-09-16; M0 recorded 539): **types** move to their owning domains (`src/data/records.ts:134` defines `Student`,
   re-imported by `src/domains/students/types.ts:13`, `src/domains/teachers/types.ts:12`,
-  `src/domains/classes/types.ts:12`); the **canonical DEMO seed** moves under `src/domains/demo/`
+  `src/domains/classes/types.ts:12`), each ending with **one canonical owner** and cross-cutting
+  presentation/application types under **one shared owner** (D5 principles 1–2); the **canonical DEMO seed** moves under `src/domains/demo/`
   (`src/domains/demo/seed.ts:10-23` derives the showcase dataset from these fixtures, and DEMO stays
-  a first-class environment per DECISIONS.md §2); the **third role — fake data for unwired views —
-  is deleted**, already unused after M4–M9. Then close the recorded documentation drift
+  a first-class environment per DECISIONS.md §2); the **third role** is split under the recorded
+  **D5** principles ([DECISIONS.md](DECISIONS.md) §19): genuinely dead fake data is deleted, **domain
+  vocabulary stays with its domain**, and **UI/presentation configuration stays in
+  presentation/application ownership** — **no monolithic replacement such as `data/ui.ts`**.
+  *(The premise written at M0 — that this role is "already unused after M4–M9" — is **stale** and
+  corrected at D5's record: fixture content still reaches `src/views/Library.tsx`,
+  `src/views/Settings.tsx`, `src/views/Messages.tsx`, `src/views/Finance.tsx` and
+  `src/views/Reports.tsx` (**I2**), `src/views/DesignSystemView.tsx` and
+  `src/components/hero/Hero.tsx`.)* Then close the recorded documentation drift
   ([OPEN_ITEMS.md](OPEN_ITEMS.md) → DOCUMENTATION DRIFT): `docs/gap-matrix.md`,
   `docs/architecture/data-layer.md` (including the "six vs ten" finding in §3 above),
   `docs/production-handoff.md`, `docs/architecture/auth.md`, `docs/architecture/environments.md` —
   each *corrected or explicitly marked a historical snapshot with its date*. Plus **L2**
-  (`TeacherNote`, declared at `src/data/records.ts:31`, never used) and **L3**
-  (`src/domains/scheduling/README.md` and `src/domains/attendance/README.md` still say *"not
-  implemented in Phase A"* while 290 tests protect them).
-- **Dependencies.** M4–M9. **D5 recorded before execution.**
+  (`TeacherNote`, declared at `src/data/records.ts:31`, never used). **L3 is already closed** —
+  both domain README stubs were retired on 2026-09-14 (M4's CP0 and M5's documentation
+  reconciliation; see [OPEN_ITEMS.md](OPEN_ITEMS.md) **L3**) — and is no longer M10's scope.
+- **Dependencies.** M4–M9. **D5 recorded before execution — ✅ discharged:** D5 was recorded by
+  the owner on 2026-09-16 ([DECISIONS.md](DECISIONS.md) §19). **The record is not an
+  authorization** (D5 principle 7) — M10 remains not started until the owner authorizes it.
 - **Protected areas.** `src/domains/demo/__tests__/seed.test.ts` (all collections zero, derived
   dataset), `src/services/__tests__/demoStoreMigration.test.ts` and `migrateDataset()`,
   `backup.test.ts`, `contracts.test.ts`, `dataIntegrity.test.ts`, `prototypePollution.test.ts`,
@@ -948,12 +967,14 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Demo/API behaviour.** DEMO must remain exactly as rich as before — it is a Showcase, not a
   stub. EMPTY must gain nothing.
 - **Tests.** A new boundary test: **no view imports `src/data/records.ts` or `src/data/academy.ts`
-  at all.** Every persistence and lifecycle suite green and **unweakened**.
+  at all.** "The view layer" here means `src/views/**` + `src/components/**` (D5 principle 6).
+  Every persistence and lifecycle suite green and **unweakened**.
 - **Acceptance.** The fixture modules no longer exist as a place a view can read fake data from;
   every drift row closed in the documents themselves.
 - **Out of scope.** Changing the seeded dataset's *content*; any domain model change; I8's
   versioned envelope.
-- **Checkpoint & rollback.** Phase checkpoint (largest blast radius: 51 non-test importers) —
+- **Checkpoint & rollback.** Phase checkpoint (blast radius re-measured at D5's record, 2026-09-16:
+  **44 non-test importer files**, a large share of them importing types only) —
   mechanical, test-guarded, one commit; rollback boundary = M9's SHA.
 
 ### M11 — Performance (**I6**) + api-hybrid indicator (**D8**) + a11y (**D7**) + browser QA
@@ -1082,7 +1103,7 @@ it was written with, and the milestone sections are where a reader is pointed.
 | **D2** | Branding as the source of truth for the academy name, and which name ships | **DECIDED — recorded before M8** (2026-09-16): «آموزشگاه موسیقی پارسیان» ships, the fixture's «آکادمی موسیقی آوا» stays demo seed material | M8 |
 | **D3** | Where the recovery affordance lives (login screen vs the gate) | **DECIDED — M1-specific**, landed with M1 | M1 |
 | **D4** | `clear()` semantics vs the zero-record invariant | **DECIDED — M1-specific**: `clear()` keeps its meaning, recovery is `uninitialize` | M1 |
-| **D5** | Shape of the fixture / type / seed separation | **OPEN — known from M4, executed at M10** | M10 |
+| **D5** | Shape of the fixture / type / seed separation | **DECIDED — recorded before M10** (2026-09-16, owner instruction): one canonical owner per entity type, one shared owner for cross-cutting presentation/application types, domain vocabulary stays with its domain, UI/presentation configuration stays in presentation/application ownership, no monolithic replacement such as `data/ui.ts`, the view layer for M10 = `src/views/**` + `src/components/**`; **D5 does NOT authorize M10** — full rationale in [DECISIONS.md](DECISIONS.md) §19 | M10 |
 | **D6** | Finance / Reports domain creation in this phase | **DEFERRED** — resolved by instruction 2026-09-09 | I2 |
 | **D7** | How accessibility is enforced (dependency-free vs authorized dev dependency) | **OPEN — required before M11** | M11 |
 | **D8** | How the api-mode hybrid is disclosed to the operator | **OPEN — required before M11** | M11 |
