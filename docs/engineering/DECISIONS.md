@@ -658,13 +658,16 @@ the surfaces that use it, rather than being deleted or re-piled into one new mon
 all. That test does not exist yet: D5 is recorded, M10 is not authorized, and this pass moved no
 file, wrote no test and changed no gate.
 
-**Status.** ✅ **Decided — recorded 2026-09-16, before M10.** D5 blocked M10 as a decision that had
-to be recorded before execution; it is now recorded, and that dependency is discharged. **The record
-is not an authorization:** principle 7 keeps M10 ❌ NOT STARTED until the owner authorizes it, and
-the separation itself — the moves, the deletions, the boundary test — is M10's work, not this
-record's. The follow-up records immediately below — DEMO seed, legacy sessions/attendance, Hero, and
-Finance/Reports — were added the same day by owner instruction and are **part of this decision**,
-not a new authorization: M10 remains NOT STARTED.
+**Status.** ✅ **Decided and FINALIZED — recorded 2026-09-16, before M10; finalized by owner
+instruction the same day.** D5 blocked M10 as a decision that had to be recorded before execution;
+it is now recorded and finalized, and that dependency is discharged. **The record — and its
+finalization — is not an authorization:** principle 7 keeps M10 ❌ NOT STARTED until the owner
+authorizes it, and the separation itself — the moves, the deletions, the boundary test — is M10's
+work, not this record's. The follow-up records immediately below — DEMO seed, legacy
+sessions/attendance, Hero, and Finance/Reports — and the **finalization record** beneath them were
+added the same day by owner instruction and are **part of this decision**, not a new authorization:
+**D5 = RECORDED / FINALIZED; M10 = NOT AUTHORIZED** — a separate owner authorization is required
+before implementation.
 
 **Follow-up record (2026-09-16, owner instruction) — DEMO seed, legacy sessions/attendance, Hero.**
 Three decision areas settling, ahead of M10, how the seven principles above apply to the demo seed,
@@ -739,6 +742,142 @@ D6's own enforcement (the `src/domains/finance/README.md` and `src/domains/repor
 stubs and the honest server-required toasts in `src/views/Finance.tsx` and `src/views/Reports.tsx`),
 the M10 boundary test of principle 6, and the classification-and-deferral visibility F4 clause 7
 requires.
+
+**Finalization record (2026-09-16, owner instruction) — D5 FINALIZED; M10 remains NOT AUTHORIZED.**
+D5 is recorded as the architectural decision that separates the legacy fixture modules
+**by semantic role, not by merely relocating files**, and the M10 specification becomes
+*executable* — still awaiting its own owner authorization. The legacy third role resolves into two
+distinct categories, giving **four** in total:
+
+- **A. Domain/entity types.**
+- **B. Canonical DEMO seed / source data.**
+- **C. Fabricated UI data / fabricated measurements.**
+- **D. Static domain vocabulary and UI/presentation configuration.**
+
+The seventeen finalization clauses below fix the rules M10 must implement; where an exact
+implementation file is left to M10, the *ownership principle* is what is fixed:
+
+1. **Type ownership.** Every domain/entity type has exactly one canonical owner and lives with its
+   owning domain — `Student` → students, `Teacher` → teachers, `AcademyClass` → classes, `Room` →
+   rooms, `Instrument` → instruments, `Attendance` → attendance, `Scheduling` → scheduling,
+   `Learning` → learning, `Library` → library, and so on; other domains and views import the
+   canonical type, and **equivalent types are never duplicated**. Cross-cutting
+   application/presentation types that are not business-domain entities have **one shared owner**
+   rather than an arbitrary business-domain assignment — this includes, where appropriate,
+   `ViewId`, `Target`, `Severity`, `Signal`, `AttentionItem` and `Insight`. The exact shared-owner
+   file may be chosen during M10 according to actual consumer direction; the principle — **one
+   canonical definition, no duplicate definitions** — is fixed. `InstrumentId` is owned by the
+   instruments domain unless the implementation proves it genuinely cross-cutting and requiring the
+   shared owner. `ClassSession` / `ClassStatus` / `statusOf` follow scheduling semantic ownership;
+   no duplicate definitions.
+2. **Label maps and UI configuration are category D.** They are not fixtures merely because they
+   currently live under `src/data/*`. Domain vocabulary lives with its owning domain
+   (`studentStatusLabel`, `paymentLabel`, `resourceKindLabel`, `attendanceLabel`,
+   `subscriptionStatusLabel`); presentation/application configuration lives in the presentation or
+   application ownership appropriate to its consumers (`viewTitles`, `navGroups`, `navItems`,
+   `commandVerbs`, `nlCommands`, `quickActions`). **No replacement catch-all** — no `data/ui.ts`,
+   no `data/constants.ts`, no `data/config.ts`, no second global dumping ground.
+   `WEEKDAYS` / `WEEKDAYS_SHORT` / `TODAY_INDEX` / `DAY_START` / `DAY_END` are classified by
+   their actual semantic ownership and consumers, with one source of truth each: domain vocabulary
+   belongs with the domain, presentation configuration with presentation/application, and a DEMO
+   clock anchor with the DEMO environment/seed layer.
+3. **View-layer definition.** For the M10 fixture boundary, the view layer is exactly
+   `src/views/**` + `src/components/**` — the same definition `src/__tests__/architectureBoundaries.test.ts`
+   already uses. It must **not** be narrowed to `src/views/**` merely to exclude components: Hero,
+   Sidebar, TopBar, overlays and every other `src/components/**` surface are inside the M10
+   boundary.
+4. **Category C policy.** M10's purpose is not to make old filenames disappear: a fabricated
+   measurement does not become acceptable by moving from `src/data/*` into another fixture file
+   (F1 clause 3). Where a fabricated value is presented as factual product state: **remove** it;
+   where an authoritative live repository/domain read already exists, **derive from it**; where no
+   authoritative seam exists, use the appropriate **`NO_DATA`** state. **Never invent a replacement
+   number, status or metric.** This continues the M9 H4/I9 policy.
+5. **DEMO data.** DEMO is a first-class rich showcase environment: canonical DEMO seed data remains
+   rich and semantically unchanged. M10 may relocate its source definitions under
+   `src/domains/demo/`, and shall change **nothing else** — not record content, not IDs, not
+   collection membership, not semantic values, not ordering where protected by existing behaviour,
+   not lifecycle semantics, not backup semantics. The existing seed/lifecycle/backup/integrity
+   tests remain authoritative (F2). EMPTY remains EMPTY; **M10 fabricates no new EMPTY data.**
+6. **Finance and Reports (F4, completed).** They remain deferred under D6/I2, and M10 creates no
+   finance domain, no reports domain, no repositories for them, no backend implementation, no
+   invented authoritative finance/report measurements, no recomputed unavailable revenue, and no
+   connection to any new backend. They are nevertheless handled **explicitly** by the M10 boundary:
+   each legacy export they consume is classified as (a) legitimate DEMO/domain record, (b) static
+   configuration/vocabulary, (c) fabricated measurement, or (d) data whose proper domain is
+   deferred by D6/I2. For the deferred class: the deferral is preserved explicitly, made visible
+   in the relevant gate/ledger, made testable — and never hidden in a replacement fixture module
+   merely to satisfy a filename-based gate. The boundary test must not be weakened to make the
+   problem disappear, and Finance/Reports domains are not implemented as part of M10.
+7. **Hero (F3, completed).** Hero is inside M10 because components are part of the view layer.
+   Its material separates into: (a) **identity** — `academy.name`, `manager.firstName`,
+   `academy.statusLine` — using the existing M8 branding mechanism where applicable; (b)
+   **fabricated measurement/status** — the hardcoded «وضعیت: سالم» and fixture-derived
+   schedule/status measurements — replaced by an authoritative live read where one exists,
+   otherwise `NO_DATA`; and (c) **DEMO seed**, which remains rich and protected. Hero changes in
+   M10 are limited to fixture separation / data honesty; **no visual redesign.**
+8. **Legacy sessions / attendance (F2, completed).** They remain protected by F2/I8: M10 changes
+   no schema, no IDs, no collection semantics, no backup envelope, no migration semantics and no
+   I8 format. Their source definitions may be relocated only if the resulting DEMO dataset and
+   lifecycle/backup behaviour remain exactly compatible with the existing protected tests. **No I8
+   redesign.**
+9. **Dead exports.** Verified as having no non-test product consumers and recorded as deletion
+   candidates, deletable by M10 as part of the implementation: `todayFlowIds`, `revenueTarget`,
+   `overdueInvoices`, `teacherAbsences`, `freeSlotsTuesday`, `studentStats`, `accessRoles`.
+   Nothing is deleted merely because an automated search appears to find no consumer if it is
+   required for DEMO seed/lifecycle/backup semantics. **Design-system sample data is not
+   automatically dead:** `src/views/DesignSystemView.tsx` sample content is presentation/demo
+   showcase content and gets an explicit owner rather than blind deletion.
+10. **`atRiskStudents`.** The current domain-layer read of fixture-derived `atRiskStudents`
+    (`src/domains/shared/useAcademyMetrics.ts`) must not remain an uncontrolled fixture
+    dependency. During M10: use an authoritative live data derivation if one already exists; else
+    derive the metric from authoritative domain records without changing domain behaviour; else
+    remove the fabricated metric/read and expose the appropriate `NO_DATA` state. **No new metric
+    formula is invented, and no new backend or domain model is created solely for this issue.**
+11. **`viewTitles` / `src/lib/hashRoute.ts`.** `viewTitles` is presentation configuration with a
+    presentation/application owner; `src/lib/hashRoute.ts` may consume the canonical
+    presentation-owned definition provided the dependency direction remains intentional and
+    documented. `viewTitles` never moves into a generic data/config dumping ground, and `ViewId`
+    itself remains a canonical cross-cutting type with one owner.
+12. **Baseline corrections.** The stale M0 figures ("51 non-test importers", `src/data/academy.ts`
+    = 539 lines) and the stale "already unused" third-role premise are replaced by the verified
+    baseline at finalization: **44 non-test importer files carrying 64 of the 92 import statements**
+    the two modules appear in repository-wide (the remaining 28 sit in 16 test files), with
+    `src/data/records.ts` at **822 lines** and `src/data/academy.ts` at **558 lines**. The current
+    tree contains surviving readers. **L3 is already CLOSED (2026-09-14), leaves active M10 scope,
+    and is not reopened.**
+13. **Documentation drift.** M10 keeps exactly the named drift targets — `docs/gap-matrix.md`,
+    `docs/architecture/data-layer.md`, `docs/production-handoff.md`, `docs/architecture/auth.md`,
+    `docs/architecture/environments.md` — and each item is either **corrected** where the current
+    repository establishes the current truth, or **explicitly labelled a historical snapshot and
+    dated**. No unrelated documentation cleanup; `docs/architecture/demo-data.md` may be inspected
+    for consistency but M10 does not expand into a general documentation rewrite; **L6 remains
+    outside M10.**
+14. **The M10 boundary test** enforces that no file under `src/views/**` or `src/components/**`
+    imports `src/data/records.ts` or `src/data/academy.ts` as legacy fixture sources, **with
+    meaningful mutation/liveness protection preserved**. The test is not satisfied by moving
+    fabricated data into another hidden fixture module; Finance/Reports D6/I2 deferrals are
+    explicit and testable rather than silently exempted; and existing gates remain at least as
+    strict as before.
+15. **Gate preservation.** All existing gates remain protected. They may be mechanically re-pointed
+    during M10 after source ownership moves, but their semantic protections remain: no deleted
+    assertions, no removed mutation probes, no weakened allow-lists, no failures converted to
+    pending without an explicit architectural reason, no hidden known failures, and no unrelated
+    gate-semantics changes.
+16. **Backend.** D5 makes **no** backend technology decision: no choice between Laravel, NestJS,
+    Symfony, Go or any other stack is recorded; no PostgreSQL, Redis, Docker, VPS or cloud
+    decision is recorded as part of M10; no backend/API infrastructure is implemented. Backend
+    architecture remains a separate future decision/workstream (as F4 clause 8 already states).
+17. **Authorization.** Recording — and finalizing — D5 does not authorize M10 implementation.
+    After this checkpoint: **D5 = RECORDED / FINALIZED; M10 = NOT AUTHORIZED.** A separate owner
+    authorization is required before implementation.
+
+**Enforced by (finalization).** The same suites named in the follow-up's enforcement clause, plus —
+once M10 is authorized and executes — the boundary test of clause 14 with its mutation/liveness
+protection, the Finance/Reports deferral-visibility mechanism of clause 6, and the dead-export
+deletions of clause 9 witnessed by the suites that reference those symbols today
+(`src/views/__tests__/relationsNoFixtures.test.ts`,
+`src/views/__tests__/compensationNoFixtures.test.ts`). This pass itself changes no source, no test
+and no gate.
 
 **F4 — Finance and Reports (D6 / I2).**
 

@@ -52,7 +52,32 @@
 > fixture-backed export the two views read is classified individually during M10, any export that
 > cannot be relocated without violating D6/I2 remains explicitly deferred with that deferral
 > visible and testable, and D5 carries no backend architecture or backend technology decision.
-> **Still documents only — M10 remains ❌ NOT STARTED and not authorized.**
+>
+> **D5 FINALIZATION (later the same day, 2026-09-16, documents only): D5 is recorded as
+> RECORDED / FINALIZED; M10 remains NOT AUTHORIZED.** The finalization record
+> ([DECISIONS.md](DECISIONS.md) §19 → D5) fixes the separation as **by semantic role** in four
+> categories — **A** domain/entity types, **B** canonical DEMO seed/source data, **C** fabricated
+> UI data/measurements, **D** static domain vocabulary and UI/presentation configuration — and
+> seventeen clauses: one canonical owner per entity type (no duplicate types; a shared owner for
+> the cross-cutting `ViewId`/`Target`/`Severity`/`Signal`/`AttentionItem`/`Insight`;
+> `InstrumentId` with the instruments domain unless proven cross-cutting;
+> `ClassSession`/`ClassStatus`/`statusOf` under scheduling semantics); label maps and UI
+> configuration are category D with no catch-all replacement; category C values are removed,
+> derived from an authoritative live read, or become `NO_DATA` — never invented (M9 H4/I9
+> policy); DEMO seed may relocate under `src/domains/demo/` with nothing else changed and EMPTY
+> gaining nothing; Finance/Reports stay deferred under D6/I2 with explicit visible testable
+> deferrals; Hero stays inside the boundary (identity via M8 branding; fabricated status →
+> authoritative read or `NO_DATA`; no visual redesign); legacy sessions/attendance, the backup
+> envelope, migration semantics and I8 stay frozen; seven verified dead exports may be deleted
+> while design-system samples get an explicit owner; `atRiskStudents` loses its uncontrolled
+> fixture read; `viewTitles` gets a presentation owner `src/lib/hashRoute.ts` may consume; the
+> baseline is corrected to **44 non-test importer files / 92 import statements repo-wide (64 in
+> the non-test files), records.ts = 822 lines, academy.ts = 558 lines**; **L3 stays CLOSED and
+> out of M10 scope**; the five named drift documents are corrected or date-labelled (demo-data.md
+> inspection only; L6 stays outside M10); the boundary test keeps mutation/liveness protection
+> and never hides a Finance/Reports deferral; every existing gate stays at least as strict; and
+> **no backend technology decision is recorded**. Documents only — M10 remains ❌ NOT STARTED and
+> **NOT AUTHORIZED**; a separate owner authorization is required before implementation.
 > *(The Class Compensation workstream record follows, kept for audit and unedited.)*
 >
 > **State at M8's closure, kept for audit:** **the Class Compensation workstream now has its secretary
@@ -2006,6 +2031,22 @@ without violating D6/I2 remains explicitly deferred with that deferral visible a
 D5 carries no backend architecture or backend technology decision. Same constraints as above: no
 source, test, gate, dependency, seed, backend or Finance/Reports change; no branch created,
 switched or renamed; no Git ref modified; no self-registered SHA (§2); M10 stays NOT STARTED.
+
+**The D5 FINALIZATION pass (later the same day, 2026-09-16) is also documents-only.** It records
+D5 as **RECORDED / FINALIZED** in [DECISIONS.md](DECISIONS.md) §19 → D5 → Finalization record:
+the four-category separation model (A domain/entity types, B canonical DEMO seed/source data, C
+fabricated UI data/measurements, D static domain vocabulary and UI/presentation configuration) and
+the seventeen owner clauses — type ownership, label/UI-config ownership, the view-layer definition
+(`src/views/**` + `src/components/**`, never narrowed), the category C remove/derive/`NO_DATA`
+policy, DEMO relocation limits, Finance/Reports D6/I2 deferral handling, Hero's boundary, the
+legacy sessions/attendance freeze, the seven dead-export candidates, `atRiskStudents`,
+`viewTitles`/`src/lib/hashRoute.ts`, the corrected baseline (44 non-test importer files; 92 import
+statements repo-wide, 64 of them non-test; 822 and 558 lines), L3 closed and out of scope, the
+documentation-drift boundary, boundary-test and gate-preservation rules, the backend exclusion, and
+the authorization rule: **D5 = RECORDED / FINALIZED, M10 = NOT AUTHORIZED** — a separate owner
+authorization is required before implementation. It changes no source, test, gate, dependency,
+seed, backend or Finance/Reports work; moves no file; touches no branch and no Git ref; does not
+self-register its own SHA (§2); and implements nothing.
 
 **The current state in one line, updated: the Class Compensation workstream is ✅ SHIPPED — the domain at
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c` and its secretary surface at `fc83d6d`, hardened by `79fd44e`

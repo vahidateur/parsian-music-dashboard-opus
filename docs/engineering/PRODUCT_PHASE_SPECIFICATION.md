@@ -957,9 +957,37 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   (`TeacherNote`, declared at `src/data/records.ts:31`, never used). **L3 is already closed** —
   both domain README stubs were retired on 2026-09-14 (M4's CP0 and M5's documentation
   reconciliation; see [OPEN_ITEMS.md](OPEN_ITEMS.md) **L3**) — and is no longer M10's scope.
-- **Dependencies.** M4–M9. **D5 recorded before execution — ✅ discharged:** D5 was recorded by
-  the owner on 2026-09-16 ([DECISIONS.md](DECISIONS.md) §19). **The record is not an
-  authorization** (D5 principle 7) — M10 remains not started until the owner authorizes it.
+- **Dependencies.** M4–M9. **D5 recorded before execution — ✅ discharged and FINALIZED:** D5 was
+  recorded and finalized by the owner on 2026-09-16 ([DECISIONS.md](DECISIONS.md) §19, seventeen
+  finalization clauses). **The record — and its finalization — is not an authorization** (D5
+  principle 7 and clause 17): **D5 = RECORDED / FINALIZED; M10 = NOT AUTHORIZED** until the owner
+  authorizes it separately.
+- **Finalization (D5, 2026-09-16, owner instruction).** The separation is by **semantic role**,
+  expressed as four categories — **A** domain/entity types, **B** canonical DEMO seed/source data,
+  **C** fabricated UI data/measurements, **D** static domain vocabulary and UI/presentation
+  configuration — with the executed rules fixed in [DECISIONS.md](DECISIONS.md) §19 → D5 →
+  Finalization record: canonical type ownership (one definition, no duplicates; shared owner for
+  `ViewId`, `Target`, `Severity`, `Signal`, `AttentionItem`, `Insight`; `InstrumentId` with the
+  instruments domain unless proven cross-cutting; `ClassSession`/`ClassStatus`/`statusOf` under
+  scheduling semantics); label maps and UI config are category D with domain vocabulary kept
+  domain-owned and **no catch-all replacement** (`data/ui.ts` / `data/constants.ts` /
+  `data/config.ts` all forbidden); category C values presented as fact are **removed**, derived
+  from an authoritative live read where one exists, or replaced by `NO_DATA` — never invented
+  (M9 H4/I9 policy); DEMO seed may relocate under `src/domains/demo/` with **nothing else**
+  changed and EMPTY gaining nothing; the seven verified dead exports (`todayFlowIds`,
+  `revenueTarget`, `overdueInvoices`, `teacherAbsences`, `freeSlotsTuesday`, `studentStats`,
+  `accessRoles`) may be deleted, while `src/views/DesignSystemView.tsx` sample content gets an
+  explicit owner instead; `atRiskStudents` loses its uncontrolled fixture read (derive or
+  `NO_DATA` — no new formula); `viewTitles` gains a presentation/application owner that
+  `src/lib/hashRoute.ts` may consume with the dependency direction documented; Finance/Reports
+  stay deferred under D6/I2 with explicit, visible, testable deferrals; Hero's identity moves to
+  the M8 branding mechanism and its fabricated status/measurement becomes an authoritative read or
+  `NO_DATA` — no visual redesign; legacy sessions/attendance, the backup envelope, migration
+  semantics and the I8 format stay frozen; the five named drift documents are corrected or
+  date-labelled historical snapshots (`docs/architecture/demo-data.md` inspection only; **L6 stays
+  outside M10; L3 stays closed and out of scope**); every existing gate is at least as strict
+  after M10, mechanically re-pointed at most; and **no backend technology or infrastructure
+  decision is recorded**.
 - **Protected areas.** `src/domains/demo/__tests__/seed.test.ts` (all collections zero, derived
   dataset), `src/services/__tests__/demoStoreMigration.test.ts` and `migrateDataset()`,
   `backup.test.ts`, `contracts.test.ts`, `dataIntegrity.test.ts`, `prototypePollution.test.ts`,
@@ -987,12 +1015,22 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   with that deferral visible and testable. **D5 carries no backend architecture or backend
   technology decision.**
 - **Tests.** A new boundary test: **no view imports `src/data/records.ts` or `src/data/academy.ts`
-  at all.** "The view layer" here means `src/views/**` + `src/components/**` (D5 principle 6).
-  Every persistence and lifecycle suite green and **unweakened**.
+  at all.** "The view layer" here means `src/views/**` + `src/components/**` (D5 principle 6 and
+  finalization clause 3 — the same definition `src/__tests__/architectureBoundaries.test.ts`
+  uses; it must not be narrowed to exclude components). The test keeps **meaningful
+  mutation/liveness protection** (finalization clause 14): it is not satisfied by moving fabricated
+  data into another hidden fixture module, and Finance/Reports D6/I2 deferrals are **explicit and
+  testable rather than silently exempted**. Every persistence and lifecycle suite green and
+  **unweakened**; existing gates may be mechanically re-pointed after ownership moves but stay at
+  least as strict as before (clause 15).
 - **Acceptance.** The fixture modules no longer exist as a place a view can read fake data from;
   every drift row closed in the documents themselves.
 - **Out of scope.** Changing the seeded dataset's *content*; any domain model change; I8's
-  versioned envelope.
+  versioned envelope and any I8 redesign; creating Finance or Reports domains or repositories for
+  them (D6/I2); inventing or recomputing revenue/payment data; any backend technology or
+  infrastructure decision (no stack, database, cache, container or hosting choice is recorded —
+  clause 16); a Hero visual redesign; fabricating new EMPTY data; reopening **L3** (already
+  closed); and **L6**, which remains outside M10.
 - **Checkpoint & rollback.** Phase checkpoint (blast radius re-measured at D5's record, 2026-09-16:
   **44 non-test importer files**, a large share of them importing types only) —
   mechanical, test-guarded, one commit; rollback boundary = M9's SHA.
