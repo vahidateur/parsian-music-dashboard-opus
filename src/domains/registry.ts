@@ -238,6 +238,36 @@ export function getCompensationRepository(): CompensationRepository {
   );
 }
 
+/*
+  D8 — the single enumeration.
+
+  The domains above that resolve to the demo implementation in BOTH modes are
+  listed ONCE, here at the composition root where the decision is actually
+  made. The api-mode disclosure (`components/shell/DemoBackedNotice`) derives
+  its wording from this array — it never keeps its own list, so a domain
+  graduating to a served API (or a new domain landing) cannot leave a stale
+  banner behind, and the gate test walks every getter on this list to assert
+  the enumeration is still true. Labels are the Persian user-facing names.
+*/
+export interface DemoServedDomain {
+  id: string;
+  label: string;
+}
+
+export const DEMO_SERVED_DOMAINS: readonly DemoServedDomain[] = [
+  { id: "instruments", label: "سازها" },
+  { id: "learning", label: "مسیرهای یادگیری" },
+  { id: "chat", label: "پیام‌ها" },
+  { id: "media", label: "رسانه" },
+  { id: "library", label: "کتابخانه" },
+  { id: "branding", label: "هویت آموزشگاه" },
+  { id: "gallery", label: "گالری" },
+  { id: "progress", label: "پیشرفت هنرجویان" },
+  { id: "scheduling", label: "برنامه‌ریزی" },
+  { id: "attendance", label: "حضور و غیاب" },
+  { id: "compensation", label: "جبرانی" },
+] as const;
+
 /**
  * The scheduling ↔ attendance boundary.
  *

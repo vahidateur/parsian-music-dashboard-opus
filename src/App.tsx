@@ -15,6 +15,7 @@ import { CommandPalette } from "@/components/overlays/CommandPalette";
 import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
 import { useDemoLibraryFile } from "@/domains/library/useLibrary";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
+import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
 import { Dashboard } from "@/views/Dashboard";
 
 /*
@@ -138,6 +139,9 @@ function Shell() {
       <div className={cn("relative z-10 lg:mr-[var(--rail-w)]", !railCollapsed && "xl:mr-[var(--sidebar-w)]")}>
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
+          {/* D8: in api mode the demo-backed domains are declared, always. */}
+          <DemoBackedNotice className="mb-5" />
+
           <div key={`${view}-${filter ?? ""}-${detailId ?? ""}`} className="animate-phrase-in">
             <ViewOutlet />
           </div>

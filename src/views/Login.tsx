@@ -7,6 +7,7 @@ import { isDemoMode } from "@/api/config";
 import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryContext";
 import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecoveryPanel";
+import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
 import { roleLabels } from "@/domains/auth/permissions";
 import stageImage from "@/assets/login-stage.jpg";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
@@ -165,6 +166,9 @@ export function LoginView() {
                   برای ورود به پنل مدیریت، اطلاعات حساب خود را وارد کنید.
                 </p>
               </div>
+
+              {/* D8: the disclosure precedes authentication, not just follows it. */}
+              <DemoBackedNotice className="mb-6" />
 
               <form onSubmit={onSubmit} noValidate>
                 <label className="block">
