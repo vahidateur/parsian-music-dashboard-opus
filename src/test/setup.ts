@@ -26,3 +26,9 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect(): void {}
   } as unknown as typeof ResizeObserver;
 }
+
+if (typeof window !== "undefined" && !Element.prototype.scrollIntoView) {
+  // Keyboard navigation scrolls the active option into view; jsdom has no
+  // layout engine, so it lacks the API entirely.
+  Element.prototype.scrollIntoView = () => {};
+}
