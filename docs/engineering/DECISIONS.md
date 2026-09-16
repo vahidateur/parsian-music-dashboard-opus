@@ -301,10 +301,20 @@ the real bug — a function that promises a number it cannot produce — in plac
 
 **Enforced by.** `src/lib/stats.ts`, `src/lib/format.ts`,
 `src/views/__tests__/emptyEnvironment.test.tsx` (full-shell walk of all 16 surfaces in EMPTY,
-asserting no `NaN`/`Infinity` artefacts), `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx`.
+asserting no `NaN`/`Infinity` artefacts), `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx`
+— and, since M9, the empty-series guards themselves: `src/components/ds/__tests__/seriesGuards.test.tsx`
+and `src/components/panels/__tests__/panelsEmpty.test.tsx`.
 
-**Status.** ✅ In force (Phase 2). Latent risk: `Sparkline` and `BusinessIntelligence` still
-crash on an empty series — unreachable today because their callers pass static fixtures.
+**Status.** ✅ In force (Phase 2). ~~Latent risk: `Sparkline` and `BusinessIntelligence` still
+crash on an empty series — unreachable today because their callers pass static fixtures.~~ **Closed at
+M9** (`8d34eb3d1cd639cffc794596250c897b5ed4b6b3`, **I9**): the guard landed **before** the live data that
+would have reached it. `Sparkline` takes `readonly number[] | null` and `Delta` takes `number | null` —
+a missing series and a missing comparison are typed absences, not zeros — and every chart in
+`BusinessIntelligence` returns its no-value state before any index or `Math.min` touches an empty model.
+Both render `NO_DATA` rather than a shape or a «۰٪», and no consumer was given a `|| []`. **Enforced by**
+`src/components/ds/__tests__/seriesGuards.test.tsx` (7 cases), `src/components/panels/__tests__/panelsEmpty.test.tsx`
+(12) and `src/views/__tests__/dashboardInsightsLive.test.tsx` (7, which also sweeps SVG attributes for
+`NaN`/`Infinity`).
 
 ## 15. Honesty rules for UX
 
@@ -331,10 +341,18 @@ demo data. Both are now enforced rather than merely decided: a view that cannot 
 may not report success at all, and a confirmation may not hardcode the demo label outside an
 explicitly tracked exception list.
 
-**Violations that remain,** all recorded with evidence in [OPEN_ITEMS.md](OPEN_ITEMS.md): the
-dashboard insight panels presenting fabricated text as measurement (**H4**, which M9 owns), and the
-attendance «ثبت نهایی» wording, deferred to the attendance wiring by explicit decision (**I12**,
-which M5 owns).
+**Violations that remain,** all recorded with evidence in [OPEN_ITEMS.md](OPEN_ITEMS.md): ~~the
+dashboard insight panels presenting fabricated text as measurement (**H4**, which M9 owns)~~ — **closed
+at M9** (`8d34eb3d1cd639cffc794596250c897b5ed4b6b3`): the four panels and `src/views/Dashboard.tsx` show
+only figures derived from the environment's own records, and an input set with no records states
+«داده‌ای نیست» rather than a number or a sentence nobody computed (the traced figure→source map is in
+[PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M9 validation") — and the attendance «ثبت نهایی» wording,
+deferred to the attendance wiring by explicit decision (**I12**, which M5 owns and **closed** at
+`9505ade`). **What survives of the H4 *shape*, recorded rather than implied:** the design-system gallery
+still renders fixture samples as component demonstrations, `src/views/Finance.tsx` and
+`src/views/Reports.tsx` remain fixture-driven (**I2**, deferred by **D6**), and the hero panel and the
+demo seed keep the fixture identity — separating the fixtures' three roles is **D5**/**M10**, and M9 did
+not start it. No fabricated *measurement* remains on the dashboard itself, which is the claim M9 makes.
 
 **Closed since M2:** the three Settings panels that hardcoded the demo label on a real write
 (**H7**) and the edit dialogs that opened with an empty draft and could silently overwrite a stored
@@ -606,7 +624,7 @@ role survives untouched (`src/domains/demo/seed.ts:166` still seeds a legacy `at
 and `src/domains/demo/backup.ts:242` still reads it, so a round-trip stays lossless) and the **type**
 role was never in question. Deleting the fixtures was therefore *not* possible inside M5's
 authorization, and the one remaining shipped reader is `src/views/Reports.tsx:143` (`attendanceByDay`)
-— **I2** and M9's. **M7 has now removed the three profile surfaces' *relation* readers** (`f1ec0ddde783aec14d6429ac2457f085f851ad9a`): `src/views/Students.tsx`, `src/views/Teachers.tsx` and `src/views/Classes.tsx` resolve every foreign key, roster, seat count, room and weekly window through the domains and import only **label maps and types** from `@/data/records` — `teacherById`, `studentById`, `classById`, `roomById`, `weekSessions`, `TODAY_INDEX`, `academyClasses` and the denormalized `AcademyClass.studentIds` projection are all forbidden in those files by `src/views/__tests__/relationsNoFixtures.test.ts`, which now enforces five surfaces with empty deferral ledgers. What still reads the fixtures is the *third role* elsewhere and untouched: `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the composer templates in `src/views/Messages.tsx` (`messageTemplates`), `Finance.tsx`/`Reports.tsx` (**I2**) and the dashboard insight panels (**M9/H4**) — so this decision is still **Open**, its **Enforced by** list now includes M7's gate, and the M10 boundary test that will cover *every* view is still to be written. M7 also retired the *count* half of the same habit in the chrome rather than moving it: see **D17**. One deliberate non-change belongs to this entry: `attendance` **stays** in
+— **I2** and M9's. **M7 has now removed the three profile surfaces' *relation* readers** (`f1ec0ddde783aec14d6429ac2457f085f851ad9a`): `src/views/Students.tsx`, `src/views/Teachers.tsx` and `src/views/Classes.tsx` resolve every foreign key, roster, seat count, room and weekly window through the domains and import only **label maps and types** from `@/data/records` — `teacherById`, `studentById`, `classById`, `roomById`, `weekSessions`, `TODAY_INDEX`, `academyClasses` and the denormalized `AcademyClass.studentIds` projection are all forbidden in those files by `src/views/__tests__/relationsNoFixtures.test.ts`, which now enforces five surfaces with empty deferral ledgers. ~~What still reads the fixtures is the *third role* elsewhere and untouched: `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the composer templates in `src/views/Messages.tsx` (`messageTemplates`), `Finance.tsx`/`Reports.tsx` (**I2**) and the dashboard insight panels (**M9/H4**)~~ — **update (2026-09-16, M9 `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`):** the dashboard insight panels and `src/views/Dashboard.tsx` **came off that list** — they read the environment's own records through `src/domains/shared/useDashboardInsights.ts` and derive every figure in `src/domains/shared/dashboardInsights.ts`, and the fixtures they used to render (`signals`, `growthSeries`, `revenueSeries`, `occupancy`, `instruments`, `quickActions`, `todayFlowIds`, `attentionItems`, `attentionQueue`, `intelligenceCards`) no longer reach them. What still reads fixture *content* is therefore `Library.tsx` (`libraryShelves`), `Settings.tsx` (`settingsSections`), the composer templates in `Messages.tsx` (`messageTemplates`), `Finance.tsx`/`Reports.tsx` (**I2**), and the design-system gallery `src/views/DesignSystemView.tsx` (fixture *samples* used to demonstrate components). **M9 changed no part of this decision and did not start the separation:** it removed *readers* of its own surfaces, exactly as M4–M7 did for theirs, and the three roles — types, the canonical DEMO seed, and fake data for unwired views — are still entangled, which is why this decision is still **Open**, why the **Status** row below is unchanged, and why the M10 boundary test that will cover *every* view is still to be written. M7 also retired the *count* half of the same habit in the chrome rather than moving it: see **D17**. One deliberate non-change belongs to this entry: `attendance` **stays** in
 `src/views/__tests__/emptyEnvironment.test.tsx`'s fixture list, because that membership asserts
 `inFlightMarkers() === 0` — a semantic claim about issuing no domain read, which a wired view would
 fail — and moving it would have been a test-semantics change the milestone was not authorized to make.
@@ -632,7 +650,13 @@ duplicate that logic in the browser or fake it — §15 forbids the second and
 
 **Status.** ⏸️ Deferred by decision; I2 stays open. The `invoices` and `payments` collections
 continue to persist and to be validated for referential integrity by the backup contract — they are
-not deleted, they are simply not yet read by a domain.
+not deleted, they are simply not yet read by a domain. **Update (2026-09-16, M9
+`8d34eb3d1cd639cffc794596250c897b5ed4b6b3`): this decision was met head-on and held.** H4's money slot
+needed a revenue figure, and the seam does not exist — `src/domains/finance/` and
+`src/domains/reports/` remain README-only and the `invoices`/`payments` collections have **no
+repository**. Rather than create a domain, add a repository, or compute a client-side substitute (which
+§15 forbids), M9 **deleted the revenue chart** and showed the receivables the student records
+themselves carry. **No Finance or Reports work was done, no domain was created, and I2 remains open.**
 
 ### D7. Accessibility is enforced without a new dependency
 

@@ -239,7 +239,10 @@ After M5 **no view reads the register fixtures**. What still does:
 - `src/domains/demo/backup.ts:242` reads that legacy collection so a backup round-trip stays
   lossless.
 - `src/views/Reports.tsx:143` still renders `attendanceByDay` — a different view, still
-  fixture-driven, which is **I2** and M9's.
+  fixture-driven, which is **I2**'s, deferred by **D6**. *(This line said "**I2** and M9's" while M9 was
+  still ahead; **M9 landed (2026-09-16, `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`) without touching this
+  view** — it removed the fixture readers of its own four dashboard panels and created no domain — so the
+  attribution is corrected here rather than left pointing at a closed milestone.)*
 
 So the fixture is now **retained data with no reader in the view that owns it** — neither deleted
 (which would change the seed, the backup envelope and the zero-record invariant, none of them

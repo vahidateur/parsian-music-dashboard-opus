@@ -9,7 +9,8 @@ recorded limitations, M4, M5 and M6 complete on the same terms, **M7** complete 
 same terms — and the **Class Compensation P1 workstream** (not an M-milestone, and the sequence below is
 unchanged by it) shipped at `a21311d7e32c82e3a46b1581c94f6b3478bf646c` for the private one-to-one case
 recorded in §9, **M8** has since landed (2026-09-16, `735617d` — the branding application, authorized by
-the owner) while **M9 onward has not started** —
+the owner) and so has **M9** (2026-09-16, `8d34eb3` — dashboard insight from live data, **I9** first and
+**H4** after it, authorized by the owner), while **M10 onward has not started** —
 the live status of every milestone is in [PHASES.md](PHASES.md) → "Product-feature phase", not here.)*
 
 **Base commit:** `f1fe114` (short form on purpose — see "No self-referential SHAs" in
@@ -124,8 +125,8 @@ M5  Attendance view wiring (H1b)       ← Group D domain frozen; needs M4's rea
 M6  Contracts without UI (chat, attachments, export coverage)   ✅ landed 4e03b87
 M7  Relation de-fixturing + sidebar badges (I1)            ✅ landed f1ec0dd
 M8  Branding application & visual identity (D2 recorded 2026-09-16)  ✅ landed 735617d
-M9  Dashboard insight from live data (H4) — I9 guards land FIRST
-M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3
+M9  Dashboard insight from live data (H4) — I9 guards land FIRST   [LANDED 2026-09-16 at 8d34eb3]
+M10 Fixture / type / seed separation (D5) + documentation drift + L2/L3   [NOT STARTED — not authorized]
 M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + release gate
 ```
 
@@ -742,8 +743,10 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
      M7 authorization covered the **students, teachers and classes** relations plus the **navigation
      chrome**; `src/views/Messages.tsx`, `src/views/Library.tsx` and `src/views/Settings.tsx` are
      untouched and still import fixture *content* (`messageTemplates`, `libraryShelves`,
-     `settingsSections`), and the dashboard insight panels named in this document's final-phase DoD are
-     still fixture renderers (**M9/H4**). The spec's Tests clause — *"a new boundary assertion: views do
+     `settingsSections`), and the dashboard insight panels named in this document's final-phase DoD were
+     still fixture renderers — **that half was closed afterwards by M9** at
+     `8d34eb3d1cd639cffc794596250c897b5ed4b6b3` (`H4`; see the M9 block below), so only the three views
+     and the gallery's fixture samples remain. The spec's Tests clause — *"a new boundary assertion: views do
      not import `src/data/records.ts` **for data**"* — is delivered **per surface** for the five surfaces
      the gate names (all `enforced`, empty deferral ledgers), **not** product-wide: the three rewired
      views import label maps and types only, which the gate's allow-list permits, and the product-wide
@@ -891,7 +894,35 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   data; recommendations stay deterministic.
 - **Checkpoint & rollback.** Phase checkpoint; rollback boundary = M8's implementation checkpoint
   `735617d0324a8f4ba2e243846eedf069d389751a` (M8's own pre-implementation boundary, the commit it was
-  built on, is `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`).
+  built on, is `a039ab0e2d1f0d339b91b23c6dffc3b0a4cc5046`). **LANDED 2026-09-16** as **one**
+  implementation checkpoint, `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`, built on
+  `c186baaa1dda39e274369ed0387094822b00f0ae` — **M8's documentation closure**, the twenty-seventh
+  documentation checkpoint — which is therefore M9's **effective safe rollback boundary**.
+- **Landed record (2026-09-16).** Both halves closed, in the order this section mandates. **I9 first:**
+  `Sparkline` (`src/components/ds/primitives.tsx`) now takes `readonly number[] | null`, guards its
+  render *and* its geometry, and renders `NO_DATA`; `Delta` takes `number | null` so a comparison against
+  a zero previous period is a typed absence rather than «۰٪»; the two `BusinessIntelligence` index reads
+  are gone, each chart returning its own no-value state before any index or `Math.min`. **Then H4:**
+  `Signals`, `Intelligence`, `AttentionAndFlow` and `BusinessIntelligence` are prop-driven and read no
+  fixture value; a new pure derivation module (`src/domains/shared/dashboardInsights.ts`) plus one read
+  set (`src/domains/shared/useDashboardInsights.ts`, five list reads each stating `per_page: 500`) feed
+  them from the environment's own records through `useAcademyMetrics` and `src/lib/stats.ts`'s
+  `meanOf` / `ratioPct` / `topBy`; `src/views/Dashboard.tsx` reads the clock once and passes the models
+  down. **The one seam that was missing, and what M9 did about it:** collected revenue has **no**
+  authoritative source — `src/domains/finance/` and `src/domains/reports/` are still README-only and
+  `invoices`/`payments` have no repository — so the revenue chart was **removed** rather than recomputed,
+  and the money slot shows the receivables the student records carry. **No Finance domain, no repository,
+  no fabricated revenue figure and no Finance/Reports implementation** came out of M9 (**D6**/**I2** stay
+  open). **Evidence:** 14 files (8 modified, 6 new — four of them tests carrying **61 cases**: 7 / 35 / 12
+  / 7), typecheck clean, build clean on a fresh `dist/`, `git diff --check` clean, gates green
+  (`architectureBoundaries`, `privacyPosture`, `cspCompatibility` against the real build,
+  `navigationCounts`, `emptyEnvironmentPanels`, `emptyEnvironment`, `attendanceMetric`), full suite
+  **1 985 passed / 1 failed of 1 986** with the one failure being the recorded environmental branch-name
+  case, and the mutation/liveness/substitution probes recorded in [PROJECT_STATE.md](PROJECT_STATE.md)
+  §4 → "M9 validation". **Out of scope and left untouched, as this block required:** the design-system
+  gallery's fixture samples, `src/views/Finance.tsx` / `src/views/Reports.tsx` (**I2**), the hero panel's
+  fixture status line and the demo seed's fixture-derived organization settings (**M10**'s), and the
+  fixture/type/seed separation itself (**D5**/**M10**). **Browser QA NOT VERIFIED.**
 
 ### M10 — Fixture / type / seed separation (**D5**) + documentation drift + hygiene
 
@@ -1025,8 +1056,11 @@ of site 1's claim does. What M5 added is the *statement* of that absence: the re
 correction dialog each say out loud that no teacher, student or guardian is notified, so the deferral
 is visible to the operator rather than implied by a missing button. Rows **5** and **6** are unchanged
 (M2), and **`src/views/Finance.tsx` and `src/views/Reports.tsx` are the only two views left on
-`src/__tests__/writeFeedbackHonesty.test.ts`'s `FIXTURE_DRIVEN_VIEWS` list** — both **I2** and M9's,
-because neither has a domain layer to be wired to.
+`src/__tests__/writeFeedbackHonesty.test.ts`'s `FIXTURE_DRIVEN_VIEWS` list** — both **I2**'s, deferred
+by **D6**, because neither has a domain layer to be wired to. *(This line said "both **I2** and M9's"
+when it was written; **M9 landed without touching them** — it removed the fixture readers of its own four
+panels and the dashboard, and created no domain — so the attribution is corrected here rather than left
+pointing at a closed milestone.)*
 
 ---
 
@@ -1238,7 +1272,7 @@ The phase is complete when **all** of the following are true and evidenced:
    fixture module. The structural no-fixture check M4 added is
    **M4-local** (one view); the product-wide fixture/type/seed separation and a boundary test covering
    every view remain **M10 / D5**. *Written at M4's landing and kept as written; the state after the
-   milestones that followed it is measured below.* **Attendance came off this list at M5** (`9505ade`), **and M7 (`f1ec0dd`) took the three profile surfaces off it as far as their *relations* are concerned**: `Students.tsx`, `Teachers.tsx` and `Classes.tsx` now read every foreign key, roster, seat count and weekly window from `useClasses`/`useTeachers`/`useRooms`/`useEnrollments`/`useSessions`, and import only label maps and types from `@/data/records`, which the per-surface gate (`src/views/__tests__/relationsNoFixtures.test.ts`, 5 surfaces `enforced`) allows. **Item 1 is nevertheless still not met:** `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the chat template list in `src/views/Messages.tsx` (`messageTemplates`), the fixture renderers `Finance.tsx` and `Reports.tsx`, and the dashboard insight panels (`src/components/panels/`) still read fixture *content* — **M9/H4**, **M10/D5** and **I2** — and the product-wide boundary test this item asks for does not exist yet. The M7 authorization covered the three relations and the navigation chrome, and M7 did not quietly claim more ([PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix", row 19).
+   milestones that followed it is measured below.* **Attendance came off this list at M5** (`9505ade`), **and M7 (`f1ec0dd`) took the three profile surfaces off it as far as their *relations* are concerned**: `Students.tsx`, `Teachers.tsx` and `Classes.tsx` now read every foreign key, roster, seat count and weekly window from `useClasses`/`useTeachers`/`useRooms`/`useEnrollments`/`useSessions`, and import only label maps and types from `@/data/records`, which the per-surface gate (`src/views/__tests__/relationsNoFixtures.test.ts`, 5 surfaces `enforced`) allows. **Item 1 is nevertheless still not met:** `src/views/Library.tsx` (`libraryShelves`), `src/views/Settings.tsx` (`settingsSections`), the chat template list in `src/views/Messages.tsx` (`messageTemplates`), the fixture renderers `Finance.tsx` and `Reports.tsx`, and the design-system gallery `src/views/DesignSystemView.tsx` still read fixture *content* — **M10/D5** and **I2** — and the product-wide boundary test this item asks for does not exist yet. *(The dashboard insight panels were on this list when it was written; **M9 closed their half** at `8d34eb3d1cd639cffc794596250c897b5ed4b6b3` — they read the environment's records now — so they have been removed from it rather than left to overstate what remains.)* The M7 authorization covered the three relations and the navigation chrome, and M7 did not quietly claim more ([PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix", row 19).
 2. **EMPTY is honest everywhere:** «داده‌ای نیست» / `NO_DATA`, never a fabricated record, figure or
    sentence — asserted by rendering in EMPTY.
 3. **Zero fake success.** Every `tone: "success"` follows an awaited repository call with an honest

@@ -241,9 +241,12 @@ drift — re-grep before editing.
   `src/__tests__/writeFeedbackHonesty.test.ts` tracks it in the same `GRADUATED_VIEWS` ratchet,
   asserted in both directions: the file must reach `getAttendanceRepository(` **and** report a success
   it can honestly claim. **Two views remain on the fixture list — `src/views/Finance.tsx` and
-  `src/views/Reports.tsx` — and both are **I2** and M9's**, because neither has a domain layer to be
-  wired to. So this item's "Done when" is satisfied for every view that *has* a domain, and the two
-  that remain cannot satisfy it until M9 creates one.
+  `src/views/Reports.tsx` — and both are **I2**'s**, deferred by **D6**, because neither has a domain
+  layer to be wired to. So this item's "Done when" is satisfied for every view that *has* a domain.
+  *(This line said "both are **I2** and M9's" while M9 was ahead; **M9 landed (2026-09-16,
+  `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`) without creating either domain** — its own money slot was
+  rebuilt from the student records instead — so the two views cannot satisfy it until a Finance/Reports
+  domain exists, which is **M10**-and-later territory under **I2**.)*
 
 ### H3. Real writes are labelled "demo data" in domain views (found while writing these docs, 2026-09-08)
 - **Status: ✅ LANDED by M2** for the five audited sites (its commit SHA is registered in
@@ -291,7 +294,7 @@ drift — re-grep before editing.
   `src/__tests__/architectureBoundaries.test.ts` stays green. H7 carries the three that were not in
   this audit.
 
-### H4. Dashboard insight panels present fabricated text as measurement
+### H4. Dashboard insight panels present fabricated text as measurement — ✅ CLOSED (2026-09-16, landed by M9 at `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`)
 - **What:** `src/components/panels/Intelligence.tsx`, `BusinessIntelligence.tsx`,
   `Signals.tsx` and `AttentionAndFlow.tsx` import static fixtures from `src/data/academy.ts`
   (`signals`, `growthSeries`, `revenueSeries`, `occupancy`, `quickActions`, `todayFlowIds`) and
@@ -310,10 +313,38 @@ drift — re-grep before editing.
   five fabricated figures", "draws no trend, ring or meter over data it does not have"). The only
   aggregate this domain still feeds is the dashboard's hero metric, in
   `src/domains/shared/useAcademyMetrics.ts`. `src/views/Reports.tsx` still renders `attendanceByDay`
-  (**I2**, M9's).
+  (**I2**, deferred by **D6** — and **M9** landed without touching that view).
 - **Done when:** each insight is computed from loaded data, states «داده‌ای نیست» when the
   input set is empty (via `src/lib/stats.ts` + `NO_DATA`), and a test renders the dashboard in
   EMPTY asserting no fabricated figure or sentence survives.
+- **Status (2026-09-16, M9 `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`):** the done-when is met, and
+  measured on the real tree rather than asserted. The four panels and `src/views/Dashboard.tsx` read one
+  read set (`src/domains/shared/useDashboardInsights.ts` — `useStudentList` / `useClasses` / `useRooms` /
+  `useTeachers` plus a bounded `useSessions` window, every call stating `per_page: 500`) and derive every
+  displayed figure in `src/domains/shared/dashboardInsights.ts` through `meanOf` / `ratioPct` / `topBy`
+  (`src/lib/stats.ts`), whose empty-set answers are `null` and which therefore cannot print `NaN`. The
+  traced map (which figure comes from which record) is in [PROJECT_STATE.md](PROJECT_STATE.md) §4 →
+  "M9 validation". `signals`, `growthSeries`, `revenueSeries`, `occupancy`, `instruments`, `quickActions`,
+  `todayFlowIds`, `attentionItems`, `attentionQueue` and `intelligenceCards` no longer reach those
+  surfaces; the seeded room clash is detected from the stored sessions instead of a sentence naming
+  «پیانو پیشرفته», and the dashboard's own mobile pulse kicker («اوج ۱۴:۰۰ تا ۱۵:۰۰ · ۱ نقطهٔ توجه») was
+  the last hand-written figure on the page. **EMPTY is asserted over the real `Dashboard`:** every panel
+  renders, each states «داده‌ای نیست», the two measures with no stored history render `NO_DATA` glyphs, no
+  `NaN`/`Infinity` appears in text **or in any SVG attribute**, and none of 24 retired fixture sentences
+  or 5 retired fixture figures survives — with the fixture sources substituted by absurd values
+  afterwards leaving all 82 cases across the four M9 suites and the two gate suites they drive green,
+  which is what makes them inert rather than merely unwired
+  (`src/views/__tests__/dashboardInsightsLive.test.tsx`, `src/components/panels/__tests__/panelsEmpty.test.tsx`).
+  **What this closure does *not* cover, stated so it is not read as more than it is:** the
+  design-system gallery (`src/views/DesignSystemView.tsx`) still renders fixture *samples* (`signals`,
+  `intelligenceCards`, `attentionItems`, `schedule`, `insights`) as component demonstrations, and
+  `src/views/Finance.tsx` / `src/views/Reports.tsx` remain fixture-driven (**I2**, deferred by **D6**) —
+  separating the fixtures' three roles is **D5**, recorded for **M10**, and M9 did not start it. `Hero.tsx`
+  and `demo/seed.ts` are untouched (see **M10**'s scope and [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 20).
+  **One surface the milestone *removed*:** the revenue chart had no authoritative source — Finance/Reports
+  are README-only and `invoices`/`payments` have no repository — so it was **deleted** rather than
+  recomputed, and the money slot shows the receivables the student records carry. **No Finance domain, no
+  repository and no fabricated revenue figure were created.**
 
 ### H5. Recovery from an unusable environment — `clear()` remains a one-way door for records
 - **What:** `clear()` still empties every collection including `users`, so no account remains and
@@ -457,7 +488,7 @@ fixture in `src/data/academy.ts`, so counts (e.g. attendance, messages) are show
 where the true value is zero.~~ **Done when:** badges come from repositories and disappear at
 zero. (Verified false-in-EMPTY during the Phase 2 audit; deliberately not fixed there because
 it needs live counters, not a lifecycle change.)
-- **Status (2026-09-15, M7 `f1ec0ddde783aec14d6429ac2457f085f851ad9a`):** the *done-when* is met, and by the strictest available reading of it — `NavDef` no longer has a `badge` field at all, so a static count cannot be reintroduced without failing `src/views/__tests__/relationsNoFixtures.test.ts`; `Sidebar.tsx` computes its badges once per shell in `useNavBadges()` from `useConversations({ per_page: 200 })`, summing the `unread` field the chat repository returns, and renders the badge **only** while that read is complete (`total === items.length`) and the sum is positive — in flight, failed, partial and zero all render **nothing**. Pinned in both directions by `src/views/__tests__/navigationCounts.test.tsx` (7 cases: the repository's own total, a real `markRead` moving it, and silence on a failed read, a partial page and zero unread). **The attendance badge was REMOVED, not rebuilt:** «۳ کلاس ثبت‌نشده» needed a scoped "sessions with no register" query, the attendance domain exposes none (`sessionIdsWithAttendance` is a one-directional protection seam over the whole table, not a bounded read), and inventing an aggregate was explicitly out of scope — the reason is documented in `src/components/layout/Sidebar.tsx` next to the code. The *hints* half of this item went the same way: the command palette's «مالی · ۳ مورد», «حضور · ۳ کلاس ثبت‌نشده», «هنرجویان · ۵ نفر», «گزارش‌ها · ۶ ماه», the room option «اتاق ۴ (۵۸٪ آزاد)» and the recipient option «هنرجویان در معرض ریزش (۵)» now name a target, a filter, a room or a group and claim no figure; the gate rejects a digit written into any nav or command hint (both digit scripts, every quoting style) and a parenthesised count inside a select option. **What this does not close:** the *fixture identity* still on screen (the academy name in the shell and on the login screen) is a different item — **M8/D2** — and the dashboard panels' fabricated sentences are **M9/H4**. Recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix" (rows 11, 12, 13, 14 and 21) and §7 item 2.
+- **Status (2026-09-15, M7 `f1ec0ddde783aec14d6429ac2457f085f851ad9a`):** the *done-when* is met, and by the strictest available reading of it — `NavDef` no longer has a `badge` field at all, so a static count cannot be reintroduced without failing `src/views/__tests__/relationsNoFixtures.test.ts`; `Sidebar.tsx` computes its badges once per shell in `useNavBadges()` from `useConversations({ per_page: 200 })`, summing the `unread` field the chat repository returns, and renders the badge **only** while that read is complete (`total === items.length`) and the sum is positive — in flight, failed, partial and zero all render **nothing**. Pinned in both directions by `src/views/__tests__/navigationCounts.test.tsx` (7 cases: the repository's own total, a real `markRead` moving it, and silence on a failed read, a partial page and zero unread). **The attendance badge was REMOVED, not rebuilt:** «۳ کلاس ثبت‌نشده» needed a scoped "sessions with no register" query, the attendance domain exposes none (`sessionIdsWithAttendance` is a one-directional protection seam over the whole table, not a bounded read), and inventing an aggregate was explicitly out of scope — the reason is documented in `src/components/layout/Sidebar.tsx` next to the code. The *hints* half of this item went the same way: the command palette's «مالی · ۳ مورد», «حضور · ۳ کلاس ثبت‌نشده», «هنرجویان · ۵ نفر», «گزارش‌ها · ۶ ماه», the room option «اتاق ۴ (۵۸٪ آزاد)» and the recipient option «هنرجویان در معرض ریزش (۵)» now name a target, a filter, a room or a group and claim no figure; the gate rejects a digit written into any nav or command hint (both digit scripts, every quoting style) and a parenthesised count inside a select option. **What this does not close:** the *fixture identity* still on screen (the academy name in the shell and on the login screen) is a different item — **M8/D2** — and the dashboard panels' fabricated sentences **were** a third — **M9/H4**, **closed at M9** (`8d34eb3d1cd639cffc794596250c897b5ed4b6b3`, 2026-09-16), which left only the design-system gallery's fixture samples and Finance/Reports behind (**D5**/**M10**, **I2**). Recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "M7 coverage matrix" (rows 11, 12, 13, 14 and 21) and §7 item 2.
 
 ### I18. A cancelled class or teacher requires a compensatory session — **requirement; PARTLY LANDED (private one-to-one), item still OPEN**
 **Recorded 2026-09-15 at M7's closure, by product-owner instruction. NOT implemented, NOT designed and NOT authorized.** The requirement, in the owner's words: when a class or a teacher is cancelled, the **affected students require a compensatory session**; the stated default is a **one-hour session on the same day**, and otherwise the date and time are **coordinated with the secretary**. Nothing in this build does any of that today: `cancelSession` (the scheduling domain's cancel verb, `src/domains/scheduling/repository.ts`) cancels a session and appends a required reason, the view reports exactly what happened (`src/views/scheduling/SessionWriteDialogs.tsx`), and **no compensation row, entity, verb, reminder or UI exists** — nor may one be inferred, because the current cancellation model is "this session does not happen", not "this session is owed". **Done when (to be designed, not assumed):** the requirement is turned into a written design — what a compensation is (a new `Session` for the same class, a make-up slot, or a credit), who may create it (the secretary, not the teacher), how the same-day one-hour default is expressed against availability and the conflict engine, how students are told (today no notification of any kind is sent — **D1**, **I7**), and what happens when no slot can be agreed. Evidence and boundaries: the cancel path above; the scheduling section of [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §9 (deferred, recorded at M7's closure); **Group A is frozen** — any design that needs a scheduling contract change is a decision before it is code. **M7 did not touch it**, and no part of this item may be reported as started.
@@ -631,7 +662,8 @@ API implementations, tests, and no fixture imports.
   attendance fixtures**, still rendering `attendanceByDay` from `src/data/records.ts`. The wired
   attendance view reads neither `attendanceTrend` nor `attendanceByDay`, so this item's Reports half
   now also owns the only place a fabricated attendance chart survives. Cleaning the fixtures
-  themselves up is **D5**/**M10**, not M9's wiring work.
+  themselves up is **D5**/**M10**, not a wiring milestone's work — and **M9** (2026-09-16) left these
+  two views exactly as they were, because it created no domain.
 
 ### I3. Learning-content → level assignment UI — ✅ CLOSED (2026-09-13, landed and completed by M3)
 The learning domain models `Piece` vs `LearningContent`, programs, levels, placement history,
@@ -716,7 +748,7 @@ the envelope records the real lifecycle state, the validation rule and filename 
 migration accepts old envelopes, and the Phase 2 backup suites are extended rather than
 weakened.
 
-### I9. Latent crashes in the design system on empty series
+### I9. Latent crashes in the design system on empty series — ✅ CLOSED (2026-09-16, by M9 at `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`)
 `Sparkline` (`src/components/ds/primitives.tsx:184`) computes `Math.min(...data)` /
 `Math.max(...data)`, which on `data={[]}` yield `Infinity` / `-Infinity` and degenerate
 coordinates; `BusinessIntelligence` (`src/components/panels/BusinessIntelligence.tsx:63`) reads
@@ -724,6 +756,19 @@ coordinates; `BusinessIntelligence` (`src/components/panels/BusinessIntelligence
 today because every caller passes a static fixture from `src/data/academy.ts` — it becomes
 reachable the moment H4 lands. **Done when:** both guard empty input and render `NO_DATA`
 (`src/lib/format.ts`), with a test that passes `[]`.
+- **Status (2026-09-16, M9 `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`):** closed, and closed **first** —
+  I9 landed before the live data that would have reached it, exactly as the milestone's spec required.
+  `Sparkline` now takes `readonly number[] | null` (null meaning "no stored history", a different fact
+  from "the value is zero") and guards in both its render and its geometry `useMemo`, so `Math.min(...[])`
+  is unreachable; its bars branch reads the guarded array rather than the parameter; `Delta` takes
+  `number | null` for the same reason (a change against a zero previous period is not «۰٪»); and each
+  chart in `BusinessIntelligence` guards its own empty model before any index — the `revenueSeries[n - 1]`
+  read the item recorded no longer exists anywhere. Both paths render the product's established
+  `NO_DATA` glyph; no new empty-state vocabulary was introduced. Pinned by
+  `src/components/ds/__tests__/seriesGuards.test.tsx` (**7 cases** — line and bars, `[]` and `null`, plus
+  the signals row over an empty record set) and `panelsEmpty.test.tsx`; removing the guard was measured
+  to fail 5 of them with the original `Cannot read properties of undefined (reading 'x')`, and the guard
+  was restored byte-identically. **DECISIONS.md §14's latent-risk sentence is annotated accordingly.**
 
 ### I10. The "all collections zero" invariant constrains any fix for H5
 `clear()` empties every collection including `users`, so no account remains and login is impossible
