@@ -35,6 +35,18 @@
 > L3-in-M10-scope references (**L3 is already closed**, 2026-09-14), the "third role already unused
 > after M4–M9" premise, and the fixture line/import counts (now 822 and 558 lines, 44 non-test
 > importer files). **M10 remains ❌ NOT STARTED and not authorized.**
+>
+> **D5 follow-up (later the same day, 2026-09-16, documents only): three further decision areas
+> recorded under D5** in [DECISIONS.md](DECISIONS.md) §19 → D5. **F1 — DEMO seed:** the DEMO seed
+> remains legitimate and may stay rich; legitimate DEMO seed data must be distinguished from
+> fabricated UI measurements, and moving fabricated measurements to another file does NOT make them
+> legitimate. **F2 — legacy sessions/attendance:** protected — no change to schema, IDs, collection
+> semantics, backup envelope, or I8 behavior; source relocation is allowed only when exact data and
+> lifecycle semantics remain unchanged. **F3 — Hero:** part of the M10 view layer
+> (`src/views/**` + `src/components/**`, principle 6); its identity data should use the established
+> M8 branding mechanism; its fabricated status/measurement must not remain presented as factual
+> product state; M10 may use authoritative live data or explicit `NO_DATA`; the documentation pass
+> does not redesign Hero. **Still documents only — M10 remains ❌ NOT STARTED and not authorized.**
 > *(The Class Compensation workstream record follows, kept for audit and unedited.)*
 >
 > **State at M8's closure, kept for audit:** **the Class Compensation workstream now has its secretary
@@ -1965,6 +1977,19 @@ register and the M10 section, registers
 [PHASES.md](PHASES.md), and corrects the stale L3 scope references, the stale "third role already
 unused" premise and the stale fixture line/import counts. It does not self-register its own SHA (§2),
 and it implements nothing: no fixture, type or seed moved, and M10 stays NOT STARTED.
+
+**The D5 follow-up pass (later the same day, 2026-09-16) is also documents-only.** It records three
+further decision areas under D5 in [DECISIONS.md](DECISIONS.md) §19 → D5 — **F1** the DEMO seed
+(legitimate and may stay rich; distinguished from fabricated UI measurements; relocation does not
+legitimize a fabricated measurement), **F2** legacy sessions/attendance (protected: no schema, ID,
+collection-semantics, backup-envelope or I8-behavior change; relocation only with exact data and
+lifecycle semantics) and **F3** Hero (inside the M10 view layer; identity via the M8 branding
+mechanism; fabricated status/measurement must not remain as fact; M10 may use authoritative live
+data or explicit `NO_DATA`; no redesign in this pass) — and carries the same constraints into the
+M10 section of [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). It changes no
+source, test, gate, dependency, seed, backend or Finance/Reports work, touches no other branch and
+modifies no Git ref, does not self-register its own SHA (§2), and implements nothing: M10 stays
+NOT STARTED.
 
 **The current state in one line, updated: the Class Compensation workstream is ✅ SHIPPED — the domain at
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c` and its secretary surface at `fc83d6d`, hardened by `79fd44e`

@@ -963,9 +963,22 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
 - **Protected areas.** `src/domains/demo/__tests__/seed.test.ts` (all collections zero, derived
   dataset), `src/services/__tests__/demoStoreMigration.test.ts` and `migrateDataset()`,
   `backup.test.ts`, `contracts.test.ts`, `dataIntegrity.test.ts`, `prototypePollution.test.ts`,
-  `src/__tests__/projectState.test.ts`.
+  `src/__tests__/projectState.test.ts`. **Plus the D5 follow-up record (2026-09-16):** the legacy
+  sessions/attendance material is protected — **no schema change, no ID change, no collection
+  semantics change, no backup-envelope change, no I8 behaviour change** — and seed relocation is
+  allowed only when exact data and lifecycle semantics remain unchanged
+  ([DECISIONS.md](DECISIONS.md) §19 → D5 → F2).
 - **Demo/API behaviour.** DEMO must remain exactly as rich as before — it is a Showcase, not a
-  stub. EMPTY must gain nothing.
+  stub (D5 follow-up **F1**: the DEMO seed stays legitimate and rich; legitimate seed data is a
+  different thing from a fabricated UI measurement, and moving a fabricated measurement to another
+  file does not make it legitimate). EMPTY must gain nothing.
+- **Hero (D5 follow-up F3, 2026-09-16).** `src/components/hero/Hero.tsx` is inside the M10 view
+  layer (principle 6: `src/views/**` + `src/components/**`). Its identity data should use the
+  established M8 branding mechanism (the persisted `BrandingSettings` through
+  `src/domains/branding/useBranding.ts`, **D2**), its fabricated status/measurement must not
+  remain presented as factual product state, and M10 may render authoritative live data or explicit
+  `NO_DATA` in their place. The D5 record settles these constraints; it does **not** redesign Hero
+  — that surface work is M10's, and M10 is not authorized.
 - **Tests.** A new boundary test: **no view imports `src/data/records.ts` or `src/data/academy.ts`
   at all.** "The view layer" here means `src/views/**` + `src/components/**` (D5 principle 6).
   Every persistence and lifecycle suite green and **unweakened**.

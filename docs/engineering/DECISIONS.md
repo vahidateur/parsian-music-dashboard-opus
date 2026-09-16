@@ -662,7 +662,79 @@ file, wrote no test and changed no gate.
 to be recorded before execution; it is now recorded, and that dependency is discharged. **The record
 is not an authorization:** principle 7 keeps M10 ❌ NOT STARTED until the owner authorizes it, and
 the separation itself — the moves, the deletions, the boundary test — is M10's work, not this
-record's.
+record's. The follow-up record immediately below — DEMO seed, legacy sessions/attendance, Hero —
+was added the same day by owner instruction and is **part of this decision**, not a new
+authorization: M10 remains NOT STARTED.
+
+**Follow-up record (2026-09-16, owner instruction) — DEMO seed, legacy sessions/attendance, Hero.**
+Three decision areas settling, ahead of M10, how the seven principles above apply to the demo seed,
+the legacy session/attendance material and the hero panel:
+
+**F1 — DEMO seed.**
+
+1. **The DEMO seed remains legitimate and may stay rich.** DEMO is a first-class environment (§2);
+   the showcase dataset's richness is a property, not a debt, and D5's relocation of the canonical
+   seed (principle 2's application to `src/domains/demo/`) must keep it exactly as rich.
+2. **Legitimate DEMO seed data must be distinguished from fabricated UI measurements.** The seed is
+   *data* — records the demo environment honestly contains. A fabricated measurement is a figure or
+   sentence presented as something computed from records when nobody computed it (§15). Seeded rows
+   are honest content; fabricated metrics are dishonest claims. The separation D5 orders is a move of
+   **ownership**, and a move of ownership changes the honesty of nothing.
+3. **Moving fabricated measurements to another file does NOT make them legitimate.** Relocating a
+   fabricated figure out of `src/data/academy.ts` into any other module — including a
+   presentation-owned one under principles 4 and 5 — leaves it fabricated. The defect is the claim,
+   not the path. Presentation-owned configuration is legitimate *configuration*; it never becomes a
+   legitimate *measurement*.
+
+**F2 — Legacy sessions/attendance.**
+
+1. **Legacy sessions and attendance are protected.** The legacy material — the seeded `sessions`
+   (`src/domains/demo/seed.ts:165` derives them from the fixtures) and the legacy `attendance`
+   collection (`src/domains/demo/seed.ts:166` still seeds it, and `src/domains/demo/backup.ts:242`
+   still validates it so a round-trip stays lossless) — is protected through M10.
+2. **No change to schema, IDs, collection semantics, backup envelope, or I8 behavior.** The
+   collection shapes and the ids they carry are frozen; the backup envelope's `environment: "demo"`
+   stamp, app-name suffix and filename, and the `WRONG_ENVIRONMENT` restore-validation rule they
+   support (**I8**, still open and deliberately *not* absorbed by M10), are frozen by this record.
+   Any change to what the dataset *is* — even one id — is out of scope and would need its own
+   decision.
+3. **Source relocation is allowed only when exact data and lifecycle semantics remain unchanged.**
+   The seed may move under this decision only if the produced dataset is identical in content and
+   identical in lifecycle semantics: UNINITIALIZED → { EMPTY | DEMO } (§5), adoption of marker-less
+   datasets (§7), reads that never write (§6), and a backup round-trip that stays lossless. The
+   check is the existing protected suites plus identity of the produced bytes — sameness is the
+   acceptance criterion, and anything less is a regression under §16.
+
+**F3 — Hero.**
+
+1. **Hero is part of the M10 view layer, because the view layer is `src/views/**` +
+   `src/components/**`** (principle 6). `src/components/hero/Hero.tsx` is therefore inside M10's
+   boundary — the fixture identity and fixture status it still render (§7 items 20 and 21 of
+   [PROJECT_STATE.md](PROJECT_STATE.md)) are M10's to resolve, not an exception to the boundary
+   test.
+2. **Identity data in Hero should use the established M8 branding mechanism** — the persisted
+   `BrandingSettings` through `src/domains/branding/useBranding.ts` (`useBranding`,
+   `applyBranding`, `useApplyBranding`, landed by M8 at
+   `735617d0324a8f4ba2e243846eedf069d389751a` under **D2**) — not the demo fixture's `academy`
+   object in `src/data/academy.ts` that `Hero.tsx:57` currently renders.
+3. **Fabricated status/measurement must not remain presented as factual product state.** Hero's
+   hardcoded «وضعیت: سالم» badge (`src/components/hero/Hero.tsx:70`) and the
+   `academy.statusLine` narrative beside it (`:69`) are fabricated product state; after M10 they
+   must not be presented as fact — consistent with F1 clause 3 and with §15.
+4. **The future M10 implementation may use authoritative live data or explicit `NO_DATA`.** Where a
+   status or measure has an authoritative source, M10 may render it from there; where none exists,
+   the typed no-value glyph (§14) is the honest rendering — never an invented status.
+5. **This D5 documentation pass does not redesign Hero.** This record settles ownership and honesty
+   constraints only; the surface work is M10's, and M10 is still not authorized.
+
+**Enforced by (follow-up).** For F2: the protected persistence and seed suites —
+`src/domains/demo/__tests__/seed.test.ts`, `src/services/__tests__/demoStoreMigration.test.ts`,
+`src/domains/demo/__tests__/backup.test.ts`, `contracts.test.ts`, `dataIntegrity.test.ts` —
+unchanged, plus the content-and-lifecycle-identity check M10 must carry when it relocates the seed.
+For F3: `src/domains/branding/__tests__/brandingApplication.test.tsx` (the M8 pattern Hero should
+join) and the M10 boundary test of principle 6, neither of which covers Hero today. For F1: the
+honesty gates of §15 (`src/__tests__/writeFeedbackHonesty.test.ts`,
+`src/__tests__/privacyPosture.test.ts`) — relocation satisfies none of them by itself.
 
 **The paragraph below is the status as it stood while D5 was still Open — kept as written, as the
 record of how M4–M9 constrained themselves against an undecided milestone.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
