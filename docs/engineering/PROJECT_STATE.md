@@ -46,7 +46,13 @@
 > (`src/views/**` + `src/components/**`, principle 6); its identity data should use the established
 > M8 branding mechanism; its fabricated status/measurement must not remain presented as factual
 > product state; M10 may use authoritative live data or explicit `NO_DATA`; the documentation pass
-> does not redesign Hero. **Still documents only — M10 remains ❌ NOT STARTED and not authorized.**
+> does not redesign Hero. **F4 — Finance and Reports:** they remain deferred under **D6 / I2** —
+> M10 creates no `finance` or `reports` domain, no repository for them, invents, fabricates or
+> recomputes no revenue/payment data, and builds no hidden fixture-backed replacement; every
+> fixture-backed export the two views read is classified individually during M10, any export that
+> cannot be relocated without violating D6/I2 remains explicitly deferred with that deferral
+> visible and testable, and D5 carries no backend architecture or backend technology decision.
+> **Still documents only — M10 remains ❌ NOT STARTED and not authorized.**
 > *(The Class Compensation workstream record follows, kept for audit and unedited.)*
 >
 > **State at M8's closure, kept for audit:** **the Class Compensation workstream now has its secretary
@@ -1990,6 +1996,16 @@ M10 section of [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md).
 source, test, gate, dependency, seed, backend or Finance/Reports work, touches no other branch and
 modifies no Git ref, does not self-register its own SHA (§2), and implements nothing: M10 stays
 NOT STARTED.
+
+**A second follow-up record, also documents-only and also 2026-09-16, adds F4 — Finance and
+Reports — under the same D5 entry.** Finance and Reports remain deferred under **D6 / I2**: no
+`finance` or `reports` domain and no repository is created, no revenue/payment data is invented,
+fabricated or recomputed, and no hidden fixture-backed replacement is built; every fixture-backed
+export the two views read is classified individually during M10, an export that cannot be relocated
+without violating D6/I2 remains explicitly deferred with that deferral visible and testable, and
+D5 carries no backend architecture or backend technology decision. Same constraints as above: no
+source, test, gate, dependency, seed, backend or Finance/Reports change; no branch created,
+switched or renamed; no Git ref modified; no self-registered SHA (§2); M10 stays NOT STARTED.
 
 **The current state in one line, updated: the Class Compensation workstream is ✅ SHIPPED — the domain at
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c` and its secretary surface at `fc83d6d`, hardened by `79fd44e`

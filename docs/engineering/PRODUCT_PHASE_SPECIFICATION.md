@@ -979,6 +979,13 @@ M11 Performance (I6) + api-hybrid indicator (D8) + a11y (D7) + browser QA + rele
   remain presented as factual product state, and M10 may render authoritative live data or explicit
   `NO_DATA` in their place. The D5 record settles these constraints; it does **not** redesign Hero
   — that surface work is M10's, and M10 is not authorized.
+- **Finance and Reports (D5 follow-up F4, 2026-09-16).** They remain deferred under **D6 / I2**:
+  M10 creates **no** `finance` or `reports` domain, **no** repository for them, invents,
+  fabricates or recomputes **no** revenue/payment data, and builds **no** hidden fixture-backed
+  replacement. Every fixture-backed export the two views read is classified individually during
+  M10; any export that cannot be relocated without violating D6/I2 remains explicitly deferred,
+  with that deferral visible and testable. **D5 carries no backend architecture or backend
+  technology decision.**
 - **Tests.** A new boundary test: **no view imports `src/data/records.ts` or `src/data/academy.ts`
   at all.** "The view layer" here means `src/views/**` + `src/components/**` (D5 principle 6).
   Every persistence and lifecycle suite green and **unweakened**.

@@ -662,9 +662,9 @@ file, wrote no test and changed no gate.
 to be recorded before execution; it is now recorded, and that dependency is discharged. **The record
 is not an authorization:** principle 7 keeps M10 ❌ NOT STARTED until the owner authorizes it, and
 the separation itself — the moves, the deletions, the boundary test — is M10's work, not this
-record's. The follow-up record immediately below — DEMO seed, legacy sessions/attendance, Hero —
-was added the same day by owner instruction and is **part of this decision**, not a new
-authorization: M10 remains NOT STARTED.
+record's. The follow-up records immediately below — DEMO seed, legacy sessions/attendance, Hero, and
+Finance/Reports — were added the same day by owner instruction and are **part of this decision**,
+not a new authorization: M10 remains NOT STARTED.
 
 **Follow-up record (2026-09-16, owner instruction) — DEMO seed, legacy sessions/attendance, Hero.**
 Three decision areas settling, ahead of M10, how the seven principles above apply to the demo seed,
@@ -734,7 +734,51 @@ unchanged, plus the content-and-lifecycle-identity check M10 must carry when it 
 For F3: `src/domains/branding/__tests__/brandingApplication.test.tsx` (the M8 pattern Hero should
 join) and the M10 boundary test of principle 6, neither of which covers Hero today. For F1: the
 honesty gates of §15 (`src/__tests__/writeFeedbackHonesty.test.ts`,
-`src/__tests__/privacyPosture.test.ts`) — relocation satisfies none of them by itself.
+`src/__tests__/privacyPosture.test.ts`) — relocation satisfies none of them by itself. For F4:
+D6's own enforcement (the `src/domains/finance/README.md` and `src/domains/reports/README.md`
+stubs and the honest server-required toasts in `src/views/Finance.tsx` and `src/views/Reports.tsx`),
+the M10 boundary test of principle 6, and the classification-and-deferral visibility F4 clause 7
+requires.
+
+**F4 — Finance and Reports (D6 / I2).**
+
+1. **Finance and Reports remain deferred under D6 / I2.** D6 (this section, → D6) still governs
+   them: no `finance` or `reports` domain is built in this phase, `src/domains/finance/` and
+   `src/domains/reports/` remain README-only, and **I2** stays open as its own phase. D5's
+   separation work changes nothing about that deferral.
+2. **Do NOT create Finance or Reports domains.** Relocating fixture modules under this decision
+   authorizes no construction of those domains; the two README stubs are the entirety of what
+   exists, and stay the entirety.
+3. **Do NOT create repositories for them.** The `invoices` and `payments` collections have no
+   repository today (as D6's M9 update records) and D5 adds none; neither do `subscriptions`,
+   revenue series, KPI figures or the report catalog acquire one through relocation.
+4. **Do NOT invent, fabricate, or recompute revenue/payment data.** No pass under D5 — including
+   M10 — may produce new money figures, recompute revenue or payment totals client-side, or
+   substitute any client-side math for the server-side computation D6 requires (§15). M9's
+   precedent stands as the required behaviour: it deleted the revenue chart rather than fake the
+   seam ([DECISIONS.md](DECISIONS.md) §19 → D6, M9 update).
+5. **Do NOT create a hidden fixture-backed replacement.** Moving a fixture-backed export into a
+   presentation-owned module, a domain module, or any other home — without changing what it is —
+   creates only a hidden replacement, forbidden by this record. Relocation changes ownership, not
+   honesty (F1 clause 3), and a relocated fake remains a fake.
+6. **Existing fixture-backed exports must be classified individually during M10.** Each export the
+   two surfaces read — `src/views/Finance.tsx` (`revenueSeries` from `src/data/academy.ts`;
+   `financeKpis`, `invoices`, `payments`, `paymentLabel`, `revenueByStream`, `studentById`,
+   `subscriptionStatusLabel`, `subscriptions` and the `Invoice`, `PaymentStatus`, `Subscription`,
+   `SubscriptionStatus` types from `src/data/records.ts`) and `src/views/Reports.tsx`
+   (`growthSeries`, `instruments`, `occupancy` from `src/data/academy.ts`; `attendanceByDay`,
+   `attentionQueue`, `reportCatalog`, `teachers` and the `ReportDef` type from
+   `src/data/records.ts`) — gets its own classification (legitimate DEMO seed per F1, type,
+   presentation configuration, deferred Finance/Reports reading, or fabricated measurement) and
+   its own disposition. No bulk disposition is permitted.
+7. **If an export cannot be relocated without violating D6/I2, it remains explicitly deferred, and
+   that deferral must be visible and testable.** Such an export is neither deleted silently nor
+   re-homed quietly: the deferral is stated in the documents and pinned so the M10 boundary test
+   (principle 6) can see it — an invisible deferral is not a deferral.
+8. **No backend architecture or backend technology decision is part of D5.** D5 settles the
+   separation of fixture, type and seed, and the honesty of what surfaces render. It decides
+   nothing about a backend stack, API surface or server design; those belong to I2's own phase and
+   to `docs/production-handoff.md`, and remain entirely undecided here.
 
 **The paragraph below is the status as it stood while D5 was still Open — kept as written, as the
 record of how M4–M9 constrained themselves against an undecided milestone.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
@@ -787,6 +831,9 @@ needed a revenue figure, and the seam does not exist — `src/domains/finance/` 
 repository**. Rather than create a domain, add a repository, or compute a client-side substitute (which
 §15 forbids), M9 **deleted the revenue chart** and showed the receivables the student records
 themselves carry. **No Finance or Reports work was done, no domain was created, and I2 remains open.**
+**Reaffirmed 2026-09-16 by the D5 follow-up (→ D5, F4):** Finance and Reports stay deferred through
+the fixture separation — no domain, no repository, no recomputed or relocated fake, and D5 carries
+no backend decision.
 
 ### D7. Accessibility is enforced without a new dependency
 
