@@ -1,12 +1,29 @@
-import { signals } from "@/data/academy";
+import type { Signal } from "@/data/academy";
 import { useApp } from "@/context/AppContext";
 import { SignalBlock } from "@/components/ds/blocks";
 import { Surface } from "@/components/ds/primitives";
+import { LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 
-/** Four intelligent signals on one plane, separated by hairlines — not four cards. */
-export function Signals({ className }: { className?: string }) {
+/**
+ * Four signals on one plane, separated by hairlines — not four cards.
+ *
+ * M9/H4: the four signals are passed in, derived from stored records by
+ * `useDashboardInsights`. This component renders them and nothing else — it has
+ * no fixture to fall back on, and a signal whose records carry no history gets
+ * `series: null`, which `SignalBlock` renders as `NO_DATA` instead of a trend.
+ */
+export function Signals({ signals, loading, className }: { signals: Signal[]; loading?: boolean; className?: string }) {
   const { navigate } = useApp();
+
+  if (loading) {
+    return (
+      <Surface className={cn("overflow-hidden", className)} aria-label="سیگنال‌های اصلی" aria-busy>
+        <LoadingState label="در حال خواندن رکوردهای آموزشگاه…" className="py-10" />
+      </Surface>
+    );
+  }
+
   return (
     <Surface className={cn("overflow-hidden", className)} aria-label="سیگنال‌های اصلی">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">

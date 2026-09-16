@@ -1,15 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowUpLeft, Smartphone, UserRound, UsersRound } from "lucide-react";
-import { growthSeries, instruments, occupancy, revenueSeries, revenueTarget } from "@/data/academy";
-import { faNum, faPercent } from "@/lib/format";
+import { Smartphone, UserRound, UsersRound } from "lucide-react";
+import { faNum, faPercent, faToman, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { accentHex } from "@/lib/theme";
-import { ChartCard, PeriodSelect } from "@/components/ds/blocks";
+import { ratioPct } from "@/lib/stats";
+import { ChartCard } from "@/components/ds/blocks";
 import { Delta, Surface } from "@/components/ds/primitives";
-import { ErrorState, LoadingState } from "@/components/ds/states";
+import { LoadingState } from "@/components/ds/states";
+import type {
+  DashboardCounts,
+  InstrumentRow,
+  OccupancyModel,
+  ReceivablesModel,
+  RosterModel,
+} from "@/domains/shared/dashboardInsights";
 import { cn } from "@/utils/cn";
 
 /* ------------------------------------------------------------------ */
+/* M9 / H4                                                             */
+/*                                                                     */
+/* These four charts used to plot `revenueSeries`, `growthSeries`,      */
+/* `occupancy` and `instruments` from `@/data/academy` — figures nobody */
+/* stored, shown identically in an EMPTY academy. Every number below    */
+/* now comes from a record through `useDashboardInsights`, and a chart  */
+/* whose input set is empty states «دادهٔای نیست» instead of plotting a */
+/* shape it cannot support.                                            */
+/*                                                                     */
+/* The revenue chart is gone rather than recomputed: collected revenue  */
+/* is a Finance/Reports figure, and both domains are recorded as        */
+/* *planned, not implemented* (`docs/domains/finance/README.md` and `docs/domains/reports/README.md`, D6). The     */
+/* money slot now shows the receivables the student records carry.      */
+/* ------------------------------------------------------------------ */
+
 function useSize<T extends HTMLElement>() {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
@@ -24,123 +46,81 @@ function useSize<T extends HTMLElement>() {
   return { ref, width };
 }
 
-const MUTED_BAR = "#3a322a";
+/** The panel's one "there is nothing to plot" state. */
+function NoData({ className }: { className?: string }) {
+  return (
+    <p className={cn("flex h-full min-h-24 items-center justify-center rounded-xl border border-dashed border-white/[0.08] text-xs text-ink-400", className)}>
+      داده‌ای نیست
+    </p>
+  );
+}
 
 /* ------------------------------------------------------------------ */
-/* Revenue — bars, RTL timeline                                        */
+/* Receivables — the money the records actually carry                  */
 /* ------------------------------------------------------------------ */
-function RevenueChart() {
-  const { accent } = useApp();
-  const gold = accentHex[accent];
-  const [period, setPeriod] = useState("۶ ماه اخیر");
-  const [state, setState] = useState<"ok" | "loading" | "error">("ok");
-  const [hover, setHover] = useState<number | null>(null);
-  const { ref, width } = useSize<HTMLDivElement>();
+function ReceivablesChart({ model }: { model: ReceivablesModel }) {
+  const max = model.top?.amount ?? 0;
+  const shareOfStudents = ratioPct(model.owing, model.students);
 
-  const changePeriod = (p: string) => {
-    setPeriod(p);
-    setState("loading");
-    window.setTimeout(() => setState(p === "سال گذشته" ? "error" : "ok"), 700);
-  };
-  const retry = () => {
-    setState("loading");
-    window.setTimeout(() => {
-      setPeriod("۶ ماه اخیر");
-      setState("ok");
-    }, 900);
-  };
-
-  const H = 172;
-  const padT = 24;
-  const padB = 22;
-  const padX = 6;
-  const n = revenueSeries.length;
-  const max = Math.max(revenueTarget, ...revenueSeries.map((d) => d.value)) * 1.06;
-  const step = (width - padX * 2) / n;
-  const bw = Math.min(38, step * 0.5);
-  const y = (v: number) => padT + (1 - v / max) * (H - padT - padB);
-  const baseline = H - padB;
-  const last = revenueSeries[n - 1];
-  const prev = revenueSeries[n - 2];
-  const delta = ((last.value - prev.value) / prev.value) * 100;
+  if (model.students === 0) {
+    return (
+      <ChartCard title="مانده بدهی" headline={<span className="text-ink-300">{NO_DATA}</span>} insight="هیچ رکورد هنرجویی خوانده نشده است.">
+        <NoData />
+      </ChartCard>
+    );
+  }
 
   return (
     <ChartCard
-      title="درآمد"
+      title="مانده بدهی"
       headline={
         <>
-          {faNum(last.value, { decimals: 1 })} <span className="text-sm font-medium text-ink-300">میلیون تومان · {last.label}</span>
+          {faToman(model.total, true)} <span className="text-sm font-medium text-ink-300">مانده · {faNum(model.owing)} رکورد</span>
         </>
       }
       insight={
-        <span className="flex flex-wrap items-center gap-2">
-          <Delta value={Number(delta.toFixed(1))} />
-          <span>{faPercent(Math.round((last.value / revenueTarget) * 100))} از هدف ماهانه محقق شده · ۱۰ روز تا پایان ماه</span>
-        </span>
+        model.owing > 0 && shareOfStudents !== null ? (
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="nums">{faPercent(shareOfStudents)} از رکوردهای هنرجو مانده دارند</span>
+          </span>
+        ) : (
+          "هیچ رکورد هنرجویی ماندهٔ ثبت‌شده ندارد."
+        )
       }
-      toolbar={<PeriodSelect value={period} options={["۶ ماه اخیر", "۱۲ ماه اخیر", "سال گذشته"]} onChange={changePeriod} />}
-      footer={state === "ok" ? "بیشترین رشد از شهریهٔ کلاس‌های گروهی · پرداخت آنلاین ۶۴٪ تراکنش‌ها" : undefined}
+      footer={
+        model.top
+          ? `بیشترین مانده: ${model.top.label} · ${faToman(model.top.amount, true)}`
+          : "همهٔ رکوردهای هنرجو بدون مانده‌اند."
+      }
     >
-      <div ref={ref} className="relative w-full" style={{ height: H }}>
-        {state === "loading" && <LoadingState className="absolute inset-0 py-0" label="در حال دریافت داده‌های مالی…" />}
-        {state === "error" && <ErrorState className="absolute inset-0 py-0" onRetry={retry} />}
-        {state === "ok" && width > 0 && (
-          <svg key={period} width={width} height={H} className="overflow-visible" role="img" aria-label="نمودار درآمد ماهانه">
-            <defs>
-              <linearGradient id="rev-gold" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={gold[400]} />
-                <stop offset="100%" stopColor={gold[600]} />
-              </linearGradient>
-            </defs>
-            {/* target */}
-            <line x1={padX} x2={width - padX} y1={y(revenueTarget)} y2={y(revenueTarget)} stroke={gold[500]} strokeOpacity={0.35} strokeDasharray="3 4" />
-            <text x={width - padX} y={y(revenueTarget) - 5} textAnchor="end" className="nums fill-gold-500/80 text-[10px]">
-              هدف {faNum(revenueTarget)}
-            </text>
-            <line x1={padX} x2={width - padX} y1={baseline + 0.5} y2={baseline + 0.5} stroke="rgba(255,255,255,0.07)" />
-            {revenueSeries.map((d, i) => {
-              const cx = width - padX - step * (i + 0.5);
-              const top = y(d.value);
-              const isLast = i === n - 1;
-              const active = hover === i;
-              return (
-                <g key={d.label} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-                  <rect x={cx - step / 2} y={padT - 10} width={step} height={H - padT} fill="transparent" />
-                  <rect
-                    x={cx - bw / 2}
-                    y={top}
-                    width={bw}
-                    height={baseline - top}
-                    rx={4}
-                    fill={isLast ? "url(#rev-gold)" : active ? "#4a4036" : MUTED_BAR}
-                    style={{ transformOrigin: `${cx}px ${baseline}px`, animation: `grow-y 500ms var(--ease-phrase) ${i * 70}ms both`, transition: "fill var(--sixteenth)" }}
-                  />
-                  <text
-                    x={cx}
-                    y={top - 7}
-                    textAnchor="middle"
-                    className={cn("nums text-[10.5px]", isLast ? "fill-gold-300 font-semibold" : active ? "fill-ink-100" : "fill-ink-400")}
-                    style={{ animation: `fade-in 400ms var(--ease-legato) ${300 + i * 70}ms both` }}
-                  >
-                    {faNum(d.value, { decimals: 1 })}
-                  </text>
-                  <text x={cx} y={H - 6} textAnchor="middle" className={cn("text-[10.5px]", isLast ? "fill-ink-100" : "fill-ink-400")}>
-                    {d.label}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        )}
-      </div>
+      {model.rows.length > 0 ? (
+        <ul className="space-y-3.5">
+          {model.rows.map((row, i) => (
+            <li key={row.id} className="flex items-center gap-3 text-xs">
+              <span className="w-24 shrink-0 truncate font-medium text-ink-100" title={row.label}>
+                {row.label}
+              </span>
+              <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
+                <span
+                  className={cn("block h-full origin-right rounded-full", i === 0 ? "bg-gradient-to-l from-gold-400 to-gold-600" : "bg-ink-300/40")}
+                  style={{ width: `${max > 0 ? (row.amount / max) * 100 : 0}%`, animation: `grow-x 700ms var(--ease-phrase) ${i * 70}ms both` }}
+                />
+              </span>
+              <span className="nums w-24 shrink-0 text-left text-ink-100">{faToman(row.amount, true)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <NoData />
+      )}
     </ChartCard>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Student growth — line + area                                        */
+/* Roster growth — cumulative students per stored join month           */
 /* ------------------------------------------------------------------ */
-function GrowthChart() {
+function GrowthChart({ model }: { model: RosterModel }) {
   const { accent } = useApp();
   const gold = accentHex[accent];
   const { ref, width } = useSize<HTMLDivElement>();
@@ -149,43 +129,66 @@ function GrowthChart() {
   const padT = 26;
   const padB = 22;
   const padX = 18;
-  const n = growthSeries.length;
-  const vals = growthSeries.map((d) => d.value);
-  const min = Math.min(...vals) * 0.985;
-  const max = Math.max(...vals) * 1.01;
-  const step = (width - padX * 2) / (n - 1);
-  const pts = useMemo(
-    () => growthSeries.map((d, i) => ({ x: width - padX - i * step, y: padT + (1 - (d.value - min) / (max - min)) * (H - padT - padB), ...d })),
-    [width, step, min, max],
-  );
-  const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
-  const area = `${path} L${pts[n - 1]?.x ?? 0} ${H - padB} L${pts[0]?.x ?? 0} ${H - padB} Z`;
-  const length = useMemo(() => pts.reduce((acc, p, i) => (i === 0 ? 0 : acc + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y)), 0), [pts]);
-  const last = growthSeries[n - 1];
-  const first = growthSeries[0];
-  const added = last.value - growthSeries[n - 2].value;
+  const points = model.points;
+
+  const geometry = useMemo(() => {
+    if (width <= 0 || points.length < 2) return null;
+    const n = points.length;
+    const vals = points.map((point) => point.value);
+    const min = Math.min(...vals) * 0.985;
+    const max = Math.max(...vals) * 1.01;
+    // A flat roster would divide by zero: keep the line on its own baseline.
+    const span = max - min || 1;
+    const step = (width - padX * 2) / (n - 1);
+    const pts = points.map((point, i) => ({
+      ...point,
+      x: width - padX - i * step,
+      y: padT + (1 - (point.value - min) / span) * (H - padT - padB),
+    }));
+    const path = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+    const area = `${path} L${pts[n - 1].x.toFixed(1)} ${H - padB} L${pts[0].x.toFixed(1)} ${H - padB} Z`;
+    const length = pts.reduce((acc, p, i) => (i === 0 ? 0 : acc + Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y)), 0);
+    return { pts, path, area, length, step };
+  }, [points, width]);
+
+  const last = points[points.length - 1] ?? null;
+  const first = points[0] ?? null;
+  const added = last && points.length > 1 ? last.value - points[points.length - 2].value : null;
+
+  if (points.length === 0) {
+    return (
+      <ChartCard title="رشد هنرجویان" headline={<span className="text-ink-300">{NO_DATA}</span>} insight="هیچ رکورد هنرجویی خوانده نشده است.">
+        <NoData />
+      </ChartCard>
+    );
+  }
 
   return (
     <ChartCard
       title="رشد هنرجویان"
       headline={
         <>
-          {faNum(last.value)} <span className="text-sm font-medium text-ink-300">هنرجوی فعال</span>
+          {faNum(last!.value)} <span className="text-sm font-medium text-ink-300">هنرجو در رکوردها</span>
         </>
       }
       insight={
         <span className="flex flex-wrap items-center gap-2">
-          <Delta value={Number((((last.value - first.value) / first.value) * 100).toFixed(1))} label="در ۶ ماه" />
-          <span>
-            {faNum(added)} هنرجوی جدید این ماه · ریزش {faPercent(2.1, 1)} (کمتر از میانگین)
+          {added !== null && <Delta value={added} label={`در ${last!.label}`} />}
+          <span className="nums">
+            {first ? `از ${first.label} تا ${last!.label}` : null} · {faNum(points.length)} ماه ثبت‌شده
           </span>
         </span>
       }
-      footer="روند صعودی پایدار — سه ماه متوالی بالاتر از پیش‌بینی"
+      footer={
+        first && first.value !== last!.value
+          ? `افزایش ${faNum(last!.value - first.value)} هنرجو در بازهٔ ${first.label} تا ${last!.label}`
+          : "در این بازه هنرجویی به رکوردها افزوده نشده است."
+      }
     >
       <div ref={ref} className="relative w-full" style={{ height: H }}>
-        {width > 0 && (
-          <svg width={width} height={H} className="overflow-visible" role="img" aria-label="نمودار رشد هنرجویان">
+        {points.length < 2 && <NoData className="h-full" />}
+        {geometry && (
+          <svg width={width} height={H} className="overflow-visible" role="img" aria-label="نمودار رشد هنرجویان بر پایهٔ ماه پیوستن ثبت‌شده">
             <defs>
               <linearGradient id="growth-area" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={gold[500]} stopOpacity="0.22" />
@@ -196,25 +199,25 @@ function GrowthChart() {
               <line key={f} x1={padX} x2={width - padX} y1={padT + f * (H - padT - padB)} y2={padT + f * (H - padT - padB)} stroke="rgba(255,255,255,0.05)" />
             ))}
             <line x1={padX} x2={width - padX} y1={H - padB + 0.5} y2={H - padB + 0.5} stroke="rgba(255,255,255,0.07)" />
-            <path d={area} fill="url(#growth-area)" style={{ animation: "fade-in 900ms var(--ease-legato) 500ms both" }} />
+            <path d={geometry.area} fill="url(#growth-area)" style={{ animation: "fade-in 900ms var(--ease-legato) 500ms both" }} />
             <path
-              d={path}
+              d={geometry.path}
               fill="none"
               stroke={gold[500]}
               strokeWidth={1.75}
               strokeLinecap="round"
               strokeLinejoin="round"
-              style={{ strokeDasharray: length, strokeDashoffset: length, animation: "draw 1300ms var(--ease-legato) both" }}
+              style={{ strokeDasharray: geometry.length, strokeDashoffset: geometry.length, animation: "draw 1300ms var(--ease-legato) both" }}
             />
-            {pts.map((p, i) => {
-              const isLast = i === n - 1;
+            {geometry.pts.map((point, i) => {
+              const isLast = i === geometry.pts.length - 1;
               const active = hover === i;
               return (
-                <g key={p.label} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-                  <rect x={p.x - step / 2} y={0} width={step} height={H} fill="transparent" />
+                <g key={`${point.label}-${i}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                  <rect x={point.x - geometry.step / 2} y={0} width={geometry.step} height={H} fill="transparent" />
                   <circle
-                    cx={p.x}
-                    cy={p.y}
+                    cx={point.x}
+                    cy={point.y}
                     r={isLast ? 4 : active ? 3.5 : 2.5}
                     fill={isLast || active ? gold[400] : "#1a1714"}
                     stroke={gold[500]}
@@ -222,12 +225,12 @@ function GrowthChart() {
                     style={{ animation: `fade-in 300ms var(--ease-legato) ${200 + i * 160}ms both`, transition: "r var(--sixteenth)" }}
                   />
                   {(isLast || active) && (
-                    <text x={p.x} y={p.y - 11} textAnchor="middle" className="nums fill-ink-50 text-[11px] font-semibold" style={{ animation: "fade-in 300ms both" }}>
-                      {faNum(p.value)}
+                    <text x={point.x} y={point.y - 11} textAnchor="middle" className="nums fill-ink-50 text-[11px] font-semibold" style={{ animation: "fade-in 300ms both" }}>
+                      {faNum(point.value)}
                     </text>
                   )}
-                  <text x={p.x} y={H - 6} textAnchor="middle" className={cn("text-[10.5px]", isLast ? "fill-ink-100" : "fill-ink-400")}>
-                    {p.label}
+                  <text x={point.x} y={H - 6} textAnchor="middle" className={cn("text-[10.5px]", isLast ? "fill-ink-100" : "fill-ink-400")}>
+                    {point.label}
                   </text>
                 </g>
               );
@@ -240,9 +243,9 @@ function GrowthChart() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Occupancy — ring + rooms + weekday strip                            */
+/* Occupancy — ring + rooms + weekday strip, from stored classes       */
 /* ------------------------------------------------------------------ */
-function OccupancyChart() {
+function OccupancyChart({ model }: { model: OccupancyModel }) {
   const { navigate, accent } = useApp();
   const gold = accentHex[accent];
   const [mounted, setMounted] = useState(false);
@@ -252,21 +255,29 @@ function OccupancyChart() {
   }, []);
   const r = 50;
   const c = 2 * Math.PI * r;
-  const freeRoom = [...occupancy.rooms].sort((a, b) => a.value - b.value)[0];
-  const peakDay = [...occupancy.week].sort((a, b) => b.value - a.value)[0];
+
+  if (model.classes === 0) {
+    return (
+      <ChartCard title="اشغال کلاس‌ها" headline={<span className="text-ink-300">{NO_DATA}</span>} insight="هیچ رکورد کلاسی خوانده نشده است.">
+        <NoData />
+      </ChartCard>
+    );
+  }
 
   return (
     <ChartCard
       title="اشغال کلاس‌ها"
       headline={
         <>
-          {faPercent(occupancy.overall)} <span className="text-sm font-medium text-ink-300">میانگین این هفته</span>
+          {faPercent(model.overallPct)} <span className="text-sm font-medium text-ink-300">از {faNum(model.totalSeats)} صندلی</span>
         </>
       }
-      insight={`${freeRoom.label} با ${faPercent(freeRoom.value)} اشغال، ظرفیت آزاد دارد — مناسب بازهٔ جدید پیانو`}
+      insight={`${faNum(model.seatsFree)} از ${faNum(model.classes)} کلاس ظرفیت آزاد دارند · ${faNum(model.takenSeats)} صندلی پر شده است`}
       footer={
-        <button type="button" onClick={() => navigate({ view: "schedule", filter: "new-slot" })} className="text-gold-400 hover:text-gold-300">
-          پیشنهاد: انتقال تقاضای {peakDay.full} به {freeRoom.label} ←
+        <button type="button" onClick={() => navigate({ view: "schedule" })} className="text-gold-400 hover:text-gold-300">
+          {model.peakDay && model.quietestDay
+            ? `بیشترین اشغال: ${model.peakDay.full} ${faPercent(model.peakDay.pct)} · کمترین: ${model.quietestDay.full} ${faPercent(model.quietestDay.pct)} ←`
+            : "مشاهدهٔ تقویم ←"}
         </button>
       }
     >
@@ -274,35 +285,39 @@ function OccupancyChart() {
         <div className="relative size-[124px] shrink-0">
           <svg viewBox="0 0 124 124" className="size-full -rotate-90">
             <circle cx="62" cy="62" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
-            <circle
-              cx="62"
-              cy="62"
-              r={r}
-              fill="none"
-              stroke={gold[500]}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray={c}
-              strokeDashoffset={mounted ? c * (1 - occupancy.overall / 100) : c}
-              style={{ transition: "stroke-dashoffset 1400ms var(--ease-phrase)" }}
-            />
+            {model.overallPct !== null && (
+              <circle
+                cx="62"
+                cy="62"
+                r={r}
+                fill="none"
+                stroke={gold[500]}
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={c}
+                strokeDashoffset={mounted ? c * (1 - model.overallPct / 100) : c}
+                style={{ transition: "stroke-dashoffset 1400ms var(--ease-phrase)" }}
+              />
+            )}
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="nums text-2xl font-semibold leading-none text-ink-50">{faPercent(occupancy.overall)}</span>
+            <span className="nums text-2xl font-semibold leading-none text-ink-50">{faPercent(model.overallPct)}</span>
             <span className="mt-1 text-[10px] text-ink-400">اشغال</span>
           </div>
         </div>
         <ul className="flex-1 space-y-2.5">
-          {occupancy.rooms.map((room, i) => (
+          {model.rooms.map((room, i) => (
             <li key={room.label} className="flex items-center gap-3 text-xs">
-              <span className="w-10 shrink-0 text-ink-300">{room.label}</span>
+              <span className="w-10 shrink-0 truncate text-ink-300" title={room.label}>
+                {room.label}
+              </span>
               <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
                 <span
-                  className={cn("block h-full origin-right rounded-full", room.value < 65 ? "bg-violet-400/80" : "bg-gold-500/80")}
-                  style={{ width: `${room.value}%`, animation: `grow-x 700ms var(--ease-phrase) ${i * 90}ms both` }}
+                  className={cn("block h-full origin-right rounded-full", (room.pct ?? 0) < 65 ? "bg-violet-400/80" : "bg-gold-500/80")}
+                  style={{ width: `${room.pct ?? 0}%`, animation: `grow-x 700ms var(--ease-phrase) ${i * 90}ms both` }}
                 />
               </span>
-              <span className="nums w-9 text-left text-ink-100">{faPercent(room.value)}</span>
+              <span className="nums w-9 text-left text-ink-100">{faPercent(room.pct)}</span>
             </li>
           ))}
         </ul>
@@ -310,23 +325,18 @@ function OccupancyChart() {
       <div className="mt-5">
         <div className="mb-1.5 flex items-center justify-between text-[10.5px] text-ink-400">
           <span>روزهای هفته</span>
-          <span>
-            اوج: {peakDay.full} {faPercent(peakDay.value)}
-          </span>
+          <span className="nums">{model.peakDay ? `اوج: ${model.peakDay.full} ${faPercent(model.peakDay.pct)}` : NO_DATA}</span>
         </div>
         <div className="grid grid-cols-7 gap-1.5">
-          {occupancy.week.map((d, i) => (
+          {model.week.map((day, i) => (
             <div
-              key={d.label}
-              title={`${d.full} · ${faPercent(d.value)}`}
-              className={cn(
-                "flex h-9 flex-col items-center justify-center rounded-lg border text-[11px] transition-colors",
-                i === 3 ? "border-gold-500/50" : "border-transparent",
-              )}
-              style={{ background: `rgba(212,168,83,${(d.value / 100) * 0.42})`, animation: `phrase-in 400ms var(--ease-phrase) ${i * 50}ms both` }}
+              key={day.full}
+              title={`${day.full} · ${faPercent(day.pct)}`}
+              className={cn("flex h-9 flex-col items-center justify-center rounded-lg border text-[11px] transition-colors", model.peakDay?.index === day.index ? "border-gold-500/50" : "border-transparent")}
+              style={{ background: day.pct === null ? "transparent" : `rgba(212,168,83,${(day.pct / 100) * 0.42})`, animation: `phrase-in 400ms var(--ease-phrase) ${i * 50}ms both` }}
             >
-              <span className={cn("font-medium", d.value > 60 ? "text-ink-50" : "text-ink-300")}>{d.label}</span>
-              <span className="nums text-[9px] text-ink-200/80">{faNum(d.value)}</span>
+              <span className={cn("font-medium", (day.pct ?? 0) > 60 ? "text-ink-50" : "text-ink-300")}>{day.label}</span>
+              <span className="nums text-[9px] text-ink-200/80">{day.pct === null ? NO_DATA : faNum(day.pct)}</span>
             </div>
           ))}
         </div>
@@ -336,44 +346,42 @@ function OccupancyChart() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Popular instruments                                                 */
+/* Instrument mix — from the instrument stored on each student row     */
 /* ------------------------------------------------------------------ */
-function InstrumentsChart() {
-  const total = instruments.reduce((a, b) => a + b.count, 0);
+function InstrumentsChart({ rows, total }: { rows: InstrumentRow[]; total: number }) {
+  if (rows.length === 0) {
+    return (
+      <ChartCard title="سازهای محبوب" headline={<span className="text-ink-300">{NO_DATA}</span>} insight="هیچ رکورد هنرجویی خوانده نشده است.">
+        <NoData />
+      </ChartCard>
+    );
+  }
+
   return (
     <ChartCard
       title="سازهای محبوب"
       headline={
         <>
-          پیانو <span className="text-sm font-medium text-ink-300">{faPercent(instruments[0].share)} از {faNum(total)} هنرجو</span>
+          {rows[0].label} <span className="text-sm font-medium text-ink-300">{faPercent(rows[0].sharePct)} از {faNum(total)} هنرجو</span>
         </>
       }
-      insight="تقاضای پیانو ۳ ماه متوالی بالاتر از ظرفیت است · لیست انتظار: ۱۴ نفر"
-      footer="آواز سریع‌ترین رشد فصل را دارد (+۲ واحد سهم) · درامز بدون تغییر"
+      insight={`${faNum(rows.length)} ساز روی رکوردهای هنرجو ثبت شده است`}
+      footer="این توزیع از ساز ذخیره‌شده روی هر رکورد هنرجو محاسبه شده است؛ تغییر سهم نسبت به فصل قبل در رکوردها وجود ندارد."
     >
       <ul className="space-y-3.5">
-        {instruments.map((ins, i) => (
-          <li key={ins.key} className="flex items-center gap-3 text-xs">
-            <span className="w-11 shrink-0 font-medium text-ink-100">{ins.label}</span>
+        {rows.map((row, i) => (
+          <li key={row.id} className="flex items-center gap-3 text-xs">
+            <span className="w-11 shrink-0 truncate font-medium text-ink-100" title={row.label}>
+              {row.label}
+            </span>
             <span className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
               <span
                 className={cn("block h-full origin-right rounded-full", i === 0 ? "bg-gradient-to-l from-gold-400 to-gold-600" : i === 1 ? "bg-violet-500/70" : "bg-ink-300/40")}
-                style={{ width: `${ins.share}%`, animation: `grow-x 700ms var(--ease-phrase) ${i * 80}ms both` }}
+                style={{ width: `${row.sharePct ?? 0}%`, animation: `grow-x 700ms var(--ease-phrase) ${i * 80}ms both` }}
               />
             </span>
-            <span className="nums w-9 shrink-0 text-left font-semibold text-ink-50">{faPercent(ins.share)}</span>
-            <span className="nums w-12 shrink-0 text-left text-ink-400">{faNum(ins.count)} نفر</span>
-            <span
-              className={cn(
-                "nums flex w-9 shrink-0 items-center justify-end gap-0.5 text-[10px]",
-                ins.delta > 0 ? "text-ok-400" : ins.delta < 0 ? "text-danger-400" : "text-ink-500",
-              )}
-              dir="ltr"
-              title="تغییر سهم نسبت به فصل قبل"
-            >
-              {ins.delta > 0 ? <ArrowUpLeft className="size-3" /> : ins.delta < 0 ? <ArrowDownLeft className="size-3" /> : null}
-              {ins.delta === 0 ? "—" : faNum(Math.abs(ins.delta))}
-            </span>
+            <span className="nums w-9 shrink-0 text-left font-semibold text-ink-50">{faPercent(row.sharePct)}</span>
+            <span className="nums w-12 shrink-0 text-left text-ink-400">{faNum(row.count)} نفر</span>
           </li>
         ))}
       </ul>
@@ -384,7 +392,24 @@ function InstrumentsChart() {
 /* ------------------------------------------------------------------ */
 /* Section                                                             */
 /* ------------------------------------------------------------------ */
-export function BusinessIntelligence({ className }: { className?: string }) {
+export function BusinessIntelligence({
+  roster,
+  occupancy,
+  instruments,
+  receivables,
+  students,
+  loading,
+  className,
+}: {
+  roster: RosterModel;
+  occupancy: OccupancyModel;
+  instruments: InstrumentRow[];
+  receivables: ReceivablesModel;
+  /** Roster size, so the instrument mix states the denominator it used. */
+  students: number;
+  loading?: boolean;
+  className?: string;
+}) {
   return (
     <section className={cn("", className)} aria-labelledby="bi-title">
       <div className="mb-4 flex items-end justify-between gap-4 px-1">
@@ -392,16 +417,22 @@ export function BusinessIntelligence({ className }: { className?: string }) {
           <h2 id="bi-title" className="text-[15px] font-semibold text-ink-50">
             تحلیل کسب‌وکار
           </h2>
-          <p className="mt-1 text-xs text-ink-300">چهار نمودار که تصمیم می‌سازند — نه بیشتر.</p>
+          <p className="mt-1 text-xs text-ink-300">چهار نمودار که تصمیم می‌سازند — هر عدد از رکوردهای همین محیط.</p>
         </div>
-        <span className="hidden text-[11px] text-ink-400 sm:inline">داده‌ها تا امروز ۰۶:۰۰ · منبع: سامانهٔ یکپارچه</span>
+        <span className="hidden text-[11px] text-ink-400 sm:inline">منبع: رکوردهای ذخیره‌شده · بدون برآورد</span>
       </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <RevenueChart />
-        <GrowthChart />
-        <OccupancyChart />
-        <InstrumentsChart />
-      </div>
+      {loading ? (
+        <Surface className="p-5">
+          <LoadingState label="در حال خواندن رکوردهای تحلیلی…" className="py-16" />
+        </Surface>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ReceivablesChart model={receivables} />
+          <GrowthChart model={roster} />
+          <OccupancyChart model={occupancy} />
+          <InstrumentsChart rows={instruments} total={students} />
+        </div>
+      )}
     </section>
   );
 }
@@ -409,18 +440,24 @@ export function BusinessIntelligence({ className }: { className?: string }) {
 /* ------------------------------------------------------------------ */
 /* Ecosystem — this dashboard is one surface of a unified system       */
 /* ------------------------------------------------------------------ */
-export function EcosystemStrip({ className }: { className?: string }) {
+/**
+ * M9/H4: the three tiles carried «۱۸ مدرس · ۷ آنلاین», «۹۸۷ نصب فعال» and
+ * «همگام‌سازی: ۲ دقیقه پیش». None of those rows exist: the records hold no
+ * online status, no app installs and no sync instant. Each tile now states what
+ * the environment really contains.
+ */
+export function EcosystemStrip({ counts, className }: { counts: DashboardCounts; className?: string }) {
   const surfaces = [
-    { icon: UserRound, label: "پنل مدیریت", meta: "شما · فعال", active: true },
-    { icon: UsersRound, label: "پنل مدرس", meta: "۱۸ مدرس · ۷ آنلاین", active: false },
-    { icon: Smartphone, label: "اپلیکیشن هنرجو", meta: "۹۸۷ نصب فعال", active: false },
+    { icon: UserRound, label: "پنل مدیریت", meta: "شما · همین محیط", active: true },
+    { icon: UsersRound, label: "پنل مدرس", meta: `${faNum(counts.teachers)} مدرس ثبت‌شده`, active: false },
+    { icon: Smartphone, label: "نمای هنرجو", meta: `${faNum(counts.students)} هنرجو`, active: false },
   ];
   return (
     <Surface className={cn("flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between", className)}>
       <div className="max-w-md">
         <h3 className="text-sm font-semibold text-ink-50">سامانهٔ یکپارچهٔ آوا</h3>
         <p className="mt-1 text-xs leading-relaxed text-ink-300">
-          یک منبع داده برای مدیریت، مدرسین و هنرجویان. هر تغییری اینجا — لغو کلاس، جلسهٔ جبرانی، وضعیت شهریه — همان لحظه در اپلیکیشن هنرجو دیده می‌شود.
+          یک منبع داده برای مدیریت، مدرسین و هنرجویان. هر تغییری اینجا — لغو کلاس، جلسهٔ جبرانی، وضعیت شهریه — همان لحظه در نمای هنرجو دیده می‌شود.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -445,7 +482,7 @@ export function EcosystemStrip({ className }: { className?: string }) {
           <span className="ring-live absolute inline-flex size-1.5 rounded-full bg-ok-500" />
           <span className="relative inline-flex size-1.5 rounded-full bg-ok-400" />
         </span>
-        همگام‌سازی: ۲ دقیقه پیش
+        <span className="nums">{faNum(counts.records)} رکورد در همین محیط</span>
       </div>
     </Surface>
   );

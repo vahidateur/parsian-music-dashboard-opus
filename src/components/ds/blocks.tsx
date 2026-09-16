@@ -258,9 +258,15 @@ export function TimelineEvent({
             <span className="nums text-[10px] text-ink-400">{faNum(Math.round(progress))}٪</span>
           </div>
         )}
+        {/*
+          The label names only what this component knows: the session's own room.
+          It used to name the *other* class in the clash («هم‌زمان با پیانو
+          پیشرفته»), which was fixture copy and wrong for every conflict but the
+          one it was written for (M9/H4).
+        */}
         {status === "attention" && (
           <button type="button" onClick={onResolve} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warn-400 hover:text-warn-500">
-            هم‌زمان با «پیانو پیشرفته» در {session.room} — حل تعارض
+            تعارض در {session.room} — بررسی در تقویم
             <ChevronLeft className="size-3.5" />
           </button>
         )}

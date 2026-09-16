@@ -65,13 +65,23 @@ export interface AttentionItem {
 export interface Signal {
   id: string;
   label: string;
+  /** Already formatted for display — the value the records support, or NO_DATA. */
   value: string;
   unit?: string;
-  delta: number;
-  deltaLabel: string;
+  /**
+   * Change against the previous period, or `null` when there is nothing to
+   * compare: no history stored for this measure, or a zero previous period.
+   * `null` renders NO_DATA rather than a fabricated «۰٪» (DECISIONS §14).
+   */
+  delta: number | null;
+  deltaLabel?: string;
   context: string;
   tone: "ok" | "warn" | "neutral";
-  series: number[];
+  /**
+   * History for the sparkline, oldest first — or `null` when the stored records
+   * carry no history for this measure, in which case no trend is drawn (M9/I9).
+   */
+  series: number[] | null;
   kind: "line" | "bars";
   target: Target;
 }
