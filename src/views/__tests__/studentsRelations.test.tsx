@@ -33,7 +33,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { addDays } from "@/domains/scheduling/dateBridge";
-import { teacherById } from "@/data/records";
+import { teacherById } from "@/domains/demo/academySeed";
 import type { Session } from "@/domains/scheduling/types";
 import type { AttendanceRecord } from "@/domains/attendance/types";
 import {

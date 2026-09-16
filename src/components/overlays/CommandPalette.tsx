@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, Clock3, CornerDownLeft, DoorOpen, GraduationCap, Music2, Plus, Search, Sparkles, UserRound } from "lucide-react";
-import { commandVerbs, navItems, nlCommands, quickActions, viewTitles, type NLCommand, type QuickActionDef, type Target } from "@/data/academy";
+import { commandVerbs, nlCommands, type NLCommand } from "./commands";
+import { quickActions } from "./ActionSheet";
+import { navItems, viewTitles } from "@/lib/navigation";
+import type { QuickActionDef, Target } from "@/lib/viewContracts";
 import { useDomainSearch, type SearchResultKind } from "@/domains/shared/useDomainSearch";
 import { loadRecentTargets, pushRecentTarget, type RecentTarget } from "@/domains/shared/recentTargets";
 import { useApp } from "@/context/AppContext";

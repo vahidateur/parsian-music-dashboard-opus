@@ -12,7 +12,7 @@
  * students.
  */
 import { SEEDED_INSTRUMENTS } from "@/domains/instruments/catalog";
-import { conversations, resources, students } from "@/data/records";
+import { conversations, resources, students } from "./academySeed";
 import type { InstrumentRecord } from "@/domains/instruments/types";
 import type {
   LearningContent,

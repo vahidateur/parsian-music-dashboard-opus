@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { QuickActionDef, Target, ViewId } from "@/data/academy";
+import type { QuickActionDef, Target, ViewId } from "@/lib/viewContracts";
 import { loadPref, savePref, type Accent, type Density, type ThemeMode } from "@/lib/theme";
 import { formatHash, parseHash } from "@/lib/hashRoute";
 

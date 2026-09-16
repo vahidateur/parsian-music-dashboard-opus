@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
-import { students as seedStudents } from "@/data/records";
+import { students as seedStudents } from "@/domains/demo/academySeed";
 import { demoStore } from "@/services/demoStore";
 import { DemoStudentRepository } from "@/domains/students/demoRepository";
 import type { CreateStudentInput } from "@/domains/students/types";

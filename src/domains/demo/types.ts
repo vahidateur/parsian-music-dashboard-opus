@@ -5,15 +5,10 @@
  * A future backend can serve exactly this shape from `GET /demo/export` and
  * accept it at `POST /demo/import`; nothing here mentions storage keys.
  */
-import type {
-  AcademyClass,
-  AttendanceRoster,
-  Conversation,
-  GridSession,
-  Invoice,
-  Student,
-  Teacher,
-} from "@/data/records";
+import type { AcademyClass } from "@/domains/classes/types";
+import type { Student } from "@/domains/students/types";
+import type { Teacher } from "@/domains/teachers/types";
+import type { PaymentStatus } from "@/lib/financeVocabulary";
 import type { LibraryItem } from "@/domains/library/types";
 import type { Enrollment } from "@/domains/enrollments/types";
 import type { InstrumentRecord } from "@/domains/instruments/types";
@@ -51,6 +46,69 @@ export interface DemoPayment {
   amount: number;
   when: string;
   method: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* Legacy envelope contracts (M10)                                       */
+/*                                                                      */
+/* The shapes of the legacy collections the dataset still carries,      */
+/* relocated unchanged from the dissolved fixture module. They exist    */
+/* here because the dataset envelope (and backup validation) references  */
+/* them — the F2-protected weekly grid/attendance legacy collections    */
+/* (H5 territory), the demo conversations the chat seed derives from,   */
+/* and the demo invoices/payments pair. They are NOT product reads: no  */
+/* view may consume them (enforced by src/__tests__/m10Boundary.test).  */
+/* ------------------------------------------------------------------ */
+
+/** One week-grid slot of the legacy weekly template (F2 — legacy dataset). */
+export interface GridSession {
+  id: string;
+  classId: string;
+  day: number;
+  start: string;
+  end: string;
+  roomId: string;
+  teacherId: string;
+  conflictWith?: string;
+  cancelled?: boolean;
+}
+
+export type AttendanceMark = "present" | "absent" | "late" | "excused" | null;
+
+/** One roster of the legacy same-day attendance collection (F2 — legacy). */
+export interface AttendanceRoster {
+  sessionId: string;
+  classId: string;
+  time: string;
+  state: "recorded" | "pending" | "in-progress" | "cancelled";
+  recordedBy?: string;
+  entries: { studentId: string; mark: AttendanceMark }[];
+}
+
+/** A legacy conversation — the shape the chat seed derives its data from. */
+export interface Conversation {
+  id: string;
+  name: string;
+  role: "student" | "teacher" | "guardian" | "group";
+  topic: string;
+  unread: number;
+  last: string;
+  when: string;
+  pinned?: boolean;
+  messages: { from: "me" | "them"; text: string; when: string }[];
+}
+
+/** A demo invoice — seeded demo record; no view reads these (D6/I2). */
+export interface Invoice {
+  id: string;
+  studentId: string;
+  amount: number;
+  issued: string;
+  due: string;
+  status: PaymentStatus;
+  overdueDays?: number;
+  term: string;
+  method?: string;
 }
 
 /**

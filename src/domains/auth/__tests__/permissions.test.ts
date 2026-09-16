@@ -13,7 +13,7 @@ import {
   rolePermissions,
   viewPermissions,
 } from "@/domains/auth/permissions";
-import { viewTitles } from "@/data/academy";
+import { viewTitles } from "@/lib/navigation";
 
 const holder = (role: (typeof ROLES)[number]) => ({ permissions: permissionsForRole(role) });
 

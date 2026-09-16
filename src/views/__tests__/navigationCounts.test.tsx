@@ -30,7 +30,10 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider, useApp } from "@/context/AppContext";
-import { commandVerbs, navGroups, quickActions, type QuickActionDef } from "@/data/academy";
+import { commandVerbs } from "@/components/overlays/commands";
+import { quickActions } from "@/components/overlays/ActionSheet";
+import { navGroups } from "@/lib/navigation";
+import type { QuickActionDef } from "@/lib/viewContracts";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { DemoUserRepository } from "@/domains/auth/userRepository";

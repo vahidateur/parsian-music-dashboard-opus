@@ -1,13 +1,14 @@
 /**
  * Canonical demo seed.
  *
- * The shipped demo dataset is *derived* from the existing hand-authored Persian
- * academy data in `src/data/*` — it is not a second copy of the domain model.
+ * The shipped demo dataset is *derived* from the hand-authored Persian academy
+ * data in `./academySeed` (relocated from `src/data/*` at M10, data unchanged)
+ * — it is not a second copy of the domain model.
  * Anything that is not literal source data (enrollments, users) is generated
  * deterministically from that data, so `createSeedDataset()` always yields the
  * same logical dataset for a given `SEED_VERSION`.
  */
-import { academy } from "@/data/academy";
+import { academy } from "./academySeed";
 import {
   classes,
   conversations,
@@ -19,8 +20,8 @@ import {
   teachers,
   todayAttendance,
   weekSessions,
-  type AcademyClass,
-} from "@/data/records";
+} from "./academySeed";
+import type { AcademyClass } from "@/domains/classes/types";
 import type { Enrollment } from "@/domains/enrollments/types";
 import { ROLES, roleLabels, type RoleId } from "@/domains/auth/permissions";
 import type { DemoDataset, DemoPayment, DemoRole, DemoUser } from "./types";

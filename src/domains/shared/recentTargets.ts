@@ -11,7 +11,7 @@
  * cast.
  */
 import { isViewId } from "@/lib/hashRoute";
-import type { Target } from "@/data/academy";
+import type { Target } from "@/lib/viewContracts";
 
 const RECENT_KEY = "ava:palette-recents";
 const RECENT_MAX = 5;

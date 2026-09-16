@@ -41,6 +41,53 @@
  * MULTI-TENANCY (§21): production `sessions` needs `organization_id`.
  */
 import type { ListParams } from "@/api/types";
+import type { InstrumentId } from "@/domains/instruments/types";
+import { parseTime } from "@/lib/format";
+
+/* ------------------------------------------------------------------ */
+/* Session row — the timeline presentation type (M10)                   */
+/*                                                                      */
+/* `ClassSession` is the row a day-timeline renders; its status         */
+/* vocabulary (`ClassSessionStatus`) is a PRESENTATION projection of    */
+/* time and flags, distinct from both `SessionStatus` (the session      */
+/* lifecycle, below) and the classes domain's `ClassStatus` (offering   */
+/* lifecycle: active | archived). It belongs to scheduling semantics —  */
+/* relocated unchanged from the dissolved fixture module at M10, with   */
+/* the timeline status renamed to `ClassSessionStatus` so the two       */
+/* vocabularies can no longer be confused (D5: one canonical owner per  */
+/* type, and no two owners answering to the same name).                 */
+/* ------------------------------------------------------------------ */
+
+export type ClassSessionStatus = "done" | "live" | "next" | "scheduled" | "cancelled" | "attention";
+
+export interface ClassSession {
+  id: string;
+  title: string;
+  instrument: InstrumentId;
+  room: string;
+  teacher: string;
+  start: string; // HH:MM
+  end: string; // HH:MM
+  cancelled?: boolean;
+  conflict?: boolean;
+  students?: number;
+  capacity?: number;
+}
+
+/**
+ * Pure status of a session row at `now` (minutes since midnight). The caller
+ * supplies `now` explicitly — the fixture-era default (`ACADEMY_NOW`, a frozen
+ * demo instant) is gone, so a helper can never freeze production time.
+ */
+export const statusOf = (s: ClassSession, now: number): ClassSessionStatus => {
+  if (s.cancelled) return "cancelled";
+  if (s.conflict) return "attention";
+  const start = parseTime(s.start);
+  const end = parseTime(s.end);
+  if (end <= now) return "done";
+  if (start <= now && now < end) return "live";
+  return "scheduled";
+};
 
 /* ------------------------------------------------------------------ */
 /* Session                                                             */

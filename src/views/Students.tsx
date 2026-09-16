@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
-import { WEEKDAYS, paymentLabel, studentStatusLabel, type ActivityEntry, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { WEEKDAYS } from "@/domains/scheduling/weekdays";
+import { paymentLabel, type PaymentStatus } from "@/lib/financeVocabulary";
+import { studentStatusLabel, type ActivityEntry, type Student, type StudentStatus } from "@/domains/students/types";
 import { useStudentList } from "@/domains/students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { getStudentRepository } from "@/domains/registry";

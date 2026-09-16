@@ -1,6 +1,6 @@
 import { Activity, ChevronLeft, RefreshCw } from "lucide-react";
 import strings from "@/assets/images/strings.jpg";
-import type { IntelligenceCard } from "@/data/records";
+import type { IntelligenceCard } from "@/domains/shared/dashboardInsights";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { IntelligenceCardView } from "@/components/ds/blocks";

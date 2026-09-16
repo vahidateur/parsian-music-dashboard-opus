@@ -11,7 +11,7 @@
  * with too little data to classify. A demo where every student is quietly
  * improving would make the insight panel look broken.
  */
-import { students } from "@/data/records";
+import { students } from "./academySeed";
 import { SEEDED_INSTRUMENTS } from "@/domains/instruments/catalog";
 import type { Piece, PieceAssignment, ProgressEvent, ProgressSource } from "@/domains/progress/types";
 

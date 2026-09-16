@@ -15,13 +15,22 @@
  */
 import { useMemo, useState } from "react";
 import { Download, FileMusic, FileText, Music2, Plus, Video } from "lucide-react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
-// Presentation metadata only: the shelf labels. Catalogue ROWS are data and
-// come from the repository — never from this fixture.
-import { libraryShelves } from "@/data/records";
 import { resourceKindLabel, type LibraryItem, type ResourceKind } from "@/domains/library/types";
 import { useLibraryFile, useLibraryList } from "@/domains/library/useLibrary";
+
+/* ------------------------------------------------------------------ */
+/* Shelf layout — presentation config owned by this view (M10). The     */
+/* fixture's `count` fields are gone: every count renders from the      */
+/* repository items below, live — a shelf never claims a number.        */
+/* ------------------------------------------------------------------ */
+const shelves: { id: string; label: string; kind: ResourceKind; instrument: InstrumentId }[] = [
+  { id: "sh1", label: "نت‌های پیانو", kind: "sheet", instrument: "piano" },
+  { id: "sh2", label: "متدهای پایه", kind: "doc", instrument: "theory" },
+  { id: "sh3", label: "نمونه‌های شنیداری", kind: "audio", instrument: "voice" },
+  { id: "sh4", label: "ویدیوهای آموزشی", kind: "video", instrument: "violin" },
+];
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -209,7 +218,7 @@ export function LibraryView() {
 
       {/* Shelves — a library, not a file manager. Counts are real. */}
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {libraryShelves.map((sh, i) => {
+        {shelves.map((sh, i) => {
           const Icon = kindIcon[sh.kind];
           const count = items.filter((r) => r.kind === sh.kind && r.instrument === sh.instrument).length;
           return (

@@ -29,7 +29,7 @@
  * The legacy `sessions` (GridSession) collection is untouched: it remains the
  * weekly template the current views read until task H5 rewires them.
  */
-import { classes } from "@/data/records";
+import { classes } from "./academySeed";
 import { addDays, addMinutes, datesInRange, weekdayIndex } from "@/domains/scheduling/dateBridge";
 import { deterministicSessionId } from "@/domains/scheduling/generation";
 import type { Session } from "@/domains/scheduling/types";

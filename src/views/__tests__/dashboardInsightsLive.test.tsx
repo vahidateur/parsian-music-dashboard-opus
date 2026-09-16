@@ -31,8 +31,12 @@
 import { cleanup, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
-import { getStudentRepository, resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
+import { AuthProvider } from "@/domains/auth/AuthContext";
+import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { BOOTSTRAP_ADMIN_EMAIL, isDemoEnvironment } from "@/domains/demo/lifecycle";
+import { getStudentRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+import { demoStore, memoryStorage } from "@/services/demoStore";
 import { SEEDED_CONFLICT } from "@/domains/demo/schedulingSeed";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
 import { Dashboard } from "@/views/Dashboard";
@@ -87,11 +91,26 @@ const RETIRED_SENTENCES = [
 /** Figures only the retired fixtures carried. */
 const RETIRED_FIGURES = ["۱٬۲۴۸", "۱۲۵٫۴", "۱۲۵٬۴۳۰٬۰۰۰", "۹۸۷", "۱۴۲"] as const;
 
-function renderDashboard() {
+/**
+ * Signs in before rendering: the Hero now greets the signed-in operator
+ * through `useAuth` (M10 — it used to read a fixture manager), so the
+ * harness must provide the auth surface the real shell provides. DEMO signs
+ * in as the seeded administrator; EMPTY as the bootstrap account.
+ */
+async function renderDashboard() {
+  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  setAuthRepository(auth);
+  setUserRepository(new DemoUserRepository(demoStore));
+  await auth.login({
+    email: isDemoEnvironment() ? "admin@demo.local" : BOOTSTRAP_ADMIN_EMAIL,
+    password: DEMO_PASSPHRASE,
+  });
   return render(
-    <AppProvider>
-      <Dashboard />
-    </AppProvider>,
+    <AuthProvider repository={auth}>
+      <AppProvider>
+        <Dashboard />
+      </AppProvider>
+    </AuthProvider>,
   );
 }
 
@@ -148,7 +167,7 @@ describe("DEMO — the four panels over the seeded records", () => {
   });
 
   it("reports the figures its own records support, and none of the retired ones", async () => {
-    const { container } = renderDashboard();
+    const { container } = await renderDashboard();
     await settle();
 
     const students = demoStore.snapshot().students;
@@ -185,7 +204,7 @@ describe("DEMO — the four panels over the seeded records", () => {
   });
 
   it("derives today's rows from the stored calendar, labels and all", async () => {
-    renderDashboard();
+    await renderDashboard();
     await settle();
 
     const sessions = demoStore.scheduledSessions.all();
@@ -210,7 +229,7 @@ describe("DEMO — the four panels over the seeded records", () => {
   });
 
   it("flags the stored room clash instead of a fixture sentence about one", async () => {
-    renderDashboard();
+    await renderDashboard();
     await settle();
 
     // The seed records which clash it plants (`SEEDED_CONFLICT`) so a case can
@@ -238,7 +257,7 @@ describe("DEMO — the four panels over the seeded records", () => {
   });
 
   it("follows a write to the store (liveness)", async () => {
-    renderDashboard();
+    await renderDashboard();
     await settle();
 
     const before = demoStore.snapshot().students;
@@ -262,7 +281,7 @@ describe("EMPTY — the four panels in a customer's own empty academy", () => {
   });
 
   it("states «داده‌ای نیست» where a figure would have to be invented", async () => {
-    renderDashboard();
+    await renderDashboard();
     await settle();
 
     const found = panels();
@@ -283,7 +302,7 @@ describe("EMPTY — the four panels in a customer's own empty academy", () => {
   });
 
   it("survives an empty academy without a single fabricated figure or sentence", async () => {
-    const { container } = renderDashboard();
+    const { container } = await renderDashboard();
     await settle();
 
     const text = panelText();
@@ -312,7 +331,7 @@ describe("EMPTY — the four panels in a customer's own empty academy", () => {
   });
 
   it("draws no trend and names no class, room or teacher it does not have", async () => {
-    renderDashboard();
+    await renderDashboard();
     await settle();
 
     const found = panels();

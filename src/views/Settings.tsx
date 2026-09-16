@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Building2, Check, FileSpreadsheet, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
-import { settingsSections } from "@/data/records";
 import { accentHex, accentLabels, type Accent, type Density } from "@/lib/theme";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
@@ -18,7 +17,22 @@ import { cn } from "@/utils/cn";
 
 
 
-type SectionId = (typeof settingsSections)[number]["id"];
+/* ------------------------------------------------------------------ */
+/* Section navigation — presentation config owned by this view (M10).   */
+/* Relocated from the dissolved fixture module; a nav hint may describe */
+/* the section but never carry a written-in count (M7).                 */
+/* ------------------------------------------------------------------ */
+const sections = [
+  { id: "profile", label: "پروفایل آموزشگاه", hint: "نام، نشانی، ساعات کاری" },
+  { id: "users", label: "کاربران و دسترسی", hint: "کاربران، نقش‌ها و سطح دسترسی" },
+  { id: "appearance", label: "ظاهر", hint: "تم، تراکم، حرکت" },
+  { id: "notifications", label: "اعلان‌ها", hint: "کانال‌ها و رویدادها" },
+  { id: "localization", label: "بومی‌سازی", hint: "زبان، تقویم، واحد پول" },
+  { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، قواعد جلسه، دادهٔ دمو" },
+  { id: "data", label: "ورود و خروج اطلاعات", hint: "CSV و Excel · هنرجویان، مدرسین، کلاس‌ها" },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
 
 const sectionIcon: Record<SectionId, typeof Building2> = {
   profile: Building2,
@@ -72,7 +86,7 @@ export function SettingsView() {
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
         {/* Section nav */}
         <nav aria-label="بخش‌های تنظیمات" className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:px-0">
-          {settingsSections.map((s) => {
+          {sections.map((s) => {
             const Icon = sectionIcon[s.id];
             const active = section === s.id;
             return (

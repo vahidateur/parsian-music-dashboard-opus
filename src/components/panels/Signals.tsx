@@ -1,4 +1,4 @@
-import type { Signal } from "@/data/academy";
+import type { Signal } from "@/lib/viewContracts";
 import { useApp } from "@/context/AppContext";
 import { SignalBlock } from "@/components/ds/blocks";
 import { Surface } from "@/components/ds/primitives";

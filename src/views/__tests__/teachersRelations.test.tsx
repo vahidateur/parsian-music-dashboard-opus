@@ -41,7 +41,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
-import { students as fixtureStudents, teachers as fixtureTeachers } from "@/data/records";
+import { students as fixtureStudents, teachers as fixtureTeachers } from "@/domains/demo/academySeed";
 import { addDays } from "@/domains/scheduling/dateBridge";
 import type { Session } from "@/domains/scheduling/types";
 import {

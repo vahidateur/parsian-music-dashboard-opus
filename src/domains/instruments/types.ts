@@ -6,8 +6,9 @@
  * removed: an academy defines its own instruments, which a compile-time union
  * cannot express.
  *
- * Fields that reference an instrument are typed `InstrumentId` (a string alias
- * in `@/data/academy`) and hold an `InstrumentRecord.id`. Resolve one to a
+ * Fields that reference an instrument are typed `InstrumentId` (the string
+ * alias below — this domain's canonical owner since M10) and hold an
+ * `InstrumentRecord.id`. Resolve one to a
  * Persian name with `instrumentName()` from `./catalog`, which is the single
  * synchronous source of truth and is kept in step with this repository.
  *
@@ -19,6 +20,17 @@
  * `UNIQUE(organization_id, slug)` rather than a globally unique id.
  */
 import type { ListParams } from "@/api/types";
+
+/**
+ * An instrument reference.
+ *
+ * Instruments are runtime data owned by `InstrumentRepository`, not a closed
+ * union — an academy can define its own. This alias documents that a string
+ * field holds an `InstrumentRecord.id`; resolve it to a Persian name with
+ * `instrumentName()` from `./catalog`. Relocated unchanged from the dissolved
+ * fixture module (M10); this domain is its one canonical owner.
+ */
+export type InstrumentId = string;
 
 /** A teachable instrument (or subject, e.g. theory) offered by the academy. */
 export interface InstrumentRecord {

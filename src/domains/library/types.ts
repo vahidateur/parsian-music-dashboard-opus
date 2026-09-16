@@ -17,12 +17,37 @@
  * and clearing keep working without a second library model.
  */
 import type { ListParams } from "@/api/types";
-import type { InstrumentId } from "@/data/academy";
-import type { Resource, ResourceKind } from "@/data/records";
+import type { InstrumentId } from "@/domains/instruments/types";
 import type { MediaAsset } from "@/domains/media/types";
 
-export type { Resource, ResourceKind };
-export { resourceKindLabel } from "@/data/records";
+/* ------------------------------------------------------------------ */
+/* Catalogue vocabulary — canonical owner (M10)                          */
+/*                                                                      */
+/* Moved here unchanged from the dissolved fixture module. The library  */
+/* domain owns what a resource is and what its kinds are called.        */
+/* ------------------------------------------------------------------ */
+export type ResourceKind = "sheet" | "audio" | "video" | "doc";
+export const resourceKindLabel: Record<ResourceKind, string> = { sheet: "نت", audio: "صوت", video: "ویدیو", doc: "جزوه" };
+
+/**
+ * The catalogue record shape the demo dataset persists
+ * (`DemoDataset.resources`) — the persisted entity this domain manages.
+ */
+export interface Resource {
+  id: string;
+  title: string;
+  composer: string;
+  kind: ResourceKind;
+  instrument: InstrumentId;
+  level: string;
+  size: string;
+  duration?: string;
+  pages?: number;
+  added: string;
+  uses: number;
+  /** normalized waveform peaks, only for audio */
+  peaks?: number[];
+}
 
 /**
  * One catalogue record.

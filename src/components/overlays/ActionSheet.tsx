@@ -1,9 +1,62 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Info, TriangleAlert, X } from "lucide-react";
-import { quickActions } from "@/data/academy";
 import { useApp } from "@/context/AppContext";
+import type { QuickActionDef } from "@/lib/viewContracts";
 import { Button } from "@/components/ds/primitives";
 import { cn } from "@/utils/cn";
+
+/* ------------------------------------------------------------------ */
+/* Quick-action definitions (M10)                                       */
+/*                                                                      */
+/* The sheet builds its forms from these — so they live here, in the    */
+/* sheet's own module, not in a data file (D5 category D, relocated     */
+/* from `src/data/academy.ts`). The fixture's `success` sentences are    */
+/* gone: the submit path below shows the honest "not connected" toast   */
+/* (M2), so a canned success claim would lie.                           */
+/* ------------------------------------------------------------------ */
+export const quickActions: QuickActionDef[] = [
+  {
+    id: "student",
+    label: "افزودن هنرجو",
+    hint: "ثبت‌نام جدید",
+    fields: [
+      { label: "نام و نام خانوادگی", placeholder: "مثلاً: نیلوفر رستمی" },
+      { label: "شمارهٔ تماس", placeholder: "۰۹۱۲ ··· ····" },
+      { label: "ساز", placeholder: "انتخاب ساز", type: "select", options: ["پیانو", "گیتار", "ویولن", "آواز", "درامز"] },
+      { label: "مدرس پیشنهادی", placeholder: "انتخاب مدرس", type: "select", options: ["سارا احمدی", "محمد رضایی", "علی موسوی", "نرگس حسینی"] },
+    ],
+  },
+  {
+    id: "class",
+    label: "برنامه‌ریزی کلاس",
+    hint: "بازهٔ زمانی جدید",
+    fields: [
+      { label: "عنوان کلاس", placeholder: "مثلاً: پیانو گروهی" },
+      { label: "اتاق", placeholder: "انتخاب اتاق", type: "select", options: ["اتاق ۱", "اتاق ۲", "اتاق ۳", "اتاق ۴"] },
+      { label: "روز و ساعت", placeholder: "سه‌شنبه · ۱۶:۰۰" },
+      { label: "مدرس", placeholder: "انتخاب مدرس", type: "select", options: ["سارا احمدی", "محمد رضایی", "علی موسوی", "نرگس حسینی"] },
+    ],
+  },
+  {
+    id: "payment",
+    label: "ثبت پرداخت",
+    hint: "شهریه یا جلسه",
+    fields: [
+      { label: "هنرجو", placeholder: "جستجوی نام هنرجو" },
+      { label: "مبلغ (تومان)", placeholder: "۱٬۲۰۰٬۰۰۰" },
+      { label: "روش پرداخت", placeholder: "انتخاب روش", type: "select", options: ["کارت‌خوان", "انتقال بانکی", "نقدی", "درگاه آنلاین"] },
+    ],
+  },
+  {
+    id: "message",
+    label: "ارسال پیام",
+    hint: "به هنرجو یا مدرس",
+    fields: [
+      { label: "گیرندگان", placeholder: "انتخاب گروه", type: "select", options: ["هنرجویان در معرض ریزش", "مدرسین", "همهٔ هنرجویان پیانو", "والدین کلاس کودکان"] },
+      { label: "متن پیام", placeholder: "سلام، یادآوری می‌کنیم که…" },
+    ],
+  },
+];
 
 /* ------------------------------------------------------------------ */
 /* Action sheet — quick actions open a focused, minimal form            */

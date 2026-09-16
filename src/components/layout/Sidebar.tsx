@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
-import { navGroups, type ViewId } from "@/data/academy";
+import { navGroups } from "@/lib/navigation";
+import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { roleLabels } from "@/domains/auth/permissions";

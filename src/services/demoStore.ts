@@ -25,7 +25,7 @@ import {
   type DemoCollectionName,
   type DemoDataset,
 } from "@/domains/demo/types";
-import type { Student } from "@/data/records";
+import type { Student } from "@/domains/students/types";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
 import type { BrandingSettings } from "@/domains/branding/types";
 

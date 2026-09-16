@@ -2,8 +2,9 @@ import type { ComponentType, ReactNode } from "react";
 import { ChevronDown, ChevronLeft, CircleAlert, Info, Lightbulb, Plus, TrendingUp, TriangleAlert } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { faNum, faTime, parseTime } from "@/lib/format";
-import type { IntelligenceCard } from "@/data/records";
-import type { AttentionItem, ClassSession, ClassStatus, Insight, Severity, Signal } from "@/data/academy";
+import type { IntelligenceCard } from "@/domains/shared/dashboardInsights";
+import type { AttentionItem, Insight, Severity, Signal } from "@/lib/viewContracts";
+import type { ClassSession, ClassSessionStatus } from "@/domains/scheduling/types";
 import { academyNowMinutes } from "@/domains/shared/clock";
 import { Delta, InstrumentGlyph, Sparkline, StatusBadge, Surface } from "./primitives";
 
@@ -190,7 +191,7 @@ export function IntelligenceCardView({
 /* ------------------------------------------------------------------ */
 /* Timeline event                                                      */
 /* ------------------------------------------------------------------ */
-const statusBadge: Record<ClassStatus, { label: string; tone: "ok" | "gold" | "neutral" | "warn" | "danger"; live?: boolean; cancelled?: boolean }> = {
+const statusBadge: Record<ClassSessionStatus, { label: string; tone: "ok" | "gold" | "neutral" | "warn" | "danger"; live?: boolean; cancelled?: boolean }> = {
   live: { label: "در حال برگزاری", tone: "ok", live: true },
   next: { label: "بعدی", tone: "gold" },
   scheduled: { label: "برنامه‌ریزی‌شده", tone: "neutral" },
@@ -199,7 +200,7 @@ const statusBadge: Record<ClassStatus, { label: string; tone: "ok" | "gold" | "n
   attention: { label: "نیازمند توجه", tone: "warn" },
 };
 
-const nodeTone: Record<ClassStatus, string> = {
+const nodeTone: Record<ClassSessionStatus, string> = {
   live: "bg-ok-400 ring-4 ring-ok-500/20",
   next: "bg-gold-400",
   scheduled: "bg-ink-500",
@@ -217,7 +218,7 @@ export function TimelineEvent({
   now = academyNowMinutes(),
 }: {
   session: ClassSession;
-  status: ClassStatus;
+  status: ClassSessionStatus;
   isLast?: boolean;
   onOpen?: () => void;
   onResolve?: () => void;

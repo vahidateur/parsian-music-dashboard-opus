@@ -72,18 +72,17 @@ const READ_HOOKS = [
 ] as const;
 
 /**
- * Identifiers that only exist in the fixture world: the weekly template, its
- * today-index, its session shape, its lookup helpers, and the conflict field the
- * fixtures carried but the scheduling domain does not have.
+ * Identifiers that only exist in the dataset world: the seeded weekly template,
+ * its today-index and its lookup helpers. M10 pruned the retired names
+ * (GridSession, conflictWith); the seeded names stay forbidden here — a view
+ * reads sessions through the scheduling domain, never from the seed.
  */
 const FIXTURE_IDENTIFIERS = [
   "weekSessions",
   "TODAY_INDEX",
-  "GridSession",
   "classById",
   "roomById",
   "teacherById",
-  "conflictWith",
 ] as const;
 
 /**
@@ -112,11 +111,11 @@ describe("Scheduling view reads the scheduling domain", () => {
   it("imports nothing from the fixture collections", () => {
     const imported = [...VIEW.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
     expect(imported.length).toBeGreaterThan(0);
-    // `@/data/records` is the fixture week and its entities; `@/data/academy` is
-    // the fixture academy (rooms, teachers, instruments, view titles).
+    // The seed's weekly template and its entities live in `@/domains/demo/`;
+    // the scheduling domain reads them, a view never does.
     expect(
-      imported.filter((path) => path.startsWith("@/data/")),
-      "a fixture import survived",
+      imported.filter((path) => path.startsWith("@/domains/demo/")),
+      "an import from the demo data plane survived",
     ).toEqual([]);
   });
 
@@ -183,7 +182,7 @@ describe("the scheduling write surface stays fixture-free", () => {
   it("imports nothing from the fixture collections", () => {
     for (const file of SCHEDULING_SURFACE) {
       const imported = [...file.source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
-      expect(imported.filter((path) => path.startsWith("@/data/")), `${file.name} imports fixtures`).toEqual([]);
+      expect(imported.filter((path) => path.startsWith("@/domains/demo/")), `${file.name} imports from the demo data plane`).toEqual([]);
     }
   });
 

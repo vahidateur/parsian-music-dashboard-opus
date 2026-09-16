@@ -16,7 +16,7 @@ import {
   seedWindow,
 } from "../schedulingSeed";
 import { createSeedDataset } from "../seed";
-import { classes } from "@/data/records";
+import { classes } from "@/domains/demo/academySeed";
 import { addDays, addMinutes, durationMinutes, weekdayIndex } from "@/domains/scheduling/dateBridge";
 import { deterministicSessionId } from "@/domains/scheduling/generation";
 

@@ -15,11 +15,15 @@
  *   - a control whose operation does not exist is GONE, and the truthful
  *     navigation or evidence beside it survives (scheduling, absentee follow-up);
  *   - a control that only needs a service the product lacks says so in `info`,
- *     the sanctioned "requires a server" shape (both finance reminders, and the
+ *     the sanctioned "requires a server" shape (the finance export — and, before
+ *     M10 deferred the whole Finance surface, the two SMS reminders — plus the
  *     attendance mark-all, which is a real on-screen convenience but records
  *     nothing);
  *   - a control that can do something true does that instead (the class waitlist
- *     now opens the schedule).
+ *     now opens the schedule);
+ *   - M10/F4 made that same rule quieter and stronger on `#/finance`: the view
+ *     is explicitly deferred (D6/I2), so it carries no reminder controls at
+ *     all — there is literally nothing left on it that could claim a send.
  *
  * These cases are the behavioural half of the guarantee; the structural half —
  * no success toast literal can exist in a view that cannot write — lives in
@@ -699,31 +703,29 @@ describe("finance reminders", () => {
     resetRegistry();
   });
 
-  it("says a payment reminder needs an SMS service instead of announcing one", async () => {
-    renderView("#/finance?filter=overdue", FinanceView);
+  it("carries no reminder controls at all — the deferral makes a false claim impossible", async () => {
+    renderView("#/finance", FinanceView);
     await settled();
 
-    const table = await screen.findByRole("table", { name: "فهرست فاکتورها" });
-    // The reminder is an icon-only button, so it is the row control with no text.
-    const reminders = within(table)
-      .getAllByRole("button")
-      .filter((b) => (b.textContent ?? "").trim() === "");
-    expect(reminders.length, "unpaid invoices offer a reminder").toBeGreaterThan(0);
-
-    fireEvent.click(reminders[0]);
-    await expectHonestToast("نیازمند سرویس پیامک است");
-    expect(toastText()).toContain("ارسال نشد");
+    // M10/F4 deferred the finance surface (D6/I2): the invoice table and its
+    // two SMS reminders are gone, individually — not relocated into another
+    // fixture. Nothing named «یادآوری» may exist on the surface.
+    expect(screen.queryByRole("button", { name: /یادآوری/ }), "a reminder control survived on the deferred surface").toBeNull();
+    expect(screen.queryByRole("table", { name: "فهرست فاکتورها" }), "the invoice table is deferred, not rendered from a replacement fixture").toBeNull();
+    // The surface names its deferral instead (the I2 work item is in the page).
+    expect(document.body.textContent).toContain("I2");
+    // And rendering the surface retracts no claim — ever.
     for (const claim of RETRACTED_CLAIMS) expect(toastText()).not.toContain(claim);
   });
 
-  it("says the same for the group reminder, and invents no queue", async () => {
-    renderView("#/finance?filter=overdue", FinanceView);
+  it("says its export needs a server instead of announcing one", async () => {
+    renderView("#/finance", FinanceView);
     await settled();
 
-    fireEvent.click(await screen.findByRole("button", { name: /یادآوری گروهی/ }));
-    await expectHonestToast("هیچ پیامی ارسال یا در صف قرار نگرفت");
-    expect(toastText()).not.toContain("در صف ارسال قرار گرفت");
-    expect(toastText()).not.toContain("یادآوری گروهی ارسال شد");
+    fireEvent.click(await screen.findByRole("button", { name: /خروجی/ }));
+    await expectHonestToast("نیازمند سرور است");
+    expect(toastText()).toContain("در دمو فعال نیست");
+    for (const claim of RETRACTED_CLAIMS) expect(toastText()).not.toContain(claim);
   });
 });
 

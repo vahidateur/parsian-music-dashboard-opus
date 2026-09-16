@@ -1,7 +1,7 @@
 /** §10 teacher domain invariants. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { teachers as seedTeachers } from "@/data/records";
+import { teachers as seedTeachers } from "@/domains/demo/academySeed";
 import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 

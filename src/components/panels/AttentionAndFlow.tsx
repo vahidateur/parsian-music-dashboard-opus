@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Clock3 } from "lucide-react";
-import type { AttentionItem, QuickActionDef } from "@/data/academy";
+import type { AttentionItem, QuickActionDef } from "@/lib/viewContracts";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { AlertItem, QuickAction, TimelineEvent } from "@/components/ds/blocks";

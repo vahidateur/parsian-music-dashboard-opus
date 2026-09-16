@@ -7,7 +7,7 @@ import {
 } from "@/domains/demo/librarySeed";
 import { validateDataset } from "@/domains/demo/backup";
 import { DEMO_COLLECTIONS } from "@/domains/demo/types";
-import { classes, students } from "@/data/records";
+import { classes, students } from "@/domains/demo/academySeed";
 
 describe("canonical seed", () => {
   it("is deterministic — identical output on repeated creation", () => {

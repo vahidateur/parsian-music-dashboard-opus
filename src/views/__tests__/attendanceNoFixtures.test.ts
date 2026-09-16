@@ -110,16 +110,16 @@ const RETIRED_NARRATIVES = [
   "ثبت نهایی",
 ];
 
-/** Fixture symbols from `src/data/records.ts` this view used to render. */
+/** Seeded-register symbols this view used to render — and must never again. */
 const FIXTURE_SYMBOLS = [
   "todayAttendance",
   "attendanceTrend",
   "attendanceByDay",
-  "AttendanceRoster",
-  "AttendanceMark",
-  "attendanceLabel",
   "classById",
   "teacherById",
+  "studentById",
+  "weekSessions",
+  "TODAY_INDEX",
 ];
 
 /** Session ids of the fixture registers, which match no session any domain made. */
@@ -149,9 +149,9 @@ describe("the view reads the attendance domain, not the fixtures", () => {
     expect(importsFrom(view(), "useSessions", "@/domains/scheduling/useScheduling")).toBe(true);
   });
 
-  it("imports nothing from the fixture module", () => {
+  it("imports nothing from the demo data plane", () => {
     const offenders = [VIEW, ...panelFiles()].filter((file) =>
-      imports(code(readFileSync(file, "utf8"))).some((statement) => statement.module === "@/data/records"),
+      imports(code(readFileSync(file, "utf8"))).some((statement) => statement.module.startsWith("@/domains/demo/")),
     );
     expect(offenders.map(rel)).toEqual([]);
   });

@@ -7,7 +7,7 @@
  * than round-tripping the implementation against itself.
  */
 import { describe, expect, it } from "vitest";
-import { WEEKDAYS } from "@/data/records";
+import { WEEKDAYS } from "../weekdays";
 import {
   addDays,
   addMinutes,

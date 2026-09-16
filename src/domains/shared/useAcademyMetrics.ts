@@ -27,7 +27,7 @@ import {
   getTeacherRepository,
 } from "@/domains/registry";
 import { ATTENDED_STATUSES, type AttendanceRecord } from "@/domains/attendance/types";
-import type { Target } from "@/data/academy";
+import type { Target } from "@/lib/viewContracts";
 import { useDataVersion } from "./dataVersion";
 
 export interface AcademyMetrics {

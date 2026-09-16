@@ -19,18 +19,21 @@
  * one file, and the attachment files added by M6/CP3 are covered by construction
  * rather than by someone remembering to add them.
  *
- * THE ONE FIXTURE, NAMED
+ * THE ONE STATIC, NAMED
  *
- * `Messages.tsx` reads `messageTemplates` from `@/data/records`: canned message
- * copy («یادآوری پرداخت», «لغو کلاس»…) rendered as buttons that fill the
- * composer. It is copy, not a data path — nothing about it is presented as a
- * record, and it never reaches a write. That exception is pinned here in both
- * directions: the import must be exactly that one name from exactly that module,
- * it must be used only to fill the composer, and NO other fixture export may
- * appear anywhere in the surface. The list of forbidden names is read from
- * `src/data/records.ts` itself, so a fixture added later is forbidden here
- * automatically — including the retired `conversations` fixture, which is
- * asserted to exist precisely so this rule cannot become vacuous.
+ * `Messages.tsx` reads `messageTemplates` from `./messages/composerTemplates`:
+ * canned message copy («یادآوری پرداخت», «لغو کلاس»…) rendered as buttons that
+ * fill the composer. It is copy, not a data path — nothing about it is
+ * presented as a record, and it never reaches a write. M10 gave the templates
+ * their honest owner (the surface itself) and dissolved the fixture module
+ * they came from. The rule is pinned here in both directions: the import must
+ * be exactly that one name from exactly that in-surface module, it must be
+ * used only to fill the composer, and NO seeded dataset export may appear
+ * anywhere in the surface. The list of forbidden names is read from
+ * `src/domains/demo/academySeed.ts` itself, so a collection added to the seed
+ * later is forbidden here automatically — including the `conversations`
+ * collection, which is asserted to exist precisely so this rule cannot become
+ * vacuous.
  *
  * M6/CP4 added the export, and the same rule applies to it: the transcript is
  * built from repository reads and handed to the browser through the export
@@ -75,15 +78,15 @@ const MESSAGES_SURFACE = [
     })),
 ];
 
-/** Every data name the fixture module exports, read from the module itself. */
+/** Every data name the demo seed exports, read from the module itself. */
 const FIXTURE_EXPORTS = [
-  ...readFileSync(join(ROOT, "src", "data", "records.ts"), "utf8").matchAll(
+  ...readFileSync(join(ROOT, "src", "domains", "demo", "academySeed.ts"), "utf8").matchAll(
     /^export\s+(?:const|function|interface|type|class)\s+([A-Za-z_$][\w$]*)/gm,
   ),
 ].map((match) => match[1]);
 
-/** The single fixture the view may read, and only as composer copy. */
-const ALLOWED_FIXTURE = "messageTemplates";
+/** The single static the view may read, and only as composer copy. */
+const ALLOWED_TEMPLATE = "messageTemplates";
 
 /**
  * Claims this build cannot support: there is no upload endpoint, no server-side
@@ -116,52 +119,48 @@ describe("the messages surface reads from the domains", () => {
     expect(names.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("imports nothing from the fixture collections outside the declared exception", () => {
+  it("imports nothing from the demo data plane, anywhere in the surface", () => {
     for (const file of MESSAGES_SURFACE) {
       const from = [...file.source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
-      const fixtures = from.filter((path) => path.startsWith("@/data/"));
-      if (file.name === "views/Messages.tsx") {
-        expect(fixtures, "the template copy is the only fixture import in the view").toEqual([
-          "@/data/records",
-        ]);
-      } else {
-        expect(fixtures, `${file.name} imports fixtures`).toEqual([]);
-      }
+      const dataPlane = from.filter((path) => path.startsWith("@/domains/demo/"));
+      expect(dataPlane, `${file.name} imports from the demo data plane`).toEqual([]);
     }
   });
 
-  it("takes exactly one name from the fixture module, and uses it only as copy", () => {
-    const imports = [...MESSAGES_VIEW.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@\/data\/records"/g)];
-    expect(imports, "the fixture module is imported once").toHaveLength(1);
+  it("takes exactly one name from the in-surface templates module, and uses it only as copy", () => {
+    const imports = [...MESSAGES_VIEW.matchAll(/import\s*\{([^}]*)\}\s*from\s*"\.\/messages\/composerTemplates"/g)];
+    expect(imports, "the composer templates module is imported once").toHaveLength(1);
     expect(
       imports[0][1]
         .split(",")
         .map((part) => part.trim())
         .filter(Boolean),
-    ).toEqual([ALLOWED_FIXTURE]);
+    ).toEqual([ALLOWED_TEMPLATE]);
     // The import statement and one render site — not a second data path.
-    expect((MESSAGES_VIEW.match(new RegExp(ALLOWED_FIXTURE, "g")) ?? []).length).toBe(2);
+    expect((MESSAGES_VIEW.match(new RegExp(ALLOWED_TEMPLATE, "g")) ?? []).length).toBe(2);
+    // And the templates module really is part of the surface this gate scans.
+    expect(MESSAGES_SURFACE.map((file) => file.name)).toContain("views/messages/composerTemplates.ts");
   });
 
-  it("carries no fixture export other than the template copy, anywhere in the surface", () => {
-    const forbidden = FIXTURE_EXPORTS.filter((name) => name !== ALLOWED_FIXTURE);
-    expect(forbidden.length, "the fixture module must export data to forbid").toBeGreaterThan(20);
+  it("carries no seed export anywhere in the surface", () => {
+    const forbidden = FIXTURE_EXPORTS;
+    expect(forbidden.length, "the seed module must export data to forbid").toBeGreaterThan(10);
     for (const file of MESSAGES_SURFACE) {
       for (const name of forbidden) {
         expect(
           new RegExp(`\\b${name}\\b`).test(file.source),
-          `${file.name} reads the fixture «${name}»`,
+          `${file.name} reads the seeded 「${name}」`,
         ).toBe(false);
       }
     }
   });
 
-  it("keeps the retired conversation fixture out of the surface entirely", () => {
-    // Non-vacuity anchor: the fixture module really does still carry it (M10's
-    // territory), so the rule above is testing something real.
+  it("keeps the seeded conversation collection out of the surface entirely", () => {
+    // Non-vacuity anchor: the seed module really does carry it, so the rule
+    // above is testing something real.
     expect(FIXTURE_EXPORTS).toContain("conversations");
     for (const file of MESSAGES_SURFACE) {
-      expect(file.source, `${file.name} names the retired conversation fixture`).not.toMatch(
+      expect(file.source, `${file.name} names the seeded conversation collection`).not.toMatch(
         /\bconversations\b/,
       );
     }

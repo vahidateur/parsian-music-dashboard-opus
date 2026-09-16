@@ -56,8 +56,8 @@ import {
   type ReceivablesModel,
   type RosterModel,
 } from "./dashboardInsights";
-import type { AttentionItem, Signal } from "@/data/academy";
-import type { IntelligenceCard } from "@/data/records";
+import type { AttentionItem, Signal } from "@/lib/viewContracts";
+import type { IntelligenceCard } from "./dashboardInsights";
 import { useAcademyMetrics } from "./useAcademyMetrics";
 
 /** Page size for the whole-dataset reads. Same ceiling the metrics hook states. */

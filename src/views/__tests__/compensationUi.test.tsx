@@ -45,7 +45,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { AppProvider } from "@/context/AppContext";
-import { navGroups, viewTitles } from "@/data/academy";
+import { navGroups, viewTitles } from "@/lib/navigation";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { canAccessView, permissionsForRole, viewPermissions } from "@/domains/auth/permissions";

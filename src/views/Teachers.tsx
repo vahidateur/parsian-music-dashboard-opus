@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
-import { WEEKDAYS, WEEKDAYS_SHORT, studentStatusLabel, type StudentStatus, type Teacher } from "@/data/records";
+import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
+import { studentStatusLabel, type StudentStatus } from "@/domains/students/types";
+import type { Teacher } from "@/domains/teachers/types";
 import type { AcademyClass } from "@/domains/classes/types";
 import { useClasses } from "@/domains/classes/useClasses";
 import type { Enrollment } from "@/domains/enrollments/types";

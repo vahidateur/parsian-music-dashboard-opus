@@ -33,7 +33,7 @@
  * MULTI-TENANCY (§21): every table here needs `organization_id` in production.
  */
 import type { ListParams } from "@/api/types";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import type { MediaKind } from "@/domains/media/types";
 
 /* ------------------------------------------------------------------ */

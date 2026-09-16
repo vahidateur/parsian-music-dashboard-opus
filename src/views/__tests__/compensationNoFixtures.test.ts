@@ -217,25 +217,23 @@ function callArguments(source: string, callee: string): string[] {
 /* The catalogues this surface is held to                              */
 /* ------------------------------------------------------------------ */
 
-/** The fixture modules, by prefix — `@/data/records` and `@/data/academy`. */
-const FIXTURE_MODULE_PREFIX = "@/data/";
+/** The demo data plane, by prefix — the seed modules under `@/domains/demo/`. */
+const FIXTURE_MODULE_PREFIX = "@/domains/demo/";
 
 /**
- * Fixture relations that reach a view as an identifier rather than as an import
- * clause. The list is M7's (`relationsNoFixtures`): the resolvers and legacy
- * collections, plus `studentIds`, the denormalized projection §9 forbids as a
- * source of truth. No broader blacklist is invented here.
+ * Seeded relations that reach a view as an identifier rather than as an import
+ * clause. The list is M7's (`relationsNoFixtures`), pruned of what M10 retired
+ * outright: the resolvers and seeded collections, plus `studentIds`, the
+ * denormalized projection §9 forbids as a source of truth. No broader
+ * blacklist is invented here.
  */
 const FIXTURE_IDENTIFIERS = [
   "weekSessions",
   "todayAttendance",
-  "attendanceTrend",
-  "attendanceByDay",
   "studentById",
   "teacherById",
   "classById",
   "roomById",
-  "studentStats",
   "TODAY_INDEX",
   "academyClasses",
   "studentIds",
@@ -247,7 +245,6 @@ const OWN_SOURCE_PATTERNS: readonly { what: string; pattern: RegExp }[] = [
   { what: "browser storage", pattern: /\blocalStorage\b|\bsessionStorage\b/ },
   { what: "the wall clock instead of the academy clock", pattern: /new Date\(\s*\)/ },
   { what: "the wall clock instead of the academy clock", pattern: /Date\.now\(/ },
-  { what: "the frozen demo instant", pattern: /\bACADEMY_NOW\b/ },
   { what: "a test-environment branch", pattern: /NODE_ENV/ },
 ];
 
@@ -329,8 +326,8 @@ const patterns = (catalogue: readonly { what: string; pattern: RegExp }[]) =>
 const RULES: readonly Rule[] = [
   {
     id: "fixture-import",
-    forbids: "imports a fixture collection or helper instead of a domain read",
-    probe: 'import { weekSessions } from "@/data/records";',
+    forbids: "imports a dataset collection or helper from the seed instead of a domain read",
+    probe: 'import { weekSessions } from "@/domains/demo/academySeed";',
     probeFile: VIEW,
     find: (source) =>
       importStatements(source)

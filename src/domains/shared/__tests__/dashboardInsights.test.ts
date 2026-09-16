@@ -16,7 +16,8 @@
  * file is the acceptance.
  */
 import { describe, expect, it } from "vitest";
-import type { AcademyClass, Student } from "@/data/records";
+import type { AcademyClass } from "@/domains/classes/types";
+import type { Student } from "@/domains/students/types";
 import type { Room } from "@/domains/rooms/types";
 import type { Session } from "@/domains/scheduling/types";
 import type { AcademyMetrics } from "../useAcademyMetrics";

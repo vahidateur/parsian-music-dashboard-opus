@@ -21,7 +21,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "@/App";
-import { viewTitles, type ViewId } from "@/data/academy";
+import { viewTitles } from "@/lib/navigation";
+import type { ViewId } from "@/lib/viewContracts";
 import { createSeedDataset } from "@/domains/demo/seed";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { DemoUserRepository } from "@/domains/auth/userRepository";

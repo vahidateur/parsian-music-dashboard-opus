@@ -10,9 +10,10 @@
  * the authoritative Student↔Class relationship and is managed separately.
  */
 import { useMemo } from "react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
-import { WEEKDAYS, type AcademyClass } from "@/data/records";
+import { WEEKDAYS } from "@/domains/scheduling/weekdays";
+import type { AcademyClass } from "@/domains/classes/types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
 import { getClassRepository } from "@/domains/registry";

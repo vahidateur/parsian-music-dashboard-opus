@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Bell, CalendarDays, LayoutGrid, Menu, Search, Users, Wallet } from "lucide-react";
-import { schedule, statusOf, viewTitles } from "@/data/academy";
+import { viewTitles } from "@/lib/navigation";
 import { faNum, faToday } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/domains/auth/AuthContext";
+import { useAcademyNow } from "@/domains/shared/clock";
+import { useDayPulse } from "@/domains/shared/useDayPulse";
+import { academyIsoDate } from "@/views/relations/academyDay";
 import { Kbd } from "@/components/ds/primitives";
 import { cn } from "@/utils/cn";
 
@@ -53,7 +56,9 @@ export function CommandSearchTrigger({ className, compact }: { className?: strin
 /* ------------------------------------------------------------------ */
 export function TopBar({ onMenu }: { onMenu: () => void }) {
   const { view, notify } = useApp();
-  const live = schedule.filter((s) => statusOf(s) === "live").length;
+  // Live count from the scheduling seam (M10) — it moves when sessions change.
+  const pulse = useDayPulse(academyIsoDate(), useAcademyNow());
+  const live = pulse.live;
   const [notified, setNotified] = useState(false);
 
   return (

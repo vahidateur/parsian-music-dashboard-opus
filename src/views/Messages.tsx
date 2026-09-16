@@ -68,7 +68,7 @@ import {
   Settings2,
   Sparkles,
 } from "lucide-react";
-import { messageTemplates } from "@/data/records";
+import { messageTemplates } from "./messages/composerTemplates";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";

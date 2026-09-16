@@ -29,7 +29,7 @@
  * it is not.
  */
 import type { ListParams } from "@/api/types";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 
 /* ------------------------------------------------------------------ */
 /* Piece / repertoire                                                  */

@@ -223,7 +223,9 @@ describe("list hooks request an explicit page size", () => {
    */
   it("no module redefines instruments as a fixed set", () => {
     const offenders: string[] = [];
-    const allSource = [...viewLayer, ...sourceFiles(join(ROOT, "domains")), ...sourceFiles(join(ROOT, "data"))];
+    // M10 dissolved `src/data/`; its corpus lives under `domains/demo/` now,
+    // which the `domains` walk already covers — the scan is unchanged.
+    const allSource = [...viewLayer, ...sourceFiles(join(ROOT, "domains"))];
 
     for (const file of allSource) {
       // The catalogue is the one place allowed to enumerate the seeded set.

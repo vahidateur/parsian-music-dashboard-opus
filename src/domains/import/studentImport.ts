@@ -10,9 +10,9 @@
  * reported with its row number and reason, and the user decides whether to fix
  * the file or import the remaining valid rows.
  */
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { getInstrumentCatalog, instrumentName } from "@/domains/instruments/catalog";
-import { studentStatusLabel, type Student, type StudentStatus } from "@/data/records";
+import { studentStatusLabel, type Student, type StudentStatus } from "@/domains/students/types";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getStudentRepository, getTeacherRepository } from "@/domains/registry";

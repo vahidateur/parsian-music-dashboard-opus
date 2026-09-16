@@ -1,9 +1,16 @@
 import type { ReactNode } from "react";
 import { LayoutGrid, MessageSquare, Music2, Users } from "lucide-react";
 import { useState } from "react";
-import { attentionItems, insights, schedule, signals, type ClassStatus } from "@/data/academy";
+import type { ClassSessionStatus } from "@/domains/scheduling/types";
 import { instrumentName } from "@/domains/instruments/catalog";
-import { intelligenceCards, students } from "@/data/records";
+import {
+  sampleAttentionItems,
+  sampleClassSessions,
+  sampleInsights,
+  sampleIntelligenceCards,
+  sampleSignals,
+  sampleStudents,
+} from "@/components/ds/samples";
 import { AlertItem, InsightItem, IntelligenceCardView, NavItem, QuickAction, SignalBlock, TimelineEvent } from "@/components/ds/blocks";
 import { Avatar, Chip, DataTable, Dialog, Drawer, Field, FilterBar, ListRow, Meter, PageHeader, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, Toggle, inputCls } from "@/components/ds/patterns";
 import { Button, Delta, InstrumentGlyph, Kbd, Sparkline, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
@@ -47,7 +54,7 @@ export function DesignSystemView() {
   const [dialog, setDialog] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [tog, setTog] = useState(true);
-  const statuses: ClassStatus[] = ["live", "next", "scheduled", "attention", "cancelled", "done"];
+  const statuses: ClassSessionStatus[] = ["live", "next", "scheduled", "attention", "cancelled", "done"];
   const tones: Tone[] = ["ok", "warn", "danger", "info", "neutral", "gold", "violet"];
 
   return (
@@ -120,7 +127,7 @@ export function DesignSystemView() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Spec title="Signal / KPI" note="مقدار · تغییر · «خب که چی؟» · روند">
           <Surface className="overflow-hidden">
-            <SignalBlock signal={signals[0]} />
+            <SignalBlock signal={sampleSignals[0]} />
           </Surface>
           <div className="mt-3 flex flex-wrap items-center gap-4">
             <Delta value={8.4} label="مثبت" />
@@ -131,15 +138,15 @@ export function DesignSystemView() {
 
         <Spec title="Alert — نیازمند توجه" note="severity: critical / warning / info">
           <div className="space-y-1">
-            <AlertItem item={attentionItems[0]} />
-            <AlertItem item={attentionItems[1]} />
+            <AlertItem item={sampleAttentionItems[0]} />
+            <AlertItem item={sampleAttentionItems[1]} />
             <AlertItem item={{ id: "x", severity: "info", title: "۳ درخواست جلسهٔ جبرانی", context: "منتظر تأیید مدرس", action: "بررسی", target: { view: "schedule" } }} />
           </div>
         </Spec>
 
         <Spec title="Intelligence Insight" note="kind: trend / risk / idea">
           <div className="space-y-2">
-            {insights.map((i, idx) => (
+            {sampleInsights.map((i, idx) => (
               <InsightItem key={i.id} insight={i} index={idx} />
             ))}
           </div>
@@ -148,7 +155,7 @@ export function DesignSystemView() {
         <Spec title="Timeline Event" note="status × ۶">
           <ol>
             {statuses.map((st, i) => (
-              <TimelineEvent key={st} session={schedule[i + 1]} status={st} isLast={i === statuses.length - 1} />
+              <TimelineEvent key={st} session={sampleClassSessions[i]} status={st} isLast={i === statuses.length - 1} />
             ))}
           </ol>
         </Spec>
@@ -165,10 +172,10 @@ export function DesignSystemView() {
 
         <Spec title="Chart — sparkline & patterns" note="RTL: جدیدترین در چپ">
           <div className="flex flex-wrap items-end gap-6">
-            <div className="flex flex-col gap-1.5"><Sparkline data={signals[0].series} width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · gold</span></div>
-            <div className="flex flex-col gap-1.5"><Sparkline data={signals[1].series} kind="bars" width={140} height={40} /><span className="text-[10.5px] text-ink-400">bars · current emphasised</span></div>
-            <div className="flex flex-col gap-1.5"><Sparkline data={signals[3].series} tone="warn" width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · warn</span></div>
-            <div className="flex flex-col gap-1.5"><Sparkline data={signals[2].series} tone="violet" width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · violet</span></div>
+            <div className="flex flex-col gap-1.5"><Sparkline data={sampleSignals[0].series} width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · gold</span></div>
+            <div className="flex flex-col gap-1.5"><Sparkline data={sampleSignals[1].series} kind="bars" width={140} height={40} /><span className="text-[10.5px] text-ink-400">bars · current emphasised</span></div>
+            <div className="flex flex-col gap-1.5"><Sparkline data={sampleSignals[3].series} tone="warn" width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · warn</span></div>
+            <div className="flex flex-col gap-1.5"><Sparkline data={sampleSignals[2].series} tone="violet" width={140} height={40} /><span className="text-[10.5px] text-ink-400">line · violet</span></div>
           </div>
           <p className="mt-4 text-[11px] leading-relaxed text-ink-400">ورود داده مثل یک فراز موسیقی: ستون‌ها با فاصلهٔ ۶۰ms، خط با draw ۱٫۳ ثانیه، حلقه با legato.</p>
         </Spec>
@@ -264,7 +271,7 @@ export function DesignSystemView() {
 
         <Spec title="Data Table" note="فقط جایی که جدول واقعاً درست است">
           <DataTable
-            rows={students.slice(0, 3)}
+            rows={sampleStudents}
             columns={[
               { key: "n", header: "هنرجو", cell: (s) => <div className="flex items-center gap-2"><Avatar name={s.name} size="xs" />{s.name}</div> },
               { key: "i", header: "ساز", cell: (s) => instrumentName(s.instrument) },
@@ -316,7 +323,7 @@ export function DesignSystemView() {
 
         <Spec title="Intelligence Card" note="Signal → Evidence → Insight → Action" className="lg:col-span-2">
           <div className="grid gap-3 lg:grid-cols-3">
-            {intelligenceCards.map((c, i) => (
+            {sampleIntelligenceCards.map((c, i) => (
               <IntelligenceCardView key={c.id} card={c} index={i} />
             ))}
           </div>

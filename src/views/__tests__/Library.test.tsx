@@ -316,10 +316,14 @@ describe("record detail", () => {
 describe("Library.tsx source boundaries", () => {
   const source = readFileSync(VIEW_SOURCE, "utf8");
 
-  it("does not import the static resource fixture", () => {
-    // Presentation metadata (shelf labels, kind labels) may come from the
-    // design-data module; catalogue ROWS may not.
-    expect(source).toMatch(/from "@\/data\/records"/);
+  it("imports no fixture or seed collection", () => {
+    // M10 dissolved the design-data module: shelf labels/KIND labels are
+    // presentation metadata owned HERE (a view-local `shelves` constant) or by
+    // the library domain's types; catalogue ROWS still come only from the hooks.
+    expect(source).not.toMatch(/from "@\/data\//);
+    expect(source).not.toMatch(/from "@\/domains\/demo\//);
+    expect(source).toMatch(/const shelves: \{ id: string/);
+    expect(source).not.toMatch(/\blibraryShelves\b/);
     expect(source).not.toMatch(/import\s*\{[^}]*\bresources\b[^}]*\}\s*from/);
     expect(source).not.toMatch(/\bresources\b\s*,/);
   });

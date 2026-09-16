@@ -6,9 +6,9 @@
  * teacher starts at zero and the numbers move as classes are assigned.
  */
 import { useMemo } from "react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
-import type { Teacher } from "@/data/records";
+import type { Teacher } from "./types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
 import { getTeacherRepository } from "@/domains/registry";

@@ -17,7 +17,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { instrumentName } from "@/domains/instruments/catalog";
-import type { Target } from "@/data/academy";
+import type { Target } from "@/lib/viewContracts";
 import {
   getClassRepository,
   getRoomRepository,

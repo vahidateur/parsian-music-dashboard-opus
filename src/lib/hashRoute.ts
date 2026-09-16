@@ -1,4 +1,5 @@
-import { viewTitles, type Target, type ViewId } from "@/data/academy";
+import { viewTitles } from "@/lib/navigation";
+import type { Target, ViewId } from "@/lib/viewContracts";
 
 /**
  * Hash routing: `#/students`, `#/students?filter=at-risk`, `#/students/st1`.

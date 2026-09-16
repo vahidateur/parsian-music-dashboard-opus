@@ -140,7 +140,7 @@ export function canAll(holder: PermissionHolder | null | undefined, permissions:
 /* View access policy                                                  */
 /* ------------------------------------------------------------------ */
 
-import type { ViewId } from "@/data/academy";
+import type { ViewId } from "@/lib/viewContracts";
 
 /** Minimum permission required to open each view. */
 export const viewPermissions: Record<ViewId, Permission> = {

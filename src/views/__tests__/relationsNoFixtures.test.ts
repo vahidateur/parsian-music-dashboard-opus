@@ -41,12 +41,16 @@
  *
  * WHAT IS NOT IN SCOPE
  *
- * `src/data/*` is M7's source of truth for seeds, not a target: the demo dataset
- * is legitimate data, and demo mode is a real environment. This gate forbids the
- * VIEW layer from pulling fixture collections and resolvers into a render path;
- * it says nothing about the seed, the store or the domains. `Finance.tsx` and
- * `Reports.tsx` still read fixture series (OPEN_ITEMS I2) and belong to a later
- * phase — they are not surfaces here on purpose.
+ * The demo seed (`src/domains/demo/*`) is legitimate data, and demo mode is a
+ * real environment. This gate forbids the VIEW layer from pulling seeded
+ * collections and resolvers into a render path; it says nothing about the
+ * dataset, the store or the domains. M10 dissolved the fixture modules this
+ * gate used to point at: the only data module left is the seed, so the import
+ * and identifier rules below now forbid a view from touching
+ * `@/domains/demo/academySeed` — same rule, named against the module that
+ * survived. `Finance.tsx` and `Reports.tsx` are explicitly DEFERRED surfaces
+ * (D6/I2, `src/lib/financeReportsDeferral.ts`) and are still not surfaces
+ * here on purpose.
  *
  * Comments are stripped before every check (prose about a rule must not satisfy
  * it), and no line numbers are used anywhere: they drift, and a gate that breaks
@@ -59,8 +63,8 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 const VIEWS = join(ROOT, "src", "views");
 const RELATIONS_DIR = join(VIEWS, "relations");
-const RECORDS_FILE = "src/data/records.ts";
-const ACADEMY_FILE = "src/data/academy.ts";
+const SEED_FILE = "src/domains/demo/academySeed.ts";
+const SEED_MODULE = "@/domains/demo/academySeed";
 
 /** Strips comments so prose about a rule cannot satisfy (or trip) it. */
 function code(source: string): string {
@@ -104,23 +108,15 @@ const isViewComponent = (file: string): boolean =>
   file.startsWith("src/views/") || file.startsWith("src/components/");
 
 /**
- * The fixtures a surface may still name: TYPES (their relocation is the M10
- * fixture/type/seed separation) and pure label maps (presentation vocabulary with
- * no data behind it). Everything else exported by the two fixture modules is a
- * data path, and the forbidden set is DERIVED from those modules rather than
- * listed here — a fixture added later is covered without anyone remembering.
+ * What a surface may still name from the demo seed: NOTHING. The seed module
+ * exports data only — collections, resolvers and academy metadata. The label
+ * maps, weekday tables and types M10 re-owned live in their domains
+ * (`@/domains/scheduling/weekdays`, `@/domains/students/types`, …) and are
+ * imported from there, so the allowed set is empty and stays empty. The
+ * forbidden set is DERIVED from the seed module rather than listed here — a
+ * collection added to the seed later is covered without anyone remembering.
  */
-const ALLOWED_FIXTURE_VALUES = new Set([
-  // Label maps: how the product names things it already has.
-  "WEEKDAYS",
-  "WEEKDAYS_SHORT",
-  "viewTitles",
-  "paymentLabel",
-  "studentStatusLabel",
-  "attendanceLabel",
-  "subscriptionStatusLabel",
-  "resourceKindLabel",
-]);
+const ALLOWED_SEED_VALUES = new Set<string>();
 
 /** `export const|function|class` names — the module's data and helpers. */
 function valueExports(source: string): string[] {
@@ -129,20 +125,19 @@ function valueExports(source: string): string[] {
   );
 }
 
-const RECORDS_SOURCE = readFileSync(join(ROOT, RECORDS_FILE), "utf8");
-const ACADEMY_SOURCE = readFileSync(join(ROOT, ACADEMY_FILE), "utf8");
+const SEED_SOURCE = readFileSync(join(ROOT, SEED_FILE), "utf8");
 
-const FORBIDDEN_FIXTURE_VALUES = valueExports(RECORDS_SOURCE).filter(
-  (name) => !ALLOWED_FIXTURE_VALUES.has(name),
-);
-const FORBIDDEN_ACADEMY_VALUES = valueExports(ACADEMY_SOURCE).filter(
-  (name) => !ALLOWED_FIXTURE_VALUES.has(name),
+const FORBIDDEN_SEED_VALUES = valueExports(SEED_SOURCE).filter(
+  (name) => !ALLOWED_SEED_VALUES.has(name),
 );
 
-const FIXTURE_MODULES: readonly { module: string; forbidden: readonly string[] }[] = [
-  { module: "@/data/records", forbidden: FORBIDDEN_FIXTURE_VALUES },
-  { module: "@/data/academy", forbidden: FORBIDDEN_ACADEMY_VALUES },
+const SEED_MODULES: readonly { module: string; forbidden: readonly string[] }[] = [
+  { module: SEED_MODULE, forbidden: FORBIDDEN_SEED_VALUES },
 ];
+
+/** The seed under any spelling — the `@/` alias or a relative path. */
+const isSeedModule = (name: string): boolean =>
+  name === SEED_MODULE || /(^|\/)domains\/demo\/academySeed$/.test(name);
 
 function fixtureImportViolations(source: string): string[] {
   const out: string[] = [];
@@ -152,8 +147,8 @@ function fixtureImportViolations(source: string): string[] {
     const statementIsType = Boolean(statement[1]);
     const clause = statement[2];
     const module = statement[3];
-    const fixture = FIXTURE_MODULES.find((entry) => entry.module === module);
-    if (!fixture) continue;
+    const seed = SEED_MODULES.find((entry) => entry.module === module);
+    if (!seed || !isSeedModule(module)) continue;
 
     // A namespace import hides every export behind one alias.
     if (clause.includes("*")) {
@@ -168,12 +163,12 @@ function fixtureImportViolations(source: string): string[] {
       const isType = statementIsType || raw.startsWith("type ");
       const name = raw.replace(/^type\s+/, "").split(/\s+as\s+/)[0].trim();
       if (isType) continue;
-      if (fixture.forbidden.includes(name)) out.push(`${module} → ${name}`);
+      if (seed.forbidden.includes(name)) out.push(`${module} → ${name}`);
     }
   }
 
   // A dynamic import bypasses the static clause entirely.
-  for (const match of source.matchAll(/import\s*\(\s*"(@\/data\/[^"]+)"\s*\)/g)) {
+  for (const match of source.matchAll(/import\s*\(\s*"([^"]*domains\/demo\/[^"]+)"\s*\)/g)) {
     out.push(`dynamic import of ${match[1]}`);
   }
 
@@ -181,29 +176,27 @@ function fixtureImportViolations(source: string): string[] {
 }
 
 /**
- * Fixture relations that reach a view as an identifier rather than as an import
- * clause — the resolvers the surfaces call today, and the legacy collections they
- * read.
+ * Seeded relations that reach a view as an identifier rather than as an import
+ * clause — the resolvers of the demo dataset and its collections. A view reads
+ * those through the repositories; naming them in a view is a render path
+ * around the domains, whatever module they arrived from.
  */
 const RELATION_IDENTIFIERS = [
   "weekSessions",
   "todayAttendance",
-  "attendanceTrend",
-  "attendanceByDay",
   "studentById",
   "teacherById",
   "classById",
   "roomById",
-  "studentStats",
   "TODAY_INDEX",
   "academyClasses",
-  // Not a fixture export: a FIELD on a fixture collection, and the one §9
+  // Not a seed export: a FIELD on a fixture-era collection, and the one §9
   // forbids outright as a source of truth. Naming it in a view is the roster
   // built from a denormalized projection, whatever it is called there.
   "studentIds",
 ] as const;
 
-/** Identifiers above that the fixture module does not export, and why they are here. */
+/** Identifiers above that the seed module does not export, and why they are here. */
 const RELATION_ALIASES: Record<string, string> = {
   roomById: "rooms.find((r) => r.id === …) — the lookup shape the classes surface uses",
   academyClasses: "`classes` imported under an alias by the students surface",
@@ -237,17 +230,26 @@ const FABRICATED_FIGURES: readonly Pattern[] = [
   {
     /*
       A COMPONENT may not render a trend delta nothing measured. The rule is
-      view-scoped for the same reason the frozen-instant rule is: `@/data/academy`
-      carries the Dashboard's fixture series (`instruments[].delta`), which is the
-      same class of unmeasured figure but belongs to the phase that owns
-      Dashboard/Finance/Reports (OPEN_ITEMS I2) — not to M7's surfaces. On the
-      components M7 does own the rule is unchanged and live: it is what removed
-      `delta: 11` from Students, `delta: 11` from Teachers and `delta: 3.4` /
-      `delta: 2.1` from Classes.
+      view-scoped: a data module legitimately carries series the dashboard
+      samples are drawn from, while a render surface derives its numbers from
+      the domains. It removed `delta: 11` from Students, `delta: 11` from
+      Teachers and `delta: 3.4` / `delta: 2.1` from Classes, and it stays live.
     */
     pattern: /\bdelta\s*:/,
     what: "a trend delta nothing measured",
     probe: "delta: 3.4",
+    viewOnly: true,
+  },
+  {
+    /*
+      A COMPONENT reaches the demo dataset through a domain hook, never by
+      handling the raw `DemoDataset` envelope: the moment a view destructures
+      the dataset it owns a migration, a merge rule and a fake it never built
+      (§18). The seed builders legitimately name the type; a view may not.
+    */
+    pattern: /\bDemoDataset\b/,
+    what: "the raw demo dataset instead of a domain hook",
+    probe: 'const data: DemoDataset = sample.empty();',
     viewOnly: true,
   },
   { pattern: /\b3_600_000\b|\b3600000\b/, what: "a hardcoded course fee", probe: "{faToman(3_600_000)}" },
@@ -280,15 +282,6 @@ const OWN_SOURCE_PATTERNS: readonly Pattern[] = [
   { pattern: /\blocalStorage\b|\bsessionStorage\b/, what: "browser storage", probe: 'localStorage.setItem("k", "v");' },
   { pattern: /new Date\(\s*\)/, what: "the wall clock instead of the academy clock", probe: "const now = new Date();" },
   { pattern: /Date\.now\(/, what: "the wall clock instead of the academy clock", probe: "const t = Date.now();" },
-  {
-    pattern: /\bACADEMY_NOW\b/,
-    what: "the frozen demo instant",
-    probe: "if (minutes >= ACADEMY_NOW) return;",
-    // The constant is DEFINED in the fixture module and read by the seed, so this
-    // pattern addresses components only (§9: a view must reach time through
-    // `academyNow()` / `useAcademyNow()`, never through the frozen value).
-    viewOnly: true,
-  },
   { pattern: /NODE_ENV/, what: "a test-environment branch", probe: 'if (process.env.NODE_ENV === "test") return;' },
 ];
 
@@ -373,13 +366,13 @@ function readViolations(source: string): string[] {
 const RULES: readonly Rule[] = [
   {
     id: "fixture-import",
-    forbids: "imports a fixture collection, resolver or helper instead of a domain read",
-    probe: 'import { weekSessions } from "@/data/records";',
+    forbids: "imports a dataset collection, resolver or helper from the seed instead of a domain read",
+    probe: 'import { weekSessions } from "@/domains/demo/academySeed";',
     find: (source) => fixtureImportViolations(source),
   },
   {
     id: "fixture-relation",
-    forbids: "names a fixture relation resolver or the legacy weekly template",
+    forbids: "names a seed relation resolver or the legacy weekly template",
     probe: "const sessions = weekSessions.filter((w) => w.classId === teacherById(id)?.id);",
     find: (source) => relationViolations(source),
   },
@@ -523,9 +516,17 @@ const SURFACES: readonly Surface[] = [
     // returns — and removed the rest: the attendance badge and its «۳ کلاس
     // ثبت‌نشده» hint (no scoped attendance query exists to answer it), the
     // command hints that asserted counts, and the room option's availability
-    // percentage.
+    // percentage. M10 moved the chrome itself: navigation vocabulary lives in
+    // `src/lib/navigation.ts`, the quick-action sheet in its overlay component
+    // and the NL command catalog in the palette's own module.
     pendingBecause: [],
-    files: [ACADEMY_FILE, "src/components/layout/Sidebar.tsx"],
+    files: [
+      "src/lib/navigation.ts",
+      "src/components/layout/Sidebar.tsx",
+      "src/components/overlays/ActionSheet.tsx",
+      "src/components/overlays/commands.ts",
+      "src/components/overlays/CommandPalette.tsx",
+    ],
     enforcedRules: [...SCOPE_RULES["navigation"]],
     stagedRules: [],
   },
@@ -666,7 +667,13 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
     expect(surfaceById("students").files).toContain("src/views/Students.tsx");
     expect(surfaceById("teachers").files).toContain("src/views/Teachers.tsx");
     expect(surfaceById("classes").files).toContain("src/views/Classes.tsx");
-    expect(surfaceById("navigation").files).toEqual([ACADEMY_FILE, "src/components/layout/Sidebar.tsx"]);
+    expect(surfaceById("navigation").files).toEqual([
+      "src/lib/navigation.ts",
+      "src/components/layout/Sidebar.tsx",
+      "src/components/overlays/ActionSheet.tsx",
+      "src/components/overlays/commands.ts",
+      "src/components/overlays/CommandPalette.tsx",
+    ]);
     // The plumbing is the surface CP1 itself owns, so its discovery is asserted.
     expect(surfaceById("m7-relation-plumbing").files).toContain("src/views/relations/academyDay.ts");
     expect(surfaceById("m7-relation-plumbing").files).toContain("src/views/relations/indexById.ts");
@@ -731,8 +738,8 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
       ).toBe(true);
     }
     // And every view-scoped pattern is scoped in BOTH directions: it fires on a
-    // component and is silent on the data modules, which legitimately carry the
-    // fixture series a later phase still renders.
+    // component and is silent on the data module, which legitimately carries
+    // the raw dataset shape a component must never destructure.
     const viewScoped = ALL_PATTERNS.filter((entry) => entry.viewOnly);
     expect(viewScoped.length, "the gate must still scope something to components").toBeGreaterThanOrEqual(2);
     for (const entry of viewScoped) {
@@ -741,34 +748,32 @@ describe("the M7 surfaces are scanned, and staged honestly", () => {
         `view-scoped pattern 「${entry.what}」 did not fire on a component — it protects nothing`,
       ).not.toEqual([]);
       expect(
-        patternFind([entry])(ACADEMY_SOURCE, ACADEMY_FILE),
+        patternFind([entry])(SEED_SOURCE, SEED_FILE),
         `view-scoped pattern 「${entry.what}」 must not speak about a data module`,
       ).toEqual([]);
     }
   });
 
-  it("reads the fixture modules' own exports, so a fixture added later is covered", () => {
-    // Non-vacuity: the forbidden sets come from the modules, not from a list that
+  it("reads the seed module's own exports, so a collection added later is covered", () => {
+    // Non-vacuity: the forbidden set comes from the module, not from a list that
     // can quietly go stale.
-    expect(FORBIDDEN_FIXTURE_VALUES.length).toBeGreaterThan(20);
-    for (const name of ["weekSessions", "todayAttendance", "classById", "teacherById", "classes", "students", "rooms", "teachers"]) {
-      expect(FORBIDDEN_FIXTURE_VALUES).toContain(name);
+    expect(FORBIDDEN_SEED_VALUES.length).toBeGreaterThan(10);
+    for (const name of ["weekSessions", "todayAttendance", "classById", "teacherById", "classes", "students", "rooms", "teachers", "academy"]) {
+      expect(FORBIDDEN_SEED_VALUES).toContain(name);
     }
-    expect(FORBIDDEN_ACADEMY_VALUES).toContain("schedule");
-    expect(FORBIDDEN_ACADEMY_VALUES).toContain("quickActions");
-    // The names that are not exports of the fixture module are here for a
+    // The names that are not exports of the seed module are here for a
     // reason, and each reason is named.
     expect(Object.keys(RELATION_ALIASES).sort()).toEqual(["academyClasses", "roomById", "studentIds"]);
     for (const name of RELATION_IDENTIFIERS) {
       if (name in RELATION_ALIASES) continue;
       expect(
-        FORBIDDEN_FIXTURE_VALUES,
-        `「${name}」 is not (or no longer) a fixture export — the identifier list is stale`,
+        FORBIDDEN_SEED_VALUES,
+        `「${name}」 is not (or no longer) a seed export — the identifier list is stale`,
       ).toContain(name);
     }
-    // And the allowed side stays small: the moment a collection joins it, this
-    // test is the place that says no.
-    expect([...ALLOWED_FIXTURE_VALUES].every((name) => name.endsWith("Label") || name.startsWith("WEEKDAYS") || name === "viewTitles")).toBe(true);
+    // And the allowed side stays EMPTY: the seed exports data only, so the
+    // moment anything becomes importable here, this test is the place that says no.
+    expect(ALLOWED_SEED_VALUES.size).toBe(0);
   });
 });
 
@@ -826,15 +831,15 @@ describe("a surface that relapses is caught by the rules it is enforced on", () 
       probe.
     */
     const relapses: readonly { what: string; source: string }[] = [
-      { what: "the fixture template", source: 'import { weekSessions } from "@/data/records";' },
-      { what: "the class resolver", source: 'import { classById } from "@/data/records";' },
-      { what: "the fixture student collection", source: 'import { students } from "@/data/records";' },
-      { what: "the fixture class collection", source: 'import { classes } from "@/data/records";' },
-      { what: "the frozen weekday column", source: 'import { TODAY_INDEX } from "@/data/records";' },
+      { what: "the seeded weekly template", source: 'import { weekSessions } from "@/domains/demo/academySeed";' },
+      { what: "the class resolver", source: 'import { classById } from "@/domains/demo/academySeed";' },
+      { what: "the seeded student collection", source: 'import { students } from "@/domains/demo/academySeed";' },
+      { what: "the seeded class collection", source: 'import { classes } from "@/domains/demo/academySeed";' },
+      { what: "the frozen weekday column", source: 'import { TODAY_INDEX } from "@/domains/demo/academySeed";' },
       {
-        what: "an aliased fixture collection",
+        what: "an aliased seeded collection",
         source:
-          'import { classes as academyClasses } from "@/data/records";\nconst waitlist = academyClasses.filter((c) => c.teacherId === t.id).reduce((a, b) => a + b.waitlist, 0);',
+          'import { classes as academyClasses } from "@/domains/demo/academySeed";\nconst waitlist = academyClasses.filter((c) => c.teacherId === t.id).reduce((a, b) => a + b.waitlist, 0);',
       },
       {
         what: "a fixture relation named without importing it",
@@ -879,21 +884,21 @@ describe("a surface that relapses is caught by the rules it is enforced on", () 
 
   it("rejects every coupling CP4 retired from the classes surface", () => {
     replay("classes", [
-      { what: "the fixture template", source: 'import { weekSessions } from "@/data/records";' },
-      { what: "the teacher resolver", source: 'import { teacherById } from "@/data/records";' },
-      { what: "the fixture student collection", source: 'import { students } from "@/data/records";' },
-      { what: "the fixture room array", source: 'import { rooms } from "@/data/records";' },
+      { what: "the seeded weekly template", source: 'import { weekSessions } from "@/domains/demo/academySeed";' },
+      { what: "the teacher resolver", source: 'import { teacherById } from "@/domains/demo/academySeed";' },
+      { what: "the seeded student collection", source: 'import { students } from "@/domains/demo/academySeed";' },
+      { what: "the seeded room array", source: 'import { rooms } from "@/domains/demo/academySeed";' },
       {
         what: "the denormalized roster projection",
         source:
-          'import { students } from "@/data/records";\nconst roster = students.filter((s) => c.studentIds.includes(s.id));',
+          'import { students } from "@/domains/demo/academySeed";\nconst roster = students.filter((s) => c.studentIds.includes(s.id));',
       },
       { what: "the projection on its own", source: "const memberIds = new Set(c.studentIds);" },
       {
         what: "an aliased room array",
-        source: 'import { rooms as academyRooms } from "@/data/records";\nconst room = academyRooms.find((r) => r.id === c.roomId);',
+        source: 'import { rooms as academyRooms } from "@/domains/demo/academySeed";\nconst room = academyRooms.find((r) => r.id === c.roomId);',
       },
-      { what: "a fixture relation named without importing it", source: "const rows = weekSessions.filter((w) => w.classId === c.id);" },
+      { what: "a dataset relation named without importing it", source: "const rows = weekSessions.filter((w) => w.classId === c.id);" },
       { what: "the class resolver named without importing it", source: "const cl = classById(id);" },
       { what: "the seat-occupancy trend delta", source: "const stat = { label: 'اشغال صندلی', value: 'x', delta: 3.4 };" },
       { what: "the attendance trend delta", source: "const stat = { label: 'میانگین حضور', value: 'x', delta: 2.1 };" },

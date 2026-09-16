@@ -1,11 +1,57 @@
-import type { InstrumentId, Severity, Target } from "./academy";
+/**
+ * The canonical DEMO seed collections (M10).
+ *
+ * Relocated from the dissolved fixture module `src/data/records.ts` with the
+ * data — ids, order, values, relationships — byte-identical (F2: the weekly
+ * grid and same-day attendance legacy collections are protected; backup
+ * envelope, migration semantics and I8 behavior are unchanged). The entity
+ * TYPES are imported from their canonical domain owners; they are not
+ * re-defined here and they are not duplicated anywhere.
+ *
+ * WHAT THIS MODULE IS: the raw material of the demo dataset. `seed.ts`
+ * assembles a `DemoDataset` from it; the other seeds (`learningSeed`,
+ * `progressSeed`, `schedulingSeed`) derive their live collections from it.
+ *
+ * WHAT THIS MODULE IS NOT: a read seam. No view or component may import
+ * values from here — reads go through the repositories/read models, and the
+ * boundary is enforced by `src/__tests__/m10Boundary.test.ts`.
+ *
+ * WHAT WAS REMOVED on relocation (see `src/domains/deferred.ts` for the F4
+ * ledger): fabricated measurements and statistics (`studentStats`,
+ * `financeKpis`, `revenueByStream`, `attendanceTrend`, `attendanceByDay`),
+ * fabricated UI content (`reportCatalog`, `attentionQueue`,
+ * `intelligenceCards`), the fixture-only `subscriptions` rows, and the
+ * presentation configuration (`settingsSections`, `libraryShelves`,
+ * `messageTemplates`) — each either has an honest owner elsewhere or is
+ * recorded as deferred. Static vocabulary moved to its owners (students /
+ * library / `src/lib/financeVocabulary.ts`); weekday names to
+ * `src/domains/scheduling/weekdays.ts`.
+ */
+import type { Student } from "@/domains/students/types";
+import type { Teacher } from "@/domains/teachers/types";
+import type { AcademyClass } from "@/domains/classes/types";
+import type { Resource } from "@/domains/library/types";
+import type {
+  AttendanceRoster,
+  Conversation,
+  GridSession,
+  Invoice,
+} from "./types";
 
 /* ------------------------------------------------------------------ */
-/* Shared vocabulary                                                    */
+/* Demo academy identity + clock anchor                                  */
 /* ------------------------------------------------------------------ */
-export const WEEKDAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"] as const;
-export const WEEKDAYS_SHORT = ["ش", "ی", "د", "س", "چ", "پ", "ج"] as const;
-export const TODAY_INDEX = 3; // سه‌شنبه
+/**
+ * The demo academy's identity. `status` and `statusLine` were dropped at M10
+ * (D3): nothing measured the academy saying «خوب» about itself.
+ */
+export const academy = {
+  name: "آکادمی موسیقی آوا",
+  tagline: "سامانهٔ یکپارچهٔ آموزشگاه",
+};
+
+/** سه‌شنبه — the demo "today" anchor of the legacy weekly grid (F2). */
+export const TODAY_INDEX = 3;
 
 export const rooms = [
   { id: "r1", name: "اتاق ۱", kind: "پیانو · آکوستیک", capacity: 6, occupancy: 94 },
@@ -14,48 +60,9 @@ export const rooms = [
   { id: "r4", name: "اتاق ۴", kind: "درامز · عایق صوتی", capacity: 5, occupancy: 58 },
 ];
 
-export type PaymentStatus = "paid" | "due" | "overdue";
-export const paymentLabel: Record<PaymentStatus, string> = { paid: "تسویه", due: "در انتظار", overdue: "سررسید گذشته" };
-
-export type StudentStatus = "active" | "at-risk" | "paused" | "waitlist";
-export const studentStatusLabel: Record<StudentStatus, string> = {
-  active: "فعال",
-  "at-risk": "در معرض ریزش",
-  paused: "متوقف",
-  waitlist: "لیست انتظار",
-};
-
 /* ------------------------------------------------------------------ */
 /* Teachers                                                             */
 /* ------------------------------------------------------------------ */
-export interface TeacherNote {
-  date: string;
-  text: string;
-}
-
-export interface Teacher {
-  id: string;
-  name: string;
-  /** Profile photo as a `MediaAsset.id`. See `Student.photoMediaId`. */
-  photoMediaId?: string;
-  instrument: InstrumentId;
-  title: string;
-  students: number;
-  utilization: number; // % of contracted hours filled
-  weeklyHours: number;
-  contractHours: number;
-  attendanceRate: number;
-  retention: number;
-  todayClasses: string[]; // session ids
-  /** availability grid: 7 days × 4 blocks (صبح، ظهر، عصر، شب) — 0 free, 1 booked, 2 unavailable */
-  availability: number[][];
-  since: string;
-  phone: string;
-  /** `inactive` = deactivated; excluded from new class/session assignment. */
-  status: "active" | "absent-tomorrow" | "light-load" | "inactive";
-  bio: string;
-}
-
 const av = (rows: string[]) => rows.map((r) => r.split("").map(Number));
 
 export const teachers: Teacher[] = [
@@ -120,54 +127,6 @@ export const teachers: Teacher[] = [
 /* ------------------------------------------------------------------ */
 /* Students                                                             */
 /* ------------------------------------------------------------------ */
-export interface StudentNote {
-  by: string;
-  date: string;
-  text: string;
-}
-export interface ActivityEntry {
-  date: string;
-  kind: "session" | "payment" | "note" | "enroll" | "absence" | "message";
-  text: string;
-}
-
-export interface Student {
-  id: string;
-  /**
-   * Iranian national ID (کد ملی), normalized to 10 ASCII digits.
-   * Required and unique per academy. Sensitive personal data — see
-   * `src/lib/nationalId.ts` and docs/architecture/students.md.
-   * BACKEND REQUIRED: NOT NULL + UNIQUE(organization_id, national_id) + INDEX.
-   */
-  nationalId: string;
-  name: string;
-  /**
-   * Profile photo, as a `MediaAsset.id`. Never a data URL: binaries live in
-   * the media domain (IndexedDB in demo, object storage in production).
-   */
-  photoMediaId?: string;
-  instrument: InstrumentId;
-  teacherId: string;
-  level: string;
-  levelStep: number; // 1..6
-  status: StudentStatus;
-  payment: PaymentStatus;
-  sessionsUsed: number;
-  sessionsTotal: number;
-  attendance: number;
-  progress: number;
-  since: string;
-  age: number;
-  phone: string;
-  guardian?: string;
-  nextClass?: { day: string; time: string; room: string };
-  lastSeen: string;
-  balance: number;
-  notes: StudentNote[];
-  activity: ActivityEntry[];
-  skills: { label: string; value: number }[];
-}
-
 const skillSet = (a: number, b: number, c: number, d: number) => [
   { label: "تکنیک", value: a },
   { label: "ریتم", value: b },
@@ -318,39 +277,9 @@ export const students: Student[] = [
 export const studentById = (id: string) => students.find((s) => s.id === id);
 export const teacherById = (id: string) => teachers.find((t) => t.id === id);
 
-export const studentStats = {
-  total: 1248,
-  active: 1186,
-  atRisk: students.filter((s) => s.status === "at-risk").length,
-  waitlist: students.filter((s) => s.status === "waitlist").length,
-  newThisMonth: 48,
-};
-
 /* ------------------------------------------------------------------ */
 /* Classes                                                              */
 /* ------------------------------------------------------------------ */
-export interface AcademyClass {
-  id: string;
-  /** Absent means active. "archived" hides the class from new enrollment. */
-  status?: "active" | "archived";
-  title: string;
-  instrument: InstrumentId;
-  teacherId: string;
-  roomId: string;
-  kind: "private" | "group";
-  level: string;
-  days: number[];
-  time: string;
-  duration: number;
-  enrolled: number;
-  capacity: number;
-  attendanceAvg: number;
-  waitlist: number;
-  tuition: number;
-  termProgress: number;
-  studentIds: string[];
-}
-
 export const classes: AcademyClass[] = [
   { id: "cl1", title: "پیانو گروهی · میانی", instrument: "piano", teacherId: "t1", roomId: "r1", kind: "group", level: "سطح ۳", days: [3, 5], time: "17:00", duration: 90, enrolled: 5, capacity: 6, attendanceAvg: 94, waitlist: 4, tuition: 3_600_000, termProgress: 68, studentIds: ["st1", "st5", "st7", "st13", "st11"] },
   { id: "cl2", title: "پیانو انفرادی · پیشرفته", instrument: "piano", teacherId: "t1", roomId: "r1", kind: "private", level: "سطح ۵", days: [3], time: "14:00", duration: 60, enrolled: 1, capacity: 1, attendanceAvg: 98, waitlist: 0, tuition: 4_800_000, termProgress: 44, studentIds: ["st7"] },
@@ -367,20 +296,8 @@ export const classes: AcademyClass[] = [
 export const classById = (id: string) => classes.find((c) => c.id === id);
 
 /* ------------------------------------------------------------------ */
-/* Weekly schedule grid                                                 */
+/* Weekly schedule grid (F2 — protected legacy collection)              */
 /* ------------------------------------------------------------------ */
-export interface GridSession {
-  id: string;
-  classId: string;
-  day: number;
-  start: string;
-  end: string;
-  roomId: string;
-  teacherId: string;
-  conflictWith?: string;
-  cancelled?: boolean;
-}
-
 export const weekSessions: GridSession[] = [
   { id: "g1", classId: "cl3", day: 0, start: "09:30", end: "10:30", roomId: "r2", teacherId: "t2" },
   { id: "g2", classId: "cl7", day: 0, start: "16:00", end: "17:00", roomId: "r1", teacherId: "t3" },
@@ -414,25 +331,8 @@ export const weekSessions: GridSession[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/* Attendance                                                           */
+/* Attendance (F2 — protected legacy collection)                        */
 /* ------------------------------------------------------------------ */
-export type AttendanceMark = "present" | "absent" | "late" | "excused" | null;
-export const attendanceLabel: Record<Exclude<AttendanceMark, null>, string> = {
-  present: "حاضر",
-  absent: "غایب",
-  late: "تأخیر",
-  excused: "موجه",
-};
-
-export interface AttendanceRoster {
-  sessionId: string;
-  classId: string;
-  time: string;
-  state: "recorded" | "pending" | "in-progress" | "cancelled";
-  recordedBy?: string;
-  entries: { studentId: string; mark: AttendanceMark }[];
-}
-
 export const todayAttendance: AttendanceRoster[] = [
   { sessionId: "g7", classId: "cl2", time: "09:00", state: "recorded", recordedBy: "سارا احمدی", entries: [{ studentId: "st7", mark: "present" }] },
   { sessionId: "g8", classId: "cl3", time: "09:30", state: "recorded", recordedBy: "محمد رضایی", entries: [{ studentId: "st2", mark: "absent" }, { studentId: "st8", mark: "present" }, { studentId: "st6", mark: "late" }] },
@@ -444,38 +344,9 @@ export const todayAttendance: AttendanceRoster[] = [
   { sessionId: "g13", classId: "cl10", time: "15:30", state: "cancelled", entries: [] },
 ];
 
-export const attendanceTrend = [
-  { label: "۴ هفته پیش", value: 88 },
-  { label: "۳ هفته پیش", value: 90 },
-  { label: "۲ هفته پیش", value: 91 },
-  { label: "هفتهٔ گذشته", value: 93 },
-  { label: "این هفته", value: 92 },
-];
-
-export const attendanceByDay = [
-  { day: "شنبه", present: 42, absent: 4, late: 2 },
-  { day: "یکشنبه", present: 48, absent: 3, late: 3 },
-  { day: "دوشنبه", present: 45, absent: 5, late: 1 },
-  { day: "سه‌شنبه", present: 51, absent: 4, late: 2 },
-  { day: "چهارشنبه", present: 47, absent: 6, late: 2 },
-  { day: "پنجشنبه", present: 39, absent: 3, late: 1 },
-];
-
 /* ------------------------------------------------------------------ */
-/* Finance                                                              */
+/* Finance — demo records (D6/I2: seeded, but no view reads them)        */
 /* ------------------------------------------------------------------ */
-export interface Invoice {
-  id: string;
-  studentId: string;
-  amount: number;
-  issued: string;
-  due: string;
-  status: PaymentStatus;
-  overdueDays?: number;
-  term: string;
-  method?: string;
-}
-
 export const invoices: Invoice[] = [
   { id: "INV-1042", studentId: "st8", amount: 1_200_000, issued: "۱۴۰۴/۱۲/۰۲", due: "۱۴۰۴/۱۲/۰۷", status: "overdue", overdueDays: 12, term: "دورهٔ زمستان" },
   { id: "INV-1038", studentId: "st9", amount: 850_000, issued: "۱۴۰۴/۱۲/۰۴", due: "۱۴۰۴/۱۲/۱۰", status: "overdue", overdueDays: 9, term: "دورهٔ زمستان" },
@@ -497,64 +368,11 @@ export const payments = [
   { id: "p5", studentId: "st12", amount: 900_000, when: "۲ روز پیش", method: "کارت‌خوان" },
 ];
 
-export type SubscriptionStatus = "active" | "paused" | "expiring";
-export const subscriptionStatusLabel: Record<SubscriptionStatus, string> = { active: "فعال", paused: "متوقف", expiring: "در حال اتمام" };
 
-export interface Subscription {
-  id: string;
-  studentId: string;
-  plan: string;
-  term: string;
-  amount: number; // per period, Toman
-  nextBilling: string;
-  since: string;
-  status: SubscriptionStatus;
-  method: string;
-}
-
-export const subscriptions: Subscription[] = [
-  { id: "sub1", studentId: "st7", plan: "پیانو انفرادی · پیشرفته", term: "دورهٔ ۳ ماهه", amount: 4_800_000, nextBilling: "۲۵ اسفند", since: "بهمن ۱۴۰۱", status: "active", method: "درگاه آنلاین" },
-  { id: "sub2", studentId: "st11", plan: "ویولن کودکان", term: "دورهٔ ۳ ماهه", amount: 2_600_000, nextBilling: "۱۸ اسفند", since: "دی ۱۴۰۳", status: "active", method: "کارت‌خوان" },
-  { id: "sub3", studentId: "st10", plan: "درامز مقدماتی", term: "دورهٔ ۳ ماهه", amount: 3_000_000, nextBilling: "۳۰ اسفند", since: "اسفند ۱۴۰۳", status: "active", method: "انتقال بانکی" },
-  { id: "sub4", studentId: "st3", plan: "آواز · تکنیک صدا", term: "ماهانه", amount: 1_150_000, nextBilling: "۲۰ اسفند", since: "دی ۱۴۰۳", status: "expiring", method: "درگاه آنلاین" },
-  { id: "sub5", studentId: "st9", plan: "آواز · تکنیک صدا", term: "ماهانه", amount: 1_150_000, nextBilling: "۲۲ اسفند", since: "آبان ۱۴۰۲", status: "active", method: "درگاه آنلاین" },
-  { id: "sub6", studentId: "st12", plan: "تئوری و سلفژ", term: "دورهٔ ۲ ماهه", amount: 1_800_000, nextBilling: "۲۸ اسفند", since: "آذر ۱۴۰۳", status: "active", method: "کارت‌خوان" },
-  { id: "sub7", studentId: "st13", plan: "پیانو کودکان", term: "ماهانه", amount: 950_000, nextBilling: "—", since: "بهمن ۱۴۰۳", status: "paused", method: "—" },
-  { id: "sub8", studentId: "st6", plan: "گیتار · نوجوانان", term: "دورهٔ ۳ ماهه", amount: 3_200_000, nextBilling: "۲۴ اسفند", since: "مرداد ۱۴۰۳", status: "expiring", method: "درگاه آنلاین" },
-];
-
-export const financeKpis = {
-  monthRevenue: 125_430_000,
-  monthTarget: 142_000_000,
-  collected: 88,
-  outstanding: 3_450_000,
-  overdue: 2_450_000,
-  avgTuition: 3_180_000,
-  activeSubscriptions: 412,
-};
-
-export const revenueByStream = [
-  { label: "شهریهٔ دوره‌ای", value: 78, amount: 97_800_000 },
-  { label: "کلاس‌های خصوصی", value: 14, amount: 17_560_000 },
-  { label: "جلسات جبرانی", value: 5, amount: 6_270_000 },
-  { label: "اجارهٔ اتاق تمرین", value: 3, amount: 3_800_000 },
-];
 
 /* ------------------------------------------------------------------ */
 /* Messages                                                             */
 /* ------------------------------------------------------------------ */
-export interface Conversation {
-  id: string;
-  name: string;
-  role: "student" | "teacher" | "guardian" | "group";
-  topic: string;
-  unread: number;
-  last: string;
-  when: string;
-  pinned?: boolean;
-  messages: { from: "me" | "them"; text: string; when: string }[];
-}
-
 export const conversations: Conversation[] = [
   {
     id: "m1", name: "محمد رضایی", role: "teacher", topic: "غیبت فردا", unread: 2, last: "فردا نمی‌توانم کلاس‌ها را برگزار کنم…", when: "۱۰:۳۲", pinned: true,
@@ -588,34 +406,11 @@ export const conversations: Conversation[] = [
   },
 ];
 
-export const messageTemplates = [
-  { id: "tpl1", label: "یادآوری پرداخت", text: "سلام. یادآوری می‌کنیم شهریهٔ دورهٔ جاری تا تاریخ … قابل پرداخت است." },
-  { id: "tpl2", label: "کلاس جبرانی", text: "سلام. جلسهٔ جبرانی شما در تاریخ … ساعت … در … برگزار می‌شود." },
-  { id: "tpl3", label: "لغو کلاس", text: "با عرض پوزش، کلاس امروز به دلیل … لغو شد. جلسهٔ جبرانی هماهنگ خواهد شد." },
-  { id: "tpl4", label: "خوش‌آمدگویی", text: "به آکادمی موسیقی آوا خوش آمدید 🎵 اولین جلسهٔ شما …" },
-];
 
 /* ------------------------------------------------------------------ */
 /* Library                                                              */
 /* ------------------------------------------------------------------ */
-export type ResourceKind = "sheet" | "audio" | "video" | "doc";
-export const resourceKindLabel: Record<ResourceKind, string> = { sheet: "نت", audio: "صوت", video: "ویدیو", doc: "جزوه" };
 
-export interface Resource {
-  id: string;
-  title: string;
-  composer: string;
-  kind: ResourceKind;
-  instrument: InstrumentId;
-  level: string;
-  size: string;
-  duration?: string;
-  pages?: number;
-  added: string;
-  uses: number;
-  /** normalized waveform peaks, only for audio */
-  peaks?: number[];
-}
 
 const peaks = (seed: number) => Array.from({ length: 40 }, (_, i) => 0.25 + Math.abs(Math.sin(i * seed)) * 0.75);
 
@@ -632,191 +427,4 @@ export const resources: Resource[] = [
   { id: "res10", title: "پرلود شمارهٔ ۱ · باخ", composer: "ی. س. باخ", kind: "sheet", instrument: "piano", level: "میانی", size: "۷۴۰ کیلوبایت", pages: 4, added: "۱ ماه پیش", uses: 97 },
   { id: "res11", title: "آکوردهای پایهٔ پاپ", composer: "محمد رضایی", kind: "doc", instrument: "guitar", level: "پایه", size: "۱٫۱ مگابایت", pages: 9, added: "۱ ماه پیش", uses: 203 },
   { id: "res12", title: "اجرای نمونه · کنسرت پاییز", composer: "ارکستر نوجوانان آوا", kind: "video", instrument: "violin", level: "همه", size: "۳۲۰ مگابایت", duration: "۲۴:۵۰", added: "۲ ماه پیش", uses: 45 },
-];
-
-export const libraryShelves = [
-  { id: "sh1", label: "نت‌های پیانو", kind: "sheet" as ResourceKind, instrument: "piano" as InstrumentId, count: 86 },
-  { id: "sh2", label: "متدهای پایه", kind: "doc" as ResourceKind, instrument: "theory" as InstrumentId, count: 34 },
-  { id: "sh3", label: "نمونه‌های شنیداری", kind: "audio" as ResourceKind, instrument: "voice" as InstrumentId, count: 52 },
-  { id: "sh4", label: "ویدیوهای آموزشی", kind: "video" as ResourceKind, instrument: "violin" as InstrumentId, count: 28 },
-];
-
-/* ------------------------------------------------------------------ */
-/* Reports — narrative analytics                                        */
-/* ------------------------------------------------------------------ */
-export interface ReportDef {
-  id: string;
-  title: string;
-  question: string;
-  period: string;
-  headline: string;
-  delta: number;
-  finding: string;
-  evidence: { label: string; value: string }[];
-}
-
-export const reportCatalog: ReportDef[] = [
-  {
-    id: "rp1", title: "روند ثبت‌نام", question: "چرا رشد هنرجویان شتاب گرفته است؟", period: "۶ ماه گذشته",
-    headline: "۱٬۲۴۸ هنرجوی فعال", delta: 18.6,
-    finding: "۶۴٪ ثبت‌نام‌های جدید از معرفی هنرجویان فعلی آمده‌اند — بیشترین سهم از کلاس‌های گروهی پیانو.",
-    evidence: [
-      { label: "معرفی هنرجویان", value: "۶۴٪" },
-      { label: "شبکه‌های اجتماعی", value: "۲۱٪" },
-      { label: "مراجعهٔ حضوری", value: "۱۵٪" },
-    ],
-  },
-  {
-    id: "rp2", title: "ماندگاری هنرجویان", question: "چه کسانی می‌مانند و چرا؟", period: "۱۲ ماه گذشته",
-    headline: "۹۱٫۴٪ نرخ ماندگاری", delta: 4.2,
-    finding: "هنرجویان کلاس‌های گروهی ۲٫۳ برابر بیشتر از کلاس‌های خصوصی تمدید می‌کنند.",
-    evidence: [
-      { label: "ماندگاری کلاس گروهی", value: "۹۴٪" },
-      { label: "ماندگاری کلاس خصوصی", value: "۸۶٪" },
-      { label: "ریزش در ۳ ماه اول", value: "۷٪" },
-    ],
-  },
-  {
-    id: "rp3", title: "بار کاری مدرسین", question: "ظرفیت کجا هدر می‌رود؟", period: "این ماه",
-    headline: "۷۹٪ بهره‌وری میانگین", delta: 11,
-    finding: "۴ مدرس زیر ۶۰٪ ظرفیت هستند؛ هم‌زمان ۹ نفر در لیست انتظار پیانو و گیتار قرار دارند.",
-    evidence: [
-      { label: "ظرفیت بلااستفاده", value: "۲۶ ساعت/هفته" },
-      { label: "لیست انتظار", value: "۹ نفر" },
-      { label: "درآمد بالقوه", value: "۹٫۶ میلیون/ماه" },
-    ],
-  },
-  {
-    id: "rp4", title: "اشغال کلاس و اتاق", question: "کدام بازه‌ها گلوگاه هستند؟", period: "این هفته",
-    headline: "۸۲٪ اشغال میانگین", delta: 3.4,
-    finding: "سه‌شنبه عصر به ۹۱٪ رسیده در حالی که اتاق ۴ در همان بازه ۵۸٪ خالی است.",
-    evidence: [
-      { label: "اوج · سه‌شنبه ۱۶–۱۹", value: "۹۱٪" },
-      { label: "کف · جمعه", value: "۴۲٪" },
-      { label: "اتاق کم‌استفاده", value: "اتاق ۴" },
-    ],
-  },
-  {
-    id: "rp5", title: "روند درآمد", question: "رشد درآمد از کجا می‌آید؟", period: "۶ ماه گذشته",
-    headline: "۱۲۵٫۴ میلیون تومان", delta: 6.2,
-    finding: "۷۸٪ درآمد از شهریهٔ دوره‌ای است؛ رشد اصلی از افزایش نرخ تمدید آمده نه از افزایش قیمت.",
-    evidence: [
-      { label: "شهریهٔ دوره‌ای", value: "۷۸٪" },
-      { label: "نرخ تمدید", value: "۸۹٪" },
-      { label: "وصول تا امروز", value: "۸۸٪" },
-    ],
-  },
-  {
-    id: "rp6", title: "محبوبیت سازها", question: "تقاضا به کدام سمت می‌رود؟", period: "فصل جاری",
-    headline: "پیانو ۴۲٪ سهم", delta: 3,
-    finding: "آواز سریع‌ترین رشد فصل را دارد (+۲ واحد سهم) و ظرفیت فعلی پاسخگوی لیست انتظار نیست.",
-    evidence: [
-      { label: "پیانو", value: "۵۲۴ نفر" },
-      { label: "گیتار", value: "۳۱۲ نفر" },
-      { label: "رشد آواز", value: "+۲ واحد" },
-    ],
-  },
-  {
-    id: "rp7", title: "حضور و غیاب", question: "غیبت‌ها در کدام روزها و کلاس‌ها متمرکز است؟", period: "این ترم",
-    headline: "۹۲٪ نرخ حضور", delta: 2.1,
-    finding: "غیبت در کلاس‌های گروهی عصر (به‌ویژه چهارشنبه) نزدیک به دو برابر میانگین است؛ نیمی از غایبان بدون اطلاع قبلی غیبت کرده‌اند.",
-    evidence: [
-      { label: "نرخ حضور این ترم", value: "۹۲٪" },
-      { label: "غیبت بدون اطلاع", value: "۵۱٪" },
-      { label: "اوج غیبت", value: "چهارشنبه" },
-    ],
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/* Intelligence — Signal → Evidence → Insight → Action                  */
-/* ------------------------------------------------------------------ */
-export interface IntelligenceCard {
-  id: string;
-  kind: "trend" | "risk" | "idea";
-  signal: string;
-  evidence: { label: string; value: string }[];
-  insight: string;
-  action: { label: string; target: Target };
-  confidence: "بالا" | "متوسط";
-  source: string;
-}
-
-export const intelligenceCards: IntelligenceCard[] = [
-  {
-    id: "ic1", kind: "trend", signal: "نرخ ماندگاری هنرجویان ۴٫۲٪ افزایش یافته است.",
-    evidence: [
-      { label: "کلاس گروهی", value: "۹۴٪" },
-      { label: "کلاس خصوصی", value: "۸۶٪" },
-      { label: "بازهٔ بررسی", value: "۱۲ ماه" },
-    ],
-    insight: "بیشترین اثر از کلاس‌های گروهی پیانو و گیتار آمده است؛ ترکیب فعلی دوره‌ها را حفظ کنید.",
-    action: { label: "گزارش ماندگاری", target: { view: "reports", id: "rp2" } },
-    confidence: "بالا", source: "۱۲ ماه داده ثبت‌نام و تمدید",
-  },
-  {
-    id: "ic2", kind: "risk", signal: "۸ هنرجو جلسات استفاده‌نشده دارند که تا پایان دوره منقضی می‌شوند.",
-    evidence: [
-      { label: "جلسات باقی", value: "۲۹ جلسه" },
-      { label: "ارزش تقریبی", value: "۶٫۴ میلیون" },
-      { label: "مهلت", value: "۱۰ روز" },
-    ],
-    insight: "اگر تا پایان هفته یادآوری ارسال شود، بر پایهٔ دوره‌های قبل حدود دوسوم جلسات استفاده می‌شوند.",
-    action: { label: "ارسال یادآوری", target: { view: "messages", filter: "unused-sessions" } },
-    confidence: "متوسط", source: "پروندهٔ جلسات دورهٔ زمستان",
-  },
-  {
-    id: "ic3", kind: "idea", signal: "ظرفیت کلاس‌های پیانو در سه‌شنبه‌ها به ۹۱٪ رسیده است.",
-    evidence: [
-      { label: "لیست انتظار", value: "۴ نفر" },
-      { label: "اتاق ۴", value: "۵۸٪ آزاد" },
-      { label: "درآمد بالقوه", value: "۹٫۶ میلیون/ماه" },
-    ],
-    insight: "یک بازهٔ ۱۶:۰۰ سه‌شنبه در اتاق ۴ می‌تواند لیست انتظار را پوشش دهد بدون افزایش بار مدرس ارشد.",
-    action: { label: "ایجاد بازهٔ زمانی", target: { view: "schedule", filter: "new-slot" } },
-    confidence: "بالا", source: "تقویم ۸ هفتهٔ گذشته",
-  },
-];
-
-/* ------------------------------------------------------------------ */
-/* Extended attention queue                                             */
-/* ------------------------------------------------------------------ */
-export interface AttentionRecord {
-  id: string;
-  severity: Severity;
-  category: "مالی" | "هنرجو" | "برنامه" | "مدرس" | "عملیات";
-  what: string;
-  why: string;
-  action: string;
-  target: Target;
-  age: string;
-}
-
-export const attentionQueue: AttentionRecord[] = [
-  { id: "aq1", severity: "critical", category: "مالی", what: "۳ فاکتور سررسید گذشته", why: "۲٬۴۵۰٬۰۰۰ تومان معوق · قدیمی‌ترین ۱۲ روز", action: "پیگیری پرداخت", target: { view: "finance", filter: "overdue" }, age: "۱۲ روز" },
-  { id: "aq2", severity: "warning", category: "هنرجو", what: "۵ هنرجو در معرض ریزش", why: "بیش از دو هفته غیبت متوالی · همگی جلسهٔ باقی‌مانده دارند", action: "مشاهده و تماس", target: { view: "students", filter: "at-risk" }, age: "۲ هفته" },
-  { id: "aq3", severity: "warning", category: "برنامه", what: "تعارض اتاق در ساعت ۱۴:۰۰", why: "ویولن و پیانو پیشرفته هم‌زمان در اتاق ۱ ثبت شده‌اند", action: "حل تعارض", target: { view: "schedule", filter: "conflict" }, age: "امروز" },
-  { id: "aq4", severity: "warning", category: "مدرس", what: "غیبت ۲ مدرس در فردا", why: "۵ کلاس بدون مدرس · ۱ کلاس هنوز جایگزین ندارد", action: "تعیین جایگزین", target: { view: "teachers", filter: "absent-tomorrow" }, age: "فردا" },
-  { id: "aq5", severity: "info", category: "عملیات", what: "۳ کلاس امروز حضور و غیاب ثبت‌نشده", why: "ثبت دیرهنگام دقت گزارش حضور را کاهش می‌دهد", action: "ثبت حضور", target: { view: "attendance", filter: "pending" }, age: "امروز" },
-  { id: "aq6", severity: "info", category: "هنرجو", what: "۲ نفر در لیست انتظار بدون تماس", why: "بیش از ۴۸ ساعت از ثبت درخواست گذشته است", action: "تماس با لیست انتظار", target: { view: "students", filter: "waitlist" }, age: "۲ روز" },
-];
-
-/* ------------------------------------------------------------------ */
-/* Settings                                                             */
-/* ------------------------------------------------------------------ */
-export const settingsSections = [
-  { id: "profile", label: "پروفایل آموزشگاه", hint: "نام، نشانی، ساعات کاری" },
-  { id: "users", label: "کاربران و دسترسی", hint: "۱۲ کاربر · ۴ نقش" },
-  { id: "appearance", label: "ظاهر", hint: "تم، تراکم، حرکت" },
-  { id: "notifications", label: "اعلان‌ها", hint: "کانال‌ها و رویدادها" },
-  { id: "localization", label: "بومی‌سازی", hint: "زبان، تقویم، واحد پول" },
-  { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، قواعد جلسه، دادهٔ دمو" },
-  { id: "data", label: "ورود و خروج اطلاعات", hint: "CSV و Excel · هنرجویان، مدرسین، کلاس‌ها" },
-] as const;
-
-export const accessRoles = [
-  { id: "role1", label: "مدیر ارشد", members: 2, scope: "دسترسی کامل به همهٔ بخش‌ها" },
-  { id: "role2", label: "پذیرش", members: 4, scope: "هنرجویان، برنامه‌ریزی، پیام‌ها" },
-  { id: "role3", label: "مدرس", members: 5, scope: "کلاس‌های خود، حضور و غیاب، کتابخانه" },
-  { id: "role4", label: "مالی", members: 1, scope: "فاکتورها، پرداخت‌ها، گزارش مالی" },
 ];

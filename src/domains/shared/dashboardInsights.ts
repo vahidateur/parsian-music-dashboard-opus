@@ -52,15 +52,12 @@
  * the same disclosure `useAcademyMetrics` makes for its 500-record attendance
  * sample.
  */
-import {
-  WEEKDAYS,
-  WEEKDAYS_SHORT,
-  studentStatusLabel,
-  type AcademyClass,
-  type IntelligenceCard,
-  type Student,
-} from "@/data/records";
-import type { AttentionItem, ClassSession, ClassStatus, Signal } from "@/data/academy";
+import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
+import { studentStatusLabel } from "@/domains/students/types";
+import type { AcademyClass } from "@/domains/classes/types";
+import type { Student } from "@/domains/students/types";
+import type { AttentionItem, Signal, Target } from "@/lib/viewContracts";
+import type { ClassSession, ClassSessionStatus } from "@/domains/scheduling/types";
 import { faNum, faPercent, faToman, NO_DATA } from "@/lib/format";
 import { meanOf, ratioPct, topBy } from "@/lib/stats";
 import { instrumentName } from "@/domains/instruments/catalog";
@@ -80,7 +77,7 @@ export interface SeriesPoint {
 export interface FlowRow {
   /** The row `TimelineEvent` renders — built from stored records, not a fixture. */
   session: ClassSession;
-  status: ClassStatus;
+  status: ClassSessionStatus;
 }
 
 export interface FlowSummary {
@@ -570,6 +567,22 @@ function clashes(a: Session, b: Session): boolean {
 }
 
 /**
+ * Clashing session PAIRS within the given sessions of a single day — pairs
+ * share a room and overlap in time (the `clashes` rule above). Exported so the
+ * day pulse (Hero/TopBar) counts conflicts with exactly the rule the flow rows
+ * use; a second conflict definition would be a second read path (D14).
+ */
+export function conflictPairs(sessions: readonly Session[]): { a: Session; b: Session }[] {
+  const pairs: { a: Session; b: Session }[] = [];
+  for (let i = 0; i < sessions.length; i += 1) {
+    for (let j = i + 1; j < sessions.length; j += 1) {
+      if (clashes(sessions[i], sessions[j])) pairs.push({ a: sessions[i], b: sessions[j] });
+    }
+  }
+  return pairs;
+}
+
+/**
  * Rows for `TimelineEvent`, built from the stored session and the class, room and
  * teacher it points at.
  *
@@ -603,7 +616,7 @@ export function deriveFlowRows(
     const start = minutesOf(session.startTime);
     const end = minutesOf(session.endTime);
 
-    let status: ClassStatus;
+    let status: ClassSessionStatus;
     if (session.status === "cancelled") status = "cancelled";
     else if (session.status === "completed") status = "done";
     else if (start !== null && end !== null && start <= nowMinutes && nowMinutes < end) status = "live";
@@ -742,6 +755,25 @@ export function deriveReceivables(students: readonly Student[], limit = 6): Rece
  * such thing, and §15 keeps "academy intelligence" a UX pattern over display
  * data.
  */
+
+/**
+ * A Signal → Evidence → Insight → Action card. The canonical owner is this
+ * module (M10): the type belongs to the dashboard-intelligence surface whose
+ * producer lives here, and the design gallery samples it from
+ * `src/components/ds/samples.ts`. Relocated unchanged from the dissolved
+ * fixture module.
+ */
+export interface IntelligenceCard {
+  id: string;
+  kind: "trend" | "risk" | "idea";
+  signal: string;
+  evidence: { label: string; value: string }[];
+  insight: string;
+  action: { label: string; target: Target };
+  confidence: "بالا" | "متوسط";
+  source: string;
+}
+
 export function deriveIntelligenceCards({
   metrics,
   students,

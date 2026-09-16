@@ -10,9 +10,10 @@
  * on the right input.
  */
 import { useMemo } from "react";
-import type { InstrumentId } from "@/data/academy";
+import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
-import { studentStatusLabel, type PaymentStatus, type Student, type StudentStatus } from "@/data/records";
+import { studentStatusLabel, type Student, type StudentStatus } from "./types";
+import type { PaymentStatus } from "@/lib/financeVocabulary";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";

@@ -7,7 +7,7 @@ import { getAuthRepository } from "@/domains/registry";
 import { can, canAccessView, canAll, canAny, type Permission } from "./permissions";
 import type { AuthRepository } from "./repository";
 import type { AuthStatus, LoginInput, Session } from "./types";
-import type { ViewId } from "@/data/academy";
+import type { ViewId } from "@/lib/viewContracts";
 
 /**
  * Authentication state for the whole app.
