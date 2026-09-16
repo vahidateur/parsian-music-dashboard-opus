@@ -443,17 +443,19 @@ Twenty decisions gate the product-feature phase planned in
 [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md). They are numbered **D1–D20** to
 keep them distinguishable from the §1–§18 architecture decisions above, which they never override:
 where a D-entry touches an existing section, that section is the authority and the D-entry says so.
-Fifteen are decided (**D2** by the owner's decision recorded on 2026-09-16, ahead of M8 and before any
+Eighteen are decided (**D2** by the owner's decision recorded on 2026-09-16, ahead of M8 and before any
 M8 work was authorized, **D5** by the owner's decision recorded on 2026-09-16, ahead of M10 and before
-any M10 work was authorized, **D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's,
+any M10 work was authorized, **D7**, **D8** and **D9** by the owner's decision-record pass of
+2026-09-16, ahead of M11 and before any M11 work was authorized — D9 carrying its measurement-derived
+baseline and budget shape — **D3** and **D4** by M1's landing, **D10**, **D11** and **D12** by M3's,
 **D13** by M5's, **D14**, **D15** and **D16** by M6's, **D17** by M7's, and **D18**, **D19** and
 **D20** by the **Class Compensation** workstream — **D18**/**D19** at P1's landing
 `a21311d7e32c82e3a46b1581c94f6b3478bf646c`, **D20** at C-2's
 `07f89db779ca4017dbbb22db1ac7624b18fb95be` — the last three decided outside the M0–M11 milestone
 sequence), two are settled by deferral
-(**D1**, **D6**), and three are open (**D7**, **D8**, **D9**) —
-each open entry names the milestone it blocks. An open decision is **not** an invitation to implement
-— it is a stop sign with a reason. The three M3 entries were missing from this table until M4's CP0
+(**D1**, **D6**), and none remains open.
+Recording a decision is **not** an invitation to implement — M11 still requires its own explicit
+owner authorization. The three M3 entries were missing from this table until M4's CP0
 documentation reconciliation, while their sections below already existed; the heading's **D1–D12**
 was right and the table was not. **D13** was added by M5's documentation reconciliation, together with
 its table row and its section, so that neither half drifts the way those three did. **D14–D16** were
@@ -473,9 +475,9 @@ milestone.
 | D4 | `clear()` semantics against the zero-record invariant | **DECIDED — M1-specific** | M1 |
 | D5 | Shape of the fixture / type / seed separation — one canonical owner per entity type, one shared owner for cross-cutting presentation types, domain vocabulary with its domain, UI/presentation configuration stays presentation-owned, no monolithic replacement | **DECIDED — recorded before M10** | M10 |
 | D6 | Creating the finance and reports domains in this phase | **DEFERRED** | M-none (I2) |
-| D7 | How accessibility is enforced | **OPEN** | M11 |
-| D8 | How the api-mode hybrid is disclosed | **OPEN** | M11 |
-| D9 | Bundle budget | **OPEN — measure first** | M11 |
+| D7 | How accessibility is enforced | **DECIDED — recorded before M11** | M11 |
+| D8 | How the api-mode hybrid is disclosed | **DECIDED — recorded before M11** | M11 |
+| D9 | Bundle budget | **DECIDED — recorded before M11, measurement-derived** | M11 |
 | D10 | A write target taken from a rendered row is paired with a parent resolved independently | **DECIDED — landed with M3** | M3 |
 | D11 | An assignment surface renders outside the list it assigns to, and derives its own selection | **DECIDED — landed with M3** | M3 |
 | D12 | A failed secondary read is reported as a failure, never as an empty list | **DECIDED — landed with M3's F1 fix** | M3 |
@@ -1064,7 +1066,33 @@ the gap is **assertions**, not implementation — and assertions can be written 
 **Enforced by.** the milestone suites added in M11, alongside the existing behaviour tests; the
 product requirement itself is §10's *"Persian-first, RTL, accessible, performant"*.
 
-**Status.** 🔶 Open. Blocks M11.
+**Decision recorded (2026-09-16, documents only — the decision gate for M11).** The accessibility
+approach is **assertion-first, dependency-free**, in four categories, all running in jsdom with the
+toolchain that already exists:
+
+1. **Accessible-identity assertions** — interactive surfaces are located by role and accessible name
+   (Testing Library `getByRole`/`getAllByRole` semantics), and a surface that loses its name or its
+   role fails the suite. The design-system catalogue (`src/components/ds/`) is the binding perimeter
+   because every shipped control is plated there, and the same rule applies to the shell navigation,
+   dialogs and forms that are their own surfaces.
+2. **Focus-management assertions** — every dialog must take focus on open, trap it while open,
+   escape on `Escape`, and return focus to its invoker on close; the command palette keeps a working
+   keyboard flow end-to-end (arrows, Enter, Escape) with its honest-empty state reachable by keyboard.
+3. **Motion-preference assertions** — when `prefers-reduced-motion: reduce` is set, no element may
+   keep an active CSS animation or transition (asserted on the classes/styles the design system
+   emits), and the preference's persistence path stays honoured (the existing honoured-and-persisted
+   seam is not re-engineered here).
+4. **Static-language/RTL checks preserved** — the existing RTL and Persian-language invariants keep
+   passing; nothing in M11 may narrow them.
+
+**No new dependency is introduced.** An axe-family audit package — or any other dependency — requires
+separate owner authorization before it is even considered; the register entry stands independently of
+that. **Enforcement shape (M11's work, not this pass):** these assertions live in the existing
+behaviour suites plus one a11y suite M11 adds; they may not weaken
+`routeProtection`, `privacyPosture` or any existing gate to pass.
+
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
+M11's implementation of it is **not authorized**.
 
 ### D8. api mode must disclose which domains are still local
 
@@ -1082,9 +1110,33 @@ so reads as a production-ready deployment (§3, §9, §15).
 **Enforced by.** `src/domains/registry.ts`, `docs/architecture/data-layer.md`, and the M11 test
 that asserts the disclosure renders in api mode and not in demo mode.
 
-**Status.** 🔶 Open. Blocks M11. Note the deployment constraint that goes with it: both edge
-configs set `connect-src 'self'`, so an api deployment is same-origin or the CSP changes by
-recorded decision.
+**Decision recorded (2026-09-16, documents only — the decision gate for M11).** When the configured
+data source is `api` but a domain still resolves to its Demo implementation, the product **discloses
+that to the operator, persistently, on the surfaces identity is judged from** (the shell chrome at
+all times, and the login screen at entry) — as a first-class, non-dismissable status, never a
+footnote and never an icon-only hint an operator could mistake for decoration. The set disclosed is
+the registry's own source of truth: the **eleven** getters that resolve Demo in both modes —
+`instruments`, `learning`, `chat`, `media`, `library`, `branding`, `gallery`, `progress`,
+`scheduling`, `attendance`, and `compensation` (added by the Class Compensation workstream, whose own
+registry paragraph already cites D8 by name; the D8 frame's original count of ten predates it).
+Seven getters switch on `isApiMode()` today (`students`, `teachers`, `rooms`, `classes`,
+`enrollments`, the auth repository, `users`); the disclosure must derive its wording from the same
+registry seam — one enumeration, no second list to drift.
+
+Wording rules: the indicator **names the local/demo-backed state plainly** (it never implies a
+server answered, and it performs no fabricated health-check, ping, or connected-now theatre — no
+backend behaviour is invented to make it look alive); it is **absent in demo mode**, where the
+demo-source disclosure already exists; and in api mode it reads exactly like what it is — a hybrid
+that is not production-ready — matching §3, §9, §15 and the §37 no-dishonest-fallback clause of
+`docs/architecture/data-layer.md`.
+
+**Enforcement shape (M11's work, not this pass):** a test asserts the disclosure renders in api mode
+and does not render in demo mode, and that the disclosed set equals the registry's demo-in-both-modes
+set; the existing `connect-src 'self'` deployment constraint stands (an api deployment is same-origin,
+or the CSP changes by a separately recorded decision).
+
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
+M11's implementation of it is **not authorized**.
 
 ### D9. The bundle budget is measured before it is set
 
@@ -1102,7 +1154,50 @@ guess with a test wrapped around it.
 today), `src/index.css` (the six imported `@fontsource/vazirmatn` weights, of which the design
 system uses four), `src/__tests__/cspCompatibility.test.ts` and the budget assertion M11 adds.
 
-**Status.** 🔶 Open — deliberately empty. Blocks M11, and is filled in by M11's measurement step.
+**Measured baseline (2026-09-16, `npm run build` on the accepted M10 closure `c16890f`, the only
+measurement this pass performed — read-only, no source or config touched):**
+
+| Artifact | raw bytes | gzip bytes |
+|---|---|---|
+| `dist/assets/index-*.js` (the single JS chunk — all views eager) | 984 476 | 273 791 |
+| `dist/assets/index-*.css` | 115 373 | 16 453 |
+| `dist/index.html` | 1 885 | 999 |
+| **JS + CSS + HTML gzip total** | — | **291 243** |
+| **Total `dist/`** | **2 188 993** | — |
+
+plus three JPgs (410 331 B raw) and twelve Vazirmatn font files. `src/App.tsx` carries **14** static
+view imports with **zero** `lazy(` / `Suspense` (the spec's figure of 13 predates the Class
+Compensation workstream's view; measured today). The `@fontsource/vazirmatn` class census is fresh:
+`font-normal` 1, `font-medium` 115, `font-semibold` 77, `font-bold` 6 — and **`font-light`,
+`font-thin`, `font-extrabold`, `font-black` occur zero times** — so weights **300 and 800 are
+provably unused**; their two `@import` lines are dead code. Vite's `chunkSizeWarningLimit` fires at
+500 kB today; `vite.config.ts:45-67` pins *why* assets must stay hashed-external (`script-src
+'self'`). `src/__tests__/cspCompatibility.test.ts`'s eight tests key on `dist/index.html` via
+`describe.skipIf`, so the same tree skips them without a build and runs them with one (this is the
+documented source of the contingent 8-skipped runs in earlier session logs).
+
+**Decision recorded (2026-09-16, documents only).** D9 fixes the **shape and anchors** of the budget,
+and defers each end-figure to the mandated order (measure → split → encode — spec §M11 step ⑦):
+
+1. **Order is enforceable:** no numeric end-figure enters any test before M11's implementation pass
+   has measured the post-split build; the numbers above are the anchors, not targets.
+2. **Direction is enforceable:** the entry chunk's **gzip size must strictly decrease** from
+   273 791 B after splitting (lazy view mounting as the I6 done-when demands, plus a vendor chunk);
+   total JS+CSS+HTML gzip may not exceed the baseline by more than **+5%** (a split pays some
+   loader/chunk overhead and the margin must be pre-declared rather than negotiated after the fact);
+   and no **single** chunk may reach the 400 000 B gzip mark, which is where the 500 kB raw warning
+   class begins.
+3. **The dead weights are removed, not merely budgeted:** the two provably unused
+   `@fontsource/vazirmatn` imports (300 and 800) go; a weight returning later must name its consumer.
+4. **The warning is cleared by splitting, never by threshold:** raising `chunkSizeWarningLimit` is
+   recorded as a failure condition of the milestone, not a knob.
+
+None of these margins is an *outcome* prediction — they are baseline-anchored bounds the M11
+measurement writes into a test after the split lands, replacing any that the real split proves wrong
+(with the proof recorded).
+
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
+M11's implementation of it is **not authorized**.
 
 ### D10. A write target taken from a rendered row is paired with a parent resolved independently
 
