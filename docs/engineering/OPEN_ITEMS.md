@@ -20,7 +20,7 @@ drift — re-grep before editing.
 - **What (as found):** Both domains are complete and heavily tested (Group A: 211 tests; Group D: 79
   tests) with `repository.ts` / `demoRepository.ts` / `apiRepository.ts` / hooks / registry
   wiring — yet `src/views/Scheduling.tsx` and `src/views/Attendance.tsx` read static fixtures from
-  `src/data/records.ts` and `src/data/academy.ts`. **All of that sentence is now history:** M4 wired
+  src/data/records.ts (the design-time fixture module, dissolved at M10) and src/data/academy.ts (the design-time fixture module, dissolved at M10). **All of that sentence is now history:** M4 wired
   the scheduling view to its own domain and **M5 wired the attendance view to its own**, so neither
   reads fixtures any more. The umbrella item is closed — see the Status bullet, which checks the
   original "Done when" clause by clause rather than restating it in easier terms.
@@ -49,7 +49,7 @@ drift — re-grep before editing.
     `src/__tests__/writeFeedbackHonesty.test.ts`.
   - **H1a is CLOSED (2026-09-14, by M4).** What this bullet used to record — `src/views/Scheduling.tsx`
     importing `TODAY_INDEX, WEEKDAYS, classById, rooms, teacherById, teachers, weekSessions,
-    GridSession` from `src/data/records.ts`, rendering a frozen weekday as "today" and carrying a
+    GridSession` from src/data/records.ts (the design-time fixture module, dissolved at M10), rendering a frozen weekday as "today" and carrying a
     fabricated room, occupancy and free-slot narrative (**H4**'s shape inside this view) — is gone.
     The fixture imports are out of the file, and every row is now a `Session` read through
     `useSessions` (`src/domains/scheduling/useScheduling.ts:49`) for a bounded `from`/`to` window
@@ -122,8 +122,8 @@ drift — re-grep before editing.
     writes (`getAttendanceRepository()`). Its remaining reads — `useClasses`, `useTeachers`,
     `useStudentList` — resolve ids the domain's records carry into labels, exactly as the scheduling
     view's do, and none of them is a source of register data.
-  - *"the fixture imports are gone"* — the file imports nothing from `src/data/records.ts` or
-    `src/data/academy.ts`; `grep -nE "src/data/|todayAttendance|attendanceTrend|attendanceByDay|attendanceLabel|AttendanceRoster"`
+  - *"the fixture imports are gone"* — the file imports nothing from src/data/records.ts (the design-time fixture module, dissolved at M10) or
+    src/data/academy.ts (the design-time fixture module, dissolved at M10); `grep -nE "src/data/|todayAttendance|attendanceTrend|attendanceByDay|attendanceLabel|AttendanceRoster"`
     over the view and both of its panels matches only prose inside comments, never an import or a use,
     and `src/views/__tests__/attendanceNoFixtures.test.ts` pins that structurally ("imports nothing
     from the fixture module", "names no fixture symbol anywhere in the view or its panels").
@@ -296,7 +296,7 @@ drift — re-grep before editing.
 
 ### H4. Dashboard insight panels present fabricated text as measurement — ✅ CLOSED (2026-09-16, landed by M9 at `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`)
 - **What:** `src/components/panels/Intelligence.tsx`, `BusinessIntelligence.tsx`,
-  `Signals.tsx` and `AttentionAndFlow.tsx` import static fixtures from `src/data/academy.ts`
+  `Signals.tsx` and `AttentionAndFlow.tsx` import static fixtures from src/data/academy.ts (the design-time fixture module, dissolved at M10)
   (`signals`, `growthSeries`, `revenueSeries`, `occupancy`, `quickActions`, `todayFlowIds`) and
   render sentences such as a retention-rate increase or a Tuesday piano-occupancy figure that
   have no relation to stored records — including in EMPTY, where there are zero records.
@@ -484,7 +484,7 @@ drift — re-grep before editing.
 
 ### I1. Static sidebar badges and hints — ✅ CLOSED (2026-09-15, landed by M7)
 `src/components/layout/Sidebar.tsx:120` ~~renders `badge={n.badge}` from the static `navGroups`
-fixture in `src/data/academy.ts`, so counts (e.g. attendance, messages) are shown in EMPTY
+fixture in src/data/academy.ts (the design-time fixture module, dissolved at M10), so counts (e.g. attendance, messages) are shown in EMPTY
 where the true value is zero.~~ **Done when:** badges come from repositories and disappear at
 zero. (Verified false-in-EMPTY during the Phase 2 audit; deliberately not fixed there because
 it needs live counters, not a lifecycle change.)
@@ -659,11 +659,18 @@ API implementations, tests, and no fixture imports.
 - **Update (2026-09-14, M5):** these are now the **only two views left on
   `src/__tests__/writeFeedbackHonesty.test.ts`'s `FIXTURE_DRIVEN_VIEWS` list** — scheduling graduated
   at M4 and attendance at M5 — and `src/views/Reports.tsx:143` is the **last shipped consumer of the
-  attendance fixtures**, still rendering `attendanceByDay` from `src/data/records.ts`. The wired
+  attendance fixtures**, still rendering `attendanceByDay` from src/data/records.ts (the design-time fixture module, dissolved at M10). The wired
   attendance view reads neither `attendanceTrend` nor `attendanceByDay`, so this item's Reports half
   now also owns the only place a fabricated attendance chart survives. Cleaning the fixtures
   themselves up is **D5**/**M10**, not a wiring milestone's work — and **M9** (2026-09-16) left these
   two views exactly as they were, because it created no domain.
+- **Update (2026-09-16, M10 `e7a64b7777be36ddd97fc3337898fad794118e5b`):** the fixtures themselves
+  are now dissolved and the two views are **no longer fixture renderers** — they carry an explicit,
+  visible, mechanically testable **deferral** (`src/lib/financeReportsDeferral.ts`, **D6**; the
+  surfaces name this work item on screen, and `src/__tests__/m10Boundary.test.ts` enforces that no
+  domain read sits behind it). **They are NOT implemented and this item stays open unchanged:** the
+  Finance and Reports domains, repositories and backend seam remain future work; per its done-when
+  clause they still do not follow the Students pattern.
 
 ### I3. Learning-content → level assignment UI — ✅ CLOSED (2026-09-13, landed and completed by M3)
 The learning domain models `Piece` vs `LearningContent`, programs, levels, placement history,
@@ -753,7 +760,7 @@ weakened.
 `Math.max(...data)`, which on `data={[]}` yield `Infinity` / `-Infinity` and degenerate
 coordinates; `BusinessIntelligence` (`src/components/panels/BusinessIntelligence.tsx:63`) reads
 `revenueSeries[n - 1].value` and `[n - 2].value`, which throws on an empty series. Unreachable
-today because every caller passes a static fixture from `src/data/academy.ts` — it becomes
+today because every caller passes a static fixture from src/data/academy.ts (the design-time fixture module, dissolved at M10) — it becomes
 reachable the moment H4 lands. **Done when:** both guard empty input and render `NO_DATA`
 (`src/lib/format.ts`), with a test that passes `[]`.
 - **Status (2026-09-16, M9 `8d34eb3d1cd639cffc794596250c897b5ed4b6b3`):** closed, and closed **first** —
@@ -1352,7 +1359,7 @@ recovery and the zero-record tests both remaining green.
   `:105`, and roughly twenty sites across the views and dialogs.
 - **Why it is not urgent today:** learning resolves to the demo repository in **both** modes
   (`src/domains/registry.ts:143`), and the demo catalogue is derived from **12** seeded library
-  resources (`src/data/records.ts:622` → `src/domains/demo/learningSeed.ts:137`), so the ceiling is
+  resources (src/data/records.ts (the design-time fixture module, dissolved at M10) → `src/domains/demo/learningSeed.ts:137`), so the ceiling is
   about sixteen times the data that can exist. It becomes real truncation the day a learning API can
   hold more than 200 active items — with no message, which is the part that matters.
 - **Smallest owning boundary:** either paginate these lists (a pager does not exist in
@@ -1458,8 +1465,10 @@ recovery and the zero-record tests both remaining green.
 - **L1. Command-palette natural-language matching is substring-loose** (`q.includes(keyword)`),
   so it can return unrelated commands. Improve tokenisation/scoring; keep the palette's
   repository-backed result honesty (it already reports «چیزی پیدا نشد» rather than inventing rows).
-- **L2. Dead code:** `TeacherNote` is declared at `src/data/records.ts:31` and never used
-  anywhere. Delete it or land the feature that needs it.
+- **L2. Dead code:** `TeacherNote` is declared at `src/domains/teachers/types.ts:14` — the type was
+  **relocated** there at M10 (a type-only move from records.ts:31 — the design-time fixture module,
+  dissolved at M10) — and still never used anywhere: the relocation did not create a consumer, so the
+  item stays open with its new owner path. Delete it or land the feature that needs it.
 - **L3. Domain README stubs contradict the code — ✅ both retired (2026-09-14).** `src/domains/scheduling/README.md`
   said "Planned domain — **not implemented in Phase A**" while the domain was implemented and
   protected, and sketched a contract that does not exist (`POST /sessions/{id}/move`, a version-checked
@@ -1524,7 +1533,7 @@ recovery and the zero-record tests both remaining green.
 - **L6. Two claims in the wired attendance view's own header comment are false, and a documents-only
   pass did not fix them** (`src/views/Attendance.tsx:6` and `:12`). The comment says the view used to
   render `todayAttendance` "(nine registers keyed by session ids `g7`–`g15` …)" where
-  `src/data/records.ts:436` holds **eight** — the keys are `g7`, `g8`, `g9`, `g10`, `g11`, `g13`,
+  src/data/records.ts (the design-time fixture module, dissolved at M10) holds **eight** — the keys are `g7`, `g8`, `g9`, `g10`, `g11`, `g13`,
   `g14`, `g15`, and `g12` appears in no register, although
   `src/views/__tests__/attendanceNoFixtures.test.ts:126` forbids all nine ids (a deliberately
   conservative gate, and the reason the mistake is easy to make). It also says "Attendance has had a
@@ -1539,6 +1548,12 @@ recovery and the zero-record tests both remaining green.
   says it made none. **Done when:** whoever next has authority over `src/views/` corrects the two
   sentences, or rewrites the comment from the code rather than from memory.
 
+- **L7. `docs/architecture/demo-data.md` names the dissolved src/data/ directory as the hand-authored
+  source of the demo dataset** (its line ~147): a **strict implementation contradiction** discovered at
+  M10 closure — the source moved to `src/domains/demo/academySeed.ts` at `e7a64b7`. Editing that file
+  is outside the five authorized drift targets of the M10 closure pass (its scope rule is STOP and
+  report rather than expand), so it is **recorded here for the next documentation pass with owner
+  authorization** instead of being fixed inline.
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 
 Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documentation only.

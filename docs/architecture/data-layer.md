@@ -71,8 +71,11 @@ interface StudentRepository {
 }
 ```
 
-Ids are domain ids (`"st1"`), never URLs. `Student` is reused from `src/data/records.ts`
+Ids are domain ids (`"st1"`), never URLs. `Student` is reused from `src/domains/students/types.ts`
 so there is exactly one entity shape in the app; only operation types are new.
+*(2026-09-16, M10: when this section was written the shared type lived in the design-time fixture
+module records.ts; M10 dissolved that module and moved the canonical owner to the students domain —
+this line now names the current owner.)*
 
 Implementations:
 

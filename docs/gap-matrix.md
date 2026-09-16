@@ -25,7 +25,11 @@ not exist yet.
 | gallery, settings, audit | — | — | — | — | **NOT IMPLEMENTED** — no directory at all |
 
 So: **3 of 14** requested domains have a repository contract. The other 11 views
-render static fixtures from `@/data/records` / `@/data/academy`.
+render static fixtures from `@/data/records` / `@/data/academy`. *(Date-labelled as of this count,
+pre-M10: the two fixture modules were dissolved at M10 — `e7a64b7`, 2026-09-16 — and views moved to
+domain repositories or to explicitly deferred surfaces; see
+[PHASES.md](engineering/PHASES.md) → M10, and the enforced boundary at
+`src/__tests__/m10Boundary.test.ts`, rather than this line's historical count.)*
 
 ## Phase status (§40)
 

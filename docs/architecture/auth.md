@@ -95,5 +95,5 @@ Reset / clear / import / restore all run `invalidateSessionIfUserMissing()`. If 
 ## Known limitations
 
 - **DEMO ONLY** — everything in the security statement above.
-- **PARTIAL** — repository wiring. The auth, users and students domains go through the repository layer. Most other views (Dashboard, Teachers, Classes, Scheduling, Attendance, Finance, Messages, Library, Reports and several panels) still import static fixtures from `@/data/records`; 24 files are affected. They are read-only presentational reads, not a second state store, but they must be migrated before backend integration.
+- **IMPLEMENTED at M10 (2026-09-16, `e7a64b7`)** — the fixture layer behind this limitation is dissolved: no view imports the design-time fixture modules any longer; reads go through the repository layer, and Finance/Reports render an explicitly deferred surface (D6 / OPEN_ITEMS I2) instead of fixture data. *(The earlier "PARTIAL — 24 files still import static fixtures from src/data/records" statement was a pre-M10 snapshot, kept as its record.)*
 - **BACKEND REQUIRED** — password reset, account lockout, audit logging, refresh tokens, server-enforced permissions.

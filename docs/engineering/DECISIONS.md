@@ -216,7 +216,7 @@ carry its query key, so the three derived reads behind `useSessionRoster`, `useG
 `useConflictCheck` expose only the session they were asked about, and `Paged<SessionListParams>`
 (`7e72887761f07f48e115160611a9785bfaae9060`) makes omitting `per_page` a compile error at the call
 site. ✅ **The view is wired to it (M4, 2026-09-14).** `src/views/Scheduling.tsx` no longer imports
-`src/data/records.ts` at all: its rows are `Session` values read through `useSessions` for a bounded
+src/data/records.ts (the design-time fixture module, dissolved at M10) at all: its rows are `Session` values read through `useSessions` for a bounded
 `from`/`to` window, and its three operations — `rescheduleSession`, `cancelSession` and
 `generateSessions` — are awaited repository calls made from
 `src/views/scheduling/SessionWriteDialogs.tsx` and `src/views/scheduling/GenerateSessionsDialog.tsx`,
@@ -520,7 +520,7 @@ see [OPEN_ITEMS.md](OPEN_ITEMS.md) **H2** and **I7**.
 
 **Decision.** Recorded by the owner on 2026-09-16, before M8 begins: the academy name, tagline,
 colours and font shown in the shell, the login screen and exports come from the persisted
-`BrandingSettings`, and the fixture value in `src/data/academy.ts` is demo seed material only.
+`BrandingSettings`, and the fixture value in src/data/academy.ts (the design-time fixture module, dissolved at M10) is demo seed material only.
 **The shipped default name is «آموزشگاه موسیقی پارسیان»** — the value `DEFAULT_BRANDING.academyName`
 carries in `src/domains/branding/types.ts` — so the decision renames nothing and requires no
 code change to be recorded. The fixture's «آکادمی موسیقی آوا» is the demo dataset's name, never the
@@ -601,7 +601,7 @@ authorized — this is the record M10's own first dependency asks for ("D5 recor
 execution"). The shape of the fixture / type / seed separation is governed by **seven principles**:
 
 1. **Every domain/entity type has one canonical owner.** An entity type defined in
-   `src/data/records.ts` today — `Student` at `src/data/records.ts:134`, re-imported by
+   src/data/records.ts (the design-time fixture module, dissolved at M10) today — `Student` at src/data/records.ts (the design-time fixture module, dissolved at M10), re-imported by
    `src/domains/students/types.ts`, `src/domains/teachers/types.ts` and
    `src/domains/classes/types.ts` — ends up owned by exactly one domain, and the other domains
    import it from there: the source of truth becomes a place, not a count.
@@ -615,7 +615,7 @@ execution"). The shape of the fixture / type / seed separation is governed by **
    configures the interface rather than describing a domain — the library shelf layout
    (`libraryShelves`), `settingsSections`, the composer's `messageTemplates`, navigation
    definitions, design-system samples — belongs to the presentation/application layer, not to any
-   domain and no longer to `src/data/`.
+   domain and no longer to the src/data/ directory (the design-time fixture directory, dissolved at M10).
 5. **Do not create a monolithic replacement such as `data/ui.ts`.** The separation must not
    re-create the defect one layer down: no single new dumping-ground module inherits the role the
    two fixture files play today. Presentation configuration lives with the surfaces that use it,
@@ -631,7 +631,7 @@ environment (§2) and its showcase dataset must stay exactly as rich.
 
 **Why.** The two files are **822 and 558 lines** at this record
 (`3a16549989f6ac41ba550e18107c62ec896f32a5`), imported by **44 non-test source files** carrying
-64 import statements. `src/data/records.ts`
+64 import statements. src/data/records.ts (the design-time fixture module, dissolved at M10)
 defines `Student`, which `src/domains/students/types.ts`, `src/domains/teachers/types.ts` and
 `src/domains/classes/types.ts` re-import so there is one source of truth; and
 `src/domains/demo/seed.ts` *derives* the shipped demo dataset from the same fixtures. Treating the
@@ -639,7 +639,7 @@ files as "fake data to delete" would break the type layer and the seed together 
 that a regression, not a cleanup. **One correction to the figures and the premise this entry
 carried from M0 onward:** they read "822 and 539 lines with 51 non-test importers", and the
 decision said the third role would be "deleted once M4–M9 have removed every reader" — the premise
-that the third role is *already unused* after M4–M9. Both are stale as recorded: `src/data/academy.ts`
+that the third role is *already unused* after M4–M9. Both are stale as recorded: src/data/academy.ts (the design-time fixture module, dissolved at M10)
 has grown to 558 lines, the importer count re-measures at 44 non-test files, and M4–M9 removed the
 third role's *wired-view* readers one surface at a time without emptying it — at this record,
 fixture **content** still reaches `src/views/Library.tsx` (`libraryShelves`),
@@ -684,7 +684,7 @@ the legacy session/attendance material and the hero panel:
    are honest content; fabricated metrics are dishonest claims. The separation D5 orders is a move of
    **ownership**, and a move of ownership changes the honesty of nothing.
 3. **Moving fabricated measurements to another file does NOT make them legitimate.** Relocating a
-   fabricated figure out of `src/data/academy.ts` into any other module — including a
+   fabricated figure out of src/data/academy.ts (the design-time fixture module, dissolved at M10) into any other module — including a
    presentation-owned one under principles 4 and 5 — leaves it fabricated. The defect is the claim,
    not the path. Presentation-owned configuration is legitimate *configuration*; it never becomes a
    legitimate *measurement*.
@@ -719,7 +719,7 @@ the legacy session/attendance material and the hero panel:
    `BrandingSettings` through `src/domains/branding/useBranding.ts` (`useBranding`,
    `applyBranding`, `useApplyBranding`, landed by M8 at
    `735617d0324a8f4ba2e243846eedf069d389751a` under **D2**) — not the demo fixture's `academy`
-   object in `src/data/academy.ts` that `Hero.tsx:57` currently renders.
+   object in src/data/academy.ts (the design-time fixture module, dissolved at M10) that `Hero.tsx:57` currently renders.
 3. **Fabricated status/measurement must not remain presented as factual product state.** Hero's
    hardcoded «وضعیت: سالم» badge (`src/components/hero/Hero.tsx:70`) and the
    `academy.statusLine` narrative beside it (`:69`) are fabricated product state; after M10 they
@@ -771,7 +771,7 @@ implementation file is left to M10, the *ownership principle* is what is fixed:
    shared owner. `ClassSession` / `ClassStatus` / `statusOf` follow scheduling semantic ownership;
    no duplicate definitions.
 2. **Label maps and UI configuration are category D.** They are not fixtures merely because they
-   currently live under `src/data/*`. Domain vocabulary lives with its owning domain
+   currently live under src/data/* — the design-time fixture directory, dissolved at M10. Domain vocabulary lives with its owning domain
    (`studentStatusLabel`, `paymentLabel`, `resourceKindLabel`, `attendanceLabel`,
    `subscriptionStatusLabel`); presentation/application configuration lives in the presentation or
    application ownership appropriate to its consumers (`viewTitles`, `navGroups`, `navItems`,
@@ -787,7 +787,7 @@ implementation file is left to M10, the *ownership principle* is what is fixed:
    Sidebar, TopBar, overlays and every other `src/components/**` surface are inside the M10
    boundary.
 4. **Category C policy.** M10's purpose is not to make old filenames disappear: a fabricated
-   measurement does not become acceptable by moving from `src/data/*` into another fixture file
+   measurement does not become acceptable by moving from src/data/* — the design-time fixture directory, dissolved at M10 — into another fixture file
    (F1 clause 3). Where a fabricated value is presented as factual product state: **remove** it;
    where an authoritative live repository/domain read already exists, **derive from it**; where no
    authoritative seam exists, use the appropriate **`NO_DATA`** state. **Never invent a replacement
@@ -838,11 +838,11 @@ implementation file is left to M10, the *ownership principle* is what is fixed:
     presentation-owned definition provided the dependency direction remains intentional and
     documented. `viewTitles` never moves into a generic data/config dumping ground, and `ViewId`
     itself remains a canonical cross-cutting type with one owner.
-12. **Baseline corrections.** The stale M0 figures ("51 non-test importers", `src/data/academy.ts`
+12. **Baseline corrections.** The stale M0 figures ("51 non-test importers", src/data/academy.ts (the design-time fixture module, dissolved at M10)
     = 539 lines) and the stale "already unused" third-role premise are replaced by the verified
     baseline at finalization: **44 non-test importer files carrying 64 of the 92 import statements**
     the two modules appear in repository-wide (the remaining 28 sit in 16 test files), with
-    `src/data/records.ts` at **822 lines** and `src/data/academy.ts` at **558 lines**. The current
+    src/data/records.ts (the design-time fixture module, dissolved at M10) at **822 lines** and src/data/academy.ts (the design-time fixture module, dissolved at M10) at **558 lines**. The current
     tree contains surviving readers. **L3 is already CLOSED (2026-09-14), leaves active M10 scope,
     and is not reopened.**
 13. **Documentation drift.** M10 keeps exactly the named drift targets — `docs/gap-matrix.md`,
@@ -853,7 +853,7 @@ implementation file is left to M10, the *ownership principle* is what is fixed:
     for consistency but M10 does not expand into a general documentation rewrite; **L6 remains
     outside M10.**
 14. **The M10 boundary test** enforces that no file under `src/views/**` or `src/components/**`
-    imports `src/data/records.ts` or `src/data/academy.ts` as legacy fixture sources, **with
+    imports src/data/records.ts (the design-time fixture module, dissolved at M10) or src/data/academy.ts (the design-time fixture module, dissolved at M10) as legacy fixture sources, **with
     meaningful mutation/liveness protection preserved**. The test is not satisfied by moving
     fabricated data into another hidden fixture module; Finance/Reports D6/I2 deferrals are
     explicit and testable rather than silently exempted; and existing gates remain at least as
@@ -901,13 +901,13 @@ and no gate.
    creates only a hidden replacement, forbidden by this record. Relocation changes ownership, not
    honesty (F1 clause 3), and a relocated fake remains a fake.
 6. **Existing fixture-backed exports must be classified individually during M10.** Each export the
-   two surfaces read — `src/views/Finance.tsx` (`revenueSeries` from `src/data/academy.ts`;
+   two surfaces read — `src/views/Finance.tsx` (`revenueSeries` from src/data/academy.ts (the design-time fixture module, dissolved at M10);
    `financeKpis`, `invoices`, `payments`, `paymentLabel`, `revenueByStream`, `studentById`,
    `subscriptionStatusLabel`, `subscriptions` and the `Invoice`, `PaymentStatus`, `Subscription`,
-   `SubscriptionStatus` types from `src/data/records.ts`) and `src/views/Reports.tsx`
-   (`growthSeries`, `instruments`, `occupancy` from `src/data/academy.ts`; `attendanceByDay`,
+   `SubscriptionStatus` types from src/data/records.ts (the design-time fixture module, dissolved at M10)) and `src/views/Reports.tsx`
+   (`growthSeries`, `instruments`, `occupancy` from src/data/academy.ts (the design-time fixture module, dissolved at M10); `attendanceByDay`,
    `attentionQueue`, `reportCatalog`, `teachers` and the `ReportDef` type from
-   `src/data/records.ts`) — gets its own classification (legitimate DEMO seed per F1, type,
+   src/data/records.ts (the design-time fixture module, dissolved at M10)) — gets its own classification (legitimate DEMO seed per F1, type,
    presentation configuration, deferred Finance/Reports reading, or fabricated measurement) and
    its own disposition. No bulk disposition is permitted.
 7. **If an export cannot be relocated without violating D6/I2, it remains explicitly deferred, and
@@ -922,7 +922,7 @@ and no gate.
 **The paragraph below is the status as it stood while D5 was still Open — kept as written, as the
 record of how M4–M9 constrained themselves against an undecided milestone.** 🔶 Open. Blocks M10; constrains M4–M9 (they remove *data* imports only, never the type
 or seed roles). **M4 has removed its reader:** `src/views/Scheduling.tsx` imports neither
-`src/data/records.ts` nor `src/data/academy.ts` any more. The scheduling fixtures stay in the dataset
+src/data/records.ts (the design-time fixture module, dissolved at M10) nor src/data/academy.ts (the design-time fixture module, dissolved at M10) any more. The scheduling fixtures stay in the dataset
 because `src/views/Classes.tsx` still reads them — the third role retiring one reader at a time, with
 the type and seed roles untouched. **M5 has removed the attendance view's reader too, and is the
 clearest case yet of the three roles being separable:** `src/views/Attendance.tsx` and both of its
@@ -942,6 +942,81 @@ paragraph saying the decision is "still **Open**", that the **Status** row is un
 M10 boundary test is "still to be written" describe the pre-decision state and stand only as its
 history. The reader-removal history itself — M4, M5, M7 and M9 each retiring their own surfaces'
 readers — is unchanged and remains the evidence the decision was recorded against.)*
+
+### D5 — M10 implementation resolution (recorded 2026-09-16, documents only; D5 itself is unchanged)
+
+M10 executed the finalized D5 separation in **one** implementation checkpoint
+`e7a64b7777be36ddd97fc3337898fad794118e5b` (*fix(reliability): M10 — dissolve the fixture boundary, no
+architectural sociology* — 82 files, 2 122 insertions / 1 942 deletions), **explicitly authorized by
+the owner** after the finalization above and built on parent
+`98af31b5b04022362f0bc95ca99c426f2d7c8446` — the D5 finalization record itself, implemented on branch
+arena/01a0aa83-parsian-music-dashboard-opus (branch-name errata: the earlier-designated
+arena/01a0a9b6-parsian-music-dashboard-opus **does not exist** in this repository and was never
+touched; no branch repair was performed). D5 remains **RECORDED / FINALIZED and unchanged**; this note
+records where the implementation actually put what the decision named, without amending the decision.
+
+**The four categories found exactly one owner each** (enforced by `src/__tests__/m10Boundary.test.ts`):
+
+- **A — domain/entity types** now live with their domains only: `Student`/`StudentNote` at
+  `src/domains/students/types.ts`, `Teacher`/`TeacherNote` at `src/domains/teachers/types.ts`,
+  `AcademyClass` at `src/domains/classes/types.ts`, `Resource` at `src/domains/library/types.ts`,
+  `Conversation` at `src/domains/demo/types.ts`, `InstrumentId` at `src/domains/instruments/types.ts`
+  (as the decision reserved: not cross-cutting), and the timeline `ClassSession` plus
+  `ClassSessionStatus` at `src/domains/scheduling/types.ts` — the disambiguation rename the clause
+  anticipated from the dissolved module's `ClassStatus`, **with no field removed** (see **Error A**) —
+  while the session-lifecycle `Session` stayed where the scheduling domain already owned it.
+- **B — the canonical DEMO seed** is `src/domains/demo/academySeed.ts` (data unchanged), consumed only
+  by the demo ownership layer (`src/domains/demo/*`), per **F1**: it is the *source data* the dataset
+  derives from, not a fixture for views.
+- **C — fabricated UI data/measurements** are **removed**, not relocated: every one is named and
+  classified individually in `src/lib/financeReportsDeferral.ts` (**D6**/**I2**), and the gate
+  tombstones them against quiet return. Where a *question* rather than a number mattered, the answer
+  became honest emptiness: `freeSlotsTuesday` is gone from executable production data, and the
+  palette's Tuesday free-class query (`nlCommands` n3) survives as an honest typed no-data result
+  that opens the schedule — **no free-slot search system was introduced** and no fabricated
+  availability claim remains. (Milestone-scoped decision preserved: the original question stays
+  recognisable; the false answer does not.)
+- **D — static vocabulary and presentation configuration** have named single owners:
+  `src/lib/navigation.ts` (nav groups/items, view titles), `src/lib/viewContracts.ts`,
+  `src/lib/financeVocabulary.ts` (payment/subscription labels), `src/domains/scheduling/weekdays.ts`,
+  `src/views/messages/composerTemplates.ts`, `src/components/overlays/commands.ts` (palette verbs and
+  the honest-empty NL result), `src/components/ds/samples.ts` (design-system-plated configuration,
+  not a data source).
+
+**F2 (legacy sessions/attendance) and the I8 family are preserved:** the milestone carries **zero**
+diff under the compensation and attendance domains and the persistence/backup plane — no schema, no
+ID scheme, no collection semantics, no backup-envelope change, no I8 redesign — and the protected
+suites pass (315 tests in the family run at the checkpoint).
+
+**F3 (Hero) resolved as recorded:** the academy identity renders the persisted M8 branding record
+via `useBranding` (**D2**), the greeting name is the signed-in operator via `useAuth` — which
+**extends no `BrandingSettings` persistence and introduces no new branding schema** — and the
+fabricated operational status/peak claims were *removed* (the hardcoded healthy-status badge, the
+fixed peak-activity line), with live values read through the existing scheduling seam
+(`useDayPulse`) or rendered as silence where no measurement exists.
+
+**F4 (Finance/Reports) resolved as recorded:** the deferral mechanism the decision required is real
+and visible — `src/lib/financeReportsDeferral.ts` names every dissolved export with a classification,
+and `src/__tests__/m10Boundary.test.ts` makes the two surfaces prove they carry the deferral (the
+**I2** work item named on screen, no domain read behind it). **I2 remains deferred and outside M10**;
+Finance and Reports are **not** implemented, and no fabricated replacement metrics exist.
+
+**Error A — `ClassSession.resourceId` (recorded erratum).** A previous implementation report
+claimed M10 removed this field. **This is false**: the field occurs **zero** times in the pre-M10
+checkpoint and **zero** times post-M10, and no runtime or demo record ever contained it; the actual
+change was the type-ownership relocation recorded above. No runtime or data-model field was removed,
+and no document may say one was.
+
+**Error B — demoStore R4/R6 (recorded erratum).** The same report overstated M10's lifecycle work:
+`src/services/demoStore.ts` changed by **one hunk** (a type-import re-point). The R4/R6 lifecycle
+behaviour it describes — adoption of legacy datasets as DEMO, never filling EMPTY,
+environment-marker ownership (`src/domains/demo/lifecycle.ts`, `src/domains/demo/demoDataManager.ts`)
+— is **pre-existing machinery**, with `src/domains/demo/__tests__/dataLifecycle.test.ts` unchanged by
+M10. Documentation must describe it as pre-existing, not as M10 implementation.
+
+M10 = ✅ **COMPLETE** as of its registration in [PHASES.md](PHASES.md) and
+[PROJECT_STATE.md](PROJECT_STATE.md); **M11 is NOT STARTED and this resolution does not authorize
+it.**
 
 ### D6. Finance and reports domains are not built in this phase
 
@@ -1343,7 +1418,7 @@ later milestone:
 5. **A partial page never masquerades as a complete one.** Where a read stopped short, the surface
    prints «N ردیف از M» and withholds the values that would otherwise be a count: «—», never `0`.
 
-**Why.** The three profile surfaces rendered relations from `src/data/records.ts` while their own
+**Why.** The three profile surfaces rendered relations from src/data/records.ts (the design-time fixture module, dissolved at M10) while their own
 domains were complete and tested — a class's roster came from a denormalized projection a real
 enrollment write could contradict, a week came from a fixture grid with no dates at all, and the shell
 showed «۳» and «۵» badges that no read had produced (**I1**). A relation is a *read* and a count is a

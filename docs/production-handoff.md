@@ -73,15 +73,20 @@ Status labels used throughout the docs:
       against the real demo repositories.
 - [x] **IMPLEMENTED — no cosmetic loading.** `useAsyncView` (a 420 ms fake timer) has been
       deleted outright; every remaining spinner reflects real repository state.
-- [ ] **PARTIAL — repository wiring.** Scheduling, Attendance, Finance, Messages, Library
-      and Reports still read fixtures from `@/data/records` / `@/data/academy`.
-      See `docs/architecture/data-layer.md` for the per-view list.
+- [x] **IMPLEMENTED — repository wiring.** M10 (`e7a64b7`, 2026-09-16) dissolved the two design-time
+      fixture modules; every view reads through its domain repositories, and Finance/Reports carry an
+      explicit, visible deferral (D6 / OPEN_ITEMS I2) instead of fixture rows. *(This line's earlier
+      PARTIAL state — views still reading from the src/data modules — is pre-M10 history.)*
+      See `docs/architecture/data-layer.md`.
 - [ ] **DEMO ONLY — inert forms.** The global ActionSheet ("ثبت پرداخت", …) collects input
       but persists nothing outside the five wired domains. It says so instead of showing a
       success toast.
-- [ ] **DEMO ONLY — report figures** are static fixtures, not aggregates. Dashboard tiles
-      are individually labelled DOMAIN-DERIVED / CURATED / BACKEND-REQUIRED so a viewer can
-      tell which number is real.
+- [ ] **DEMO ONLY — report figures** are static fixtures, not aggregates — **the false half of this
+      limitation was closed at M9→M10**: the fabricated revenue chart was removed at M9, and M10
+      replaced the remaining fixture-backed finance/report renderings with the explicit deferred
+      surface (no fabricated replacement metrics; D6 / OPEN_ITEMS I2, which stays open — Finance and
+      Reports are NOT implemented). *(The dashboard tiles' DOMAIN-DERIVED / CURATED / BACKEND-REQUIRED
+      labelling below is the pre-M10 wording of this line, kept as its record.)*
 
 ---
 
