@@ -1,10 +1,14 @@
 @import "tailwindcss";
-@import "@fontsource/vazirmatn/300.css";
+/*
+  M11/I6: weights 300 and 800 are NOT imported. A census of every font-weight
+  utility and custom class in src/ showed the interface only ever sets
+  400/500/600/700 — the imported 300/800 files were ~60 kB of woff2+woff that
+  no element could use.
+*/
 @import "@fontsource/vazirmatn/400.css";
 @import "@fontsource/vazirmatn/500.css";
 @import "@fontsource/vazirmatn/600.css";
 @import "@fontsource/vazirmatn/700.css";
-@import "@fontsource/vazirmatn/800.css";
 
 /* ------------------------------------------------------------------
    Design tokens — "Ava Music Academy OS"

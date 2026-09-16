@@ -62,6 +62,18 @@ export default defineConfig({
     sourcemap: false, // never ship original TypeScript to a private panel
     rollupOptions: {
       output: {
+        /*
+          M11/I6: split the framework runtime into its own hashed vendor
+          chunk. The framework changes far less often than application code,
+          so a warm browser re-downloads only the entry/view chunks
+          after an app change. Everything emitted stays same-origin external
+          hashed assets — the `script-src 'self'` policy is unaffected, and
+          `chunkSizeWarningLimit` is deliberately untouched (raised limits are
+          how bundle growth goes unremarked; see DECISIONS.md D9).
+        */
+        manualChunks(id) {
+          if (/node_modules[\/](?:react|react-dom|scheduler)[\/]/.test(id)) return "vendor";
+        },
         entryFileNames: "assets/[name]-[hash].js",
         chunkFileNames: "assets/[name]-[hash].js",
         assetFileNames: "assets/[name]-[hash][extname]",

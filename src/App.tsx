@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { getRuntimeConfig } from "@/api/config";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
@@ -16,18 +16,37 @@ import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
 import { useDemoLibraryFile } from "@/domains/library/useLibrary";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
 import { Dashboard } from "@/views/Dashboard";
-import { DesignSystemView } from "@/views/DesignSystemView";
-import { StudentsView } from "@/views/Students";
-import { TeachersView } from "@/views/Teachers";
-import { ClassesView } from "@/views/Classes";
-import { SchedulingView } from "@/views/Scheduling";
-import { AttendanceView } from "@/views/Attendance";
-import { CompensationView } from "@/views/Compensation";
-import { FinanceView } from "@/views/Finance";
-import { ReportsView } from "@/views/Reports";
-import { MessagesView } from "@/views/Messages";
-import { LibraryView } from "@/views/Library";
-import { SettingsView } from "@/views/Settings";
+
+/*
+  Route-level code splitting (M11/I6).
+
+  Every routed view except the two first-paint surfaces (Login, kept static in
+  `AuthGate`, and Dashboard, the landing view for most roles) is a lazy chunk:
+  Vite emits each as a hashed `assets/[name]-[hash].js` file loaded from the
+  same origin, which the enforced CSP (`script-src 'self'`) already permits.
+  `Suspense` suspends inside `ViewOutlet` itself so the shell — rails, top
+  bar, palette — never unmounts while a view chunk is in flight.
+
+  Views load in two workspace groups, not one chunk per route: the academic
+  day (students → classes → attendance …) chains visits, so one fetch serves
+  the whole chain, while the low-frequency operations surfaces share another.
+  The group modules are re-export barrels (`src/views/lazy/`); the views
+  themselves are untouched.
+*/
+const DesignSystemView = lazy(() => import("@/views/DesignSystemView").then((m) => ({ default: m.DesignSystemView })));
+const academicViews = () => import("@/views/lazy/academicViews");
+const operationsViews = () => import("@/views/lazy/operationsViews");
+const StudentsView = lazy(() => academicViews().then((m) => ({ default: m.StudentsView })));
+const TeachersView = lazy(() => academicViews().then((m) => ({ default: m.TeachersView })));
+const ClassesView = lazy(() => academicViews().then((m) => ({ default: m.ClassesView })));
+const SchedulingView = lazy(() => academicViews().then((m) => ({ default: m.SchedulingView })));
+const AttendanceView = lazy(() => academicViews().then((m) => ({ default: m.AttendanceView })));
+const CompensationView = lazy(() => academicViews().then((m) => ({ default: m.CompensationView })));
+const FinanceView = lazy(() => operationsViews().then((m) => ({ default: m.FinanceView })));
+const ReportsView = lazy(() => operationsViews().then((m) => ({ default: m.ReportsView })));
+const MessagesView = lazy(() => operationsViews().then((m) => ({ default: m.MessagesView })));
+const LibraryView = lazy(() => operationsViews().then((m) => ({ default: m.LibraryView })));
+const SettingsView = lazy(() => operationsViews().then((m) => ({ default: m.SettingsView })));
 
 const VIEWS = {
   dashboard: Dashboard,
@@ -61,7 +80,11 @@ function ViewOutlet() {
     );
   }
   const Current = VIEWS[view] ?? Dashboard;
-  return <Current />;
+  return (
+    <Suspense fallback={<LoadingState label="در حال باز شدن بخش…" />}>
+      <Current />
+    </Suspense>
+  );
 }
 
 function Shell() {
