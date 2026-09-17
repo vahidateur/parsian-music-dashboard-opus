@@ -475,9 +475,9 @@ milestone.
 | D4 | `clear()` semantics against the zero-record invariant | **DECIDED — M1-specific** | M1 |
 | D5 | Shape of the fixture / type / seed separation — one canonical owner per entity type, one shared owner for cross-cutting presentation types, domain vocabulary with its domain, UI/presentation configuration stays presentation-owned, no monolithic replacement | **DECIDED — recorded before M10** | M10 |
 | D6 | Creating the finance and reports domains in this phase | **DEFERRED** | M-none (I2) |
-| D7 | How accessibility is enforced | **DECIDED — recorded before M11** | M11 |
-| D8 | How the api-mode hybrid is disclosed | **DECIDED — recorded before M11** | M11 |
-| D9 | Bundle budget | **DECIDED — recorded before M11, measurement-derived** | M11 |
+| D7 | How accessibility is enforced | **DECIDED — recorded before M11; landed with M11** (`f7eb867`) | M11 |
+| D8 | How the api-mode hybrid is disclosed | **DECIDED — recorded before M11; landed with M11** (`53794d5`) | M11 |
+| D9 | Bundle budget | **DECIDED — recorded before M11, measurement-derived; landed with M11** (`3eed4f1` split, `24998d8` gate) | M11 |
 | D10 | A write target taken from a rendered row is paired with a parent resolved independently | **DECIDED — landed with M3** | M3 |
 | D11 | An assignment surface renders outside the list it assigns to, and derives its own selection | **DECIDED — landed with M3** | M3 |
 | D12 | A failed secondary read is reported as a failure, never as an empty list | **DECIDED — landed with M3's F1 fix** | M3 |
@@ -1018,7 +1018,9 @@ M10. Documentation must describe it as pre-existing, not as M10 implementation.
 
 M10 = ✅ **COMPLETE** as of its registration in [PHASES.md](PHASES.md) and
 [PROJECT_STATE.md](PROJECT_STATE.md); **M11 is NOT STARTED and this resolution does not authorize
-it.**
+it.** *(Superseded, 2026-09-17 — kept as the record of M10's closure: M11 was authorized by the owner
+on 2026-09-17 and landed across four checkpoints ending at `f7eb867` on the boundary `3ed0bfe`; the
+D7/D8/D9 statuses below carry the landed records.)*
 
 ### D6. Finance and reports domains are not built in this phase
 
@@ -1091,8 +1093,7 @@ that. **Enforcement shape (M11's work, not this pass):** these assertions live i
 behaviour suites plus one a11y suite M11 adds; they may not weaken
 `routeProtection`, `privacyPosture` or any existing gate to pass.
 
-**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
-M11's implementation of it is **not authorized**.
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass); landed with M11.** The owner authorized the exact scope on 2026-09-17, and the gate landed at M11's implementation checkpoint `f7eb86762dc11f7d5dd3c7218e7c697fad29488e` (*test(m11): D7 — dependency-free accessibility gate*) in `src/__tests__/a11yGate.test.tsx` — **14 cases, dependency-free, stable across three consecutive runs**, green at the milestone's own regression boundary with `routeProtection` unchanged.
 
 ### D8. api mode must disclose which domains are still local
 
@@ -1135,8 +1136,7 @@ and does not render in demo mode, and that the disclosed set equals the registry
 set; the existing `connect-src 'self'` deployment constraint stands (an api deployment is same-origin,
 or the CSP changes by a separately recorded decision).
 
-**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
-M11's implementation of it is **not authorized**.
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass); landed with M11.** The owner authorized the exact scope on 2026-09-17, and the behaviour landed at M11's implementation checkpoint `53794d57a7375c8345f76adec9248f5da09d7a92` (*feat(m11): D8 — declare demo-backed domains in api mode*): the single `DEMO_SERVED_DOMAINS` enumeration at the registry's composition root, the persistent non-dismissable `DemoBackedNotice` in the shell and on login (api mode only, absent in demo, no health or ping claim), pinned by `src/components/shell/__tests__/DemoBackedNotice.test.tsx` — **6 cases** including the stale-enumeration tripwire.
 
 ### D9. The bundle budget is measured before it is set
 
@@ -1196,8 +1196,8 @@ None of these margins is an *outcome* prediction — they are baseline-anchored 
 measurement writes into a test after the split lands, replacing any that the real split proves wrong
 (with the proof recorded).
 
-**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass).**
-M11's implementation of it is **not authorized**.
+**Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass); landed with M11.** The owner authorized the exact scope on 2026-09-17; the split landed at `3eed4f190b6538ad62bf35d7b0c9fa5afc310acc` and the gate at `24998d8330a95510cd969c872edb28ddcc59ef16`.
+**Measured after M11's landing** (CLI `gzip -6 -n`, same method as the recorded baseline) — the encoder then verified the gate is satisfiable by exactly these values: entry JS gzip **108 207** B (baseline 273 791 B), vendor gzip **60 108** B, total JS+CSS+HTML gzip **298 249** B (within the +5% cap 305 805 B), largest single chunk gzip **108 207** B (below the 400 000 B ceiling), `dist/` raw **1 964 789** B. The >500 kB raw warning is silent, `chunkSizeWarningLimit` was never raised, and Vazirmatn **300/800** are gone from `dist/` — shape **A** held: nothing outside the predicted ceiling, so no recorded decision point fired.
 
 ### D10. A write target taken from a rendered row is paired with a parent resolved independently
 

@@ -724,13 +724,26 @@ role in this panel at all, or a separate app? `README.md` roadmap lists "پنل 
 so privacy rules in `docs/security.md` §7 and `docs/production-handoff.md` → Privacy apply.
 **Do not implement before the role decision is recorded in [DECISIONS.md](DECISIONS.md).**
 
-### I6. Performance and code-splitting
+### I6. Performance and code-splitting — ✅ CLOSED (2026-09-17, by M11 across `3eed4f190b6538ad62bf35d7b0c9fa5afc310acc` and `24998d8330a95510cd969c872edb28ddcc59ef16`)
 `npm run build` emits a main chunk > 500 kB (`dist/assets/index-*.js` ≈ 844 kB at `33b1031`).
 `src/App.tsx` imports all thirteen `src/views` eagerly (13 static view imports), so there is no
 route-level code-splitting and no lazy loading; the build config in `vite.config.ts` sets no
 bundle budget. **Done when:** the warning is resolved by real splitting (not by raising the
 warning threshold), with a measured before/after, and `src/__tests__/routeProtection.test.tsx`
 plus the EMPTY-environment suites still pass against lazily mounted views.
+- **Status (2026-09-17, M11 `3eed4f190b6538ad62bf35d7b0c9fa5afc310acc`, gate `24998d8330a95510cd969c872edb28ddcc59ef16`):** closed exactly on its
+  own Done-when contract. The split is real — every routed view except first-paint Login/Dashboard
+  lazy-loads in two workspace groups (`academicViews`,`operationsViews`), the React family rides a
+  hashed **vendor** chunk — and `chunkSizeWarningLimit` was **not** raised (its assignment is itself
+  a test failure in `src/__tests__/bundleBudget.test.ts`). Measured before/after per **D9**: entry
+  JS gzip 273 791 → **108 207 B**, vendor 60 108 B, total JS+CSS+HTML gzip **298 249 B**, largest
+  chunk 108 207 B, `dist/` raw 1 964 789 B; the warning no longer fires. `routeProtection` and the
+  EMPTY-environment suites pass against the lazily mounted views, full suite 2 020 passed / 7
+  failed (the seven known environmental `projectState` checkpoint-object failures — set identical
+  to M10's recorded baseline). **Recorded residual:** first-paint is fast but the first visit to a
+  non-eager view pays its workspace chunk's fetch (~50/~46 kB gz) — jsdom-verified, never
+  browser-measured; first-view navigation timing belongs in L4's checklist if external QA ever runs
+  (PROJECT_STATE.md §7 item 23).
 
 ### I7. Official Telegram / Bale messaging provider research
 Outbound messaging is currently an honest "requires a server" info toast
