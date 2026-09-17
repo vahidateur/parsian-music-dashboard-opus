@@ -154,7 +154,16 @@ export interface DashboardCounts {
 }
 
 export interface InsightInput {
-  metrics: AcademyMetrics;
+  /**
+   * The aggregate read set behind the hero numbers, or `null` when that read did
+   * not complete.
+   *
+   * Nullable by design: `useAcademyMetrics` marks a failed read unavailable
+   * rather than handing back zeros, and a derivation must not resurrect them. A
+   * line that would have printed a metrics figure prints `NO_DATA` instead, and
+   * everything derived from the rows themselves is unaffected.
+   */
+  metrics: AcademyMetrics | null;
   students: readonly Student[];
   classes: readonly AcademyClass[];
   rooms: readonly Room[];
@@ -528,7 +537,12 @@ export function deriveAttentionItems({
         id: "cancelled-week",
         severity: "info",
         title: `${faNum(cancelled.length)} جلسهٔ لغوشده در ۷ روز گذشته`,
-        context: `از ${faNum(inWindow.length)} جلسهٔ ثبت‌شده در همین بازه · ${faNum(metrics.classes)} کلاس ثبت‌شده`,
+        // The class count rides on the aggregate read; when that read failed the
+        // segment is left out rather than guessed from the rows in hand, which
+        // would be a second, differently-derived total for the same noun.
+        context:
+          `از ${faNum(inWindow.length)} جلسهٔ ثبت‌شده در همین بازه` +
+          (metrics ? ` · ${faNum(metrics.classes)} کلاس ثبت‌شده` : ""),
         action: "مشاهدهٔ تقویم",
         target: { view: "schedule", filter: "cancelled" },
       });
@@ -828,8 +842,14 @@ export function deriveIntelligenceCards({
       signal: `${faNum(waitlisted.length)} کلاس لیست انتظار دارند؛ مجموع ${faNum(seats)} نفر.`,
       evidence: [
         { label: "ظرفیت تکمیل", value: `${faNum(full)} کلاس` },
-        { label: "اشغال ظرفیت", value: faPercent(ratioPct(metrics.takenSeats, metrics.totalSeats)) },
-        { label: "کلاس‌های ثبت‌شده", value: faNum(metrics.classes) },
+        // Both figures come from the aggregate read, so both go silent together
+        // when it fails. The labels stay: an absent number said deliberately is
+        // the honest state of the read, and «۰» or «۰٪» would not be.
+        {
+          label: "اشغال ظرفیت",
+          value: metrics ? faPercent(ratioPct(metrics.takenSeats, metrics.totalSeats)) : NO_DATA,
+        },
+        { label: "کلاس‌های ثبت‌شده", value: metrics ? faNum(metrics.classes) : NO_DATA },
       ],
       insight: `بیشترین تقاضا در «${biggest.title}» با ${faNum(biggest.waitlist)} نفر در انتظار است؛ ظرفیت ثبت‌شدهٔ آن ${faNum(biggest.enrolled)} از ${faNum(biggest.capacity)} است.`,
       action: { label: "بررسی ظرفیت کلاس‌ها", target: { view: "classes" } },

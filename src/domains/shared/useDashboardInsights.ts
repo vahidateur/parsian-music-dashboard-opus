@@ -67,6 +67,13 @@ const WEEKS = 13;
 
 export interface DashboardInsights {
   loading: boolean;
+  /**
+   * The first failure across the whole read set — the aggregate metrics read
+   * included — or `null` when every source answered.
+   *
+   * The consumer that renders this is `src/views/Dashboard.tsx`; a computed error
+   * no view reads is the same bug as a zero no view should have shown.
+   */
   error: ApiError | null;
   counts: DashboardCounts;
   /** Zero stored rows: the panels say «داده‌ای نیست» rather than a figure. */
@@ -94,7 +101,13 @@ export interface DashboardInsights {
  * conversion that module exists to prevent.
  */
 export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: string; nowMinutes: number }): DashboardInsights {
-  const { metrics, loading: metricsLoading } = useAcademyMetrics();
+  const {
+    metrics,
+    loading: metricsLoading,
+    available: metricsAvailable,
+    error: metricsError,
+    reload: reloadMetrics,
+  } = useAcademyMetrics();
   const students = useStudentList({ per_page: PAGE });
   const classes = useClasses({ per_page: PAGE });
   const rooms = useRooms({ per_page: PAGE });
@@ -109,18 +122,21 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
 
   const reload = useMemo(
     () => () => {
+      reloadMetrics();
       students.reload();
       classes.reload();
       rooms.reload();
       teachers.reload();
       sessions.reload();
     },
-    [students, classes, rooms, teachers, sessions],
+    [reloadMetrics, students, classes, rooms, teachers, sessions],
   );
 
   const input: InsightInput = useMemo(
     () => ({
-      metrics,
+      // An unavailable aggregate read is passed as `null`, not as the zeros it
+      // started life as: the derivations decide what silence looks like.
+      metrics: metricsAvailable ? metrics : null,
       students: students.students,
       classes: classes.items,
       rooms: rooms.items,
@@ -131,6 +147,7 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
     }),
     [
       metrics,
+      metricsAvailable,
       students.students,
       classes.items,
       rooms.items,
@@ -177,7 +194,11 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
 
   return {
     loading: metricsLoading || students.loading || classes.loading || rooms.loading || teachers.loading || sessions.loading,
-    error: students.error ?? classes.error ?? rooms.error ?? teachers.error ?? sessions.error,
+    // The aggregate read's failure is folded in first, so a failed metrics read
+    // reaches the view instead of being absorbed into `metrics: null`. D12's rule
+    // applies to this read set as a whole: a failed read is a failure, not an
+    // empty one — and not a zero one either.
+    error: metricsError ?? students.error ?? classes.error ?? rooms.error ?? teachers.error ?? sessions.error,
     counts,
     hasRecords: counts.records > 0,
     signals,

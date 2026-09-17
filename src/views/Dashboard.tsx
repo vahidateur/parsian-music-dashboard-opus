@@ -1,8 +1,8 @@
-import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
+import { useHeroStats, type HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useDashboardInsights } from "@/domains/shared/useDashboardInsights";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { academyIsoDate } from "@/views/relations/academyDay";
-import { faNum } from "@/lib/format";
+import { faNum, NO_DATA } from "@/lib/format";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useApp } from "@/context/AppContext";
 import { Hero } from "@/components/hero/Hero";
@@ -12,7 +12,7 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
 import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
-import { DemoNote } from "@/components/ds/states";
+import { DemoNote, ErrorState } from "@/components/ds/states";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 /**
@@ -29,14 +29,21 @@ function PulseCard({
   attentionCount,
   hasRecords,
   loading,
+  stats: heroStats,
 }: {
   sessionsToday: number;
   attentionCount: number;
   hasRecords: boolean;
   loading: boolean;
+  /** The same four figures the desktop hero renders, from the same one read. */
+  stats: readonly HeroStat[];
 }) {
+  /*
+   * No banner here and no read here: a failed read yields `null`, so these tiles
+   * go silent on their own, and the single disclosure lives above the panels —
+   * which is also why the figures arrive as a prop rather than as a second read.
+   */
   const { navigate, accent } = useApp();
-  const { stats: heroStats } = useHeroStats();
   const kicker = loading
     ? "فعالیت امروز · در حال خواندن رکوردها…"
     : !hasRecords
@@ -49,8 +56,9 @@ function PulseCard({
         {heroStats.map((s) => (
           <button key={s.label} type="button" onClick={() => navigate(s.target)} className="text-right">
             <div className="nums text-2xl font-semibold leading-none text-ink-50">
-              {faNum(s.value)}
-              {s.suffix && <span className="text-base text-ink-300">{s.suffix}</span>}
+              {/* Same rule as the desktop hero: no figure, no number. */}
+              {s.value === null ? NO_DATA : faNum(s.value)}
+              {s.value !== null && s.suffix && <span className="text-base text-ink-300">{s.suffix}</span>}
             </div>
             <div className="mt-1 text-xs text-ink-300">{s.label}</div>
           </button>
@@ -75,16 +83,41 @@ export function Dashboard() {
   const now = useAcademyNow();
   const todayIso = academyIsoDate();
   const insights = useDashboardInsights({ todayIso, nowMinutes: now });
+  // The hero's four figures are read by the VIEW, once, and handed to both the
+  // desktop hero and the mobile pulse card. Each surface calling the hook itself
+  // would give each its own idea of whether the read succeeded — and a retry that
+  // cleared one while the other still showed dashes.
+  const hero = useHeroStats();
+  const heroError = hero.error ?? insights.error;
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
       {/* 1 · Hero / academy context */}
       <div className="order-1 lg:order-none lg:col-span-12">
-        <Hero compact={!isDesktop} />
+        <Hero compact={!isDesktop} stats={hero.stats} />
       </div>
 
       {/* 2 · Today's key metrics — derived from the record set read above */}
-      <div className="order-2 lg:order-none lg:col-span-12">
+      <div className="order-2 lg:order-none lg:col-span-12 flex flex-col gap-5">
+        {heroError !== null && (
+          /*
+            One disclosure for the whole page, naming the failure the read set
+            already knew about instead of leaving it as a screenful of dashes:
+            an unreadable academy and an empty one are different facts, and this
+            product says which (D12). Retry re-reads both halves of what is on
+            screen, the aggregate read included.
+          */
+          <ErrorState
+            title="خواندن رکوردها کامل نشد"
+            description="هیچ عددی روی این صفحه تا خواندنِ موفق نشان داده نمی‌شود؛ صفر، اندازه‌گیری نیست."
+            onRetry={() => {
+              // Both halves at once, because both are on screen: the retry the
+              // tiles answer to, and the one the read set answers to.
+              hero.reload();
+              insights.reload();
+            }}
+          />
+        )}
         <Signals signals={insights.signals} loading={insights.loading} />
       </div>
 
@@ -118,6 +151,7 @@ export function Dashboard() {
               attentionCount={insights.attention.length}
               hasRecords={insights.hasRecords}
               loading={insights.loading}
+              stats={hero.stats}
             />
         </div>
       )}

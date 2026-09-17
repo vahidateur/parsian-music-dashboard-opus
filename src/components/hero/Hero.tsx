@@ -1,21 +1,34 @@
 import { ChevronLeft } from "lucide-react";
 import hall from "@/assets/images/hall.jpg";
-import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
+import type { HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { useDayPulse } from "@/domains/shared/useDayPulse";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { useBranding } from "@/domains/branding/useBranding";
 import { academyIsoDate } from "@/views/relations/academyDay";
-import { faNum, faTime, faToday, greetingFor } from "@/lib/format";
+import { faNum, faTime, faToday, greetingFor, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { PulseWaveform } from "./PulseWaveform";
 import { cn } from "@/utils/cn";
 
-export function Hero({ compact = false }: { compact?: boolean }) {
+export function Hero({
+  compact = false,
+  stats: heroStats,
+}: {
+  compact?: boolean;
+  /**
+   * The four figures, read once by the view.
+   *
+   * The Hero used to call `useAcademyMetrics` itself. It no longer does: a second
+   * instance of the same read inside one view can disagree with the first — the
+   * alert clearing while the tiles stayed withheld — and `Dashboard` is the place
+   * that owns the read set (see `useDashboardInsights`' header for the rule).
+   * A `null` figure is an unavailable read, not a zero.
+   */
+  stats: readonly HeroStat[];
+}) {
   const { navigate, accent } = useApp();
   const now = useAcademyNow();
-  // Domain-derived: these move when the underlying records change.
-  const { stats: heroStats } = useHeroStats();
   // Identity (M10/D3): the academy name/tagline come from the M8 branding
   // read; the greeting is the signed-in operator, not a fixture manager.
   const { branding } = useBranding();
@@ -94,8 +107,10 @@ export function Hero({ compact = false }: { compact?: boolean }) {
                   )}
                 >
                   <span className="nums text-2xl font-semibold leading-none text-ink-50 transition-colors group-hover:text-gold-300 sm:text-[28px]">
-                    {faNum(s.value)}
-                    {s.suffix && <span className="text-lg text-ink-300">{s.suffix}</span>}
+                    {/* `null` is the read saying it has no figure; the unit only
+                        belongs to a number, so it goes silent with the value. */}
+                    {s.value === null ? NO_DATA : faNum(s.value)}
+                    {s.value !== null && s.suffix && <span className="text-lg text-ink-300">{s.suffix}</span>}
                   </span>
                   <span className="mt-1.5 flex items-center gap-1 text-xs text-ink-300">
                     {s.label}
