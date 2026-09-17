@@ -37,6 +37,7 @@ import {
   getClassRepository,
   getEnrollmentRepository,
   getRoomRepository,
+  getSchedulingRepository,
   getStudentRepository,
   getTeacherRepository,
   resetRegistry,
@@ -45,6 +46,7 @@ import {
   setClassRepository,
   setEnrollmentRepository,
   setRoomRepository,
+  setSchedulingRepository,
   setStudentRepository,
   setTeacherRepository,
   setUserRepository,
@@ -283,6 +285,32 @@ describe("the dashboard shows the disclosure the read set already computed", () 
       // sign on top of a figure nobody measured.
       expect(text).not.toContain("٪");
     }
+  });
+
+  it("a sessions-only failure discloses itself without dragging the tiles down", async () => {
+    /*
+     * NEW-1's sibling. The scheduling read behind `useSessions` is one of the
+     * insights' five, and it is NOT one of the six aggregate reads
+     * (`useAcademyMetrics.ts:200-205`), so this is the failure where the alert
+     * and a fully measured hero must be on screen together. The copy that used
+     * to sit in that alert claimed no number would show at all, which was false
+     * here; the case pins both halves of the truth.
+     */
+    setSchedulingRepository(rejectingList(getSchedulingRepository()));
+    await renderDashboard();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("خواندن رکوردها کامل نشد");
+    expect(alert.textContent).toContain("فقط وقتی عدد دارد که خواندنش موفق بوده باشد");
+
+    for (const label of HERO_LABELS) {
+      const text = tileFor(label).textContent ?? "";
+      expect(text, `tile «${label}» keeps its measured figure`).not.toContain("—");
+      expect(text).toMatch(/[۰-۹]/);
+    }
+    // The percentage tile is the one whose unit the dash rule touches, and on a
+    // read that succeeded its unit must still be there.
+    expect(tileFor(HERO_LABELS[3]).textContent).toContain("٪");
   });
 
   it("says nothing about failure when every read answered, and prints the real figures", async () => {

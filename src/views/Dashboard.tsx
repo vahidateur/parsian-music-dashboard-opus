@@ -104,12 +104,15 @@ export function Dashboard() {
             One disclosure for the whole page, naming the failure the read set
             already knew about instead of leaving it as a screenful of dashes:
             an unreadable academy and an empty one are different facts, and this
-            product says which (D12). Retry re-reads both halves of what is on
-            screen, the aggregate read included.
+            product says which (D12). A partial failure is the ordinary case —
+            the aggregate read answers for its own tiles only — so the copy
+            claims exactly what this disclosure owns: a tile keeps the figure its
+            own read measured and shows NO_DATA otherwise. Retry re-reads both
+            halves of what is on screen, the aggregate read included.
           */
           <ErrorState
             title="خواندن رکوردها کامل نشد"
-            description="هیچ عددی روی این صفحه تا خواندنِ موفق نشان داده نمی‌شود؛ صفر، اندازه‌گیری نیست."
+            description="خواندن بعضی از رکوردها ناموفق بود؛ هر شاخص روی این صفحه فقط وقتی عدد دارد که خواندنش موفق بوده باشد، وگرنه «—» می‌ماند؛ صفر، اندازه‌گیری نیست."
             onRetry={() => {
               // Both halves at once, because both are on screen: the retry the
               // tiles answer to, and the one the read set answers to.
