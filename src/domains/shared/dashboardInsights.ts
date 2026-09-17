@@ -80,6 +80,15 @@ export interface FlowRow {
   status: ClassSessionStatus;
 }
 
+/**
+ * The one sentence every surface shows when the calendar read did not answer.
+ *
+ * Naming the failure rather than the emptiness is D12's rule, and one wording for
+ * all three sites is what keeps an unreadable calendar from looking like a quiet
+ * one again.
+ */
+export const CALENDAR_UNAVAILABLE = "خواندن تقویم کامل نشد";
+
 export interface FlowSummary {
   /** Sessions stored on the academy day. */
   total: number;
@@ -148,7 +157,12 @@ export interface DashboardCounts {
   classes: number;
   rooms: number;
   teachers: number;
-  sessions: number;
+  /**
+   * Sessions held for the rolling window, or `null` — never 0 — when that read did
+   * not answer. A surface renders `NO_DATA` for the null; the sentence the panel
+   * shows is `CALENDAR_UNAVAILABLE`'s.
+   */
+  sessions: number | null;
   /** Total stored rows the panels read. Zero ⇒ this academy has no records yet. */
   records: number;
 }
@@ -168,7 +182,15 @@ export interface InsightInput {
   classes: readonly AcademyClass[];
   rooms: readonly Room[];
   teachers: readonly { id: string; name: string }[];
-  sessions: readonly Session[];
+  /**
+   * The rolling window of scheduled sessions, or `null` when that read failed.
+   *
+   * The same rule as `metrics` above, for the same reason: `useResourceList` keeps
+   * a failed read in `error` and leaves `items` empty, so the boundary hands the
+   * derivations `null` instead of an array that cannot tell an empty calendar from
+   * an unread one. A derivation may not turn one into the other.
+   */
+  sessions: readonly Session[] | null;
   /** The academy day, `YYYY-MM-DD`. */
   todayIso: string;
   /** Minutes since midnight, from the academy clock. */
@@ -373,21 +395,23 @@ export function deriveSignals({ students, sessions, todayIso }: InsightInput): S
   const rated = students.filter((student) => student.sessionsTotal > 0);
   const meanAttendance = meanOf(rated, (student) => student.attendance);
 
-  const weekly = weeklyCounts(sessions, (session) => session.date, todayIso, 13);
+  // An unread calendar is not a still one. Both sessions cards below go silent
+  // (`NO_DATA`, no delta, no series) instead of reporting the zeros an unanswered
+  // query leaves behind; on a read that answered, every expression is the one this
+  // function has always used.
+  const calendarRead = sessions !== null;
+  const weekly = sessions === null ? [] : weeklyCounts(sessions, (session) => session.date, todayIso, 13);
   const recentWeek = weekly.length > 0 ? weekly[weekly.length - 1] : null;
   const recentWeekClasses = new Set(
-    newestWeek(sessions, todayIso)
+    (sessions === null ? [] : newestWeek(sessions, todayIso))
       .filter((session) => session.status !== "cancelled")
       .map((session) => session.classId),
   ).size;
 
-  const cancelledWeekly = weeklyCounts(
-    sessions,
-    (session) => session.date,
-    todayIso,
-    13,
-    (session) => session.status === "cancelled",
-  );
+  const cancelledWeekly =
+    sessions === null
+      ? []
+      : weeklyCounts(sessions, (session) => session.date, todayIso, 13, (session) => session.status === "cancelled");
   const cancelledFourWeeks = cancelledWeekly.slice(-4).reduce((sum, value) => sum + value, 0);
   const scheduledFourWeeks = weekly.slice(-4).reduce((sum, value) => sum + value, 0);
 
@@ -426,32 +450,36 @@ export function deriveSignals({ students, sessions, todayIso }: InsightInput): S
     {
       id: "sessions",
       label: "جلسات ۷ روز گذشته",
-      value: faNum(recentWeek ?? 0),
-      delta: changePct(weekly),
+      value: calendarRead ? faNum(recentWeek ?? 0) : NO_DATA,
+      delta: calendarRead ? changePct(weekly) : null,
       deltaLabel: "نسبت به هفتهٔ پیش از آن",
-      context:
-        recentWeek === null || recentWeek === 0
+      // «ثبت نشده» is a claim about the calendar, so it stays reserved for
+      // a read that answered and found nothing.
+      context: !calendarRead
+        ? CALENDAR_UNAVAILABLE
+        : recentWeek === null || recentWeek === 0
           ? "در این بازه جلسه‌ای در تقویم ثبت نشده"
           : `از ${faNum(recentWeekClasses)} کلاس متفاوت در همین بازه`,
-      tone: recentWeek ? "ok" : "neutral",
-      series: seriesOrNull(weekly),
+      tone: calendarRead && recentWeek ? "ok" : "neutral",
+      series: calendarRead ? seriesOrNull(weekly) : null,
       kind: "bars",
       target: { view: "schedule" },
     },
     {
       id: "cancellations",
       label: "لغوهای ۳۰ روز گذشته",
-      value: faNum(cancelledFourWeeks),
-      delta: changePct(cancelledWeekly),
+      value: calendarRead ? faNum(cancelledFourWeeks) : NO_DATA,
+      delta: calendarRead ? changePct(cancelledWeekly) : null,
       deltaLabel: "نسبت به ماه پیش",
-      context:
-        scheduledFourWeeks > 0
+      context: !calendarRead
+        ? CALENDAR_UNAVAILABLE
+        : scheduledFourWeeks > 0
           ? `${faNum(cancelledFourWeeks)} لغو از ${faNum(scheduledFourWeeks)} جلسهٔ همین بازه (${faPercent(
               ratioPct(cancelledFourWeeks, scheduledFourWeeks),
             )})`
           : "در این بازه جلسه‌ای زمان‌بندی نشده",
-      tone: cancelledFourWeeks > 0 ? "warn" : "neutral",
-      series: seriesOrNull(cancelledWeekly),
+      tone: calendarRead && cancelledFourWeeks > 0 ? "warn" : "neutral",
+      series: calendarRead ? seriesOrNull(cancelledWeekly) : null,
       kind: "line",
       target: { view: "schedule", filter: "cancelled" },
     },
@@ -526,7 +554,9 @@ export function deriveAttentionItems({
   }
 
   const reference = isoDayNumber(todayIso);
-  if (reference !== null) {
+  // The rule has no rows to judge: it yields no item, which is an absent claim
+  // rather than a false one about a quiet week.
+  if (reference !== null && sessions !== null) {
     const inWindow = sessions.filter((session) => {
       const day = isoDayNumber(session.date);
       return day !== null && day <= reference && reference - day < 7;
@@ -607,7 +637,13 @@ export function conflictPairs(sessions: readonly Session[]): { a: Session; b: Se
  * guess.
  */
 export function deriveFlowRows(
-  sessions: readonly Session[],
+  /**
+   * The window's rows, or `null` when the calendar read did not answer. An absent
+   * read yields no rows and a zero summary here, which is why a caller that has to
+   * tell "unread" from "nothing today" must branch before calling —
+   * `useDashboardInsights` does, and hands the panels a `null` summary.
+   */
+  sessions: readonly Session[] | null,
   todayIso: string,
   nowMinutes: number,
   lookup: {
@@ -617,7 +653,8 @@ export function deriveFlowRows(
   },
   limit = 6,
 ): { rows: FlowRow[]; summary: FlowSummary } {
-  const today = sessions
+  const list = sessions ?? [];
+  const today = list
     .filter((session) => session.date === todayIso)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
@@ -859,7 +896,7 @@ export function deriveIntelligenceCards({
   }
 
   const reference = isoDayNumber(todayIso);
-  if (reference !== null) {
+  if (reference !== null && sessions !== null) {
     const inWindow = sessions.filter((session) => {
       const day = isoDayNumber(session.date);
       return day !== null && day <= reference && reference - day < 30;
@@ -923,15 +960,23 @@ export function dashboardCounts(input: {
   classes: readonly AcademyClass[];
   rooms: readonly Room[];
   teachers: number;
-  sessions: readonly Session[];
+  sessions: readonly Session[] | null;
 }): DashboardCounts {
   return {
     students: input.students.length,
     classes: input.classes.length,
     rooms: input.rooms.length,
     teachers: input.teachers,
-    sessions: input.sessions.length,
+    sessions: input.sessions === null ? null : input.sessions.length,
+    // Rows the panels hold in hand, which is exactly what «بررسی شد»
+    // claims. It is deliberately not a census of the academy while one read is
+    // unanswered, and `hasRecords` reads it as "is there anything to say", never
+    // as "is anything so" — which is why one failed read must not blank the rest.
     records:
-      input.students.length + input.classes.length + input.rooms.length + input.teachers + input.sessions.length,
+      input.students.length +
+      input.classes.length +
+      input.rooms.length +
+      input.teachers +
+      (input.sessions?.length ?? 0),
   };
 }

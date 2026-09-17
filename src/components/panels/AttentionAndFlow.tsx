@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Clock3 } from "lucide-react";
 import type { AttentionItem, QuickActionDef } from "@/lib/viewContracts";
-import { faNum } from "@/lib/format";
+import { faNum, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { AlertItem, QuickAction, TimelineEvent } from "@/components/ds/blocks";
 import { EmptyState, LoadingState } from "@/components/ds/states";
@@ -78,7 +78,7 @@ export function Attention({
       )}
       <p className="nums mt-4 flex items-center gap-1.5 border-t border-white/[0.05] pt-3 text-[11px] text-ink-400">
         <Clock3 className="size-3" />
-        منبع: {faNum(counts.students)} رکورد هنرجو · {faNum(counts.classes)} کلاس · {faNum(counts.sessions)} جلسهٔ خوانده‌شده
+        منبع: {faNum(counts.students)} رکورد هنرجو · {faNum(counts.classes)} کلاس · {counts.sessions === null ? NO_DATA : faNum(counts.sessions)} جلسهٔ خوانده‌شده
       </p>
     </Surface>
   );
@@ -100,28 +100,37 @@ export function TodayFlow({
   className,
 }: {
   rows: FlowRow[];
-  summary: FlowSummary;
+  /** `null` — the calendar read did not answer, so today has no measurement. */
+  summary: FlowSummary | null;
   hasRecords: boolean;
   loading?: boolean;
   className?: string;
 }) {
   const { navigate } = useApp();
-  const rest = summary.total - summary.shown;
+  const rest = summary === null ? 0 : summary.total - summary.shown;
 
   return (
     <Surface className={cn("flex flex-col p-5", className)} aria-labelledby="flow-title">
       <SectionHeader
         title={<span id="flow-title">برنامه امروز</span>}
         kicker={
-          summary.total > 0
-            ? `${faNum(summary.total)} جلسه · ${faNum(summary.remaining)} باقی‌مانده · ${faNum(summary.cancelled)} لغو`
-            : "امروز"
+          summary === null
+            ? NO_DATA
+            : summary.total > 0
+              ? `${faNum(summary.total)} جلسه · ${faNum(summary.remaining)} باقی‌مانده · ${faNum(summary.cancelled)} لغو`
+              : "امروز"
         }
         action="مشاهده تقویم کامل"
         onAction={() => navigate({ view: "schedule" })}
       />
       {loading ? (
         <LoadingState label="در حال خواندن تقویم…" className="py-10" />
+      ) : summary === null ? (
+        <EmptyState
+          className="mt-4 py-8"
+          title="خواندن تقویم کامل نشد"
+          description="جلسات امروز اندازه‌گیری نشده‌اند؛ صفر، اندازه‌گیری نیست."
+        />
       ) : rows.length > 0 ? (
         <ol className="stagger mt-5 flex-1">
           {rows.map((row, i) => (

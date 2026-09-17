@@ -1,7 +1,7 @@
 import { Activity, ChevronLeft, RefreshCw } from "lucide-react";
 import strings from "@/assets/images/strings.jpg";
 import type { IntelligenceCard } from "@/domains/shared/dashboardInsights";
-import { faNum } from "@/lib/format";
+import { faNum, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { IntelligenceCardView } from "@/components/ds/blocks";
 import { EmptyState, LoadingState } from "@/components/ds/states";
@@ -103,7 +103,7 @@ export function Intelligence({
         <footer className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3 text-[11px] text-ink-400">
           <span className="nums">
             منبع: {faNum(counts.records)} رکورد ذخیره‌شده · {faNum(counts.students)} هنرجو · {faNum(counts.classes)} کلاس ·{" "}
-            {faNum(counts.sessions)} جلسه
+            {counts.sessions === null ? NO_DATA : faNum(counts.sessions)} جلسه
           </span>
           <button type="button" onClick={() => navigate({ view: "reports" })} className="group inline-flex items-center gap-1 text-violet-300 hover:text-violet-200">
             همهٔ تحلیل‌ها

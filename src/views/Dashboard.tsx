@@ -31,7 +31,8 @@ function PulseCard({
   loading,
   stats: heroStats,
 }: {
-  sessionsToday: number;
+  /** `null` while the calendar read is unavailable; never a zero for it. */
+  sessionsToday: number | null;
   attentionCount: number;
   hasRecords: boolean;
   loading: boolean;
@@ -48,7 +49,13 @@ function PulseCard({
     ? "فعالیت امروز · در حال خواندن رکوردها…"
     : !hasRecords
       ? "فعالیت امروز · هنوز رکوردی ثبت نشده"
-      : `فعالیت امروز · ${faNum(sessionsToday)} جلسه روی تقویم · ${faNum(attentionCount)} مورد نیازمند پیگیری`;
+      : [
+          "فعالیت امروز",
+          sessionsToday === null ? null : `${faNum(sessionsToday)} جلسه روی تقویم`,
+          `${faNum(attentionCount)} مورد نیازمند پیگیری`,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(" · ");
   return (
     <Surface className="p-5">
       <SectionHeader title="نبض آموزشگاه" kicker={kicker} />
@@ -150,7 +157,7 @@ export function Dashboard() {
       {!isDesktop && (
         <div className="order-5">
           <PulseCard
-              sessionsToday={insights.flowSummary.total}
+              sessionsToday={insights.flowSummary?.total ?? null}
               attentionCount={insights.attention.length}
               hasRecords={insights.hasRecords}
               loading={insights.loading}

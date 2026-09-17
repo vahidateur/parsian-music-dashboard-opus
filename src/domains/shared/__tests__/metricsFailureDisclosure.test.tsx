@@ -52,6 +52,7 @@ import {
   setUserRepository,
 } from "@/domains/registry";
 import { ApiError } from "@/api/errors";
+import { NO_DATA } from "@/lib/format";
 import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { Dashboard } from "@/views/Dashboard";
@@ -105,6 +106,38 @@ function renderHooks() {
     hero: useHeroStats(),
     insights: useDashboardInsights({ todayIso: academyIsoDate(), nowMinutes: 12 * 60 }),
   }));
+}
+
+/**
+ * The two view-level seams, shared by both describes: the real shell for a case
+ * that has to read rendered text, and the tile lookup the dash/zero assertions
+ * need. Hoisted rather than duplicated, so a case in either block cannot drift
+ * from the other's wiring.
+ */
+/**
+ * The real shell, because the defect was a rendered zero and not an unused
+ * field. The auth wiring is the one `dashboardInsightsLive.test.tsx` uses — the
+ * Hero greets the signed-in operator — and it deliberately does NOT reset the
+ * registry, so the rejection a case installed stays installed.
+ */
+async function renderDashboard() {
+  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  setAuthRepository(auth);
+  setUserRepository(new DemoUserRepository(demoStore));
+  await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
+  return render(
+    <AuthProvider repository={auth}>
+      <AppProvider>
+        <Dashboard />
+      </AppProvider>
+    </AuthProvider>,
+  );
+}
+
+function tileFor(label: string): HTMLElement {
+  const tile = screen.getByText(label).closest("button");
+  expect(tile, `tile «${label}»`).not.toBeNull();
+  return tile as HTMLElement;
 }
 
 afterEach(cleanup);
@@ -240,32 +273,6 @@ describe("the aggregate read knows when it has not read", () => {
 });
 
 describe("the dashboard shows the disclosure the read set already computed", () => {
-  /**
-   * The real shell, because the defect was a rendered zero and not an unused
-   * field. The auth wiring is the one `dashboardInsightsLive.test.tsx` uses — the
-   * Hero greets the signed-in operator — and it deliberately does NOT reset the
-   * registry, so the rejection a case installed stays installed.
-   */
-  async function renderDashboard() {
-    const auth = new DemoAuthRepository(demoStore, memoryStorage());
-    setAuthRepository(auth);
-    setUserRepository(new DemoUserRepository(demoStore));
-    await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
-    return render(
-      <AuthProvider repository={auth}>
-        <AppProvider>
-          <Dashboard />
-        </AppProvider>
-      </AuthProvider>,
-    );
-  }
-
-  function tileFor(label: string): HTMLElement {
-    const tile = screen.getByText(label).closest("button");
-    expect(tile, `tile «${label}»`).not.toBeNull();
-    return tile as HTMLElement;
-  }
-
   it("shows an alert with a retry, and a dash rather than a zero on every affected tile", async () => {
     setStudentRepository(rejectingList(getStudentRepository()));
     await renderDashboard();
@@ -338,5 +345,138 @@ describe("the dashboard shows the disclosure the read set already computed", () 
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
     expect(tileFor(HERO_LABELS[1]).textContent).toMatch(/[۰-۹]/);
     expect(tileFor(HERO_LABELS[1]).textContent).not.toContain("—");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* I15-A · the calendar read's own failure                              */
+/* ------------------------------------------------------------------ */
+/**
+ * A failed `sessions` read was reported as a day without sessions.
+ *
+ * `useDashboardInsights` folded its five list reads into one `error` while handing
+ * every derivation `list.items` — and on a rejection that array is empty, so the
+ * page stated «۰ جلسه روی تقویم» (PulseCard), «۰ جلسهٔ خوانده‌شده» (the attention
+ * footer), «امروز جلسه‌ای ثبت نشده» (the flow panel, reached because `hasRecords`
+ * stayed true from the reads that *had* answered) and a signals card whose context
+ * claimed «در این بازه جلسه‌ای در تقویم ثبت نشده». Each of those is a measurement of
+ * rows nobody read. The fix is at the boundary, where the difference still exists:
+ * an unread calendar arrives at the derivations as `null`, and `null` renders
+ * NO_DATA or names the failure, exactly as `metricsAvailable` already does for the
+ * aggregate read.
+ */
+describe("an unread calendar is never reported as an empty one", () => {
+  it("the sessions failure reaches the derivations as null, and stops there", async () => {
+    setSchedulingRepository(rejectingList(getSchedulingRepository()));
+
+    const { result } = renderHooks();
+    await waitFor(() => expect(result.current.insights.loading).toBe(false));
+
+    expect(result.current.insights.error?.kind).toBe("network");
+    // No summary, and no rows either: an empty `FlowSummary` would be a real
+    // calendar with nothing on it.
+    expect(result.current.insights.flowSummary).toBeNull();
+    expect(result.current.insights.flow).toEqual([]);
+    expect(result.current.insights.counts.sessions).toBeNull();
+
+    const cards = result.current.insights.signals.filter(
+      (signal) => signal.id === "sessions" || signal.id === "cancellations",
+    );
+    expect(cards).toHaveLength(2);
+    for (const signal of cards) {
+      expect(signal, `signal «${signal.label}»`).not.toBeNull();
+      expect(signal.value).toBe(NO_DATA);
+      // A dash carries no trend and no sparkline: both would be drawn from the
+      // zeros an unanswered query left behind.
+      expect(signal.delta).toBeNull();
+      expect(signal.series).toBeNull();
+      expect(signal.context).toContain("تقویم");
+    }
+
+    // Selectivity is the other half of the rule. The reads that answered keep
+    // their figures, and `hasRecords` stays what they support, so the rest of the
+    // page is measured rather than blanked.
+    expect(result.current.insights.counts.students).toBeGreaterThan(0);
+    expect(result.current.insights.counts.records).toBeGreaterThan(0);
+    expect(result.current.insights.hasRecords).toBe(true);
+    expect(result.current.hero.stats.every((s) => typeof s.value === "number")).toBe(true);
+  });
+
+  it("no rendered surface calls the unread calendar a quiet one", async () => {
+    setSchedulingRepository(rejectingList(getSchedulingRepository()));
+    const { container } = await renderDashboard();
+
+    // Wait for the panels to have settled on the failure rather than on its
+    // loading frame, then read the whole page's text: every claim below was on
+    // screen before, in a different panel, and a per-panel assertion would let a
+    // fourth surface invent a fifth.
+    // One wording, three silent sites: the two calendar cards' context lines and
+    // the flow panel's empty state. `findAllByText` because all three must be
+    // there, and none of them may be a zero.
+    expect(await screen.findAllByText("خواندن تقویم کامل نشد")).toHaveLength(3);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("خواندن رکوردها کامل نشد");
+    const body = container.textContent ?? "";
+
+    for (const claim of [
+      "۰ جلسه روی تقویم",
+      "۰ جلسهٔ خوانده‌شده",
+      "امروز جلسه‌ای ثبت نشده",
+      "برای امروز در تقویم جلسه‌ای ذخیره نشده است.",
+      "در این بازه جلسه‌ای در تقویم ثبت نشده",
+    ]) {
+      expect(body, `«${claim}» is a claim about rows nobody read`).not.toContain(claim);
+    }
+    // The unmeasured figure is marked as such, and the failure is said once per
+    // silent site rather than hidden behind a dash.
+    expect(body).toContain(NO_DATA);
+    // The reads that answered keep their numbers on the same page.
+    for (const label of HERO_LABELS) {
+      expect(tileFor(label).textContent).toMatch(/[۰-۹]/);
+    }
+  });
+
+  it("a calendar that answered is still read as a day, with its own wording", async () => {
+    // The control case, without which "never say zero" would be satisfied by a
+    // page that says nothing at all.
+    const { container } = await renderDashboard();
+    await waitFor(() => expect(container.textContent ?? "").toMatch(/[۰-۹]+ جلسه روی تقویم/));
+
+    const body = container.textContent ?? "";
+    expect(body).toMatch(/[۰-۹]+ جلسه روی تقویم/);
+    expect(body).toMatch(/[۰-۹]+ جلسهٔ خوانده‌شده/);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(body).not.toContain("خواندن تقویم کامل نشد");
+    expect(body).not.toContain("اندازه‌گیری نشده");
+  });
+
+  it("a failed refetch lets go of the rows it retained", async () => {
+    // `useResourceList` keeps `items` when a later read fails, so the failure has
+    // to be what the boundary reads — otherwise yesterday's session count is
+    // presented as today's, which is the same defect wearing a fresher date.
+    const { stub, setFailing } = switchableRejection(getSchedulingRepository());
+    setFailing(false);
+    setSchedulingRepository(stub);
+
+    const { result } = renderHooks();
+    await waitFor(() => expect(result.current.insights.loading).toBe(false));
+    expect(result.current.insights.error).toBeNull();
+    expect(result.current.insights.flowSummary).not.toBeNull();
+    const measured = result.current.insights.counts.sessions;
+    expect(typeof measured).toBe("number");
+    const day = result.current.insights.flowSummary?.total;
+
+    setFailing(true);
+    await act(async () => {
+      result.current.insights.reload();
+    });
+    await waitFor(() => expect(result.current.insights.error).not.toBeNull());
+
+    expect(result.current.insights.flowSummary).toBeNull();
+    expect(result.current.insights.counts.sessions).toBeNull();
+    expect(result.current.insights.flow).toEqual([]);
+    // The retained rows are gone rather than re-labelled: no count, no flow line.
+    expect(measured === null || day === 0 || result.current.insights.counts.sessions !== measured).toBe(true);
+    expect(result.current.insights.counts.students).toBeGreaterThan(0);
   });
 });

@@ -82,7 +82,8 @@ export interface DashboardInsights {
   attention: AttentionItem[];
   intelligence: IntelligenceCard[];
   flow: FlowRow[];
-  flowSummary: FlowSummary;
+  /** `null` — never an empty summary — while the calendar read is unavailable. */
+  flowSummary: FlowSummary | null;
   roster: RosterModel;
   occupancy: OccupancyModel;
   instruments: InstrumentRow[];
@@ -119,6 +120,18 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
   }, [todayIso]);
 
   const sessions = useSessions({ from: windowStart, to: todayIso, per_page: PAGE });
+  /**
+   * Whether the calendar read may be spoken about.
+   *
+   * `sessions.items` cannot answer that on its own — an empty page and a failed
+   * read are the same empty array there — so the fact is established once, here at
+   * the boundary, and everything downstream receives `null` rather than a guess.
+   * Gating on `error` (and not on `loading`) keeps the successful path, including
+   * the first-load frames, exactly as it was; it is also what handles a failed
+   * refetch, because `error` is then set and the rows the list retained stop being
+   * presented as current.
+   */
+  const sessionsAvailable = sessions.error === null;
 
   const reload = useMemo(
     () => () => {
@@ -141,7 +154,7 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
       classes: classes.items,
       rooms: rooms.items,
       teachers: teachers.items,
-      sessions: sessions.items,
+      sessions: sessionsAvailable ? sessions.items : null,
       todayIso,
       nowMinutes,
     }),
@@ -152,6 +165,7 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
       classes.items,
       rooms.items,
       teachers.items,
+      sessionsAvailable,
       sessions.items,
       todayIso,
       nowMinutes,
@@ -175,7 +189,16 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
   const signals = useMemo(() => deriveSignals(input), [input]);
   const attention = useMemo(() => deriveAttentionItems(input), [input]);
   const intelligence = useMemo(() => deriveIntelligenceCards(input), [input]);
-  const flow = useMemo(() => deriveFlowRows(input.sessions, todayIso, nowMinutes, lookups), [input, todayIso, nowMinutes, lookups]);
+  // With no rows there is no day to summarise, and an empty `FlowSummary` would be
+  // a real calendar with nothing on it. `null` is the honest shape, and it is what
+  // lets PulseCard and the flow panel say "not read" instead of "zero".
+  const flow = useMemo(
+    () =>
+      input.sessions === null
+        ? { rows: [] as FlowRow[], summary: null as FlowSummary | null }
+        : deriveFlowRows(input.sessions, todayIso, nowMinutes, lookups),
+    [input, todayIso, nowMinutes, lookups],
+  );
   const roster = useMemo(() => rosterSeries(input.students), [input.students]);
   const occupancy = useMemo(() => deriveOccupancy(input.classes, input.rooms), [input.classes, input.rooms]);
   const instruments = useMemo(() => deriveInstrumentMix(input.students), [input.students]);
