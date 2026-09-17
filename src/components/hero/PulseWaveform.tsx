@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ACADEMY_NOW, DAY_END, DAY_START, schedule } from "@/data/academy";
+import { DAY_END, DAY_START, pulseDemoSessions } from "./pulseEnvelope";
+import { academyNowMinutes } from "@/domains/shared/clock";
 import { minutesToFaTime, parseTime, toFa } from "@/lib/format";
 import { accentHex, hexA, type Accent } from "@/lib/theme";
 import { cn } from "@/utils/cn";
@@ -15,7 +16,7 @@ function buildEnvelopes() {
     const t = DAY_START + (i / (SAMPLES - 1)) * RANGE;
     let count = 0;
     let attention = 0;
-    for (const s of schedule) {
+    for (const s of pulseDemoSessions) {
       const a = parseTime(s.start);
       const b = parseTime(s.end);
       if (t >= a && t < b) {
@@ -62,7 +63,7 @@ export function PulseWaveform({
   className,
   height = 96,
   showAxis = true,
-  now = ACADEMY_NOW,
+  now = academyNowMinutes(),
   accent = "gold",
 }: {
   className?: string;
@@ -143,9 +144,12 @@ export function PulseWaveform({
       const nowStop = Math.min(0.999, Math.max(0.001, xNow / width));
       const grad = ctx.createLinearGradient(0, 0, width, 0);
       grad.addColorStop(0, hexA(gold[500], 0.3));
-      // conflict at 14:00–15:00 → convert to x fractions (left-based)
-      const cA = 1 - (15 * 60 - DAY_START) / RANGE;
-      const cB = 1 - (14 * 60 - DAY_START) / RANGE;
+      // the demo envelope's attention window → convert to x fractions (left-based)
+      const clash = pulseDemoSessions.find((s) => s.conflict);
+      const cEnd = clash ? parseTime(clash.end) : DAY_START;
+      const cStart = clash ? parseTime(clash.start) : DAY_START;
+      const cA = 1 - (cEnd - DAY_START) / RANGE;
+      const cB = 1 - (cStart - DAY_START) / RANGE;
       grad.addColorStop(Math.max(0, cA - 0.03), hexA(gold[500], 0.3));
       grad.addColorStop((cA + cB) / 2, hexA("#e0a030", 0.82));
       grad.addColorStop(Math.min(nowStop - 0.001, cB + 0.03), hexA(gold[500], 0.32));

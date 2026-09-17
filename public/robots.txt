@@ -1,0 +1,355 @@
+# ---------------------------------------------------------------------------
+# Private SaaS. Nothing here is public.
+#
+# READ THIS BEFORE TRUSTING IT:
+#
+# robots.txt is a REQUEST, not a control. It is a plain-text file that anyone
+# can read, and a hostile crawler simply ignores it. Several crawlers listed
+# below (Bytespider is the documented example) are reported to crawl straight
+# through a Disallow. Perplexity-User and some user-triggered fetchers state
+# outright that they bypass robots.txt.
+#
+# So this file exists for ONE reason: to remove any excuse from crawlers that
+# do behave. The controls that actually keep this panel out of search engines
+# and AI datasets are, in order of strength:
+#
+#   1. Authentication — every byte of real data sits behind login.
+#   2. `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` sent as an HTTP
+#      HEADER on every response (see deploy/ for nginx and Caddy configs).
+#      A header cannot be ignored the way this file can.
+#   3. Not publishing the hostname anywhere — no sitemap, no backlinks, no
+#      public DNS records beyond what TLS requires.
+#   4. Network-level blocking (WAF / Cloudflare bot rules) for the user agents
+#      below, which enforces rather than asks.
+#
+# A wildcard Disallow is intentionally FIRST so that any crawler not named
+# below is still refused.
+# ---------------------------------------------------------------------------
+
+User-agent: *
+Disallow: /
+
+# --- Conventional search engines -------------------------------------------
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Googlebot-Image
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
+
+User-agent: DuckDuckBot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: Applebot
+Disallow: /
+
+User-agent: Sogou
+Disallow: /
+
+User-agent: Exabot
+Disallow: /
+
+User-agent: facebookexternalhit
+Disallow: /
+
+User-agent: Twitterbot
+Disallow: /
+
+User-agent: LinkedInBot
+Disallow: /
+
+# --- AI training crawlers ---------------------------------------------------
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: OAI-AdsBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Claude-User
+Disallow: /
+
+User-agent: Claude-SearchBot
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GoogleOther
+Disallow: /
+
+User-agent: Google-CloudVertexBot
+Disallow: /
+
+User-agent: Google-NotebookLM
+Disallow: /
+
+User-agent: Google-Agent
+Disallow: /
+
+User-agent: GoogleAgent-Mariner
+Disallow: /
+
+User-agent: GoogleAgent-URLContext
+Disallow: /
+
+User-agent: Gemini-Deep-Research
+Disallow: /
+
+User-agent: Google-Firebase
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: meta-externalfetcher
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+User-agent: meta-webindexer
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Perplexity-User
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: TikTokSpider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: amazon-kendra
+Disallow: /
+
+User-agent: Amzn-SearchBot
+Disallow: /
+
+User-agent: MistralAI-User
+Disallow: /
+
+User-agent: MistralAI-Index
+Disallow: /
+
+User-agent: DuckAssistBot
+Disallow: /
+
+User-agent: DeepSeekBot
+Disallow: /
+
+User-agent: DeepseekBot
+Disallow: /
+
+User-agent: KimiBot
+Disallow: /
+
+User-agent: PanguBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: YouBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: cohere-training-data-crawler
+Disallow: /
+
+User-agent: AI2Bot
+Disallow: /
+
+User-agent: AI2Bot-Dolma
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: Timpibot
+Disallow: /
+
+User-agent: Omgili
+Disallow: /
+
+User-agent: Omgilibot
+Disallow: /
+
+User-agent: webzio-extended
+Disallow: /
+
+User-agent: Webzio-Extended
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: img2dataset
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /
+
+User-agent: FirecrawlAgent
+Disallow: /
+
+User-agent: bedrockbot
+Disallow: /
+
+User-agent: ICC-Crawler
+Disallow: /
+
+User-agent: Cotoyogi
+Disallow: /
+
+User-agent: aiHitBot
+Disallow: /
+
+User-agent: SBIntuitionsBot
+Disallow: /
+
+User-agent: Brightbot
+Disallow: /
+
+User-agent: LinerBot
+Disallow: /
+
+User-agent: Crawlspace
+Disallow: /
+
+User-agent: TerraCotta
+Disallow: /
+
+User-agent: Thinkbot
+Disallow: /
+
+User-agent: Panscient
+Disallow: /
+
+User-agent: Seekr
+Disallow: /
+
+User-agent: Meltwater
+Disallow: /
+
+User-agent: peer39_crawler
+Disallow: /
+
+User-agent: VelenPublicWebCrawler
+Disallow: /
+
+User-agent: Factset_spyderbot
+Disallow: /
+
+User-agent: Poseidon Research Crawler
+Disallow: /
+
+User-agent: YandexAdditional
+Disallow: /
+
+User-agent: YandexAdditionalBot
+Disallow: /
+
+# --- SEO / marketing / monitoring scrapers ---------------------------------
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: SemrushBot-OCOB
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: Barkrowler
+Disallow: /
+
+User-agent: SerpstatBot
+Disallow: /
+
+User-agent: ZoominfoBot
+Disallow: /
+
+User-agent: magpie-crawler
+Disallow: /
+
+User-agent: Awario
+Disallow: /
+
+User-agent: TurnitinBot
+Disallow: /
+
+# --- Archivers --------------------------------------------------------------
+User-agent: ia_archiver
+Disallow: /
+
+User-agent: archive.org_bot
+Disallow: /
+
+User-agent: Wayback
+Disallow: /
+
+# --- Emerging opt-out signals ----------------------------------------------
+# Not yet widely honoured, but free to state.
+User-agent: *
+DisallowAITraining: /
+Content-Usage: ai=n
+Content-Signal: search=no, ai-input=no, ai-train=no
+
+# Deliberately no Sitemap directive: there is nothing to discover.

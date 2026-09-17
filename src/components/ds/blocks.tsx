@@ -2,8 +2,10 @@ import type { ComponentType, ReactNode } from "react";
 import { ChevronDown, ChevronLeft, CircleAlert, Info, Lightbulb, Plus, TrendingUp, TriangleAlert } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { faNum, faTime, parseTime } from "@/lib/format";
-import type { IntelligenceCard } from "@/data/records";
-import { ACADEMY_NOW, instrumentLabel, type AttentionItem, type ClassSession, type ClassStatus, type Insight, type Severity, type Signal } from "@/data/academy";
+import type { IntelligenceCard } from "@/domains/shared/dashboardInsights";
+import type { AttentionItem, Insight, Severity, Signal } from "@/lib/viewContracts";
+import type { ClassSession, ClassSessionStatus } from "@/domains/scheduling/types";
+import { academyNowMinutes } from "@/domains/shared/clock";
 import { Delta, InstrumentGlyph, Sparkline, StatusBadge, Surface } from "./primitives";
 
 /* ------------------------------------------------------------------ */
@@ -189,7 +191,7 @@ export function IntelligenceCardView({
 /* ------------------------------------------------------------------ */
 /* Timeline event                                                      */
 /* ------------------------------------------------------------------ */
-const statusBadge: Record<ClassStatus, { label: string; tone: "ok" | "gold" | "neutral" | "warn" | "danger"; live?: boolean; cancelled?: boolean }> = {
+const statusBadge: Record<ClassSessionStatus, { label: string; tone: "ok" | "gold" | "neutral" | "warn" | "danger"; live?: boolean; cancelled?: boolean }> = {
   live: { label: "در حال برگزاری", tone: "ok", live: true },
   next: { label: "بعدی", tone: "gold" },
   scheduled: { label: "برنامه‌ریزی‌شده", tone: "neutral" },
@@ -198,7 +200,7 @@ const statusBadge: Record<ClassStatus, { label: string; tone: "ok" | "gold" | "n
   attention: { label: "نیازمند توجه", tone: "warn" },
 };
 
-const nodeTone: Record<ClassStatus, string> = {
+const nodeTone: Record<ClassSessionStatus, string> = {
   live: "bg-ok-400 ring-4 ring-ok-500/20",
   next: "bg-gold-400",
   scheduled: "bg-ink-500",
@@ -213,10 +215,10 @@ export function TimelineEvent({
   isLast,
   onOpen,
   onResolve,
-  now = ACADEMY_NOW,
+  now = academyNowMinutes(),
 }: {
   session: ClassSession;
-  status: ClassStatus;
+  status: ClassSessionStatus;
   isLast?: boolean;
   onOpen?: () => void;
   onResolve?: () => void;
@@ -257,9 +259,15 @@ export function TimelineEvent({
             <span className="nums text-[10px] text-ink-400">{faNum(Math.round(progress))}٪</span>
           </div>
         )}
+        {/*
+          The label names only what this component knows: the session's own room.
+          It used to name the *other* class in the clash («هم‌زمان با پیانو
+          پیشرفته»), which was fixture copy and wrong for every conflict but the
+          one it was written for (M9/H4).
+        */}
         {status === "attention" && (
           <button type="button" onClick={onResolve} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-warn-400 hover:text-warn-500">
-            هم‌زمان با «پیانو پیشرفته» در {session.room} — حل تعارض
+            تعارض در {session.room} — بررسی در تقویم
             <ChevronLeft className="size-3.5" />
           </button>
         )}
@@ -393,4 +401,3 @@ export function ChartCard({
   );
 }
 
-export const instrumentName = (k: ClassSession["instrument"]) => instrumentLabel[k];

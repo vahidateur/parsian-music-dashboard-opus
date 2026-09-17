@@ -1,0 +1,985 @@
+/**
+ * The M7 relation surfaces read their relations from the domains — enforced
+ * structurally, and enforced IN STAGES so the gate can land before the rewiring.
+ *
+ * THE PROBLEM THIS GATE SOLVES
+ *
+ * `Students.tsx`, `Teachers.tsx` and `Classes.tsx` render their relations from
+ * `@/data/records`: a session grid from the legacy weekly template
+ * (`weekSessions`), teacher/room/class names from the fixture resolvers
+ * (`teacherById`, `classById`, the `rooms` array), the class roster from the
+ * fixture student collection, plus numbers that were never measured (`delta: 11`,
+ * `delta: 3.4`, a hardcoded fee, a synthesized attendance series, an invented
+ * preferred slot). None of that is visible to a behavioural test, because the
+ * views render those fixtures faithfully. It is visible in the shape of the code,
+ * which is what a gate reads.
+ *
+ * WHY IT IS STAGED, AND WHY STAGING DOES NOT WEAKEN IT
+ *
+ * CP1 lands the shared plumbing and this gate; CP2 rewires Students, CP3
+ * Teachers, CP4 Classes and the navigation counts. A gate that goes red for the
+ * two checkpoints in between would be switched off rather than fixed — so each
+ * surface declares the rules it must already satisfy (`enforcedRules`) and the
+ * rules its checkpoint will turn on (`stagedRules`), and the two are RATCHETED
+ * IN BOTH DIRECTIONS:
+ *
+ *   - an enforced surface fails on any hit;
+ *   - a staged surface fails if it carries NONE of the coupling it says it is
+ *     deferring, so a checkpoint cannot rewire a surface and leave it marked
+ *     pending — it has to flip the stage in the open;
+ *   - a staged surface's `pendingBecause` tokens are checked to be REALLY THERE,
+ *     so the deferral cannot be prose about code that already changed.
+ *
+ * The rules themselves are never relaxed to make a checkpoint green: turning one
+ * off for a surface means deleting a rule id from a list in this file, in the
+ * same commit as the code that needs it.
+ *
+ * RULES ARE PROBED
+ *
+ * Every rule carries a probe source it must reject. A rule that cannot fire is
+ * a rule that silently stopped protecting anything, and it fails here.
+ *
+ * WHAT IS NOT IN SCOPE
+ *
+ * The demo seed (`src/domains/demo/*`) is legitimate data, and demo mode is a
+ * real environment. This gate forbids the VIEW layer from pulling seeded
+ * collections and resolvers into a render path; it says nothing about the
+ * dataset, the store or the domains. M10 dissolved the fixture modules this
+ * gate used to point at: the only data module left is the seed, so the import
+ * and identifier rules below now forbid a view from touching
+ * `@/domains/demo/academySeed` — same rule, named against the module that
+ * survived. `Finance.tsx` and `Reports.tsx` are explicitly DEFERRED surfaces
+ * (D6/I2, `src/lib/financeReportsDeferral.ts`) and are still not surfaces
+ * here on purpose.
+ *
+ * Comments are stripped before every check (prose about a rule must not satisfy
+ * it), and no line numbers are used anywhere: they drift, and a gate that breaks
+ * on an unrelated edit gets deleted.
+ */
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const ROOT = process.cwd();
+const VIEWS = join(ROOT, "src", "views");
+const RELATIONS_DIR = join(VIEWS, "relations");
+const SEED_FILE = "src/domains/demo/academySeed.ts";
+const SEED_MODULE = "@/domains/demo/academySeed";
+
+/** Strips comments so prose about a rule cannot satisfy (or trip) it. */
+function code(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+}
+
+function sourceOf(file: string): string {
+  return code(readFileSync(join(ROOT, file), "utf8"));
+}
+
+/* ------------------------------------------------------------------ */
+/* Rule catalogue                                                      */
+/* ------------------------------------------------------------------ */
+
+type RuleId =
+  | "fixture-import"
+  | "fixture-relation"
+  | "fabricated-figure"
+  | "own-source-of-truth"
+  | "unbounded-read"
+  | "static-nav-count";
+
+interface Rule {
+  id: RuleId;
+  /** What the rule forbids, one line — used in failure messages. */
+  forbids: string;
+  /** Source that MUST be reported. A rule that cannot fire is a broken rule. */
+  probe: string;
+  /**
+   * Every violation in `source`, phrased for a failure message.
+   *
+   * `file` is passed because one rule is about components rather than about
+   * modules: a view may not read the frozen demo instant, while the fixture
+   * module that DEFINES it obviously may.
+   */
+  find: (source: string, file: string) => string[];
+}
+
+/** View-layer components: the only files a "views may not…" rule can address. */
+const isViewComponent = (file: string): boolean =>
+  file.startsWith("src/views/") || file.startsWith("src/components/");
+
+/**
+ * What a surface may still name from the demo seed: NOTHING. The seed module
+ * exports data only — collections, resolvers and academy metadata. The label
+ * maps, weekday tables and types M10 re-owned live in their domains
+ * (`@/domains/scheduling/weekdays`, `@/domains/students/types`, …) and are
+ * imported from there, so the allowed set is empty and stays empty. The
+ * forbidden set is DERIVED from the seed module rather than listed here — a
+ * collection added to the seed later is covered without anyone remembering.
+ */
+const ALLOWED_SEED_VALUES = new Set<string>();
+
+/** `export const|function|class` names — the module's data and helpers. */
+function valueExports(source: string): string[] {
+  return [...source.matchAll(/^export\s+(?:const|function|class)\s+([A-Za-z_$][\w$]*)/gm)].map(
+    (match) => match[1],
+  );
+}
+
+const SEED_SOURCE = readFileSync(join(ROOT, SEED_FILE), "utf8");
+
+const FORBIDDEN_SEED_VALUES = valueExports(SEED_SOURCE).filter(
+  (name) => !ALLOWED_SEED_VALUES.has(name),
+);
+
+const SEED_MODULES: readonly { module: string; forbidden: readonly string[] }[] = [
+  { module: SEED_MODULE, forbidden: FORBIDDEN_SEED_VALUES },
+];
+
+/** The seed under any spelling — the `@/` alias or a relative path. */
+const isSeedModule = (name: string): boolean =>
+  name === SEED_MODULE || /(^|\/)domains\/demo\/academySeed$/.test(name);
+
+function fixtureImportViolations(source: string): string[] {
+  const out: string[] = [];
+
+  // `import { … } from "…"`, `import type { … } from "…"` and `import { type X }`.
+  for (const statement of source.matchAll(/import\s+(type\s+)?([^;]*?)\s+from\s+"([^"]+)"/g)) {
+    const statementIsType = Boolean(statement[1]);
+    const clause = statement[2];
+    const module = statement[3];
+    const seed = SEED_MODULES.find((entry) => entry.module === module);
+    if (!seed || !isSeedModule(module)) continue;
+
+    // A namespace import hides every export behind one alias.
+    if (clause.includes("*")) {
+      out.push(`${module} → namespace import 「${clause.trim()}」`);
+    }
+
+    const braced = clause.match(/\{([\s\S]*)\}/);
+    if (!braced) continue;
+    for (const entry of braced[1].split(",")) {
+      const raw = entry.trim();
+      if (!raw) continue;
+      const isType = statementIsType || raw.startsWith("type ");
+      const name = raw.replace(/^type\s+/, "").split(/\s+as\s+/)[0].trim();
+      if (isType) continue;
+      if (seed.forbidden.includes(name)) out.push(`${module} → ${name}`);
+    }
+  }
+
+  // A dynamic import bypasses the static clause entirely.
+  for (const match of source.matchAll(/import\s*\(\s*"([^"]*domains\/demo\/[^"]+)"\s*\)/g)) {
+    out.push(`dynamic import of ${match[1]}`);
+  }
+
+  return out;
+}
+
+/**
+ * Seeded relations that reach a view as an identifier rather than as an import
+ * clause — the resolvers of the demo dataset and its collections. A view reads
+ * those through the repositories; naming them in a view is a render path
+ * around the domains, whatever module they arrived from.
+ */
+const RELATION_IDENTIFIERS = [
+  "weekSessions",
+  "todayAttendance",
+  "studentById",
+  "teacherById",
+  "classById",
+  "roomById",
+  "TODAY_INDEX",
+  "academyClasses",
+  // Not a seed export: a FIELD on a fixture-era collection, and the one §9
+  // forbids outright as a source of truth. Naming it in a view is the roster
+  // built from a denormalized projection, whatever it is called there.
+  "studentIds",
+] as const;
+
+/** Identifiers above that the seed module does not export, and why they are here. */
+const RELATION_ALIASES: Record<string, string> = {
+  roomById: "rooms.find((r) => r.id === …) — the lookup shape the classes surface uses",
+  academyClasses: "`classes` imported under an alias by the students surface",
+  studentIds: "`AcademyClass.studentIds` — the DENORMALIZED display projection (§9); Enrollment is the relationship",
+};
+
+function relationViolations(source: string): string[] {
+  return RELATION_IDENTIFIERS.filter((name) => new RegExp(`\\b${name}\\b`).test(source)).map(
+    (name) => `names the fixture relation 「${name}」`,
+  );
+}
+
+interface Pattern {
+  pattern: RegExp;
+  what: string;
+  /** Source that MUST match this one pattern. */
+  probe: string;
+  /** True for rules that speak about components, not about data modules. */
+  viewOnly?: boolean;
+}
+
+const patternFind =
+  (patterns: readonly Pattern[]) =>
+  (source: string, file: string): string[] =>
+    patterns
+      .filter((entry) => (!entry.viewOnly || isViewComponent(file)) && entry.pattern.test(source))
+      .map((entry) => `carries ${entry.what}`);
+
+/** Figures and claims that assert a measurement nothing in this build measured. */
+const FABRICATED_FIGURES: readonly Pattern[] = [
+  {
+    /*
+      A COMPONENT may not render a trend delta nothing measured. The rule is
+      view-scoped: a data module legitimately carries series the dashboard
+      samples are drawn from, while a render surface derives its numbers from
+      the domains. It removed `delta: 11` from Students, `delta: 11` from
+      Teachers and `delta: 3.4` / `delta: 2.1` from Classes, and it stays live.
+    */
+    pattern: /\bdelta\s*:/,
+    what: "a trend delta nothing measured",
+    probe: "delta: 3.4",
+    viewOnly: true,
+  },
+  {
+    /*
+      A COMPONENT reaches the demo dataset through a domain hook, never by
+      handling the raw `DemoDataset` envelope: the moment a view destructures
+      the dataset it owns a migration, a merge rule and a fake it never built
+      (§18). The seed builders legitimately name the type; a view may not.
+    */
+    pattern: /\bDemoDataset\b/,
+    what: "the raw demo dataset instead of a domain hook",
+    probe: 'const data: DemoDataset = sample.empty();',
+    viewOnly: true,
+  },
+  { pattern: /\b3_600_000\b|\b3600000\b/, what: "a hardcoded course fee", probe: "{faToman(3_600_000)}" },
+  { pattern: /i\s*\*\s*7\s*\+/, what: "a synthesized attendance series", probe: "const seed = (i * 7 + s.attendance) % 10;" },
+  { pattern: /عصرها بعد از/, what: "an invented preferred-slot", probe: "<span>عصرها بعد از ۱۶:۰۰</span>" },
+  { pattern: /نیازمند جایگزین/, what: "an invented substitution workload", probe: 'hint: "۵ کلاس نیازمند جایگزین"' },
+  {
+    pattern: /options\s*:\s*\[[^\]]*٪/,
+    what: "an availability percentage written into a select option",
+    probe: 'options: ["اتاق ۱", "اتاق ۴ (۵۸٪ آزاد)"]',
+  },
+  {
+    /*
+      The option lists are chrome copy as well, and they are the other place a
+      number was standing in for a measurement: «هنرجویان در معرض ریزش (۵)» sized
+      a group nobody counted, in a form that cannot count it (the sheet persists
+      nothing and reads no repository). A NAME may contain a digit — «اتاق ۱» is
+      a room — so the rule targets the parenthesised total, in both digit
+      scripts, matching the hint rule above.
+    */
+    pattern: /options\s*:\s*\[[^\]]*\(\s*[\u06F0-\u06F9\d]+\s*\)/,
+    what: "a written-in count inside a select option",
+    probe: 'options: ["هنرجویان در معرض ریزش (۵)", "مدرسین"]',
+  },
+];
+
+/** Seams a view may not reach through: they are the domains' and the store's. */
+const OWN_SOURCE_PATTERNS: readonly Pattern[] = [
+  { pattern: /services\/demoStore/, what: "the demo store", probe: 'import { demoStore } from "@/services/demoStore";' },
+  { pattern: /\blocalStorage\b|\bsessionStorage\b/, what: "browser storage", probe: 'localStorage.setItem("k", "v");' },
+  { pattern: /new Date\(\s*\)/, what: "the wall clock instead of the academy clock", probe: "const now = new Date();" },
+  { pattern: /Date\.now\(/, what: "the wall clock instead of the academy clock", probe: "const t = Date.now();" },
+  { pattern: /NODE_ENV/, what: "a test-environment branch", probe: 'if (process.env.NODE_ENV === "test") return;' },
+];
+
+/**
+ * A number written into the navigation chrome as if it were current state. The
+ * badge is the one that reads as a live count («۳ کلاس ثبت‌نشده»); the command
+ * hints carry the same claim («مالی · ۳ مورد»).
+ */
+const NAV_COUNT_PATTERNS: readonly Pattern[] = [
+  { pattern: /\bbadge\s*:\s*\d/, what: "a static numeric badge", probe: 'badge: 3, hint: "حضور و غیاب"' },
+  {
+    /*
+      A hint may be DERIVED — `hint: \`${faNum(count)} ثبت‌نشده\`` is a live
+      claim and is allowed. What is forbidden is a digit written into the hint
+      itself, in any quoting style: that is a number nobody computed. Both digit
+      scripts are covered, because a count is just as fabricated in Latin digits.
+    */
+    pattern: /\bhint\s*:\s*[\"\'`][^\"\'`]*[\u06F0-\u06F9\d]/,
+    what: "a number written into a navigation hint",
+    probe: 'hint: "۳ کلاس ثبت‌نشده"',
+  },
+];
+
+const ALL_PATTERNS: readonly Pattern[] = [
+  ...FABRICATED_FIGURES,
+  ...OWN_SOURCE_PATTERNS,
+  ...NAV_COUNT_PATTERNS,
+];
+
+/** One probe source per pattern-based rule, so the rule-level liveness check has one. */
+const probeFor = (patterns: readonly Pattern[]): string =>
+  patterns.map((pattern) => pattern.probe).join("\n");
+
+/** Every list read an M7 surface may make: each needs an explicit page size. */
+const LIST_HOOKS = [
+  "useStudentList",
+  "useTeachers",
+  "useClasses",
+  "useEnrollments",
+  "useRooms",
+  "useSessions",
+  "useAttendanceRecords",
+  "useAttendanceCorrections",
+  "useConversations",
+] as const;
+
+/** Reads that must ALSO be bounded by a date window, not just a page size. */
+const WINDOWED_HOOKS: readonly string[] = ["useSessions"];
+
+/** The argument text of every call of `callee`, balanced-paren aware. */
+function callArguments(source: string, callee: string): string[] {
+  const out: string[] = [];
+  for (const match of source.matchAll(new RegExp(`\\b${callee}\\s*\\(`, "g"))) {
+    const start = (match.index ?? 0) + match[0].length;
+    let depth = 1;
+    let index = start;
+    while (index < source.length && depth > 0) {
+      const char = source[index];
+      if (char === "(") depth += 1;
+      else if (char === ")") depth -= 1;
+      index += 1;
+    }
+    out.push(source.slice(start, index - 1));
+  }
+  return out;
+}
+
+function readViolations(source: string): string[] {
+  const out: string[] = [];
+  for (const hook of LIST_HOOKS) {
+    for (const args of callArguments(source, hook)) {
+      const flat = args.replace(/\s+/g, " ");
+      if (!/\bper_page\s*:/.test(flat)) out.push(`${hook}(…) without per_page`);
+      if (!WINDOWED_HOOKS.includes(hook)) continue;
+      if (!/\bfrom\s*:/.test(flat)) out.push(`${hook}(…) without from`);
+      if (!/\bto\s*:/.test(flat)) out.push(`${hook}(…) without to`);
+    }
+  }
+  return out;
+}
+
+const RULES: readonly Rule[] = [
+  {
+    id: "fixture-import",
+    forbids: "imports a dataset collection, resolver or helper from the seed instead of a domain read",
+    probe: 'import { weekSessions } from "@/domains/demo/academySeed";',
+    find: (source) => fixtureImportViolations(source),
+  },
+  {
+    id: "fixture-relation",
+    forbids: "names a seed relation resolver or the legacy weekly template",
+    probe: "const sessions = weekSessions.filter((w) => w.classId === teacherById(id)?.id);",
+    find: (source) => relationViolations(source),
+  },
+  {
+    id: "fabricated-figure",
+    forbids: "renders a number or a claim that nothing in this build measured",
+    probe: probeFor(FABRICATED_FIGURES),
+    find: patternFind(FABRICATED_FIGURES),
+  },
+  {
+    id: "own-source-of-truth",
+    forbids: "reaches past the domains to the store, browser storage or a clock of its own",
+    probe: probeFor(OWN_SOURCE_PATTERNS),
+    find: patternFind(OWN_SOURCE_PATTERNS),
+  },
+  {
+    id: "unbounded-read",
+    forbids: "reads a list without an explicit page size, or sessions without a window",
+    probe: "useSessions({ teacherId: id }); useTeachers({});",
+    find: (source) => readViolations(source),
+  },
+  {
+    id: "static-nav-count",
+    forbids: "puts a literal count into the navigation chrome",
+    probe: probeFor(NAV_COUNT_PATTERNS),
+    find: patternFind(NAV_COUNT_PATTERNS),
+  },
+];
+
+function ruleById(id: RuleId): Rule {
+  const rule = RULES.find((entry) => entry.id === id);
+  if (!rule) throw new Error(`unknown rule id ${id}`);
+  return rule;
+}
+
+/* ------------------------------------------------------------------ */
+/* Surfaces and their stages                                           */
+/* ------------------------------------------------------------------ */
+
+type Checkpoint = "CP2" | "CP3" | "CP4";
+type Stage = "enforced" | Checkpoint;
+type RuleScope = "relation-surface" | "navigation";
+
+/**
+ * The three views plus any file beside them. Discovered at run time for the
+ * reason the scheduling gate learned the hard way: a gate that reads one file
+ * stops being a gate the moment the code grows a directory beside it.
+ */
+function surfaceFiles(viewFile: string): string[] {
+  const base = viewFile.replace(/\.tsx$/, "");
+  const dir = join(VIEWS, base.replace(/^src\/views\//, ""));
+  if (!existsSync(dir)) return [viewFile];
+  const beside = readdirSync(dir)
+    .filter((file) => /\.tsx?$/.test(file))
+    .sort()
+    .map((file) => `${base}/${file}`);
+  return [viewFile, ...beside];
+}
+
+/** The plumbing this checkpoint adds — enforced from the moment it exists. */
+const PLUMBING_FILES = readdirSync(RELATIONS_DIR)
+  .filter((file) => /\.tsx?$/.test(file))
+  .sort()
+  .map((file) => `src/views/relations/${file}`);
+
+/** Rules every relation surface must satisfy NOW, staged or not. */
+const ALWAYS_ON_RULES: readonly RuleId[] = ["own-source-of-truth", "unbounded-read"];
+/** Rules a relation surface satisfies once its checkpoint has rewired it. */
+const RELATION_STAGED_RULES: readonly RuleId[] = [
+  "fixture-import",
+  "fixture-relation",
+  "fabricated-figure",
+];
+
+/** The navigation chrome's numbers: a figure nothing measured, and a literal count. */
+const NAVIGATION_STAGED_RULES: readonly RuleId[] = ["fabricated-figure", "static-nav-count"];
+
+const SCOPE_RULES: Record<RuleScope, readonly RuleId[]> = {
+  "relation-surface": [...ALWAYS_ON_RULES, ...RELATION_STAGED_RULES],
+  navigation: [...ALWAYS_ON_RULES, ...NAVIGATION_STAGED_RULES],
+};
+
+interface Surface {
+  id: string;
+  scope: RuleScope;
+  stage: Stage;
+  /**
+   * Coupling this surface still defers, as literal tokens that MUST occur in its
+   * source. The ledger is checked, so it cannot outlive the code it describes.
+   * Empty exactly when the surface is enforced.
+   */
+  pendingBecause: string[];
+  files: string[];
+  enforcedRules: RuleId[];
+  stagedRules: RuleId[];
+}
+
+function relationSurface(
+  id: string,
+  stage: Stage,
+  pendingBecause: readonly string[],
+  viewFile: string,
+): Surface {
+  const enforced = stage === "enforced";
+  return {
+    id,
+    scope: "relation-surface",
+    stage,
+    pendingBecause: enforced ? [] : [...pendingBecause],
+    files: surfaceFiles(viewFile),
+    enforcedRules: [...ALWAYS_ON_RULES, ...(enforced ? RELATION_STAGED_RULES : [])],
+    stagedRules: enforced ? [] : [...RELATION_STAGED_RULES],
+  };
+}
+
+const SURFACES: readonly Surface[] = [
+  {
+    id: "m7-relation-plumbing",
+    scope: "relation-surface",
+    stage: "enforced",
+    pendingBecause: [],
+    files: PLUMBING_FILES,
+    enforcedRules: [...SCOPE_RULES["relation-surface"]],
+    stagedRules: [],
+  },
+  relationSurface("students", "enforced", [], "src/views/Students.tsx"),
+  // CP3 turned the teachers surface on: its relations come from the domains, so
+  // nothing is deferred and the surface carries no fixture coupling at all.
+  relationSurface("teachers", "enforced", [], "src/views/Teachers.tsx"),
+  // CP4 turned the classes surface on: the roster and the seat counts are the
+  // enrollment relation, the instructor and the studio are the teachers and
+  // rooms repositories, and the week is a windowed session read.
+  relationSurface("classes", "enforced", [], "src/views/Classes.tsx"),
+  {
+    id: "navigation",
+    scope: "navigation",
+    stage: "enforced",
+    // `navGroups` itself is static product identity and stays; the NUMBERS are
+    // gone from it. CP4 made the one count it could stand behind real — the
+    // messages badge, summed from the conversation rows the chat repository
+    // returns — and removed the rest: the attendance badge and its «۳ کلاس
+    // ثبت‌نشده» hint (no scoped attendance query exists to answer it), the
+    // command hints that asserted counts, and the room option's availability
+    // percentage. M10 moved the chrome itself: navigation vocabulary lives in
+    // `src/lib/navigation.ts`, the quick-action sheet in its overlay component
+    // and the NL command catalog in the palette's own module.
+    pendingBecause: [],
+    files: [
+      "src/lib/navigation.ts",
+      "src/components/layout/Sidebar.tsx",
+      "src/components/overlays/ActionSheet.tsx",
+      "src/components/overlays/commands.ts",
+      "src/components/overlays/CommandPalette.tsx",
+    ],
+    enforcedRules: [...SCOPE_RULES["navigation"]],
+    stagedRules: [],
+  },
+];
+
+function surfaceById(id: string): Surface {
+  const surface = SURFACES.find((entry) => entry.id === id);
+  if (!surface) throw new Error(`unknown surface ${id}`);
+  return surface;
+}
+
+interface Hit {
+  file: string;
+  rule: RuleId;
+  message: string;
+}
+
+function hits(ruleIds: readonly RuleId[], source: string, file: string): Hit[] {
+  return ruleIds.flatMap((rule) =>
+    ruleById(rule)
+      .find(source, file)
+      .map((message) => ({ file, rule, message })),
+  );
+}
+
+function hitsFor(surface: Surface, ruleIds: readonly RuleId[]): Hit[] {
+  return surface.files.flatMap((file) => hits(ruleIds, sourceOf(file), file));
+}
+
+const describeHit = (hit: Hit): string =>
+  `${hit.file} · ${hit.rule} — ${ruleById(hit.rule).forbids}: ${hit.message}`;
+
+/* ------------------------------------------------------------------ */
+/* Requirements the checkpoints carry, and keep                        */
+/* ------------------------------------------------------------------ */
+
+interface GuardRequirement {
+  surfaceId: string;
+  checkpoint: Checkpoint;
+  requirement: string;
+  /**
+   * The un-keyed shared hook the requirement is about: the file that must still
+   * lack the render-time key invariant, and the marker whose ARRIVAL means the
+   * requirement can be deleted because the hazard it guards is gone.
+   */
+  unsafeHook: { file: string; keyInvariantMarker: string };
+  /** What the surface must carry once its checkpoint has rewired it. */
+  guard: {
+    file: string;
+    /** The read made through the un-keyed hook. */
+    read: string;
+    /**
+     * The key that varies with what the surface is showing. Giving it to the
+     * un-keyed read is exactly how the stale frame is produced, so the read's
+     * arguments may not mention it.
+     */
+    selectionKey: string;
+    /** The consumer-local identity that keeps that read's state per selection. */
+    mustContain: string[];
+  };
+}
+
+/**
+ * Requirements a checkpoint carries, recorded where the work happens.
+ *
+ * A requirement is PENDING while its surface still defers to the checkpoint, and
+ * VERIFIED once that checkpoint has rewired the surface. It is deliberately not
+ * deleted when the stage flips: the reason it exists is a property of a SHARED
+ * hook that this milestone may not change, so an edit that removes the call-site
+ * guard must fail here rather than quietly re-opening the frame the guard closes.
+ */
+const GUARD_REQUIREMENTS: readonly GuardRequirement[] = [
+  {
+    surfaceId: "teachers",
+    checkpoint: "CP3",
+    requirement:
+      "the students-of-a-teacher relation needs a CONSUMER-side key guard: `useStudentList` has the " +
+      "known render-time stale-frame gap (OPEN_ITEMS I13) — a params change can commit one frame with the " +
+      "previous query's rows and `loading === false`. CP3 guards at the call site; fixing the shared " +
+      "hook is a separate issue and not part of M7.",
+    unsafeHook: { file: "src/domains/students/useStudents.ts", keyInvariantMarker: "useResourceList" },
+    guard: {
+      file: "src/views/Teachers.tsx",
+      read: "useStudentList",
+      selectionKey: "teacherId",
+      mustContain: ["key={detail.id}"],
+    },
+  },
+  {
+    /*
+      CP4 carries the SAME requirement for the class surface, for the same
+      reason: the roster is students filtered by class membership, read through
+      the hook that has no render-time query-identity invariant. The class
+      surface honours it the same way — membership from the KEY-SAFE
+      class-scoped enrollment read, rows resolved by id, and a fresh instance per
+      class — so the guard is recorded here too, and fails if either half is
+      dropped.
+    */
+    surfaceId: "classes",
+    checkpoint: "CP4",
+    requirement:
+      "the roster-of-a-class relation needs the same CONSUMER-side key guard as the teacher surface: " +
+      "`useStudentList` can commit one frame with the previous query's rows and `loading === false` " +
+      "(OPEN_ITEMS I13). CP4 keeps the read un-keyed, takes membership from the class-scoped enrollment " +
+      "read and mounts the detail per class; fixing the shared hook is a separate issue and not part of M7.",
+    unsafeHook: { file: "src/domains/students/useStudents.ts", keyInvariantMarker: "useResourceList" },
+    guard: {
+      file: "src/views/Classes.tsx",
+      read: "useStudentList",
+      selectionKey: "classId",
+      mustContain: ["key={detail.id}"],
+    },
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/* The gate                                                            */
+/* ------------------------------------------------------------------ */
+
+describe("the M7 surfaces are scanned, and staged honestly", () => {
+  it("scans every relation surface, and names the files it read", () => {
+    expect(SURFACES.map((surface) => surface.id)).toEqual([
+      "m7-relation-plumbing",
+      "students",
+      "teachers",
+      "classes",
+      "navigation",
+    ]);
+
+    for (const surface of SURFACES) {
+      expect(surface.files.length, `${surface.id} has no files`).toBeGreaterThan(0);
+      for (const file of surface.files) {
+        expect(existsSync(join(ROOT, file)), `${surface.id} lists ${file}, which does not exist`).toBe(true);
+      }
+    }
+
+    // Named, so a rename or a move fails here instead of silently shrinking the scan.
+    expect(surfaceById("students").files).toContain("src/views/Students.tsx");
+    expect(surfaceById("teachers").files).toContain("src/views/Teachers.tsx");
+    expect(surfaceById("classes").files).toContain("src/views/Classes.tsx");
+    expect(surfaceById("navigation").files).toEqual([
+      "src/lib/navigation.ts",
+      "src/components/layout/Sidebar.tsx",
+      "src/components/overlays/ActionSheet.tsx",
+      "src/components/overlays/commands.ts",
+      "src/components/overlays/CommandPalette.tsx",
+    ]);
+    // The plumbing is the surface CP1 itself owns, so its discovery is asserted.
+    expect(surfaceById("m7-relation-plumbing").files).toContain("src/views/relations/academyDay.ts");
+    expect(surfaceById("m7-relation-plumbing").files).toContain("src/views/relations/indexById.ts");
+  });
+
+  it("every surface declares its whole rule set, split into enforced and staged", () => {
+    for (const surface of SURFACES) {
+      const declared = [...surface.enforcedRules, ...surface.stagedRules].sort();
+      expect(declared, `${surface.id} must declare exactly the rules of its scope`).toEqual(
+        [...SCOPE_RULES[surface.scope]].sort(),
+      );
+      expect(
+        surface.enforcedRules.filter((id) => surface.stagedRules.includes(id)),
+        `${surface.id} lists a rule as both enforced and staged`,
+      ).toEqual([]);
+
+      if (surface.stage === "enforced") {
+        expect(surface.stagedRules, `${surface.id} is enforced, so nothing may stay staged`).toEqual([]);
+        expect(surface.pendingBecause, `${surface.id} is enforced, so its deferral ledger must be empty`).toEqual([]);
+      } else {
+        expect(surface.stagedRules.length, `${surface.id} defers nothing`).toBeGreaterThan(0);
+        expect(surface.pendingBecause.length, `${surface.id} must say what it still defers`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("stages every surface on the checkpoint that owns it", () => {
+    // The M7 plan, in one place. A checkpoint that rewires a surface flips its
+    // stage here — the refusal to do so is what the per-surface test below fails on.
+    expect(surfaceById("m7-relation-plumbing").stage).toBe("enforced");
+    // CP2 turned the students surface on: it carries no coupling at all now.
+    expect(surfaceById("students").stage).toBe("enforced");
+    // CP3 turned the teachers surface on — every relation it renders is a
+    // repository read, and the deferral ledger below is empty.
+    expect(surfaceById("teachers").stage).toBe("enforced");
+    // CP4 turned the last two on: every M7 surface is enforced, and no deferral
+    // ledger is allowed to stay behind.
+    expect(surfaceById("classes").stage).toBe("enforced");
+    expect(surfaceById("navigation").stage).toBe("enforced");
+    expect(
+      SURFACES.filter((surface) => surface.stage !== "enforced").map((surface) => surface.id),
+      "M7 is fully enforced; re-opening a deferral must be an explicit edit here, not a quiet stage change",
+    ).toEqual([]);
+  });
+
+  it("every rule still detects what it names", () => {
+    for (const rule of RULES) {
+      expect(
+        rule.find(rule.probe, "src/views/Students.tsx"),
+        `rule ${rule.id} did not fire on its own probe — it protects nothing`,
+      ).not.toEqual([]);
+    }
+  });
+
+  it("every pattern inside every rule still detects what it names", () => {
+    // Rule-level liveness is not enough: a rule is a list of patterns, and one
+    // silently broken pattern is one fabrication that stops being reported.
+    for (const entry of ALL_PATTERNS) {
+      expect(
+        entry.pattern.test(entry.probe),
+        `pattern 「${entry.what}」 did not fire on its own probe — it protects nothing`,
+      ).toBe(true);
+    }
+    // And every view-scoped pattern is scoped in BOTH directions: it fires on a
+    // component and is silent on the data module, which legitimately carries
+    // the raw dataset shape a component must never destructure.
+    const viewScoped = ALL_PATTERNS.filter((entry) => entry.viewOnly);
+    expect(viewScoped.length, "the gate must still scope something to components").toBeGreaterThanOrEqual(2);
+    for (const entry of viewScoped) {
+      expect(
+        patternFind([entry])(entry.probe, "src/views/Classes.tsx"),
+        `view-scoped pattern 「${entry.what}」 did not fire on a component — it protects nothing`,
+      ).not.toEqual([]);
+      expect(
+        patternFind([entry])(SEED_SOURCE, SEED_FILE),
+        `view-scoped pattern 「${entry.what}」 must not speak about a data module`,
+      ).toEqual([]);
+    }
+  });
+
+  it("reads the seed module's own exports, so a collection added later is covered", () => {
+    // Non-vacuity: the forbidden set comes from the module, not from a list that
+    // can quietly go stale.
+    expect(FORBIDDEN_SEED_VALUES.length).toBeGreaterThan(10);
+    for (const name of ["weekSessions", "todayAttendance", "classById", "teacherById", "classes", "students", "rooms", "teachers", "academy"]) {
+      expect(FORBIDDEN_SEED_VALUES).toContain(name);
+    }
+    // The names that are not exports of the seed module are here for a
+    // reason, and each reason is named.
+    expect(Object.keys(RELATION_ALIASES).sort()).toEqual(["academyClasses", "roomById", "studentIds"]);
+    for (const name of RELATION_IDENTIFIERS) {
+      if (name in RELATION_ALIASES) continue;
+      expect(
+        FORBIDDEN_SEED_VALUES,
+        `「${name}」 is not (or no longer) a seed export — the identifier list is stale`,
+      ).toContain(name);
+    }
+    // And the allowed side stays EMPTY: the seed exports data only, so the
+    // moment anything becomes importable here, this test is the place that says no.
+    expect(ALLOWED_SEED_VALUES.size).toBe(0);
+  });
+});
+
+describe("each surface satisfies its enforced rules today, or says so", () => {
+  for (const surface of SURFACES) {
+    const title =
+      surface.stage === "enforced"
+        ? `${surface.id}: carries no fixture coupling at all`
+        : `${surface.id}: carries none of what it defers to ${surface.stage} — flip it to "enforced" if the rewiring is done`;
+    const stage = surface.stage;
+
+    it(title, () => {
+      /*
+        Joined into one string rather than compared as an array: a checkpoint
+        that breaks this has to see WHAT it broke, and a reviewer reading a diff
+        message gets the rule id, the rule and the exact import or identifier.
+        An empty hit list is the empty string, so the assertion is the same one.
+      */
+      const enforcedHits = hitsFor(surface, surface.enforcedRules);
+      expect(enforcedHits.map(describeHit).join("\n"), `${surface.id} breaks a rule that is not staged`).toBe("");
+
+      const stagedHits = hitsFor(surface, surface.stagedRules);
+      if (stage === "enforced") {
+        expect(stagedHits.map(describeHit).join("\n"), `${surface.id} is marked enforced but still carries coupling`).toBe("");
+        return;
+      }
+
+      expect(
+        stagedHits.length,
+        `${surface.id} still defers to ${stage}, but none of the coupling it defers is present`,
+      ).toBeGreaterThan(0);
+
+      // The deferral ledger is checked against the source it describes.
+      const sources = surface.files.map(sourceOf).join("\n");
+      for (const token of surface.pendingBecause) {
+        expect(
+          sources.includes(token),
+          `${surface.id} defers 「${token}」, which is not in its source any more — update the ledger or flip the stage`,
+        ).toBe(true);
+      }
+    });
+  }
+});
+
+describe("a surface that relapses is caught by the rules it is enforced on", () => {
+  it("rejects every coupling CP3 retired from the teachers surface", () => {
+    const surface = surfaceById("teachers");
+    const source = surface.files.map(sourceOf).join("\n");
+
+    /*
+      Source shapes the pre-CP3 view carried, one per kind of coupling this
+      surface's enforced set forbids. The rules are no longer exercised by the
+      code they describe — that is what "enforced" means — so a relapse is
+      replayed against them here, on the real surface rather than on a synthetic
+      probe.
+    */
+    const relapses: readonly { what: string; source: string }[] = [
+      { what: "the seeded weekly template", source: 'import { weekSessions } from "@/domains/demo/academySeed";' },
+      { what: "the class resolver", source: 'import { classById } from "@/domains/demo/academySeed";' },
+      { what: "the seeded student collection", source: 'import { students } from "@/domains/demo/academySeed";' },
+      { what: "the seeded class collection", source: 'import { classes } from "@/domains/demo/academySeed";' },
+      { what: "the frozen weekday column", source: 'import { TODAY_INDEX } from "@/domains/demo/academySeed";' },
+      {
+        what: "an aliased seeded collection",
+        source:
+          'import { classes as academyClasses } from "@/domains/demo/academySeed";\nconst waitlist = academyClasses.filter((c) => c.teacherId === t.id).reduce((a, b) => a + b.waitlist, 0);',
+      },
+      {
+        what: "a fixture relation named without importing it",
+        source: "const rows = weekSessions.filter((w) => w.teacherId === teacher.id);",
+      },
+      { what: "a resolver named without importing it", source: "const cl = classById(session.classId);" },
+      { what: "the frozen today index in a render path", source: "const rows = sessions.filter((s) => s.day === TODAY_INDEX);" },
+      { what: "the invented substitution workload", source: 'hint: "۵ کلاس نیازمند جایگزین",' },
+      { what: "the invented trend delta", source: "const stat = { label: 'x', value: 'y', delta: 11 };" },
+      { what: "an unwindowed session read", source: "const read = useSessions({ teacherId: teacher.id });" },
+      { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the wall clock", source: "const today = new Date();" },
+    ];
+
+    for (const relapse of relapses) {
+      const found = hits(surface.enforcedRules, `${source}\n${relapse.source}`, "src/views/Teachers.tsx");
+      expect(
+        found.map(describeHit).join("\n"),
+        `reintroducing ${relapse.what} was not caught: 「${relapse.source}」`,
+      ).not.toBe("");
+    }
+  });
+});
+
+describe("a surface that relapses is caught by the rules it is enforced on", () => {
+  /**
+   * Replays a relapse against a surface's own enforced rules: the source that
+   * really exists, plus one reintroduced coupling. A relapse nobody catches is a
+   * rule that stopped protecting anything, which is the failure this reports.
+   */
+  const replay = (surfaceId: string, relapses: readonly { what: string; source: string }[]) => {
+    const surface = surfaceById(surfaceId);
+    const source = surface.files.map(sourceOf).join("\n");
+    for (const relapse of relapses) {
+      const found = hits(surface.enforcedRules, `${source}\n${relapse.source}`, surface.files[0]);
+      expect(
+        found.map(describeHit).join("\n"),
+        `${surfaceId}: reintroducing ${relapse.what} was not caught: 「${relapse.source}」`,
+      ).not.toBe("");
+    }
+  };
+
+  it("rejects every coupling CP4 retired from the classes surface", () => {
+    replay("classes", [
+      { what: "the seeded weekly template", source: 'import { weekSessions } from "@/domains/demo/academySeed";' },
+      { what: "the teacher resolver", source: 'import { teacherById } from "@/domains/demo/academySeed";' },
+      { what: "the seeded student collection", source: 'import { students } from "@/domains/demo/academySeed";' },
+      { what: "the seeded room array", source: 'import { rooms } from "@/domains/demo/academySeed";' },
+      {
+        what: "the denormalized roster projection",
+        source:
+          'import { students } from "@/domains/demo/academySeed";\nconst roster = students.filter((s) => c.studentIds.includes(s.id));',
+      },
+      { what: "the projection on its own", source: "const memberIds = new Set(c.studentIds);" },
+      {
+        what: "an aliased room array",
+        source: 'import { rooms as academyRooms } from "@/domains/demo/academySeed";\nconst room = academyRooms.find((r) => r.id === c.roomId);',
+      },
+      { what: "a dataset relation named without importing it", source: "const rows = weekSessions.filter((w) => w.classId === c.id);" },
+      { what: "the class resolver named without importing it", source: "const cl = classById(id);" },
+      { what: "the seat-occupancy trend delta", source: "const stat = { label: 'اشغال صندلی', value: 'x', delta: 3.4 };" },
+      { what: "the attendance trend delta", source: "const stat = { label: 'میانگین حضور', value: 'x', delta: 2.1 };" },
+      { what: "an unwindowed session read", source: "const read = useSessions({ classId: c.id });" },
+      { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the wall clock", source: "const weekStart = new Date();" },
+    ]);
+  });
+
+  it("rejects every fabricated number CP4 retired from the navigation chrome", () => {
+    replay("navigation", [
+      { what: "the attendance badge", source: 'items: [{ id: "attendance", label: "حضور و غیاب", badge: 3 }],' },
+      { what: "the messages badge", source: 'items: [{ id: "messages", label: "پیام‌ها", badge: 5 }],' },
+      { what: "the unrecorded-classes hint", source: 'items: [{ id: "attendance", label: "حضور و غیاب", hint: "۳ کلاس ثبت‌نشده" }],' },
+      { what: "the overdue-invoice hint", source: 'const c = { id: "cv2", label: "x", hint: "مالی · ۳ مورد" };' },
+      { what: "the at-risk-students hint", source: 'const c = { id: "cv6", label: "x", hint: "هنرجویان · ۵ نفر" };' },
+      { what: "the room availability percentage", source: 'options: ["اتاق ۱", "اتاق ۴ (۵۸٪ آزاد)"]' },
+      { what: "the browser storage seam", source: 'localStorage.setItem("nav", "1");' },
+      { what: "a wall-clock read", source: "const when = Date.now();" },
+    ]);
+  });
+});
+
+describe("the plumbing this checkpoint adds is held to the rules from day one", () => {
+  it("the day primitive reads the academy clock and nothing else", () => {
+    const source = sourceOf("src/views/relations/academyDay.ts");
+    expect(source).toContain('from "@/domains/shared/clock"');
+    expect(source).toContain("academyNow(");
+    expect(source, "the day must come from a caller or the academy clock").not.toMatch(/@\/data\//);
+  });
+
+  it("the index primitive is pure: it imports nothing and knows no domain", () => {
+    const source = sourceOf("src/views/relations/indexById.ts");
+    expect(source).not.toMatch(/^\s*import\s/m);
+  });
+});
+
+describe("the guards a checkpoint agrees to are kept after the checkpoint lands", () => {
+  it("keeps the CP3 key-guard requirement with the surface that honours it", () => {
+    expect(GUARD_REQUIREMENTS.length).toBeGreaterThan(0);
+    for (const entry of GUARD_REQUIREMENTS) {
+      const surface = surfaceById(entry.surfaceId);
+      expect(entry.requirement).toContain("useStudentList");
+      expect(entry.requirement).toContain("key guard");
+
+      // The requirement is not prose about a hypothetical: the shared hook really
+      // is the one without the render-time key invariant.
+      const hook = sourceOf(entry.unsafeHook.file);
+      expect(
+        hook.includes(entry.unsafeHook.keyInvariantMarker),
+        "useStudentList now answers a changed key safely — re-read the CP3 requirement above and delete it if the consumer-side guard is no longer needed",
+      ).toBe(false);
+
+      // While the surface still defers to the checkpoint, the requirement is
+      // pending and there is nothing in its code to verify yet.
+      if (surface.stage === entry.checkpoint) continue;
+
+      // The guard has two halves, and both are checked. First: the un-keyed read
+      // may not be given a selection-varying key, because that params change is
+      // exactly the frame the hook can leak.
+      const guardSource = sourceOf(entry.guard.file);
+      const reads = callArguments(guardSource, entry.guard.read);
+      expect(
+        reads.length,
+        `${entry.surfaceId} no longer reads through ${entry.guard.read} — the guard below protects a read that is not there`,
+      ).toBeGreaterThan(0);
+      for (const args of reads) {
+        expect(
+          args.replace(/\s+/g, " "),
+          `${entry.surfaceId} keys ${entry.guard.read} on 「${entry.guard.selectionKey}」 — a params change is the frame the un-keyed hook leaks`,
+        ).not.toContain(entry.guard.selectionKey);
+      }
+
+      // Second: the surface must still identify that read's owner locally, rather
+      // than relying on the route remounting its ancestor.
+      for (const token of entry.guard.mustContain) {
+        expect(
+          guardSource.includes(token),
+          `${entry.surfaceId} must carry 「${token}」: ${entry.requirement}`,
+        ).toBe(true);
+      }
+    }
+  });
+});

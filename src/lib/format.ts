@@ -24,7 +24,26 @@ export const faNum = (
   return toFa(fixed).replace(/,/g, "٬").replace(/\./g, "٫");
 };
 
-export const faPercent = (n: number, decimals = 0) => `${faNum(n, { decimals })}٪`;
+/**
+ * The glyph for "there is no value" — an absent measurement, not a zero one.
+ *
+ * Used wherever a derived number can legitimately be `null`: a ratio with no
+ * denominator, a mean over no rows. Rendering «۰٪» there would claim a
+ * measurement that never happened, and rendering «NaN٪» would leak the
+ * arithmetic onto a customer's screen.
+ */
+export const NO_DATA = "—";
+
+/**
+ * Formats a percentage, or the honest «—» when there is nothing to report.
+ *
+ * Accepts `number | null` because the aggregations in `lib/stats.ts` answer
+ * `null` for an empty collection. A non-finite number renders the same way: it
+ * can only arrive from an unguarded computation, and no such value may be shown
+ * as if it were a measurement.
+ */
+export const faPercent = (n: number | null, decimals = 0): string =>
+  n === null || !Number.isFinite(n) ? NO_DATA : `${faNum(n, { decimals })}٪`;
 
 export const faDelta = (n: number, decimals = 1) =>
   `${n > 0 ? "+" : n < 0 ? "−" : ""}${faNum(Math.abs(n), { decimals })}٪`;

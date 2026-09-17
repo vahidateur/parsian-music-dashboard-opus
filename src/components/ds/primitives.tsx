@@ -1,7 +1,7 @@
 import { forwardRef, useMemo, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from "react";
 import { ArrowDownLeft, ArrowUpLeft, Check, ChevronLeft, CircleAlert, Info, Minus, TriangleAlert, X } from "lucide-react";
 import { cn } from "@/utils/cn";
-import { faDelta } from "@/lib/format";
+import { faDelta, NO_DATA } from "@/lib/format";
 
 /* ------------------------------------------------------------------ */
 /* Surface — a quiet elevated plane                                    */
@@ -127,11 +127,27 @@ export function Delta({
   invert,
   className,
 }: {
-  value: number;
+  /**
+   * `null` means "there is no comparison to draw" — the previous period was
+   * zero, or the record carries no history at all. It renders `NO_DATA` rather
+   * than «۰٪», which would claim a measurement nobody took (DECISIONS §14).
+   */
+  value: number | null;
   label?: string;
   invert?: boolean;
   className?: string;
 }) {
+  if (value === null || !Number.isFinite(value)) {
+    return (
+      <span className={cn("inline-flex items-center gap-1.5 text-xs", className)}>
+        <span className="nums inline-flex items-center gap-0.5 rounded-md bg-white/[0.04] px-1.5 py-0.5 font-semibold text-ink-300" dir="ltr">
+          {NO_DATA}
+        </span>
+        {label && <span className="text-ink-400">{label}</span>}
+      </span>
+    );
+  }
+
   const positive = invert ? value < 0 : value > 0;
   const neutral = value === 0;
   return (
@@ -162,6 +178,19 @@ export function Delta({
 /* ------------------------------------------------------------------ */
 /* Sparkline — RTL: newest at the left                                 */
 /* ------------------------------------------------------------------ */
+/**
+ * Sparkline — RTL: newest at the left.
+ *
+ * I9 GUARD. `Math.min(...data)` / `Math.max(...data)` on an empty series are
+ * `Infinity` / `-Infinity`, and those reached the DOM as degenerate coordinates
+ * — a line drawn to nowhere, or `NaN` once they were divided by the span. A
+ * `null` series means "there is no history for this measure", which is a
+ * different fact from "the value is zero".
+ *
+ * Both cases render the product's one "no value" glyph in place of the chart.
+ * I9 was unreachable while every caller passed a static fixture; M9 makes it
+ * reachable, so the guard is here rather than in each caller.
+ */
 export function Sparkline({
   data,
   kind = "line",
@@ -171,7 +200,7 @@ export function Sparkline({
   className,
   animate = true,
 }: {
-  data: number[];
+  data: readonly number[] | null;
   kind?: "line" | "bars";
   tone?: "gold" | "ok" | "warn" | "violet";
   width?: number;
@@ -180,15 +209,20 @@ export function Sparkline({
   animate?: boolean;
 }) {
   const toneText = { gold: "text-gold-400", ok: "text-ok-400", warn: "text-warn-500", violet: "text-violet-400" }[tone];
+  const empty = data === null || data.length === 0;
+  const points = data ?? [];
   const { path, area, length, bars } = useMemo(() => {
-    const min = Math.min(...data);
-    const max = Math.max(...data);
+    if (points.length === 0) {
+      return { path: "", area: "", length: 0, bars: [] as { x: number; h: number }[] };
+    }
+    const min = Math.min(...points);
+    const max = Math.max(...points);
     const span = max - min || 1;
-    const n = data.length;
+    const n = points.length;
     const pad = 2;
     const step = (width - pad * 2) / Math.max(n - 1, 1);
     // RTL: index 0 (oldest) on the right, newest on the left
-    const pts = data.map((v, i) => ({
+    const pts = points.map((v, i) => ({
       x: width - pad - i * step,
       y: pad + (1 - (v - min) / span) * (height - pad * 2),
     }));
@@ -199,15 +233,31 @@ export function Sparkline({
     const d = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
     const area = `${d} L${pts[pts.length - 1].x.toFixed(1)} ${height} L${pts[0].x.toFixed(1)} ${height} Z`;
     const bw = Math.max(2, step * 0.55);
-    const bars = data.map((v, i) => ({
+    const bars = points.map((v, i) => ({
       x: width - pad - i * step - bw / 2,
       h: Math.max(2, ((v - min) / span) * (height - 4) + 2),
     }));
     return { path: d, area, length, bars, bw };
-  }, [data, width, height]);
+  }, [points, width, height]);
+
+  if (empty) {
+    return (
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className={cn("overflow-visible", toneText, className)}
+        aria-hidden
+      >
+        <text x={width / 2} y={height / 2} textAnchor="middle" dominantBaseline="central" fill="currentColor" className="nums text-[10px]">
+          {NO_DATA}
+        </text>
+      </svg>
+    );
+  }
 
   if (kind === "bars") {
-    const bw = Math.max(2, ((width - 4) / Math.max(data.length - 1, 1)) * 0.55);
+    const bw = Math.max(2, ((width - 4) / Math.max(points.length - 1, 1)) * 0.55);
     return (
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={cn("overflow-visible", toneText, className)} aria-hidden>
         {bars.map((b, i) => (
@@ -219,7 +269,7 @@ export function Sparkline({
             height={b.h}
             rx={1}
             fill="currentColor"
-            opacity={i === data.length - 1 ? 1 : 0.38}
+            opacity={i === points.length - 1 ? 1 : 0.38}
             style={
               animate
                 ? { transformOrigin: `${b.x + bw / 2}px ${height}px`, animation: `grow-y 500ms var(--ease-phrase) ${i * 45}ms both` }
@@ -315,7 +365,16 @@ export function IconButton({ className, label, ...rest }: ButtonHTMLAttributes<H
 /* ------------------------------------------------------------------ */
 /* Instrument glyphs — minimal line marks, not cartoon icons           */
 /* ------------------------------------------------------------------ */
-export function InstrumentGlyph({ kind, className }: { kind: "piano" | "guitar" | "voice" | "violin" | "drums" | "theory"; className?: string }) {
+/**
+ * Instrument icon.
+ *
+ * `kind` is an instrument id, which is open-ended now that academies define
+ * their own instruments. The six seeded instruments have bespoke glyphs; any
+ * other id falls back to a generic music note rather than rendering an empty
+ * `<svg>`.
+ */
+export function InstrumentGlyph({ kind, className }: { kind: string; className?: string }) {
+  const known = kind === "piano" || kind === "guitar" || kind === "voice" || kind === "violin" || kind === "drums" || kind === "theory";
   const common = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
   return (
     <svg viewBox="0 0 24 24" className={cn("size-4", className)} aria-hidden {...common}>
@@ -358,6 +417,14 @@ export function InstrumentGlyph({ kind, className }: { kind: "piano" | "guitar" 
           <path d="M3 7h18M3 10.5h18M3 14h18M3 17.5h18" opacity={0.6} />
           <circle cx="9" cy="14" r="1.8" fill="currentColor" stroke="none" />
           <path d="M10.8 14V6.5" />
+        </>
+      )}
+      {!known && (
+        /* Generic note for academy-defined instruments. */
+        <>
+          <circle cx="8" cy="17" r="2.6" />
+          <path d="M10.6 17V5l8 -1.6V15" />
+          <circle cx="16" cy="15" r="2.6" />
         </>
       )}
     </svg>

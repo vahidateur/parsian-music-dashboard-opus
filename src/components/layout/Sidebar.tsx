@@ -1,7 +1,13 @@
-import { BarChart3, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
-import { academy, manager, navGroups, type ViewId } from "@/data/academy";
+import { useMemo, useState } from "react";
+import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { navGroups } from "@/lib/navigation";
+import type { ViewId } from "@/lib/viewContracts";
+import { useBranding } from "@/domains/branding/useBranding";
+import { useAuth } from "@/domains/auth/AuthContext";
+import { roleLabels } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
 import { NavItem } from "@/components/ds/blocks";
+import { useConversations } from "@/domains/chat/useChat";
 import { cn } from "@/utils/cn";
 
 export const navIcons: Record<ViewId, LucideIcon> = {
@@ -11,6 +17,7 @@ export const navIcons: Record<ViewId, LucideIcon> = {
   classes: DoorOpen,
   schedule: CalendarDays,
   attendance: ClipboardCheck,
+  compensation: CalendarClock,
   finance: Wallet,
   reports: BarChart3,
   messages: MessageSquare,
@@ -60,7 +67,86 @@ function Roles() {
   );
 }
 
-export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { collapsed?: boolean; onClose?: () => void; onToggleRail?: () => void }) {
+/* ------------------------------------------------------------------ */
+/* The counts the navigation may show                                  */
+/* ------------------------------------------------------------------ */
+
+/** Rows per badge read. Stated, never inherited from the API default. */
+const NAV_BADGE_PER_PAGE = 200;
+
+/**
+ * Where a navigation badge comes from, and when it is allowed to exist.
+ *
+ * `navGroups` is static product identity: which sections exist and what they
+ * are called. It used to carry two numbers as if they were current state — a
+ * «۳» on حضور و غیاب with the hint «۳ کلاس ثبت‌نشده», and a «۵» on پیام‌ها —
+ * and neither was measured by anything. A badge is a claim about NOW, so it is
+ * read from the repository that owns the fact, at render time:
+ *
+ *   - `messages`: the sum of `unread` over the conversation list the chat
+ *     repository returns for this operator. That is the fact the number means,
+ *     it is scoped to the viewer's own threads, and it moves when a thread is
+ *     opened (the repository clears the counter) because every persisted write
+ *     bumps the data version these reads refresh on.
+ *
+ * WHAT IS DELIBERATELY ABSENT
+ *
+ *   There is no `attendance` badge. "N classes unrecorded" would need to know,
+ *   for each of today's sessions, whether a register exists — and the attendance
+ *   domain exposes no scoped, pageable query for that. Its only set-shaped
+ *   answer, `sessionIdsWithAttendance()`, is the whole table's id set, built as
+ *   a one-directional protection seam for the scheduling planner, not a bounded
+ *   read a navigation chrome may make; counting over a page of attendance rows
+ *   instead would silently under-report for any academy whose trail exceeds one
+ *   page. Inventing an aggregate the domain does not offer is out of scope (M7),
+ *   so the hint beside the item now names the section's subject and claims no
+ *   number at all.
+ *
+ * A badge with nothing measured behind it is not rendered: while a read is in
+ * flight or failed it knows nothing, and a partial page under-reports, so both
+ * states say nothing rather than something wrong.
+ */
+function useNavBadges(): Partial<Record<ViewId, number>> {
+  const conversations = useConversations({ per_page: NAV_BADGE_PER_PAGE });
+  const complete = !conversations.loading && !conversations.error && conversations.total === conversations.items.length;
+  const unread = conversations.items.reduce((total, row) => total + row.unread, 0);
+  return useMemo(() => {
+    if (!complete || unread <= 0) return {};
+    return { messages: unread };
+  }, [complete, unread]);
+}
+
+export function SidebarContent({
+  collapsed = false,
+  onClose,
+  onToggleRail,
+  navLabel = "ناوبری اصلی",
+  badges = {},
+}: {
+  collapsed?: boolean;
+  onClose?: () => void;
+  onToggleRail?: () => void;
+  /** Distinct per instance so the a11y tree has no ambiguous duplicate landmarks. */
+  navLabel?: string;
+  /**
+   * Live counts, resolved once by `Sidebar` from the repositories. An item with
+   * no entry here shows no badge — absence is the honest default, not zero.
+   */
+  badges?: Partial<Record<ViewId, number>>;
+}) {
+  const { user, logout, canAccess } = useAuth();
+  /*
+    The academy's own name and tagline (D2 / M8): read from the branding domain,
+    which is the one owner of the identity, instead of the demo fixture that
+    used to be rendered here.
+  */
+  const { branding } = useBranding();
+  const [accountOpen, setAccountOpen] = useState(false);
+  /* Navigation only shows what the session may actually open. */
+  const visibleGroups = useMemo(
+    () => navGroups.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(n.id)) })).filter((g) => g.items.length > 0),
+    [canAccess],
+  );
   const { view, navigate } = useApp();
 
   return (
@@ -70,8 +156,8 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
         <BrandMark />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-ink-50">{academy.name}</div>
-            <div className="truncate text-[11px] text-ink-400">{academy.tagline} · پنل مدیریت</div>
+            <div className="truncate text-sm font-bold text-ink-50">{branding.academyName}</div>
+            <div className="truncate text-[11px] text-ink-400">{branding.tagline} · پنل مدیریت</div>
           </div>
         )}
         {onClose && (
@@ -81,8 +167,8 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
         )}
       </div>
 
-      <nav className={cn("flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label="ناوبری اصلی">
-        {navGroups.map((group, gi) => (
+      <nav className={cn("flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label={navLabel}>
+        {visibleGroups.map((group, gi) => (
           <div key={group.id} className={cn(gi > 0 && (collapsed ? "mt-2" : "mt-4"))}>
             {group.label &&
               (collapsed ? (
@@ -96,7 +182,7 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
                   key={n.id}
                   icon={navIcons[n.id]}
                   label={n.label}
-                  badge={n.badge}
+                  badge={badges[n.id]}
                   active={view === n.id}
                   collapsed={collapsed}
                   onClick={() => {
@@ -112,26 +198,53 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
 
       <div className={cn("space-y-3 p-3", collapsed && "p-2")}>
         {!collapsed && <Roles />}
-        <button
-          type="button"
-          className={cn(
-            "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 text-right transition-colors hover:border-white/[0.12]",
-            collapsed && "justify-center border-0 bg-transparent p-1",
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setAccountOpen((v) => !v)}
+            aria-expanded={accountOpen}
+            aria-haspopup="menu"
+            aria-label={`حساب کاربری — ${user?.name ?? ""}`}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 text-right transition-colors hover:border-white/[0.12]",
+              collapsed && "justify-center border-0 bg-transparent p-1",
+            )}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-500/30">
+              {(user?.name ?? "؟").trim().charAt(0)}
+            </span>
+            {!collapsed && (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-ink-50">{user?.name}</span>
+                  <span className="block truncate text-[11px] text-ink-400">{user ? roleLabels[user.role] : ""}</span>
+                </span>
+                <ChevronDown className={cn("size-4 text-ink-400 transition-transform", accountOpen && "rotate-180")} />
+              </>
+            )}
+          </button>
+          {accountOpen && (
+            <div
+              role="menu"
+              className={cn(
+                "absolute bottom-full mb-2 w-full overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)]",
+                collapsed && "w-40 right-0",
+              )}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setAccountOpen(false);
+                  void logout();
+                }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-right text-[12.5px] text-ink-100 transition-colors hover:bg-white/[0.06]"
+              >
+                <LogOut className="size-4 text-ink-400" /> خروج از حساب
+              </button>
+            </div>
           )}
-        >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-500/30">
-            {manager.initials}
-          </span>
-          {!collapsed && (
-            <>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink-50">{manager.name}</span>
-                <span className="block truncate text-[11px] text-ink-400">{manager.role}</span>
-              </span>
-              <ChevronDown className="size-4 text-ink-400" />
-            </>
-          )}
-        </button>
+        </div>
         {onToggleRail && (
           <button
             type="button"
@@ -153,6 +266,9 @@ export function SidebarContent({ collapsed = false, onClose, onToggleRail }: { c
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const { railCollapsed, toggleRail } = useApp();
+  /* Read ONCE per shell, not once per rendered instance: the desktop rail and
+     the wide sidebar are two mounts of the same data. */
+  const badges = useNavBadges();
   return (
     <>
       {/* Desktop: full sidebar at xl, icon rail at lg; collapse state is user-controlled & remembered */}
@@ -164,10 +280,10 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         )}
       >
         <div className="hidden h-full xl:block">
-          <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} />
+          <SidebarContent collapsed={railCollapsed} onToggleRail={toggleRail} badges={badges} />
         </div>
         <div className="h-full xl:hidden">
-          <SidebarContent collapsed />
+          <SidebarContent collapsed navLabel="ناوبری فشرده" badges={badges} />
         </div>
       </aside>
 
@@ -176,7 +292,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="منو">
           <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
           <aside className="absolute inset-y-0 right-0 w-[86vw] max-w-[320px] animate-sheet-in border-l border-white/[0.06] bg-ink-900 shadow-2xl" style={{ animationName: "sheet-in-rtl" }}>
-            <SidebarContent onClose={onClose} />
+            <SidebarContent onClose={onClose} navLabel="ناوبری موبایل" badges={badges} />
           </aside>
         </div>
       )}

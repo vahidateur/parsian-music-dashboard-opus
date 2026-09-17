@@ -1,27 +1,43 @@
-import { useState } from "react";
 import { Activity, ChevronLeft, RefreshCw } from "lucide-react";
 import strings from "@/assets/images/strings.jpg";
-import { intelligenceCards } from "@/data/records";
+import type { IntelligenceCard } from "@/domains/shared/dashboardInsights";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { IntelligenceCardView } from "@/components/ds/blocks";
-import { LoadingState } from "@/components/ds/states";
+import { EmptyState, LoadingState } from "@/components/ds/states";
+import type { DashboardCounts } from "@/domains/shared/dashboardInsights";
 import { cn } from "@/utils/cn";
 
-export function Intelligence({ className }: { className?: string }) {
-  const { navigate, notify } = useApp();
-  const [loading, setLoading] = useState(false);
-  const [round, setRound] = useState(0);
-
-  const refresh = () => {
-    if (loading) return;
-    setLoading(true);
-    window.setTimeout(() => {
-      setLoading(false);
-      setRound((r) => r + 1);
-      notify({ tone: "info", title: "تحلیل به‌روز شد", detail: "بر پایهٔ داده‌های ۳۰ روز گذشته" });
-    }, 1400);
-  };
+/**
+ * Academy intelligence.
+ *
+ * M9/H4: the cards are derived from stored records by `useDashboardInsights` and
+ * passed in. The header used to promise «۳ نکته … الگوی مفهومی با دادهٔ نمایشی»
+ * while the footer admitted «دادهٔ نمایشی» — a fabricated count of fabricated
+ * cards. Now the count is the number of cards the records produced, the footer
+ * names how many records that was, and an academy with nothing stored says
+ * «داده‌ای نیست» instead of showing somebody else's academy.
+ *
+ * The refresh control re-reads the repositories through the same hook; the
+ * spinner is the read's own state. It used to animate a 1400ms timer and then
+ * announce «تحلیل به‌روز شد» — a success message for a delay, not for a read.
+ */
+export function Intelligence({
+  cards,
+  counts,
+  hasRecords,
+  loading,
+  onRefresh,
+  className,
+}: {
+  cards: IntelligenceCard[];
+  counts: DashboardCounts;
+  hasRecords: boolean;
+  loading?: boolean;
+  onRefresh?: () => void;
+  className?: string;
+}) {
+  const { navigate } = useApp();
 
   return (
     <section
@@ -44,16 +60,19 @@ export function Intelligence({ className }: { className?: string }) {
                 هوش آموزشگاه
               </h2>
               <p className="mt-1.5 text-xs text-ink-300">
-                {faNum(intelligenceCards.length)} نکته که ارزش توجه شما را دارند · الگوی مفهومی با دادهٔ نمایشی
+                {hasRecords
+                  ? `${faNum(cards.length)} نکته از رکوردهای همین محیط`
+                  : "داده‌ای نیست"}
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={refresh}
-            aria-label="بازسازی تحلیل"
-            title="بازسازی تحلیل"
-            className="flex size-8 items-center justify-center rounded-lg border border-white/[0.07] text-ink-300 transition-colors hover:border-violet-400/30 hover:text-violet-300"
+            onClick={onRefresh}
+            disabled={loading}
+            aria-label="بازخوانی تحلیل"
+            title="بازخوانی از رکوردها"
+            className="flex size-8 items-center justify-center rounded-lg border border-white/[0.07] text-ink-300 transition-colors hover:border-violet-400/30 hover:text-violet-300 disabled:opacity-50"
           >
             <RefreshCw className={cn("size-3.5", loading && "animate-spin-slow")} />
           </button>
@@ -61,18 +80,31 @@ export function Intelligence({ className }: { className?: string }) {
 
         <div className="mt-5 flex-1" aria-live="polite" aria-busy={loading}>
           {loading ? (
-            <LoadingState tone="violet" label="در حال گوش دادن به داده‌های آموزشگاه…" className="py-14" />
-          ) : (
-            <div key={round} className="stagger grid gap-3 lg:grid-cols-3 xl:grid-cols-1">
-              {intelligenceCards.map((card, i) => (
+            <LoadingState tone="violet" label="در حال خواندن رکوردهای آموزشگاه…" className="py-14" />
+          ) : cards.length > 0 ? (
+            <div className="stagger grid gap-3 lg:grid-cols-3 xl:grid-cols-1">
+              {cards.map((card, i) => (
                 <IntelligenceCardView key={card.id} card={card} index={i} onAction={() => navigate(card.action.target)} />
               ))}
             </div>
+          ) : (
+            <EmptyState
+              className="py-9"
+              title={hasRecords ? "نکته‌ای برای نمایش نیست" : "داده‌ای نیست"}
+              description={
+                hasRecords
+                  ? "رکوردهای فعلی چیزی برای گزارش ندارند؛ هر نکته از یک قاعده روی همان رکوردها ساخته می‌شود."
+                  : "هنوز رکوردی در این محیط ثبت نشده است؛ با ثبت اولین هنرجو، کلاس یا جلسه، تحلیل‌ها از همان داده ساخته می‌شوند."
+              }
+            />
           )}
         </div>
 
         <footer className="mt-5 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3 text-[11px] text-ink-400">
-          <span>پایهٔ تحلیل: ۳۰ روز گذشته · امروز ۰۶:۰۰ · دادهٔ نمایشی</span>
+          <span className="nums">
+            منبع: {faNum(counts.records)} رکورد ذخیره‌شده · {faNum(counts.students)} هنرجو · {faNum(counts.classes)} کلاس ·{" "}
+            {faNum(counts.sessions)} جلسه
+          </span>
           <button type="button" onClick={() => navigate({ view: "reports" })} className="group inline-flex items-center gap-1 text-violet-300 hover:text-violet-200">
             همهٔ تحلیل‌ها
             <ChevronLeft className="size-3.5 transition-transform duration-[var(--eighth)] group-hover:-translate-x-0.5" />

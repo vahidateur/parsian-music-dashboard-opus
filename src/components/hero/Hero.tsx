@@ -1,16 +1,28 @@
 import { ChevronLeft } from "lucide-react";
 import hall from "@/assets/images/hall.jpg";
-import { ACADEMY_NOW, academy, heroStats, manager, schedule, statusOf } from "@/data/academy";
+import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
+import { useAcademyNow } from "@/domains/shared/clock";
+import { useDayPulse } from "@/domains/shared/useDayPulse";
+import { useAuth } from "@/domains/auth/AuthContext";
+import { useBranding } from "@/domains/branding/useBranding";
+import { academyIsoDate } from "@/views/relations/academyDay";
 import { faNum, faTime, faToday, greetingFor } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
-import { StatusBadge } from "@/components/ds/primitives";
 import { PulseWaveform } from "./PulseWaveform";
 import { cn } from "@/utils/cn";
 
 export function Hero({ compact = false }: { compact?: boolean }) {
   const { navigate, accent } = useApp();
-  const live = schedule.filter((s) => statusOf(s) === "live").length;
-  const attention = schedule.filter((s) => s.conflict).length > 0 ? 1 : 0;
+  const now = useAcademyNow();
+  // Domain-derived: these move when the underlying records change.
+  const { stats: heroStats } = useHeroStats();
+  // Identity (M10/D3): the academy name/tagline come from the M8 branding
+  // read; the greeting is the signed-in operator, not a fixture manager.
+  const { branding } = useBranding();
+  const { user } = useAuth();
+  const firstName = user?.name.trim().split(/\s+/)[0] ?? null;
+  // Live/attention (M10/F3): derived from the scheduling seam, not a fixture.
+  const pulse = useDayPulse(academyIsoDate(), now);
 
   return (
     <section
@@ -49,20 +61,19 @@ export function Hero({ compact = false }: { compact?: boolean }) {
           <span className="text-ink-500">·</span>
           <span>{faToday()}</span>
           <span className="hidden text-ink-500 sm:inline">·</span>
-          <span className="hidden sm:inline">{academy.name}</span>
+          <span className="hidden sm:inline">{branding.academyName}</span>
         </div>
 
         {/* greeting */}
         <div className="mt-4 sm:mt-5">
           <h1 id="hero-title" className={cn("font-bold tracking-tight text-ink-50", compact ? "text-2xl" : "text-3xl sm:text-4xl")}>
-            {greetingFor(ACADEMY_NOW)}، {manager.firstName}{" "}
+            {greetingFor(now)}{firstName ? `، ${firstName}` : ""}{" "}
             <span className="inline-block origin-bottom-right" aria-hidden>
               👋
             </span>
           </h1>
           <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-200 sm:text-[15px]">
-            {academy.statusLine}
-            <StatusBadge tone="ok" label="وضعیت: سالم" />
+            {branding.tagline}
           </p>
         </div>
 
@@ -101,15 +112,13 @@ export function Hero({ compact = false }: { compact?: boolean }) {
                   <span className="text-ink-200">ریتم امروز</span>
                   <span className="text-ink-500">·</span>
                   <span>
-                    {live > 0 ? `${faNum(live)} کلاس در حال برگزاری` : "بدون کلاس فعال"}
+                    {pulse.live > 0 ? `${faNum(pulse.live)} کلاس در حال برگزاری` : "بدون کلاس فعال"}
                   </span>
-                  <span className="text-ink-500">·</span>
-                  <span>اوج فعالیت {faTime("14:00")} تا {faTime("15:00")}</span>
-                  {attention > 0 && (
+                  {pulse.conflicts > 0 && pulse.firstConflictStart && (
                     <>
                       <span className="text-ink-500">·</span>
                       <button type="button" onClick={() => navigate({ view: "schedule", filter: "conflict" })} className="text-warn-400 hover:underline">
-                        ۱ نقطهٔ توجه در {faTime("14:00")}
+                        {faNum(pulse.conflicts)} نقطهٔ توجه در {faTime(pulse.firstConflictStart)}
                       </button>
                     </>
                   )}

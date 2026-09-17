@@ -1,17 +1,35 @@
 @import "tailwindcss";
-@import "@fontsource/vazirmatn/300.css";
+/*
+  M11/I6: weights 300 and 800 are NOT imported. A census of every font-weight
+  utility and custom class in src/ showed the interface only ever sets
+  400/500/600/700 — the imported 300/800 files were ~60 kB of woff2+woff that
+  no element could use.
+*/
 @import "@fontsource/vazirmatn/400.css";
 @import "@fontsource/vazirmatn/500.css";
 @import "@fontsource/vazirmatn/600.css";
 @import "@fontsource/vazirmatn/700.css";
-@import "@fontsource/vazirmatn/800.css";
 
 /* ------------------------------------------------------------------
    Design tokens — "Ava Music Academy OS"
    Foundation: warm charcoal · wood · restrained gold · quiet violet
 ------------------------------------------------------------------- */
 @theme {
-  --font-sans: "Vazirmatn", "Segoe UI", system-ui, sans-serif;
+  /*
+    Persian UI face. Branding (documented in docs/engineering/DECISIONS.md, D2)
+    may name another family; that family goes FIRST in the stack and the bundled
+    Vazirmatn stays right behind it as the guaranteed fallback, so a choice the
+    bundle does not ship still renders Persian text rather than falling through
+    to a Latin system face.
+  */
+  --font-sans: var(--brand-font-fa, "Vazirmatn"), "Vazirmatn", "Segoe UI", system-ui, sans-serif;
+  /*
+    Latin display face for the wordmark only — never Persian body copy.
+    Deliberately NOT a webfont: bundling @fontsource/playfair-display added
+    ~200 kB of Cyrillic and Vietnamese subsets to serve a three-letter mark.
+    System serifs render "AVA" identically at this size and cost nothing.
+  */
+  --font-display: Georgia, "Times New Roman", serif;
 
   /* Ink — warm charcoal foundation */
   --color-ink-950: #0a0908;
@@ -80,15 +98,25 @@
    Accent — controlled customization. Components use the gold scale,
    which is aliased to the active accent at runtime. Never scatter
    hardcoded brand colors through the pages.
+
+   BRANDING IS ORGANIZATION DATA (D2 / M8). The persisted brand colours
+   feed the DEFAULT scale — the one a viewer has unless they explicitly
+   choose another accent — so the identity an academy saves is the
+   identity its surfaces render. «کهربای ساز» and «بنفش رزونانس» remain
+   per-viewer overrides and still switch all six tiers together. The two
+   tiers the branding model owns are used directly; the rest are derived
+   from them with `color-mix`, and every fallback is the value that tier
+   had before branding was wired in, so a build with no branding record
+   (or an unreadable one) renders exactly as it did.
 ------------------------------------------------------------------- */
 :root,
 [data-accent="gold"] {
-  --accent-200: #f6e6b8;
-  --accent-300: #efd89a;
-  --accent-400: #e4c57a;
-  --accent-500: #d4a853;
-  --accent-600: #b98c3e;
-  --accent-700: #8f6a2c;
+  --accent-200: color-mix(in srgb, var(--brand-accent, #efd89a) 60%, white);
+  --accent-300: var(--brand-accent, #efd89a);
+  --accent-400: color-mix(in srgb, var(--brand-primary, #d4a853) 40%, var(--brand-accent, #efd89a));
+  --accent-500: var(--brand-primary, #d4a853);
+  --accent-600: color-mix(in srgb, var(--brand-primary, #d4a853) 82%, black);
+  --accent-700: color-mix(in srgb, var(--brand-primary, #d4a853) 64%, black);
 }
 [data-accent="wood"] {
   --accent-200: #f4e3c2;
@@ -183,7 +211,12 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-ink-950 text-ink-50 antialiased;
+    @apply bg-ink-950 antialiased;
+    /*
+      The persisted text colour is the body default (D2 / M8). Component-level
+      text tokens (`text-ink-*`) still win wherever a surface states one.
+    */
+    color: var(--brand-text, #f5f0e8);
     font-feature-settings: "ss01", "kern";
     text-rendering: optimizeLegibility;
   }
@@ -273,4 +306,17 @@
   .stagger > *:nth-child(10) { animation-delay: 540ms; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
+}
+
+/* Login entrance. Decorative only — disabled under reduced-motion via the
+   `motion-reduce:animate-none` utility on each element. */
+@keyframes loginRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
