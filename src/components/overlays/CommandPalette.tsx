@@ -31,6 +31,34 @@ const kindIcon: Record<SearchResultKind, ReactNode> = {
 
 const normalize = (s: string) => s.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").trim().toLowerCase();
 
+/**
+ * D7 · hand focus back to the control that opened the palette.
+ *
+ * `useFocusTrap` (ds/patterns.tsx) is the project's canonical overlay focus
+ * manager, and it saves `document.activeElement` on open and restores it in the
+ * same effect's cleanup. The palette cannot simply mount that hook: it owns its
+ * own entry focus (the 30 ms deferred focus into the search field) and its own
+ * Escape/arrow keys, so a second system entering through the first focusable node
+ * would fight it and land the caret somewhere else. What the palette borrows is
+ * the semantics, at the boundary it already has — one owner, one system.
+ *
+ * Two guards the trap does not need and the palette does. `body` means nothing was
+ * focused when the palette opened (the Ctrl+K shell shortcut in `App.tsx` is the
+ * shipped case: a key chord has no opener), and an element removed while the
+ * palette was up is no longer anywhere to return to. Both restore nothing rather
+ * than throwing the page into an unhandled error at close time.
+ */
+function returnFocusToOpener(opener: HTMLElement | null) {
+  if (opener === null || opener === document.body || opener === document.documentElement) return;
+  if (!opener.isConnected || typeof opener.focus !== "function") return;
+  try {
+    opener.focus();
+  } catch {
+    // A control that refuses focus is not worth a crash over: the palette has
+    // closed either way, and the browser decides where the caret goes now.
+  }
+}
+
 export function CommandPalette() {
   const { paletteOpen, closePalette, navigate, openSheet } = useApp();
   const [query, setQuery] = useState("");
@@ -60,17 +88,25 @@ export function CommandPalette() {
 
   useEffect(() => {
     if (paletteOpen) {
+      // Captured before the deferred focus below moves the caret inside, and while
+      // `paletteOpen` is true only: the effect of a render that found the palette
+      // closed saves nothing, so no frame that never opened it can restore.
+      const opener = document.activeElement as HTMLElement | null;
       setQuery("");
       setActive(0);
       setResult(null);
       document.body.style.overflow = "hidden";
       window.setTimeout(() => inputRef.current?.focus(), 30);
-    } else {
-      document.body.style.overflow = "";
+      return () => {
+        document.body.style.overflow = "";
+        // The one cleanup every close path runs through — Escape, the backdrop,
+        // an action that hands off to the sheet, or a navigation — because they
+        // all end by flipping `paletteOpen`, and this is what that flip leaves
+        // behind.
+        returnFocusToOpener(opener);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
+    document.body.style.overflow = "";
   }, [paletteOpen]);
 
   // Repository-backed record search; empty query returns nothing.
