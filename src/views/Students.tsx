@@ -390,6 +390,7 @@ function StudentDetail({
         breadcrumb={[{ label: "هنرجویان", onClick: () => navigate({ view: "students" }) }, { label: student.name }]}
         title={
           <span className="flex flex-wrap items-center gap-3">
+            <Avatar name={student.name} size="md" ring={statusTone[student.status]} photoMediaId={student.photoMediaId} />
             {student.name}
             <StatusBadge tone={statusTone[student.status]} label={studentStatusLabel[student.status]} />
           </span>

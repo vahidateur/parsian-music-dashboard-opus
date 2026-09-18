@@ -599,7 +599,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                   return (
                     <ListRow
                       key={student.id}
-                      lead={<Avatar name={student.name} size="sm" />}
+                      lead={<Avatar name={student.name} size="sm" ring={studentStatusTone[student.status]} photoMediaId={student.photoMediaId} />}
                       title={student.name}
                       meta={[`${instrumentName(student.instrument)} · ${student.level}`, titles.join("، ")]
                         .filter(Boolean)
