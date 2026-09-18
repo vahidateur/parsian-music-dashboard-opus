@@ -13,11 +13,14 @@ import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
 import { getTeacherRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
+import { ProfilePhotoField } from "@/domains/media/ProfilePhotoField";
 import { cn } from "@/utils/cn";
 import type { CreateTeacherInput, TeacherStatus } from "./types";
 
 interface TeacherDraft {
   name: string;
+  /** `MediaAsset.id` of the profile photo; undefined when none. */
+  photoMediaId?: string;
   instrument: InstrumentId;
   title: string;
   phone: string;
@@ -40,6 +43,7 @@ const emptyAvailability = (): number[][] => Array.from({ length: 7 }, () => [0, 
 function toDraft(teacher?: Teacher): TeacherDraft {
   return {
     name: teacher?.name ?? "",
+    photoMediaId: teacher?.photoMediaId,
     instrument: teacher?.instrument ?? "piano",
     title: teacher?.title ?? "",
     phone: teacher?.phone ?? "",
@@ -94,6 +98,7 @@ export function TeacherFormDialog({
     submit: async (draft) => {
       const payload = {
         name: draft.name.trim(),
+        photoMediaId: draft.photoMediaId,
         instrument: draft.instrument,
         title: draft.title.trim(),
         phone: draft.phone.trim(),
@@ -158,6 +163,15 @@ export function TeacherFormDialog({
             {form.formError.message}
           </p>
         )}
+
+        <div className="sm:col-span-2">
+          <ProfilePhotoField
+            mediaId={form.draft.photoMediaId}
+            personName={form.draft.name || "مدرس"}
+            disabled={busy}
+            onChange={(next) => form.set("photoMediaId", next)}
+          />
+        </div>
 
         <Field label="نام و نام خانوادگی" error={form.errors.name} required className="sm:col-span-2">
           {(control) => (

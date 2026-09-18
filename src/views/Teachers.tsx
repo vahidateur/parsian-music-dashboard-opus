@@ -191,7 +191,7 @@ function TeacherCard({
   return (
     <button type="button" onClick={onOpen} className="surface group flex flex-col gap-4 p-4 text-right transition-all hover:border-white/[0.14] hover:bg-white/[0.02]">
       <div className="flex items-start gap-3">
-        <Avatar name={t.name} size="md" ring={meta.tone} />
+        <Avatar name={t.name} size="md" ring={meta.tone} photoMediaId={t.photoMediaId} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold text-ink-50">{t.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
@@ -431,6 +431,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
         breadcrumb={[{ label: "مدرسین", onClick: () => navigate({ view: "teachers" }) }, { label: teacher.name }]}
         title={
           <span className="flex flex-wrap items-center gap-3">
+            <Avatar name={teacher.name} size="md" ring={meta.tone} photoMediaId={teacher.photoMediaId} />
             {teacher.name}
             <StatusBadge tone={meta.tone} label={meta.label} />
           </span>
@@ -880,7 +881,7 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
             .map((t) => (
               <div key={t.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                 <div className="flex items-center gap-2.5">
-                  <Avatar name={t.name} size="sm" />
+                  <Avatar name={t.name} size="sm" photoMediaId={t.photoMediaId} />
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink-50">{t.name}</div>
                     <div className="text-[11px] text-ink-400">{instrumentName(t.instrument)}</div>

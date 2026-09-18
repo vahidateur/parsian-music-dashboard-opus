@@ -189,7 +189,7 @@ function StudentCard({ s, teacherName, onOpen }: { s: Student; teacherName: stri
       className="surface group flex flex-col gap-4 p-4 text-right transition-all duration-[var(--sixteenth)] hover:border-white/[0.14] hover:bg-white/[0.02]"
     >
       <div className="flex items-start gap-3">
-        <Avatar name={s.name} size="md" ring={statusTone[s.status]} />
+        <Avatar name={s.name} size="md" ring={statusTone[s.status]} photoMediaId={s.photoMediaId} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold text-ink-50">{s.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
@@ -1038,7 +1038,7 @@ export function StudentsView() {
       header: "هنرجو",
       cell: (s) => (
         <div className="flex items-center gap-2.5">
-          <Avatar name={s.name} size="sm" ring={statusTone[s.status]} />
+          <Avatar name={s.name} size="sm" ring={statusTone[s.status]} photoMediaId={s.photoMediaId} />
           <div className="min-w-0">
             <div className="truncate font-medium text-ink-50">{s.name}</div>
             <div className="truncate text-[11px] text-ink-400">{s.level}</div>

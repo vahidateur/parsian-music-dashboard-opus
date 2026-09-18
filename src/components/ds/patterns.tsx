@@ -4,6 +4,7 @@ import { cn } from "@/utils/cn";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Delta, Sparkline, Surface, type Tone } from "./primitives";
+import { useMediaObjectUrl } from "@/domains/media/useMedia";
 
 /* ================================================================== */
 /* PAGE HEADER — same rhythm on every screen                           */
@@ -316,11 +317,14 @@ export function Avatar({
   size = "md",
   ring,
   className,
+  photoMediaId,
 }: {
   name: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   ring?: Tone;
   className?: string;
+  /** Optional profile photo — resolves through media repo, falls back to initials. */
+  photoMediaId?: string;
 }) {
   const initials = name.trim().split(" ").slice(0, 2).map((p) => p[0]).join("");
   const tone = avatarTones[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % avatarTones.length];
@@ -328,12 +332,37 @@ export function Avatar({
   const ringCls = ring
     ? { ok: "ring-ok-500/40", warn: "ring-warn-500/45", danger: "ring-danger-500/45", info: "ring-info-400/40", gold: "ring-gold-500/40", violet: "ring-violet-500/40", neutral: "ring-white/10" }[ring]
     : "ring-white/[0.08]";
+
+  // M-2: Teacher (and Student) photo support through existing media mechanism.
+  const url = useMediaObjectUrl(photoMediaId);
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [photoMediaId]);
+
+  const showImage = Boolean(photoMediaId && url && !imgError);
+
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br font-semibold text-ink-50 ring-2", tone, dims, ringCls, className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold text-ink-50 ring-2",
+        tone,
+        dims,
+        ringCls,
+        className,
+      )}
       aria-hidden
     >
-      {initials}
+      {showImage ? (
+        <img
+          src={url}
+          alt={`تصویر ${name}`}
+          className="size-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }
