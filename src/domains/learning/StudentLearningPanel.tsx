@@ -24,8 +24,8 @@ import { cn } from "@/utils/cn";
 export function StudentLearningPanel({ studentId, studentName }: { studentId: string; studentName: string }) {
   const { notify } = useApp();
   const { data: placement, loading: placementLoading, error: placementError, reload } = useStudentPlacement(studentId);
-  const { data: eligible, loading: contentLoading } = useEligibleContent(studentId);
-  const { items: programs } = usePrograms({ per_page: 200 });
+  const { data: eligible, loading: contentLoading, error: contentError, reload: reloadContent } = useEligibleContent(studentId);
+  const { items: programs, loading: programsLoading, error: programsError, reload: reloadPrograms } = usePrograms({ per_page: 200 });
   const [busy, setBusy] = useState(false);
 
   const programId = placement?.programId;
@@ -33,7 +33,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
   // به این سطح» moves the student), and both the rows and the count below come
   // from this query. Rendering it while another program's page is still in hand
   // is what I13 was about.
-  const { items: levels, loading: levelsLoading } = useLevels(
+  const { items: levels, loading: levelsLoading, error: levelsError, reload: reloadLevels } = useLevels(
     programId ? { programId, per_page: 200 } : { per_page: 0 },
   );
 
@@ -82,26 +82,42 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
               title="این هنرجو هنوز روی سطحی قرار نگرفته"
               description="تا زمانی که سطح تعیین نشود، منبعی برای او باز نمی‌شود."
             />
-            <Field label="تعیین دوره و سطح" className="mt-3">
-              {(control) => (
-                <select
-                  {...control}
-                  className={inputCls}
-                  defaultValue=""
-                  disabled={busy || programs.length === 0}
-                  onChange={(e) => {
-                    const [nextProgram, nextLevel] = e.target.value.split("|");
-                    if (nextProgram && nextLevel) void assign(nextProgram, nextLevel);
-                  }}
-                >
-                  <option value="">— انتخاب کنید —</option>
-                  {programs.map((program) => (
-                    <ProgramLevelOptions key={program.id} programId={program.id} programName={program.name} />
-                  ))}
-                </select>
-              )}
-            </Field>
+            {programsError ? (
+              <ErrorState
+                title="بارگذاری دوره‌ها ناموفق بود"
+                description={programsError.message}
+                onRetry={reloadPrograms}
+              />
+            ) : programsLoading ? (
+              <LoadingState label="در حال بارگذاری دوره‌ها…" />
+            ) : (
+              <Field label="تعیین دوره و سطح" className="mt-3">
+                {(control) => (
+                  <select
+                    {...control}
+                    className={inputCls}
+                    defaultValue=""
+                    disabled={busy || programs.length === 0}
+                    onChange={(e) => {
+                      const [nextProgram, nextLevel] = e.target.value.split("|");
+                      if (nextProgram && nextLevel) void assign(nextProgram, nextLevel);
+                    }}
+                  >
+                    <option value="">— انتخاب کنید —</option>
+                    {programs.map((program) => (
+                      <ProgramLevelOptions key={program.id} programId={program.id} programName={program.name} />
+                    ))}
+                  </select>
+                )}
+              </Field>
+            )}
           </>
+        ) : levelsError ? (
+          <ErrorState
+            title="بارگذاری سطوح ناموفق بود"
+            description={levelsError.message}
+            onRetry={reloadLevels}
+          />
         ) : levelsLoading ? (
           // Not an empty state: the placement names a program, so a ladder is
           // expected and this read is simply still in flight. Claiming «۰ سطح»
@@ -159,7 +175,13 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
       </Panel>
 
       <Panel title="منابع باز شده" kicker="بر اساس سطح فعلی هنرجو محاسبه می‌شود">
-        {contentLoading ? (
+        {contentError ? (
+          <ErrorState
+            title="بارگذاری منابع باز شده ناموفق بود"
+            description={contentError.message}
+            onRetry={reloadContent}
+          />
+        ) : contentLoading ? (
           <LoadingState label="در حال محاسبهٔ منابع…" />
         ) : eligible.length === 0 ? (
           <EmptyState
@@ -202,7 +224,9 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
  * select can assign both program and level in one step.
  */
 function ProgramLevelOptions({ programId, programName }: { programId: string; programName: string }) {
-  const { items: levels } = useLevels({ programId, per_page: 200 });
+  const { items: levels, loading, error } = useLevels({ programId, per_page: 200 });
+  // Failure is not an empty program: omit the group rather than claiming «۰ سطح».
+  if (loading || error) return null;
   if (levels.length === 0) return null;
   return (
     <optgroup label={programName}>

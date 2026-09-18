@@ -72,7 +72,7 @@ export function PieceFormDialog({
 }) {
   const editing = piece !== undefined;
   const catalog = useInstrumentCatalog();
-  const { items: programs } = usePrograms({ per_page: 200 });
+  const { items: programs, loading: programsLoading, error: programsError, reload: reloadPrograms } = usePrograms({ per_page: 200 });
   const repository = useMemo(() => getProgressRepository(), []);
   const activeInstruments = catalog.filter((i) => i.active || i.id === piece?.instrumentId);
 
@@ -140,6 +140,15 @@ export function PieceFormDialog({
           </p>
         )}
 
+        {programsError && (
+          <p role="alert" className="sm:col-span-2 rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری دوره‌ها ناموفق بود: {programsError.message}{" "}
+            <button type="button" className="underline" onClick={reloadPrograms}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+
         <Field label="عنوان" error={form.errors.title} required>
           {(control) => (
             <input
@@ -189,17 +198,20 @@ export function PieceFormDialog({
               {...control}
               className={inputCls}
               value={form.draft.programId}
-              disabled={busy}
+              disabled={busy || !!programsLoading || !!programsError}
               onChange={(e) => form.set("programId", e.target.value)}
             >
-              <option value="">— بدون دوره —</option>
-              {programs
-                .filter((p) => !form.draft.instrumentId || p.instrumentId === form.draft.instrumentId)
-                .map((program) => (
-                  <option key={program.id} value={program.id}>
-                    {program.name}
-                  </option>
-                ))}
+              <option value="">
+                {programsLoading ? "در حال بارگذاری…" : programsError ? "خطا در بارگذاری" : "— بدون دوره —"}
+              </option>
+              {!programsError &&
+                programs
+                  .filter((p) => !form.draft.instrumentId || p.instrumentId === form.draft.instrumentId)
+                  .map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.name}
+                    </option>
+                  ))}
             </select>
           )}
         </Field>

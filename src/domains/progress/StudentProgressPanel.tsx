@@ -75,7 +75,7 @@ export function StudentProgressPanel({
   // `timelineLoading` is read, not ignored: its params carry `studentId`, so
   // switching students would otherwise render the previous student's events
   // under this student's name (I13).
-  const { items: timeline, loading: timelineLoading } = useProgressEvents({ studentId, per_page: 15 });
+  const { items: timeline, loading: timelineLoading, error: timelineError, reload: reloadTimeline } = useProgressEvents({ studentId, per_page: 15 });
 
   const insightByAssignment = useMemo(
     () => new Map((overview?.insights ?? []).map((i) => [i.assignmentId, i])),
@@ -256,7 +256,13 @@ export function StudentProgressPanel({
 
       {/* Timeline */}
       <Panel title="سابقهٔ پیشرفت" kicker="رویدادها به ترتیب زمان، بدون بازنویسی">
-        {timelineLoading ? (
+        {timelineError ? (
+          <ErrorState
+            title="بارگذاری سابقهٔ پیشرفت ناموفق بود"
+            description={timelineError.message}
+            onRetry={reloadTimeline}
+          />
+        ) : timelineLoading ? (
           // Events are expected for a student with a history; this read is in
           // flight, not absent. «سابقه‌ای ثبت نشده» here would be a false empty.
           <LoadingState label="در حال بارگذاری سابقهٔ پیشرفت…" />

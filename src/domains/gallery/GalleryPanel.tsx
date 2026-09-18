@@ -65,7 +65,7 @@ export function GalleryPanel() {
   // `imagesLoading` is read, not ignored: every thumbnail's «حذف» closes over
   // its own `image`, so rendering the previous album's thumbnails under a new
   // selection offered a delete that destroyed another album's image (I13).
-  const { items: images, loading: imagesLoading } = useGalleryImages(
+  const { items: images, loading: imagesLoading, error: imagesError, reload: reloadImages } = useGalleryImages(
     selected ? { albumId: selected.id, per_page: 200 } : { per_page: 0 },
   );
 
@@ -222,7 +222,13 @@ export function GalleryPanel() {
                 </Button>
               </div>
 
-              {imagesLoading ? (
+              {imagesError ? (
+                <ErrorState
+                  title="بارگذاری تصاویر این آلبوم ناموفق بود"
+                  description={imagesError.message}
+                  onRetry={reloadImages}
+                />
+              ) : imagesLoading ? (
                 // An album is selected, so images are expected: this read is in
                 // flight, not empty. «این آلبوم خالی است» here would be a false
                 // empty — and the grid it replaces is a delete surface.

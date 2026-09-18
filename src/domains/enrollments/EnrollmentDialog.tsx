@@ -32,8 +32,8 @@ export function EnrollmentDialog({
   onEnrolled: (enrollment: Enrollment) => void;
 }) {
   const repository = useMemo(() => getEnrollmentRepository(), []);
-  const { items: classes } = useClasses({ per_page: 200 });
-  const { students } = useStudentList({ per_page: 500 });
+  const { items: classes, loading: classesLoading, error: classesError, reload: reloadClasses } = useClasses({ per_page: 200 });
+  const { students, loading: studentsLoading, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 500 });
 
   const [selectedStudent, setSelectedStudent] = useState(studentId ?? "");
   const [selectedClass, setSelectedClass] = useState(classId ?? "");
@@ -97,10 +97,27 @@ export function EnrollmentDialog({
           </p>
         )}
 
+        {classesError && (
+          <p role="alert" className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری کلاس‌ها ناموفق بود: {classesError.message}{" "}
+            <button type="button" className="underline" onClick={reloadClasses}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+        {studentsError && (
+          <p role="alert" className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری هنرجویان ناموفق بود: {studentsError.message}{" "}
+            <button type="button" className="underline" onClick={reloadStudents}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+
         <Field label="هنرجو" required>
           {(control) => (
-            <select {...control} className={inputCls} value={selectedStudent} disabled={busy} onChange={(e) => setSelectedStudent(e.target.value)}>
-              <option value="">— انتخاب کنید —</option>
+            <select {...control} className={inputCls} value={selectedStudent} disabled={busy || studentsLoading || Boolean(studentsError)} onChange={(e) => setSelectedStudent(e.target.value)}>
+              <option value="">{studentsLoading ? "در حال بارگذاری هنرجویان…" : studentsError ? "بارگذاری هنرجویان ناموفق بود" : "— انتخاب کنید —"}</option>
               {students.map((student) => (
                 <option key={student.id} value={student.id}>
                   {student.name}
@@ -112,8 +129,8 @@ export function EnrollmentDialog({
 
         <Field label="کلاس" required>
           {(control) => (
-            <select {...control} className={inputCls} value={selectedClass} disabled={busy} onChange={(e) => setSelectedClass(e.target.value)}>
-              <option value="">— انتخاب کنید —</option>
+            <select {...control} className={inputCls} value={selectedClass} disabled={busy || classesLoading || Boolean(classesError)} onChange={(e) => setSelectedClass(e.target.value)}>
+              <option value="">{classesLoading ? "در حال بارگذاری کلاس‌ها…" : classesError ? "بارگذاری کلاس‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
               {classes.map((cls) => (
                 <option key={cls.id} value={cls.id}>
                   {cls.title}

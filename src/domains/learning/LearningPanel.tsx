@@ -81,7 +81,7 @@ function QuickAdd({
 
 export function LearningPanel() {
   const { notify } = useApp();
-  const { items: instruments } = useInstruments({ per_page: 200 });
+  const { items: instruments, loading: instrumentsLoading, error: instrumentsError, reload: reloadInstruments } = useInstruments({ per_page: 200 });
   const {
     items: programs,
     loading,
@@ -101,7 +101,7 @@ export function LearningPanel() {
     if (selected && selected.id !== selectedId) setSelectedId(selected.id);
   }, [selected, selectedId]);
 
-  const { items: levels, loading: levelsLoading } = useLevels(
+  const { items: levels, loading: levelsLoading, error: levelsError, reload: reloadLevels } = useLevels(
     selected ? { programId: selected.id, per_page: 200 } : { per_page: 0 },
   );
 
@@ -222,7 +222,7 @@ export function LearningPanel() {
     });
   };
 
-  if (loading)
+  if (loading || instrumentsLoading)
     return <LoadingState className="py-16" label="در حال بارگذاری دوره‌ها…" />;
   if (error)
     return (
@@ -231,6 +231,15 @@ export function LearningPanel() {
         title="بارگذاری دوره‌ها ناموفق بود"
         description={error.message}
         onRetry={reload}
+      />
+    );
+  if (instrumentsError)
+    return (
+      <ErrorState
+        className="py-16"
+        title="بارگذاری سازها ناموفق بود"
+        description={instrumentsError.message}
+        onRetry={reloadInstruments}
       />
     );
 
@@ -301,7 +310,13 @@ export function LearningPanel() {
                 </h3>
               </div>
 
-              {levelsLoading ? (
+              {levelsError ? (
+                <ErrorState
+                  title="بارگذاری سطوح ناموفق بود"
+                  description={levelsError.message}
+                  onRetry={reloadLevels}
+                />
+              ) : levelsLoading ? (
                 <LoadingState label="در حال بارگذاری سطوح…" />
               ) : levels.length === 0 ? (
                 <EmptyState
