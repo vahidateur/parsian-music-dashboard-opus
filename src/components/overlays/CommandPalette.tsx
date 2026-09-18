@@ -63,14 +63,11 @@ export function CommandPalette() {
       setQuery("");
       setActive(0);
       setResult(null);
-      document.body.style.overflow = "hidden";
+      // Focus the input so typing starts in the palette, not the document.
+      // Body scroll lock is now owned by AppContext (palette → sheet handoff),
+      // so this effect no longer touches `document.body.style.overflow`.
       window.setTimeout(() => inputRef.current?.focus(), 30);
-    } else {
-      document.body.style.overflow = "";
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [paletteOpen]);
 
   // Repository-backed record search; empty query returns nothing.
@@ -143,7 +140,10 @@ export function CommandPalette() {
       return navigate(item.target);
     }
     if (item.type === "action") {
-      closePalette();
+      // M-1: palette → sheet focus ownership — openSheet closes the palette
+      // in the same render (AppContext), so the palette does not restore focus
+      // to the page and then let the sheet steal it back. The shell's overflow
+      // effect keeps the body locked across the handoff.
       openSheet(item.action);
     }
   };

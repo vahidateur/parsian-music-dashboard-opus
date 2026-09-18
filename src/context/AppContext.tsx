@@ -127,6 +127,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [dismissToast],
   );
 
+  /* ------------------------------------------------------------------ */
+  /* Overlay ownership — one place owns body scroll lock and focus transfer */
+  /* ------------------------------------------------------------------ */
+  // When a palette or a quick-action sheet is open, the page behind must not
+  // scroll. The palette used to own this alone (setting overflow hidden on open
+  // and clearing on close). That broke the palette → sheet handoff: palette
+  // cleared overflow, then sheet opened without re-locking, causing a scroll
+  // flash and a moment with no focus owner. Now the shell owns the lock:
+  // any open overlay (palette or sheet) keeps overflow hidden, and only when
+  // both are closed does it clear. Individual overlays (Drawer, Dialog) may
+  // still set it for their own lifetime — setting the same value twice is
+  // harmless, and the shell's effect re-applies after they unmount.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (paletteOpen || sheet !== null) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      if (typeof document !== "undefined") document.body.style.overflow = "";
+    };
+  }, [paletteOpen, sheet]);
+
   const value = useMemo<AppState>(
     () => ({
       view,
@@ -145,7 +169,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dismissToast,
       openPalette: () => setPaletteOpen(true),
       closePalette: () => setPaletteOpen(false),
-      openSheet: (id) => setSheet(id),
+      // M-1: opening a sheet always closes the palette in the same render, so
+      // the palette does not restore focus to the page behind and then let the
+      // sheet steal it back. One state update owns both, and the body's scroll
+      // lock stays held by the shell effect above.
+      openSheet: (id) => {
+        setPaletteOpen(false);
+        setSheet(id);
+      },
       closeSheet: () => setSheet(null),
       setTheme,
       setAccent,

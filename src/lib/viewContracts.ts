@@ -77,7 +77,14 @@ export interface QuickActionDef {
   id: "student" | "class" | "payment" | "message";
   label: string;
   hint: string;
-  fields: { label: string; placeholder: string; type?: "text" | "select"; options?: string[] }[];
+  /**
+   * M-1: the fake form's field definitions are gone. The sheet no longer builds
+   * a form from hardcoded option arrays (instrument names, teacher names, room
+   * names). Each action now routes to a real dialog or view. `fields` is kept
+   * optional only for backward compat with any stray reader — it is always empty
+   * in the live definitions and carries no measurement.
+   */
+  fields?: { label: string; placeholder: string; type?: "text" | "select"; options?: string[] }[];
   /*
    * The fixture-era `success: string` field was dropped at M10: no consumer ever
    * rendered it, and its canned success sentences («پرداخت ثبت و رسید ارسال شد»)
