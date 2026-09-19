@@ -22,6 +22,7 @@
  */
 import { useMemo, useRef, useState } from "react";
 import { Download, FileMusic, FileText, Music2, Plus, Video, Lock, Upload, X } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { resourceKindLabel, type LibraryItem, type ResourceKind, type LibraryVisibility } from "@/domains/library/types";
@@ -329,9 +330,20 @@ export function LibraryView() {
         title="کتابخانه"
         description="نت‌ها، جزوه‌ها و نمونه‌های شنیداری آموزشگاه — قابل اشتراک با مدرسین و هنرجویان."
         actions={
-          <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-3.5" /> افزودن منبع
-          </Button>
+          <>
+            <EntityExportButton
+              entity="library"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(kind !== "all" ? { kind } : {}),
+                ...(inst !== "all" ? { instrument: inst } : {}),
+                ...(levelFilter !== "all" ? { level: levelFilter } : {}),
+              }}
+            />
+            <Button size="sm" variant="primary" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-3.5" /> افزودن منبع
+            </Button>
+          </>
         }
       />
 

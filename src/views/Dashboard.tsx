@@ -13,6 +13,7 @@ import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
 import { DemoNote, ErrorState } from "@/components/ds/states";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 /**
@@ -129,6 +130,10 @@ export function Dashboard() {
           />
         )}
         <Signals signals={insights.signals} loading={insights.loading} />
+      </div>
+
+      <div className="order-2 lg:order-none lg:col-span-12 flex justify-end">
+        <EntityExportButton entity="dashboard" label="خروجی تحلیلی داشبورد" />
       </div>
 
       {/* 3 · Needs attention */}
