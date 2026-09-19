@@ -4,9 +4,9 @@
 > Base: `02b74996e6458d10a5d9e8d1023890239342c4e4` docs-only descendant of frozen product `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb`
 > Mode: READ-MOSTLY / DOCS-FIRST / GIT-PERSISTED
 > Status: SPEC PASS F0 COMPLETE — 14 docs — no src changes, no backend — correction pass 2026-09-19 docs-only
-> Active SHA: `c244fec142fcc35faff8e8548c8ebbc05cb53bf5` + correction commits — PR #4 https://github.com/vahidateur/parsian-music-dashboard-opus/pull/4 docs-only OPEN not merged
-> Current phase: F0 Documentation/state closure COMPLETE, next F1 Learning + Level Access + Library + Gallery — exactly ONE canonical next slice
-> Canonical engineering docs: docs/engineering/ PROJECT_STATE.md PHASES.md OPEN_ITEMS.md SESSION_HANDOFF.md point same active branch/SHA/spec PR #4 F0 complete F1 next — SESSION_HANDOFF machine-readable CONTINUE HERE
+> Active SHA: `e57bf1922e4ca3b80796715028445cfe8a077c9c` = `e57bf19` (previous planning checkpoint `c244fec142fcc35faff8e8548c8ebbc05cb53bf5` preserved as historical) @ `e57bf19` — PR #4 https://github.com/vahidateur/parsian-music-dashboard-opus/pull/4 docs-only OPEN not merged — current_sha = e57bf19 exactly, c244fec preserved only as previous planning checkpoint
+> Current phase: F0 Documentation/state closure COMPLETE + REVIEW CORRECTIONS DONE, next F1 Learning + Level Access + Library + Gallery — exactly ONE canonical NEXT ACTION F1 — RBAC T-02 OPEN CURRENT OBSERVED DENIED PRODUCT DECISION OPEN
+> Canonical engineering docs: docs/engineering/ PROJECT_STATE.md PHASES.md OPEN_ITEMS.md SESSION_HANDOFF.md point same active branch `arena/frontend-completion-spec` SHA `e57bf19` (previous `c244fec` historical) spec `docs/frontend-completion/` @ `e57bf19` PR #4 F0 complete F1 next — SESSION_HANDOFF machine-readable CONTINUE HERE current_sha = e57bf19 exactly
 > Classification correction: Telegram backup = REQUIRED PRODUCT CAPABILITY, Telegram student access = REQUIRED, Bale student access = REQUIRED, Mobile student client = REQUIRED — IMPLEMENTATION may remain deferred until backend/integration layer exists — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile, no business logic in bots
 > RBAC correction: testable authorization contract Actor/Action/Resource/Scope/Allowed/DENIED/Reason/Frontend guard/Backend enforcement — 11 required cases explicitly covered — preserve 5-role/22-perm vocab
 > Learning access: canonical Level N=>1..N owner learning/eligibility.ts named states eligible/locked/not_visible/not_found/not_applicable scope decision OPEN global vs per-program vs per-instrument do not invent
@@ -89,7 +89,7 @@ Evidence-based, no fake backend behavior. Classification correction per 2026-09-
 - No history rewrite — no amend/rebase/squash/force-push — new commits only
 - Freeze `a3867a6` preserved, reopen documented as explicit decision — historical freeze preserved not deleted, freeze intentionally reopened for FRONTEND PRODUCT COMPLETION recorded in PROJECT_STATE.md PHASES.md OPEN_ITEMS.md SESSION_HANDOFF.md
 - Decision IDs unique — D1..D20 B1 NEW-* PROP-* O-01..O-20 unique
-- Canonical engineering docs point same active branch/SHA/spec — PROJECT_STATE.md PHASES.md OPEN_ITEMS.md SESSION_HANDOFF.md all active branch arena/frontend-completion-spec SHA c244fec spec docs/frontend-completion/ v14 PR #4 F0 complete F1 next
+- Canonical engineering docs point same active branch/SHA/spec — PROJECT_STATE.md PHASES.md OPEN_ITEMS.md SESSION_HANDOFF.md all active branch arena/frontend-completion-spec SHA e57bf19 = e57bf1922e4ca3b80796715028445cfe8a077c9c (previous c244fec preserved only as historical) spec docs/frontend-completion/ v14 @ e57bf19 PR #4 F0 complete F1 next — current_sha = e57bf19 exactly, c244fec preserved only as previous planning checkpoint — RBAC T-02 OPEN CURRENT OBSERVED DENIED PRODUCT DECISION OPEN — NEXT ACTION exactly ONE F1
 - SESSION_HANDOFF can reconstruct continuation without chat — machine-readable JSON + human-readable path
 - Validation required per task
 
