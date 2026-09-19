@@ -29,13 +29,15 @@ export function Hero({
 }) {
   const { navigate, accent } = useApp();
   const now = useAcademyNow();
+  const todayIso = academyIsoDate();
   // Identity (M10/D3): the academy name/tagline come from the M8 branding
   // read; the greeting is the signed-in operator, not a fixture manager.
   const { branding } = useBranding();
   const { user } = useAuth();
   const firstName = user?.name.trim().split(/\s+/)[0] ?? null;
   // Live/attention (M10/F3): derived from the scheduling seam, not a fixture.
-  const pulse = useDayPulse(academyIsoDate(), now);
+  // GAP-010: todayIso is the single academy date source, same as Dashboard, used for pulse and faToday.
+  const pulse = useDayPulse(todayIso, now);
 
   return (
     <section
@@ -72,7 +74,7 @@ export function Hero({
             نبض آموزشگاه
           </span>
           <span className="text-ink-500">·</span>
-          <span>{faToday()}</span>
+          <span>{faToday(todayIso)}</span>
           <span className="hidden text-ink-500 sm:inline">·</span>
           <span className="hidden sm:inline">{branding.academyName}</span>
         </div>

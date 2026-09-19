@@ -25,7 +25,7 @@ import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { useAuth, useCan } from "@/domains/auth/AuthContext";
-import { assignedStudentIdsForTeacher } from "@/domains/auth/scope";
+import { assignedStudentIdsForTeacher, isAssignedStudent } from "@/domains/auth/scope";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
@@ -1029,7 +1029,9 @@ export function StudentsView() {
 
   // When a deep-link is active, resolution is independent of the 200-row ceiling
   if (detailId) {
-    if (detailLoading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+    const isTeacherWithId = user?.role === "teacher" && (user as any).teacherId;
+    const teacherScopeLoadingForDetail = isTeacherWithId ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+    if (detailLoading || teachers.loading || teacherScopeLoadingForDetail) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
     if (detailError) {
       if (detailError.kind === "not_found") {
         return (
@@ -1061,6 +1063,36 @@ export function StudentsView() {
           onAction={() => navigate({ view: "students" })}
         />
       );
+    }
+    // SEC-003-01 defense-in-depth: teacher deep-link must not render unassigned student.
+    // Reuses canonical scope function isAssignedStudent, respects loading/error, renders 404 style.
+    // Backend object-level authorization remains mandatory.
+    if (isTeacherWithId) {
+      if (classesForScope.error || enrollmentsForScope.error) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+      const teacherId = (user as any).teacherId as string;
+      const classRefs = classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId }));
+      const enrollmentRefs = enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status }));
+      if (!isAssignedStudent(teacherId, detail.id, classRefs, enrollmentRefs)) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
     }
     return (
       <>

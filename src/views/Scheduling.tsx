@@ -101,6 +101,7 @@ import {
 } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
 import { academyNow, useAcademyNow } from "@/domains/shared/clock";
+import { academyIsoDate } from "@/views/relations/academyDay";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime, minutesToFaTime, toFa } from "@/lib/format";
 import { cn } from "@/utils/cn";
@@ -148,20 +149,6 @@ const STATUS_TONE: Record<SessionStatus, Tone> = {
 /* ------------------------------------------------------------------ */
 /* Local date helpers                                                  */
 /* ------------------------------------------------------------------ */
-
-/**
- * The academy clock's own calendar date as `YYYY-MM-DD`.
- *
- * `academyNow()` is the single source of "now" (frozen time of day in demo, the
- * real clock in production); this only reformats it. Local getters, not UTC: the
- * academy's day is the day on its own wall clock. No date library and no inline
- * `new Date()` anywhere in this view.
- */
-function isoFromAcademyDate(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 /** Saturday-first week start, using the domain's own weekday convention. */
 function startOfWeek(iso: string): string {
@@ -267,7 +254,7 @@ export function SchedulingView() {
   const canWriteSchedule = useCan("schedule.write") || !user;
   const canWriteClasses = useCan("classes.write") || !user;
   const now = useAcademyNow();
-  const todayIso = useMemo(() => isoFromAcademyDate(academyNow()), []);
+  const todayIso = useMemo(() => academyIsoDate(), [now]);
 
   // Seeded from the deep link, not corrected after the first render: arriving on
   // `?filter=conflict` and reading a week only to throw it away and read today
