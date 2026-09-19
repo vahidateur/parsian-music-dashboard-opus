@@ -826,17 +826,22 @@ export interface FieldControlProps {
 export const inputCls =
   "h-10 w-full rounded-xl border border-white/[0.08] bg-ink-850 px-3.5 text-[13px] text-ink-50 outline-none transition-colors placeholder:text-ink-500 hover:border-white/[0.14] focus:border-gold-500/50";
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      onClick={() => {
+        if (disabled) return;
+        onChange(!checked);
+      }}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-[var(--eighth)]",
         checked ? "border-gold-500/40 bg-gold-500/25" : "border-white/[0.08] bg-white/[0.05]",
+        disabled && "cursor-not-allowed opacity-50",
       )}
     >
       <span
