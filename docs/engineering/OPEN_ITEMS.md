@@ -1,8 +1,19 @@
 # OPEN ITEMS — categorised backlog of unresolved work
 
+> **Arena Frontend Freeze — 2026-09-19 — frozen HEAD `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb` on canonical `arena/01a0b6be-parsian-music-dashboard-opus` — documentation-only closure.** **M-1 Quick Actions CLOSED, D7 Accessibility CLOSED, M-2 Teacher Photo CLOSED, M-3 Student Photo CLOSED, M-4 I15 Failure Disclosure CLOSED, M-5 I16 Deep Links CLOSED, M-6 Settings Honesty CLOSED, D9 Performance CLOSED** at this checkpoint. **Known 10 `projectState.test.ts` SHA/branch failures preserved**, test not altered. **Browser QA NOT VERIFIED** as formal final-audit disposition — no claim of complete browser verification, no claim backend functionality already exists. **Deferred items below explicitly do NOT modify the frozen frontend** — frontend freeze precedes Laravel/backend implementation. **Backend boundary:** frontend freeze precedes Laravel/backend. **Canonical branch policy:** all future frontend fixes require explicit decision to reopen freeze. Historical checkpoints preserved: M11 chain `3ed0bfe→3eed4f1→24998d8→53794d5→f7eb867`, M10 `e7a64b7` on `98af31b`, working branch previously `arena/01a0aa83` at `d31cbe9`, other branches unchanged (main `a646975`, `arena/01a0b059` `251af96`, `handoff/...` `94d32de`). **No production code/tests changed in this freeze pass — docs only.**
+
+> **Deferred at freeze (explicit, do NOT modify frozen frontend):**
+> - **Classes deep-link beyond capped list** — `src/views/Classes.tsx:678` capped `find` without `get(id)` authoritative fallback, deferred beyond M-5.
+> - **Finance/Reports backend/domain implementation** — I2/D6 deferred, README-only, no repository, no fabricated revenue, visible deferral.
+> - **Notification server wiring** — Settings notification toggles disabled (7), honest deferral Surface, server wiring deferred.
+> - **Localization/settings server wiring** — 6 selects disabled, honest deferral.
+> - **Working-hours/session-rules server wiring** — 4 inputs + Friday toggle disabled "— غیرفعال", honest deferral.
+> - **Free-slot search** — `freeSlotsTuesday` removed, honest typed no-data, no backend search.
+> - **External browser QA** — NOT VERIFIED disposition, external QA required, no claim complete.
+
 Nothing in this file is complete. Items may only leave it by **landing** (with the commit SHA
 recorded in [PHASES.md](PHASES.md)) or by an explicit, written decision to drop them.
-**Deferred work must never be reported as finished work.**
+**Deferred work must never be reported as finished work. Deferred at freeze explicitly do NOT modify frozen frontend.**
 
 > **Start here:** read [PROJECT_STATE.md](PROJECT_STATE.md) first — it carries the current
 > checkpoint, phase status, validation results and the DO-NOT list. This file is the backlog that
