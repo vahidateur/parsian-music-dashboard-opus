@@ -84,15 +84,16 @@
 - **Impact:** Backend table media_assets owner_id org_id, signed URLs check owner or org permission
 - **Status:** OPEN — B contract
 
-## O-09 — Telegram Backup Semantics
+## O-09 — Telegram Backup Semantics — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
 - **Question:** What is backup via Telegram? Bot sends backup file to admin channel? Retention? Integrity? Restore? Encryption? Failure?
-- **Context:** Task J Telegram bot backup vs student access different adapters
+- **Context:** Task J Telegram bot backup vs student access different adapters not business owner — adapter architecture Core domain/business logic → integration adapter → Telegram, no business logic in bots
 - **Evidence:** backup.ts JSON file environment always demo I8, no Telegram integration, research missing I7 — VERIFIED
-- **Options:** (a) Telegram backup is notification that backup ready + file sent to admin channel — needs encryption — (b) Telegram backup is alternative storage — file sent to Telegram, retention indefinite? But Telegram file storage? — (c) C DEFERRED — backup stays local file, Telegram only for student access
-- **Recommendation:** (c) C DEFERRED for first product — backup stays local file JSON, Telegram for student access only — contract spec for backup but implementation deferred — safer for PII minors
-- **Impact:** No Telegram backup for first product, contract doc exists
-- **Status:** OPEN — needs product decision
+- **Options:** (a) Telegram backup is notification that backup ready + file sent to admin channel — needs encryption backend-only key — (b) Telegram backup is alternative storage — file sent to Telegram, retention indefinite? But Telegram file storage? — (c) C DEFERRED — backup stays local file, Telegram only for student access — **previous recommendation (c) was pre-correction, now corrected per review**
+- **Recommendation CORRECTION (2026-09-19 review):** Telegram backup = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — adapter architecture Core domain/business logic → BackupAdapter → Telegram Bot API sendDocument, no business logic in bot, backend-only credentials, PII encryption org key, retention/integrity/restore/encryption/failure spec B REQUIRED — not optional deferred unless product needs — wording "C DEFERRED" corrected to REQUIRED PRODUCT CAPABILITY
+- **Impact:** Contract spec for backup exists B, implementation deferred until backend/integration layer — backup contains PII minors must encrypt before sending to external provider backend-only key, credentials backend-only never VITE_* localStorage, rate limiting, queue retry, integrity hash sha256, environment validation WRONG_ENVIRONMENT honest, migration accepts old envelopes, filename Persian UTF-8 safe
+- **Status:** OPEN — needs product decision on semantics retention/encryption/integrity/restore but REQUIRED PRODUCT CAPABILITY per correction — O-09 remains OPEN but classification corrected to REQUIRED PRODUCT CAPABILITY B CONTRACT NOW BACKEND LATER
+- **Classification correction:** Previous C DEFERRED corrected to REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred)
 
 ## O-10 — Identity Linking
 
@@ -104,35 +105,35 @@
 - **Impact:** Backend tables, frontend scope pure functions use linked studentId
 - **Status:** OPEN — B contract
 
-## O-11 — Bale Linking
+## O-11 — Bale Linking — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
-- **Question:** Same as Telegram but Bale — should linking flow be same? Avoid duplicate logic?
-- **Context:** Task K Bale adapter contract avoid duplicate logic Core->Adapter->Telegram/Bale
+- **Question:** Same as Telegram but Bale — should linking flow be same? Avoid duplicate logic? Bale student access REQUIRED?
+- **Context:** Task K Bale adapter contract avoid duplicate logic Core->Adapter->Telegram/Bale — adapter architecture Core domain/business logic → integration adapter → Bale, no business logic in bots
 - **Evidence:** provider enum includes bale, no linking — VERIFIED
-- **Options:** Same as Telegram — common linking flow, common MessagingAdapter interface
-- **Recommendation:** Same flow, avoid duplicate logic via common interface — Core->Adapter->Telegram/Bale
-- **Impact:** Backend two adapters implement same interface, linking tables similar
-- **Status:** OPEN — B contract
+- **Options:** Same as Telegram — common linking flow, common MessagingAdapter interface — avoid duplicate logic via common interface
+- **Recommendation CORRECTION:** Bale student access = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — same flow as Telegram, avoid duplicate logic via common MessagingAdapter interface — Core->Adapter->Telegram/Bale no business logic in bots — B CONTRACT NOW BACKEND LATER but REQUIRED per correction
+- **Impact:** Backend two adapters implement same interface, linking tables similar bale_links, identity linking, scope self, no PII in logs, rate limiting
+- **Status:** OPEN — B contract but REQUIRED PRODUCT CAPABILITY per correction
 
-## O-12 — Mobile Auth
+## O-12 — Mobile Auth — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
-- **Question:** Mobile auth — bearer token secure storage vs Sanctum cookie? Same backend?
-- **Context:** Task L Mobile app client of same backend contracts
+- **Question:** Mobile auth — bearer token secure storage vs Sanctum cookie? Same backend? Mobile student client REQUIRED?
+- **Context:** Task L Mobile app client of same backend contracts — Mobile student client = REQUIRED PRODUCT CAPABILITY per correction
 - **Evidence:** B1 Sanctum cookie primary + bearer fallback, ApiClient bearer — VERIFIED
 - **Options:** (a) Bearer token for mobile, cookie for web — same backend supports both per B1 — (b) Only bearer — simpler — (c) OAuth
-- **Recommendation:** (a) Per B1 — Sanctum cookie primary web + bearer fallback mobile — already decided provisional
-- **Impact:** Backend Sanctum, mobile secure storage for token
-- **Status:** OPEN but provisional B1
+- **Recommendation CORRECTION:** Mobile student client = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — (a) Per B1 — Sanctum cookie primary web + bearer fallback mobile — already decided provisional — B CONTRACT NOW BACKEND LATER but REQUIRED per correction — mobile app client of same backend contracts same envelope Collection/Item PageMeta same domain repos same RBAC media/file abstraction -> storage provider bearer secure storage
+- **Impact:** Backend Sanctum, mobile secure storage for token, same Laravel structure B1
+- **Status:** OPEN but provisional B1 — REQUIRED PRODUCT CAPABILITY per correction
 
-## O-13 — Student Portal Auth
+## O-13 — Student Portal Auth — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
-- **Question:** Student portal auth separate from admin panel? D1 says no student role in admin panel — so portal is separate app with separate auth?
-- **Context:** Task H Student Portal architecture
+- **Question:** Student portal auth separate from admin panel? D1 says no student role in admin panel — so portal is separate app with separate auth? Student portal REQUIRED?
+- **Context:** Task H Student Portal architecture — Student portal = REQUIRED PRODUCT CAPABILITY? Actually per correction Telegram/Bale/Mobile/Backup = REQUIRED, Student portal architecture also REQUIRED? Task says Telegram/Bale/Backup classification correct wording but also Mobile REQUIRED — student portal architecture is part of F7 REQUIRED? Per roadmap F7 Student Portal is REQUIRED PRODUCT CAPABILITY B contract
 - **Evidence:** D1 deferred, no student role, auth demo passphrase — VERIFIED
 - **Options:** (a) Separate app with student credentials (phone + OTP?) — (b) Same panel but self scope view #/portal — (c) No portal first product — contract only
-- **Recommendation:** (c) Contract only for first product — portal spec doc B, no UI — then (a) separate app later — keeps admin RBAC clean
-- **Impact:** No student auth in admin for first product, portal contract B
-- **Status:** OPEN
+- **Recommendation CORRECTION:** Student portal = **REQUIRED PRODUCT CAPABILITY** — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists) — (c) Contract only for first product — portal spec doc B, no UI — then (a) separate app later — keeps admin RBAC clean — per correction Telegram/Bale/Mobile/Backup REQUIRED, student portal also REQUIRED as part of product but implementation deferred until backend/integration layer
+- **Impact:** No student auth in admin for first product, portal contract B REQUIRED
+- **Status:** OPEN — REQUIRED PRODUCT CAPABILITY per correction
 
 ## O-14 — Org/User Relation
 
@@ -164,15 +165,15 @@
 - **Impact:** Backend MediaService -> StorageProvider, signed URLs, scanning
 - **Status:** OPEN — B contract
 
-## O-17 — Notification
+## O-17 — Notification — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
-- **Question:** Notifications via Telegram/Bale/SMS/email — provider integration?
-- **Context:** Settings notification toggles disabled honest, chat provider enum
+- **Question:** Notifications via Telegram/Bale/SMS/email — provider integration? REQUIRED?
+- **Context:** Settings notification toggles disabled honest, chat provider enum — Telegram/Bale student access REQUIRED per correction, so notification via Telegram/Bale is REQUIRED PRODUCT CAPABILITY
 - **Evidence:** notifications README, toggles disabled 7, provider enum in_app/telegram/bale/sms/email, status unavailable — VERIFIED
-- **Options:** (a) C DEFERRED — no provider integration without backend — honest UI already — (b) B CONTRACT NOW — adapter contract but no implementation
-- **Recommendation:** (a) C DEFERRED for first product — honest UI stays, contract doc B for adapters already covers Telegram/Bale
-- **Impact:** None for first product
-- **Status:** OPEN but provisional C
+- **Options:** (a) C DEFERRED — no provider integration without backend — honest UI already — (b) B CONTRACT NOW — adapter contract but no implementation — **(b) corrected per review REQUIRED PRODUCT CAPABILITY**
+- **Recommendation CORRECTION:** Notifications via Telegram/Bale/SMS/email = **REQUIRED PRODUCT CAPABILITY** — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists) — honest UI stays, contract doc B for adapters already covers Telegram/Bale — adapter architecture Core->Adapter->Telegram/Bale no business logic in bots — per correction Telegram/Bale/Mobile/Backup REQUIRED
+- **Impact:** None for first product implementation deferred, contract doc exists REQUIRED
+- **Status:** OPEN but provisional B CONTRACT NOW BACKEND LATER — REQUIRED PRODUCT CAPABILITY per correction
 
 ## O-18 — Audit
 
@@ -194,40 +195,42 @@
 - **Impact:** Backend retention config B later
 - **Status:** OPEN
 
-## O-20 — Backup Restore
+## O-20 — Backup Restore — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
-- **Question:** Backup restore — versioned format, migration, integrity, encryption, failure?
-- **Context:** Demo backup.ts, Telegram backup retention/integrity/restore/encryption/failure OPEN
+- **Question:** Backup restore — versioned format, migration, integrity, encryption, failure? REQUIRED?
+- **Context:** Demo backup.ts, Telegram backup retention/integrity/restore/encryption/failure OPEN — Telegram backup = REQUIRED PRODUCT CAPABILITY per correction
 - **Evidence:** I8 environment always demo label wrong, no version, no migration, no hash, no encryption — VERIFIED
-- **Options:** (a) Versioned format with migration, hash integrity, env validation, filename safe, encryption optional for external — B contract — (b) Keep current simple JSON — dishonest labels
-- **Recommendation:** (a) Versioned format — slice 9
-- **Impact:** Frontend backup envelope versioned, backend encryption + retention B
-- **Status:** OPEN — B contract
+- **Options:** (a) Versioned format with migration, hash integrity, env validation, filename safe, encryption optional for external — B contract — REQUIRED PRODUCT CAPABILITY — (b) Keep current simple JSON — dishonest labels
+- **Recommendation CORRECTION:** (a) Versioned format — slice 9 / F8 — **REQUIRED PRODUCT CAPABILITY** — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists) — backup envelope versioned, migration accepts old envelopes, integrity hash optional, environment label fixed always demo I8 + validation, filename Persian UTF-8 safe, PII encryption needed if sent externally backend-only key, retention/integrity/restore/encryption/failure spec B REQUIRED — per correction Telegram backup REQUIRED
+- **Impact:** Frontend backup envelope versioned, backend encryption + retention B REQUIRED
+- **Status:** OPEN — B contract but REQUIRED PRODUCT CAPABILITY per correction
 
-## Summary Table
+## Summary Table — CORRECTED 2026-09-19 REQUIRED PRODUCT CAPABILITY
 
 | ID | Title | Status | Classification |
 |---|---|---|---|
-| O-01 | Student level scope | OPEN | B contract — keep per program |
-| O-02 | Level/resource relation | OPEN | A doc + B backend — keep separate |
+| O-01 | Student level scope global vs per-program vs per-instrument OPEN | OPEN | B contract — keep per program provisional — high-cost before backend |
+| O-02 | Level/resource relation separate vs merged | OPEN | A doc + B backend — keep separate — high-cost before backend |
 | O-03 | Visibility library/gallery | OPEN | A spec + B column |
 | O-04 | Theme persistence org vs device | OPEN | A keep device-local per D2, B org optional |
 | O-05 | Export formats | OPEN | A csv/xlsx/txt, C pdf deferred |
 | O-06 | Permission analytical export | OPEN | A same as view |
 | O-07 | Ticket vs chat ownership scope | OPEN | A keep conversation= ticket archived=closed |
-| O-08 | File ownership | OPEN | B owner+org_id |
-| O-09 | Telegram backup semantics | OPEN | C deferred, B contract |
-| O-10 | Identity linking user↔student | OPEN | B linking tables |
-| O-11 | Bale linking | OPEN | B same as Telegram common interface |
-| O-12 | Mobile auth bearer vs cookie | OPEN | B B1 cookie primary + bearer fallback |
-| O-13 | Student portal auth separate app | OPEN | B contract only first product |
-| O-14 | Org/user relation org_id | OPEN | B all tables org_id, demo single org |
-| O-15 | API boundaries envelope binary streaming | OPEN | B contract |
-| O-16 | Media storage S3 signed scanning | OPEN | B S3 |
-| O-17 | Notification provider integration | OPEN | C deferred honest UI |
+| O-08 | File ownership owner+org_id | OPEN | **REQUIRED PRODUCT CAPABILITY** B owner+org_id — high-cost before backend |
+| O-09 | Telegram backup semantics | OPEN | **REQUIRED PRODUCT CAPABILITY** B CONTRACT NOW BACKEND LATER (implementation deferred) — high-cost before backend — corrected from C deferred to REQUIRED per review |
+| O-10 | Identity linking user↔student self/guardian | OPEN | **REQUIRED PRODUCT CAPABILITY** B linking tables — high-cost before backend |
+| O-11 | Bale linking | OPEN | **REQUIRED PRODUCT CAPABILITY** B same as Telegram common interface — implementation deferred |
+| O-12 | Mobile auth bearer vs cookie | OPEN | **REQUIRED PRODUCT CAPABILITY** B B1 cookie primary + bearer fallback — Mobile student client REQUIRED |
+| O-13 | Student portal auth separate app | OPEN | **REQUIRED PRODUCT CAPABILITY** B contract only first product — high-cost before backend |
+| O-14 | Org/user relation org_id all tables | OPEN | **REQUIRED PRODUCT CAPABILITY** B all tables org_id, demo single org — high-cost before backend |
+| O-15 | API boundaries envelope binary streaming cursor linking | OPEN | B contract |
+| O-16 | Media storage S3 signed scanning | OPEN | **REQUIRED PRODUCT CAPABILITY** B S3 signed expiring URLs scanning per-object auth |
+| O-17 | Notification provider integration | OPEN | **REQUIRED PRODUCT CAPABILITY** B CONTRACT NOW BACKEND LATER honest UI — corrected from C deferred to REQUIRED per review |
 | O-18 | Audit log general vs per-domain | OPEN | B later, per-domain now |
-| O-19 | Retention indefinite vs configurable | OPEN | A indefinite first product |
-| O-20 | Backup restore versioned integrity encryption | OPEN | B versioned format |
+| O-19 | Retention indefinite vs configurable | OPEN | A indefinite first product — B later |
+| O-20 | Backup restore versioned integrity encryption | OPEN | **REQUIRED PRODUCT CAPABILITY** B versioned format — implementation deferred — corrected from B to REQUIRED per review |
+
+**Correction note:** O-09, O-11, O-12, O-13, O-17, O-20 previously C deferred or B contract but not marked REQUIRED — now corrected to **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** per 2026-09-19 review — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile no business logic in bots.
 
 ## High-Cost Decisions to Resolve Before Coding (per task principles)
 

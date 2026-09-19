@@ -41,20 +41,22 @@ Core API (Laravel)
 - Identity linking: user ↔ student ↔ telegram_id — needs table telegram_links (user_id, student_id, telegram_chat_id, verified_at) — B
 - Security: no PII in Telegram logs, no credentials in client, rate limiting
 
-**Classification:**
-- Telegram backup — C DEFERRED? Or B CONTRACT NOW? Task says backup vs student access different adapters not business owner — so both are B CONTRACT NOW BACKEND LATER, but backup may be C if not needed first product — needs decision: backup via Telegram is C DEFERRED (explicit), student access via Telegram is B CONTRACT NOW
-- For now: contract spec for both, no implementation — B
+**Classification CORRECTION (2026-09-19 review):**
+- Telegram backup = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — contract spec B now backend later, adapter architecture Core domain/business logic → BackupAdapter → Telegram Bot API sendDocument, no business logic in bot, backend-only credentials, PII encryption org key, retention/integrity/restore/encryption/failure spec B REQUIRED
+- Telegram student access = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — StudentTelegramAdapter vs BackupAdapter different adapters not business owner, flow student links Telegram account via student portal auth → bot verifies via code → student can query via bot commands /schedule /level /resources /progress /attendance /tickets each calls domain service with actor scope self linked studentId, no business logic in adapter, identity linking table telegram_links, no PII in logs, rate limiting — B contract now backend later but REQUIRED
+- For now: contract spec for both, no implementation — B but REQUIRED PRODUCT CAPABILITY per correction, not optional deferred unless product needs — wording "deferred unless product needs" corrected to REQUIRED
+- Adapter architecture: Core domain/business logic → integration adapter → Telegram, no business logic in bots — VERIFIED requirement
 
 ## Bale Adapter — Contract Avoid Duplicate Logic (Task K)
 
 - Same as Telegram but Bale API
 - Core → Adapter → Telegram / Bale — avoid duplicate logic — so Core domain services same, Adapter interface common, TelegramAdapter and BaleAdapter implement same interface
 - Interface: MessagingAdapter { sendMessage(conversationId, body, mediaId?) → MessageStatus, provider label }
-- Deduplication: eligibility, scope, RBAC, file resolution, message persistence in domain service, not adapter — adapter only transmits
+- Deduplication: eligibility, scope, RBAC, file resolution, message persistence in domain service, not adapter — adapter only transmits, no business logic in bots
 - Contract: provider enum already includes bale — VERIFIED chat/types.ts
 - Status unavailable when no backend — VERIFIED
 - Failure: same as Telegram — queued, unavailable, failed with statusReason
-- Classification: B CONTRACT NOW BACKEND LATER
+- Classification CORRECTION (2026-09-19 review): Bale student access = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — same as Telegram, avoid duplicate logic via common MessagingAdapter interface, Core domain/business logic → integration adapter → Bale, no business logic in bot — B CONTRACT NOW but REQUIRED, not optional
 
 ## Mobile App — Client of Same Backend Contracts (Task L)
 
@@ -65,7 +67,7 @@ Core API (Laravel)
 - Offline? Demo has local persistence, but mobile + backend would need offline queue? C DEFERRED
 - Features: same as web? Or subset? For academy, mobile could be teacher/student portal — B contract
 - No new backend — same Laravel domain structure — B1 decision: Laravel domain structure
-- Classification: B CONTRACT NOW
+- Classification CORRECTION (2026-09-19 review): Mobile student client = **REQUIRED PRODUCT CAPABILITY** — IMPLEMENTATION may remain deferred until backend/integration layer exists — B CONTRACT NOW but REQUIRED, not optional — mobile app client of same backend contracts same envelope Collection/Item PageMeta same domain repos same RBAC media/file abstraction -> storage provider bearer secure storage
 
 ## Student Portal Architecture (Task H)
 
@@ -154,19 +156,21 @@ Student Portal SPA (or Mobile)
 - Encryption: backup contains PII minors — must encrypt with org key before sending to external provider — backend-only key, never in React — spec B
 - Failure: Telegram API unavailable → queue, retry with backoff, honest status unavailable/failed with reason — spec B
 
-## Classification Summary
+## Classification Summary — CORRECTED (2026-09-19 review)
 
 | Capability | Classification | Reason |
 |---|---|---|
-| Telegram backup adapter | C DEFERRED (or B if product needs) | Backup via Telegram not needed first usable product, but contract spec B possible |
-| Telegram student access adapter | B CONTRACT NOW | Student access via Telegram is integration, needs adapter contract, backend later |
-| Bale adapter | B CONTRACT NOW | Same as Telegram, avoid duplicate logic via common MessagingAdapter interface |
-| Mobile app | B CONTRACT NOW | Client of same backend, same contracts |
-| Student portal architecture | B CONTRACT NOW | Contract/UX prep now, backend identity later |
-| Media abstraction storage provider | B CONTRACT NOW | Abstraction exists, provider seam now, S3 later |
-| Chat tickets topology | A NOW doc + B backend ownership/read cursor | Topology doc now, per-user cursor backend |
-| Backup envelope fix I8 | B CONTRACT NOW | Versioned format change, migration |
-| Notifications via Telegram/Bale/SMS/email | C DEFERRED except honest UI already | No provider integration without backend — D1/I7 |
+| Telegram backup adapter | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Backup via Telegram REQUIRED PRODUCT CAPABILITY per correction, not optional deferred unless product needs — adapter Core->BackupAdapter->Telegram no business logic in bot backend-only credentials PII encryption retention/integrity/restore |
+| Telegram student access adapter | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Student access via Telegram REQUIRED PRODUCT CAPABILITY — integration needs adapter contract backend later — StudentTelegramAdapter vs BackupAdapter different adapters not business owner, scope self, identity linking telegram_links, no PII in logs, no business logic in bot |
+| Bale adapter | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Same as Telegram REQUIRED PRODUCT CAPABILITY — avoid duplicate logic via common MessagingAdapter interface Core->Adapter->Telegram/Bale no business logic in bots |
+| Mobile app | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Client of same backend same contracts REQUIRED PRODUCT CAPABILITY — same envelope Collection/Item PageMeta same domain repos same RBAC media/file abstraction -> storage provider bearer secure storage |
+| Student portal architecture | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Contract/UX prep now backend identity later — REQUIRED — student profile/classes/schedule/level/resources/progress/attendance/tickets/messages/files — scope self via user_student_links assigned via enrollment org via org_id — D1 deferred separate app but contract now testable |
+| Media abstraction storage provider | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** | Abstraction exists provider seam now S3 later — REQUIRED — App->Media/File abstraction->Storage provider signed expiring URLs content sniffing virus scanning per-object auth D15 |
+| Chat tickets topology | A NOW doc + **REQUIRED PRODUCT CAPABILITY B backend ownership/read cursor (implementation deferred)** | Topology doc now per-user cursor backend REQUIRED — flat collections normalized thread order lastMessageAt composer conversation-keyed D16 attachments two writes D15 export single-conversation txt metadata only ceiling 1000 D14 no new verb |
+| Backup envelope fix I8 | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred)** | Versioned format change migration retention/integrity/restore/encryption/failure — REQUIRED — version field migration accepts old envelopes WRONG_ENVIRONMENT honest filename Persian UTF-8 safe PII encryption needed if sent externally |
+| Notifications via Telegram/Bale/SMS/email | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred) — honest UI already** | Notification via Telegram/Bale/SMS/email REQUIRED PRODUCT CAPABILITY per correction but implementation deferred until backend/integration layer — no provider integration without backend D1/I7 — Settings notification toggles disabled 7 honest deferral Surfaces |
+
+**Correction note:** Previous wording "C DEFERRED (or B if product needs)" and "deferred unless product needs" corrected to **REQUIRED PRODUCT CAPABILITY — IMPLEMENTATION may remain deferred until backend/integration layer exists** — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile, no business logic in bots — per review requirement.
 
 ## Acceptance
 

@@ -1,6 +1,10 @@
-# 12 — Decision Register
+# 12 — Decision Register — CORRECTED 2026-09-19
 
-> ID/Title/Status/Date/Context/Evidence/Decision/Alternatives/Why/Consequences/Frontend/Backend/Reversibility/Follow-up ACCEPTED/PROVISIONAL/OPEN/DEFERRED
+> ID/Title/Status/Date/Context/Evidence/Decision/Alternatives/Why/Consequences/Frontend/Backend/Reversibility/Follow-up ACCEPTED/PROVISIONAL/OPEN/DEFERRED + 3 agent proposals — unique IDs — canonical engineering docs point same active branch/SHA/spec PR #4 F0 complete F1 next — classification correction Telegram backup/student access/Bale/Mobile = REQUIRED PRODUCT CAPABILITY IMPLEMENTATION deferred until backend/integration layer exists
+
+> **CORRECTION 2026-09-19 — Classification:** Telegram backup = REQUIRED PRODUCT CAPABILITY, Telegram student access = REQUIRED, Bale student access = REQUIRED, Mobile student client = REQUIRED — IMPLEMENTATION may remain deferred until backend/integration layer exists — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile, no business logic in bots — previous wording "C DEFERRED (or B if product needs)" corrected to REQUIRED — see 10-integration-architecture.md, 13-open-decisions.md, docs/engineering/ OPEN_ITEMS.md PROJECT_STATE.md PHASES.md SESSION_HANDOFF.md — canonical engineering docs updated same active branch `arena/frontend-completion-spec` SHA `c244fec` spec `docs/frontend-completion/` v14 PR #4 F0 COMPLETE F1 NEXT — decision IDs unique D1..D20 B1 NEW-LRN-01/LIB-01/GAL-01/SET-01/EXP-01/DASH-01/RBAC-01/PORTAL-01/CHAT-01/TG-01/BALE-01/MOB-01/CLASS-01 + PROP-BRAND-01/PROP-LIB-01/PROP-THEME-01 O-01..O-20
+
+> **Active branch:** `arena/frontend-completion-spec` SHA `c244fec142fcc35faff8e8548c8ebbc05cb53bf5` base `arena/01a0b6be-parsian-music-dashboard-opus` HEAD `02b7499` frozen `a3867a6` descendant PR #4 https://github.com/vahidateur/parsian-music-dashboard-opus/pull/4 docs-only OPEN not merged current phase F0 COMPLETE next F1 NEXT ACTION exactly ONE Implement F1 — Learning + Level Access + Library + Gallery — do not implement during correction pass
 
 ## D1 — Student Role Not In Admin Panel
 

@@ -33,15 +33,16 @@
 | RBAC UI guards | auth/permissions | — | LIVE — canAccessView, rolePermissions | self vs assigned vs org scope missing, ownership not modeled | A — matrix doc + self vs assigned vs org clarification NOW | Backend enforcement |
 | Student Portal architecture | — | — | DEFERRED — no student role D1 | Identity linking, auth, profile/classes/schedule/level/resources/progress/attendance/tickets/messages/files | B — contract/UX preparation NOW, backend later | Student auth, linking, per-user read cursor |
 | Tickets vs Chat ownership | chat | — | PARTIAL — chat is tickets | Ticket vs chat distinction, ownership scope | A — topology doc NOW | Server ownership |
-| Telegram adapter | chat/provider | — | CONTRACT — provider enum, unavailable status | Research missing I7, backup vs access different adapters | B — adapter contract Core->Adapter->Telegram/Bale NOW, backend later | Bot API, webhook, credential handling |
-| Bale adapter | same | — | Same | Same, avoid duplicate logic | B — same | Same |
-| Mobile app | registry | — | CONTRACT — same backend contracts, mode-switched registry | Auth, media/file abstraction | B — contract NOW | Same backend |
-| Media/File abstraction | media | demo both | LIVE — metadata dataset, bytes blobStore | No storage provider, no signed URLs, no scanning | B — abstraction + provider seam NOW, backend later | S3/MinIO, signed URLs |
-| Notifications | notifications README | none | DEFERRED — toggles disabled honest | No domain, no provider | C — DEFERRED except honest UI already |
-| Localization | — | localStorage? | DEFERRED — selects disabled honest | No server wiring | C — but UI already honest, contract B? |
-| Working hours / session rules | scheduling? | — | DEFERRED — inputs disabled honest | No domain | C — DEFERRED |
-| Free-slot search | — | — | DEFERRED — freeSlotsTuesday removed honest no-data | No backend | C — DEFERRED |
-| Backup envelope | demo/backup.ts | demo | LIVE but labels wrong I8 | environment always demo, filename, validation | B — versioned format change, migration |
+| Telegram backup adapter | demo/backup + chat/provider | demo | LIVE JSON file via demo/backup.ts + CONTRACT TelegramBackupAdapter | Retention/integrity/restore/encryption/failure OPEN I7 research missing, environment always demo I8, PII minors encryption needed backend-only | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** — Core->BackupAdapter->Telegram no business logic in bot backend-only credentials PII encryption org key | Bot API sendDocument, webhook, credential handling backend-only, org key, queue retry, S3, signed URLs |
+| Telegram student access adapter | chat/provider + students/auth | — | CONTRACT — provider enum, unavailable status, StudentTelegramAdapter vs BackupAdapter different adapters not business owner | Research missing I7, identity linking user↔student↔telegram_id telegram_links, scope self, no PII in logs, rate limiting, no business logic in bot | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** — Core->StudentTelegramAdapter->Telegram no business logic in bot, calls domain services with self scope | Bot API, identity linking, per-user cursor, org_id, Sanctum+bearer B1 |
+| Bale adapter | same | — | Same | Same, avoid duplicate logic Core->Adapter->Telegram/Bale common MessagingAdapter interface no business logic in bots | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** — same as Telegram REQUIRED | Same |
+| Mobile app | registry + all domains | — | CONTRACT — same backend contracts, mode-switched registry, same envelope Collection/Item PageMeta, same domain repos, same RBAC, media/file abstraction -> storage provider | Auth bearer secure storage not localStorage, offline queue C deferred | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred until backend/integration layer exists)** — Mobile student client REQUIRED — same backend no second API | Same backend + bearer secure storage B1 |
+| Media/File abstraction | media | demo both | LIVE — metadata dataset, bytes blobStore | No storage provider, no signed URLs, no scanning, per-object auth D15 | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred)** — App->Media/File abstraction->Storage provider signed expiring URLs content sniffing virus scanning per-object auth | S3/MinIO, signed URLs |
+| Notifications | notifications README + chat/provider | none | DEFERRED — toggles disabled honest but REQUIRED per correction? Actually notification via Telegram/Bale/SMS/email is REQUIRED PRODUCT CAPABILITY per correction | No domain, no provider | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred) — honest UI already** — Settings toggles disabled 7 honest deferral Surfaces | Telegram/Bale/SMS/email provider integration backend |
+| Localization | — | localStorage? | DEFERRED — selects disabled honest | No server wiring | C — but UI already honest, contract B? — actually localization server wiring C deferred per engineering freeze but theme persistence org vs device-local O-04 OPEN | — |
+| Working hours / session rules | scheduling? | — | DEFERRED — inputs disabled honest | No domain | C — DEFERRED | — |
+| Free-slot search | — | — | DEFERRED — freeSlotsTuesday removed honest no-data | No backend | C — DEFERRED | — |
+| Backup envelope | demo/backup.ts | demo | LIVE but labels wrong I8 | environment always demo, filename, validation | **REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred)** — versioned format change migration retention/integrity/restore/encryption/failure OPEN | S3 + encryption org key |
 | Attendance badge removal | navigation | — | CLOSED M7 — removed because no scoped unrecorded-sessions read | — | A already closed |
 
 ## Functionality Level Definitions
@@ -69,21 +70,23 @@
 13. Seeded compensable case in demo seed (demo data only, no prod logic)
 14. Library file one-frame exposure fix (useLibraryFile, useMediaObjectUrl) — frontend
 
-## Contract Now Backend Later (B)
+## Contract Now Backend Later (B) — REQUIRED PRODUCT CAPABILITY but IMPLEMENTATION deferred until backend/integration layer exists — CORRECTED per 2026-09-19 review
 
-- Library create/update/delete with mediaId backend storage/signing
-- Gallery upload backend
-- Branding org persistence (Laravel organization table)
-- Theme persistence decision (device-local stays per D2, org theme optional — decision needed)
-- Export large-dataset server boundary (streaming, permission, columns)
-- Dashboard date-range server aggregation
-- RBAC backend enforcement
-- Student portal auth, identity linking student↔user, per-user read cursor
-- Telegram adapter: Core API → Auth+RBAC → Domain Services → Adapters → Telegram/Bale — contract
-- Bale adapter contract avoid duplicate logic
-- Mobile app client of same backend contracts, media/file abstraction → storage provider
-- Media abstraction service → provider (S3/MinIO), signed expiring URLs, content sniffing, virus scanning
-- Backup envelope versioned format fix (I8)
+- Library create/update/delete with mediaId backend storage/signing — REQUIRED
+- Gallery upload backend — REQUIRED
+- Branding org persistence (Laravel organization table) — REQUIRED
+- Theme persistence decision (device-local stays per D2, org theme optional — decision needed) — O-04
+- Export large-dataset server boundary (streaming, permission, columns) — REQUIRED
+- Dashboard date-range server aggregation — REQUIRED
+- RBAC backend enforcement org_id+permission+scope+per-object auth — REQUIRED
+- Student portal auth, identity linking student↔user self/guardian, per-user read cursor — REQUIRED PRODUCT CAPABILITY
+- Telegram backup adapter: Core domain/business logic → BackupAdapter → Telegram Bot API sendDocument encryption org key backend-only retention/integrity/restore/failure — REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER (implementation deferred)
+- Telegram student access adapter: Core → StudentTelegramAdapter → Telegram no business logic in bot calls domain services with self scope identity linking telegram_links — REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER
+- Bale adapter contract avoid duplicate logic Core->Adapter->Telegram/Bale common MessagingAdapter no business logic in bots — REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER
+- Mobile app client of same backend contracts same envelope Collection/Item PageMeta same domain repos same RBAC media/file abstraction -> storage provider bearer secure storage — REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER
+- Media abstraction service → provider (S3/MinIO), signed expiring URLs, content sniffing, virus scanning, per-object auth D15 — REQUIRED PRODUCT CAPABILITY — B
+- Backup envelope versioned format fix (I8) retention/integrity/restore/encryption/failure — REQUIRED PRODUCT CAPABILITY — B
+- Notifications via Telegram/Bale/SMS/email — REQUIRED PRODUCT CAPABILITY — B CONTRACT NOW BACKEND LATER — honest UI already
 - Attendance presence provider sync vs async boundary
 
 ## Explicitly Deferred (C)

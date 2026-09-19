@@ -1,6 +1,8 @@
-# 03 — Canonical Domain Map
+# 03 — Canonical Domain Map — CORRECTED 2026-09-19
 
-> One owner per rule, one source per concept. No unjustified relations.
+> One owner per rule, one source per concept. No unjustified relations. Active branch `arena/frontend-completion-spec` SHA `c244fec` spec `docs/frontend-completion/` v14 PR #4 F0 COMPLETE F1 NEXT — classification correction Telegram backup/student access/Bale/Mobile = REQUIRED PRODUCT CAPABILITY IMPLEMENTATION deferred until backend/integration layer exists — learning scope OPEN global vs per-program vs per-instrument do not invent O-01 — canonical Level N=>1..N owner learning/eligibility.ts
+
+> **CORRECTION 2026-09-19:** Learning access scope decision remains OPEN global vs per-program vs per-instrument where evidence insufficient do not invent — O-01 — canonical rule student Level N → access 1..N owner learning/eligibility.ts named states eligible/locked/not_visible/not_found/not_applicable preserved — current implementation per-program provisional — see 04-learning-access-policy.md corrected. Classification correction Telegram backup/student access/Bale/Mobile = REQUIRED PRODUCT CAPABILITY — see 10-integration-architecture.md.
 
 ## Domain List
 
