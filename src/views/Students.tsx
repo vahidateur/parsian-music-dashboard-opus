@@ -6,7 +6,7 @@ import { useAcademyNow } from "@/domains/shared/clock";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
 import { paymentLabel, type PaymentStatus } from "@/lib/financeVocabulary";
 import { studentStatusLabel, type ActivityEntry, type Student, type StudentStatus } from "@/domains/students/types";
-import { useStudentList } from "@/domains/students";
+import { useStudentList, useStudent } from "@/domains/students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { getStudentRepository } from "@/domains/registry";
 import { ATTENDANCE_STATUSES, ATTENDANCE_STATUS_LABEL, type AttendanceStatus } from "@/domains/attendance/types";
@@ -24,7 +24,7 @@ import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { StudentLearningPanel } from "@/domains/learning/StudentLearningPanel";
 import { StudentProgressPanel } from "@/domains/progress/StudentProgressPanel";
@@ -913,11 +913,15 @@ export function StudentsView() {
   // Repository-backed: the view no longer imports the student fixture. Loading
   // state is the repository's real state, not a simulated delay.
   //
-  // `per_page` is explicit because the detail page resolves `detailId` against
-  // this list: relying on the repository default silently hid every student
-  // past the first page behind a "not found" state. BACKEND REQUIRED: server-side
-  // paging plus a `get(id)` fetch for the detail route replaces this ceiling.
+  // I16: detail/deep-link resolution must NOT rely on scanning a capped list.
+  // `per_page: 200` is the list ceiling; an entity beyond it would be reported
+  // as not-found. The owning repository already exposes `get(id)` which is the
+  // authoritative single-record lookup. `useStudent(detailId)` is that lookup
+  // with loading/error/not-found distinguishable.
   const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+  const { student: detailStudent, loading: detailLoading, error: detailError, reload: reloadDetail } = useStudent(
+    detailId ?? undefined,
+  );
 
   /**
    * The teacher relation, read once for the whole surface.
@@ -988,32 +992,46 @@ export function StudentsView() {
     [students],
   );
 
-  const detail = detailId ? students.find((s) => s.id === detailId) : undefined;
+  // I16: list view still uses capped list; detail view uses authoritative get(id)
+  const detailFromList = detailId ? students.find((s) => s.id === detailId) : undefined;
+  // Prefer authoritative detail when available, fall back to list entry for backwards compat
+  const detail = detailStudent ?? detailFromList;
 
-  // The list and the names it shows arrive together: a card that renders «—» for
-  // a moment and then a name is a card that was drawn from half a read.
-  if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
-  if (error)
-    return (
-      <EmptyState
-        className="py-32"
-        title="بارگذاری هنرجویان ناموفق بود"
-        description={error.message}
-        action="تلاش دوباره"
-        onAction={reload}
-      />
-    );
-  if (detailId && !detail)
-    return (
-      <EmptyState
-        className="py-32"
-        title="هنرجو یافت نشد"
-        description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
-        action="بازگشت به فهرست"
-        onAction={() => navigate({ view: "students" })}
-      />
-    );
-  if (detail)
+  // When a deep-link is active, resolution is independent of the 200-row ceiling
+  if (detailId) {
+    if (detailLoading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+    if (detailError) {
+      if (detailError.kind === "not_found") {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+      return (
+        <ErrorState
+          className="py-32"
+          title="بارگذاری پروندهٔ هنرجو ناموفق بود"
+          description={detailError.message}
+          onRetry={reloadDetail}
+        />
+      );
+    }
+    if (!detail) {
+      return (
+        <EmptyState
+          className="py-32"
+          title="هنرجو یافت نشد"
+          description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+          action="بازگشت به فهرست"
+          onAction={() => navigate({ view: "students" })}
+        />
+      );
+    }
     return (
       <>
         <StudentDetail
@@ -1031,6 +1049,20 @@ export function StudentsView() {
           onSaved={savedToast}
         />
       </>
+    );
+  }
+
+  // List view: existing behavior and pagination remain unchanged
+  if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  if (error)
+    return (
+      <EmptyState
+        className="py-32"
+        title="بارگذاری هنرجویان ناموفق بود"
+        description={error.message}
+        action="تلاش دوباره"
+        onAction={reload}
+      />
     );
 
   const columns: Column<Student>[] = [

@@ -21,7 +21,7 @@ import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/comp
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
 import { ErrorState } from "@/components/ds/states";
-import { useTeachers } from "@/domains/teachers/useTeachers";
+import { useTeachers, useTeacher } from "@/domains/teachers/useTeachers";
 import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
 import { getTeacherRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
@@ -905,10 +905,14 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
 
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
-  const { detailId, notify } = useApp();
+  const { detailId, navigate, notify } = useApp();
   const demoEnvironment = useIsDemoEnvironment();
   // Repository-backed: loading reflects a real read, not a timer.
+  // I16: list view keeps per_page 200 ceiling; detail/deep-link uses authoritative get(id)
   const { items: teachers, loading, error, reload } = useTeachers({ per_page: RELATIONS_PER_PAGE });
+  const { teacher: detailTeacher, loading: detailLoading, error: detailError, reload: reloadDetail } = useTeacher(
+    detailId ?? undefined,
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Teacher | undefined>(undefined);
 
@@ -926,14 +930,43 @@ export function TeachersView() {
     <TeacherFormDialog open={formOpen} teacher={editing} onClose={() => setFormOpen(false)} onSaved={savedToast} />
   );
 
-  const detail = detailId ? teachers.find((t) => t.id === detailId) : undefined;
+  const detailFromList = detailId ? teachers.find((t) => t.id === detailId) : undefined;
+  const detail = detailTeacher ?? detailFromList;
 
-  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
-  if (error)
-    return (
-      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
-    );
-  if (detail)
+  if (detailId) {
+    if (detailLoading || loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+    if (detailError) {
+      if (detailError.kind === "not_found") {
+        return (
+          <EmptyState
+            className="py-32"
+            title="مدرس یافت نشد"
+            description="این پیوند به مدرسی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "teachers" })}
+          />
+        );
+      }
+      return (
+        <ErrorState
+          className="py-32"
+          title="بارگذاری پروندهٔ مدرس ناموفق بود"
+          description={detailError.message}
+          onRetry={reloadDetail}
+        />
+      );
+    }
+    if (!detail) {
+      return (
+        <EmptyState
+          className="py-32"
+          title="مدرس یافت نشد"
+          description="این پیوند به مدرسی اشاره دارد که دیگر وجود ندارد."
+          action="بازگشت به فهرست"
+          onAction={() => navigate({ view: "teachers" })}
+        />
+      );
+    }
     return (
       <>
         {/*
@@ -957,6 +990,13 @@ export function TeachersView() {
         />
         {dialog}
       </>
+    );
+  }
+
+  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+  if (error)
+    return (
+      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
     );
 
   return (
