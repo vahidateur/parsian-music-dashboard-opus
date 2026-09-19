@@ -937,8 +937,10 @@ export function StudentsView() {
   const { students, loading, error, reload } = useStudentList({ per_page: 200 });
   const filteredStudents = useMemo(() => {
     if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
-    if (classesForScope.loading || enrollmentsForScope.loading) return students;
-    if (classesForScope.error || enrollmentsForScope.error) return students;
+    // AUDIT-002 FIX: When teacher scope dependencies are loading or erroring, NEVER fall back to org-wide students.
+    // Return safe restricted empty set instead of leaking org-wide.
+    if (classesForScope.loading || enrollmentsForScope.loading) return [];
+    if (classesForScope.error || enrollmentsForScope.error) return [];
     const assigned = assignedStudentIdsForTeacher(
       (user as any).teacherId,
       classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId })),
@@ -1081,7 +1083,10 @@ export function StudentsView() {
   }
 
   // List view: existing behavior and pagination remain unchanged
-  if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  // AUDIT-002 FIX: For teacher role, scope dependencies loading should show loading state, not empty (false empty) nor org-wide leak.
+  const isTeacherForLoading = user?.role === "teacher" && (user as any).teacherId;
+  const teacherScopeLoading = isTeacherForLoading ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+  if (loading || teachers.loading || teacherScopeLoading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
   if (error)
     return (
       <EmptyState
