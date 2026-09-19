@@ -42,6 +42,10 @@ import { getLearningRepository } from "@/domains/registry";
 import { useLearningContent } from "./useLearning";
 import type { LearningContent } from "./types";
 
+function partialNote(name: string, shown: number, total: number): string | null {
+  return total > shown ? `${name}: ${shown} ردیف از ${total}` : null;
+}
+
 /** One line of the picker: the title, plus attribution when the record has it. */
 function optionLabel(content: LearningContent): string {
   return content.author ? `${content.title} — ${content.author}` : content.title;
@@ -71,6 +75,7 @@ export function LevelContentPanel({
   // table, so it is the same source of truth the eligibility rule reads.
   const {
     items: linked,
+    total: linkedTotal,
     loading: linkedLoading,
     error: linkedError,
     reload,
@@ -83,6 +88,7 @@ export function LevelContentPanel({
   // failure mode, and a read that failed is not a read that found nothing.
   const {
     items: catalogue,
+    total: catalogueTotal,
     loading: catalogueLoading,
     error: catalogueError,
     reload: reloadCatalogue,
@@ -219,6 +225,9 @@ export function LevelContentPanel({
           ))}
         </ul>
       )}
+      {linkedTotal > linked.length && (
+        <p className="mt-2 text-[11px] text-ink-400">{partialNote("منابع این سطح", linked.length, linkedTotal)}</p>
+      )}
 
       {catalogueError ? (
         /*
@@ -291,6 +300,7 @@ export function LevelContentPanel({
       <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
         اتصال منبع به یک سطح، دسترسی هر هنرجویی را که روی آن سطح یا سطوح بعدی
         این دوره قرار دارد فوراً تغییر می‌دهد؛ منبع برای هیچ هنرجویی کپی نمی‌شود.
+        {catalogueTotal > catalogue.length && <> {partialNote("کاتالوگ", catalogue.length, catalogueTotal)}</>}
       </p>
     </section>
   );

@@ -13,20 +13,52 @@
  */
 import { instrumentName } from "@/domains/instruments/catalog";
 import {
+  getAttendanceRepository,
   getClassRepository,
+  getCompensationRepository,
   getEnrollmentRepository,
+  getGalleryRepository,
+  getLibraryRepository,
+  getRoomRepository,
+  getSchedulingRepository,
   getStudentRepository,
   getTeacherRepository,
 } from "@/domains/registry";
 import { safeFilename, toCsv, toXlsx } from "@/domains/import/spreadsheet";
 import { studentExportRows } from "@/domains/import/studentImport";
+import type { Permission } from "@/domains/auth/permissions";
+import {
+  attendanceColumns,
+  classColumns,
+  compensationColumns,
+  dashboardColumns,
+  galleryColumns,
+  libraryColumns,
+  schedulingColumns,
+  studentColumns,
+  teacherColumns,
+  type ExportColumn,
+} from "./definitions";
+import { deriveOccupancy, deriveReceivables, deriveSignals, dashboardCounts } from "@/domains/shared/dashboardInsights";
 
 export type ExportFormat = "csv" | "xlsx";
-export type ExportEntity = "students" | "teachers" | "classes" | "enrollments";
+export type ExportEntity =
+  | "students"
+  | "teachers"
+  | "classes"
+  | "enrollments"
+  | "library"
+  | "gallery"
+  | "scheduling"
+  | "attendance"
+  | "compensation"
+  | "dashboard";
 
 export interface ExportTable {
   headers: string[];
   rows: string[][];
+  /** Total available rows in the repository (for truncation disclosure I16). */
+  total?: number;
 }
 
 export const EXPORT_LABELS: Record<ExportEntity, string> = {
@@ -34,74 +66,153 @@ export const EXPORT_LABELS: Record<ExportEntity, string> = {
   teachers: "مدرسین",
   classes: "کلاس‌ها",
   enrollments: "ثبت‌نام‌ها",
+  library: "کتابخانه",
+  gallery: "گالری",
+  scheduling: "برنامه‌ریزی",
+  attendance: "حضور",
+  compensation: "جبرانی",
+  dashboard: "داشبورد",
 };
 
-/** Reads the current state of one entity and shapes it into a table. */
-export async function buildExportTable(entity: ExportEntity): Promise<ExportTable> {
-  const all = { per_page: 1000 };
+/** Permission required to export each entity — frontend guard (M2 rule: no control if forbidden). */
+export const EXPORT_PERMISSIONS: Record<ExportEntity, Permission> = {
+  students: "students.read",
+  teachers: "teachers.read",
+  classes: "classes.read",
+  enrollments: "classes.read",
+  library: "library.read",
+  gallery: "library.read",
+  scheduling: "schedule.read",
+  attendance: "attendance.read",
+  compensation: "schedule.read",
+  dashboard: "students.read",
+};
+
+function tableFromColumns<T>(columns: ExportColumn<T>[], rows: T[], total?: number): ExportTable {
+  return {
+    headers: columns.map((c) => c.header),
+    rows: rows.map((row) => columns.map((col) => col.accessor(row))),
+    total: total ?? rows.length,
+  };
+}
+
+/** Reads the current state of one entity and shapes it into a table. Supports filter reuse from list views. */
+export async function buildExportTable(entity: ExportEntity, filters: Record<string, unknown> = {}): Promise<ExportTable> {
+  const all = { per_page: 1000, ...filters };
 
   switch (entity) {
     case "students": {
-      const page = await getStudentRepository().list(all);
-      return studentExportRows(page.data);
+      const page = await getStudentRepository().list(all as any);
+      // Use reusable column defs — single owner, no duplicate list
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(studentColumns, page.data as any, total);
     }
     case "teachers": {
-      const page = await getTeacherRepository().list(all);
-      return {
-        headers: ["نام", "ساز", "عنوان", "تلفن", "وضعیت", "ساعت قرارداد", "ساعت هفتگی", "هنرجویان"],
-        rows: page.data.map((t) => [
-          t.name,
-          instrumentName(t.instrument),
-          t.title,
-          t.phone,
-          t.status,
-          String(t.contractHours),
-          String(t.weeklyHours),
-          String(t.students),
-        ]),
-      };
+      const page = await getTeacherRepository().list(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(teacherColumns, page.data as any, total);
     }
     case "classes": {
-      const page = await getClassRepository().list({ ...all, includeArchived: true });
-      return {
-        headers: ["عنوان", "ساز", "نوع", "سطح", "مدرس", "اتاق", "ساعت", "مدت", "ثبت‌نام", "ظرفیت", "لیست انتظار", "شهریه", "وضعیت"],
-        rows: page.data.map((c) => [
-          c.title,
-          instrumentName(c.instrument),
-          c.kind === "group" ? "گروهی" : "انفرادی",
-          c.level,
-          c.teacherId,
-          c.roomId,
-          c.time,
-          String(c.duration),
-          String(c.enrolled),
-          String(c.capacity),
-          String(c.waitlist),
-          String(c.tuition),
-          c.status === "archived" ? "بایگانی" : "فعال",
-        ]),
-      };
+      const page = await getClassRepository().list({ ...all, includeArchived: true } as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(classColumns, page.data as any, total);
     }
     case "enrollments": {
       const [enrollments, students, classes] = await Promise.all([
-        getEnrollmentRepository().list(all),
-        getStudentRepository().list(all),
-        getClassRepository().list({ ...all, includeArchived: true }),
+        getEnrollmentRepository().list(all as any),
+        getStudentRepository().list({ per_page: 1000 } as any),
+        getClassRepository().list({ per_page: 1000, includeArchived: true } as any),
       ]);
-      const studentName = new Map(students.data.map((s) => [s.id, s.name]));
-      const className = new Map(classes.data.map((c) => [c.id, c.title]));
+      const studentName = new Map(students.data.map((s: any) => [s.id, s.name]));
+      const className = new Map(classes.data.map((c: any) => [c.id, c.title]));
+      const rows = enrollments.data.map((e: any) => ({
+        enrollment: e,
+        studentName: studentName.get(e.studentId) ?? e.studentId,
+        className: className.get(e.classId) ?? e.classId,
+      }));
+      const total = (enrollments as any).total ?? enrollments.data.length;
       return {
         headers: ["هنرجو", "کلاس", "وضعیت", "تاریخ شروع", "تاریخ پایان", "طرح شهریه", "مبلغ"],
-        rows: enrollments.data.map((e) => [
-          studentName.get(e.studentId) ?? e.studentId,
-          className.get(e.classId) ?? e.classId,
-          e.status,
-          e.startDate,
-          e.endDate ?? "",
-          e.pricingPlan.label,
-          String(e.pricingPlan.amount),
+        rows: rows.map((r) => [
+          r.studentName,
+          r.className,
+          r.enrollment.status,
+          r.enrollment.startDate,
+          r.enrollment.endDate ?? "",
+          r.enrollment.pricingPlan.label,
+          String(r.enrollment.pricingPlan.amount),
         ]),
+        total,
       };
+    }
+    case "library": {
+      const page = await getLibraryRepository().list(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(libraryColumns, page.data as any, total);
+    }
+    case "gallery": {
+      const page = await getGalleryRepository().listImages(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(galleryColumns, page.data as any, total);
+    }
+    case "scheduling": {
+      const page = await getSchedulingRepository().list(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(schedulingColumns, page.data as any, total);
+    }
+    case "attendance": {
+      const page = await getAttendanceRepository().list(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(attendanceColumns, page.data as any, total);
+    }
+    case "compensation": {
+      const page = await getCompensationRepository().list(all as any);
+      const total = (page as any).total ?? page.data.length;
+      return tableFromColumns(compensationColumns, page.data as any, total);
+    }
+    case "dashboard": {
+      // Dashboard tabular summary reuse canonical calc — no duplicate engine, respects date-range filters
+      const from = (filters as any).from as string | undefined;
+      const to = (filters as any).to as string | undefined;
+      const todayIso = (to as string) ?? new Date().toISOString().slice(0, 10);
+      const [studentsPage, classesPage, roomsPage, teachersPage, sessionsPage] = await Promise.all([
+        getStudentRepository().list({ per_page: 1000 } as any),
+        getClassRepository().list({ per_page: 1000, includeArchived: true } as any),
+        getRoomRepository().list({ per_page: 1000 } as any),
+        getTeacherRepository().list({ per_page: 1000 } as any),
+        getSchedulingRepository().list({ per_page: 500, ...(from ? { from } : {}), ...(to ? { to } : {}) } as any),
+      ]);
+      const students = studentsPage.data as any[];
+      const classes = classesPage.data as any[];
+      const rooms = roomsPage.data as any[];
+      const teachers = teachersPage.data as any[];
+      const sessions = sessionsPage.data as any[];
+
+      const metrics = null; // hero metrics require bounded window, keep null for export to avoid fabricated
+
+      // Reuse canonical derivations — single source for visualization and export
+      const signals = deriveSignals({ metrics, students, classes, rooms, teachers: teachers.map((t: any) => ({ id: t.id, name: t.name })), sessions, todayIso, nowMinutes: 0 } as any);
+      const occupancy = deriveOccupancy(classes, rooms);
+      const receivables = deriveReceivables(students);
+      const counts = dashboardCounts({ students, classes, rooms, teachers: teachers.length, sessions });
+
+      const rows: { metric: string; value: string; derivation: string }[] = [
+        { metric: "تعداد هنرجویان", value: String(counts.students), derivation: "students.length" },
+        { metric: "تعداد کلاس‌ها", value: String(counts.classes), derivation: "classes.length (includeArchived)" },
+        { metric: "تعداد اتاق‌ها", value: String(counts.rooms), derivation: "rooms.length" },
+        { metric: "تعداد مدرسین", value: String(counts.teachers), derivation: "teachers.length" },
+        { metric: "جلسات در بازه", value: String(sessions.length), derivation: `sessions from ${from ?? "13w"} to ${to ?? todayIso}` },
+        { metric: "جلسات ۷ روز گذشته", value: signals.find((s) => s.id === "sessions")?.value ?? "—", derivation: "weeklyCounts(sessions, date, todayIso)" },
+        { metric: "لغوهای ۳۰ روز گذشته", value: signals.find((s) => s.id === "cancellations")?.value ?? "—", derivation: "weeklyCounts cancelled" },
+        { metric: "هنرجویان نیازمند توجه", value: signals.find((s) => s.id === "at-risk")?.value ?? "—", derivation: "students.filter status at-risk" },
+        { metric: "نرخ حضور ثبت‌شده", value: signals.find((s) => s.id === "attendance")?.value ?? "—", derivation: "meanOf attendance where sessionsTotal>0" },
+        { metric: "اشغال ظرفیت کل", value: occupancy.overallPct !== null ? `${occupancy.overallPct}%` : "—", derivation: "takenSeats/totalSeats" },
+        { metric: "صندلی آزاد", value: String(occupancy.seatsFree), derivation: "classes.filter enrolled<capacity" },
+        { metric: "مانده حساب کل", value: String(receivables.total), derivation: "sum balance>0" },
+        { metric: "هنرجویان بدهکار", value: String(receivables.owing), derivation: "students.filter balance>0" },
+      ];
+
+      return tableFromColumns(dashboardColumns, rows as any, rows.length);
     }
   }
 }
@@ -135,13 +246,30 @@ export function downloadBlob(blob: Blob, filename: string): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Reads current state, serializes it and downloads it. */
-export async function exportEntity(entity: ExportEntity, format: ExportFormat): Promise<number> {
-  const table = await buildExportTable(entity);
+export interface ExportResult {
+  count: number;
+  total: number;
+  truncated: boolean;
+}
+
+/** Reads current state, serializes it and downloads it. Supports filter reuse. */
+export async function exportEntity(
+  entity: ExportEntity,
+  format: ExportFormat,
+  filters: Record<string, unknown> = {},
+): Promise<ExportResult> {
+  const table = await buildExportTable(entity, filters);
   const label = EXPORT_LABELS[entity];
   const stamp = new Date().toISOString().slice(0, 10);
   downloadBlob(serializeTable(table, format, label), `${label}-${stamp}.${format}`);
-  return table.rows.length;
+  const total = table.total ?? table.rows.length;
+  return { count: table.rows.length, total, truncated: total > table.rows.length };
+}
+
+/** Back-compat for older callers that expected number — returns count only. */
+export async function exportEntityCount(entity: ExportEntity, format: ExportFormat): Promise<number> {
+  const result = await exportEntity(entity, format);
+  return result.count;
 }
 
 /** Exposed for the import screen's "download template" and error report. */

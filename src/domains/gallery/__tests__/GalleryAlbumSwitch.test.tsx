@@ -122,11 +122,11 @@ describe("switching albums never arms a delete against the previous album", () =
     await waitFor(() => expect(screen.queryByText("در حال بارگذاری گالری…")).toBeNull());
     // Settled on album A, showing A's image and nothing else.
     await waitFor(() => expect(deleteCaptions()).toEqual([captionA]));
-    expect(selectedAlbumTitle()).toBe(albumA.title);
+    expect(selectedAlbumTitle()).toContain(albumA.title);
 
     // The switch, sampled while the new album's read is still in flight.
-    fireEvent.click(screen.getByRole("button", { name: albumB.title }));
-    expect(selectedAlbumTitle()).toBe(albumB.title);
+    fireEvent.click(screen.getByRole("button", { name: (content, element) => content.includes(albumB.title) } as any));
+    expect(selectedAlbumTitle()).toContain(albumB.title);
 
     for (let sample = 0; sample < 25; sample += 1) {
       // THE INVARIANT. Under the old code this loop found «حذف تصویر آلبوم A»

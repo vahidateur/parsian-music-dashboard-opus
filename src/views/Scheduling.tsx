@@ -75,6 +75,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarClock, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Plus, XCircle } from "lucide-react";
 import { apiErrorFromThrown } from "@/api/errors";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { Chip, Drawer, FilterBar, PageHeader, Segmented, StatStrip, type StatDef } from "@/components/ds/patterns";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
@@ -261,6 +262,10 @@ function SessionBlock({
 /* ------------------------------------------------------------------ */
 export function SchedulingView() {
   const { filter, navigate, notify, openSheet } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteSchedule = useCan("schedule.write") || !user;
+  const canWriteClasses = useCan("classes.write") || !user;
   const now = useAcademyNow();
   const todayIso = useMemo(() => isoFromAcademyDate(academyNow()), []);
 
@@ -526,12 +531,16 @@ export function SchedulingView() {
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "attendance" })}>
               <CalendarDays className="size-3.5" /> حضور امروز
             </Button>
-            <Button size="sm" variant="subtle" onClick={() => setGenerationOpen(true)}>
-              <CalendarRange className="size-3.5" /> تولید جلسات
-            </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("class")}>
-              <Plus className="size-3.5" /> بازهٔ جدید
-            </Button>
+            {canWriteSchedule && (
+              <Button size="sm" variant="subtle" onClick={() => setGenerationOpen(true)}>
+                <CalendarRange className="size-3.5" /> تولید جلسات
+              </Button>
+            )}
+            {canWriteClasses && (
+              <Button size="sm" variant="primary" onClick={() => openSheet("class")}>
+                <Plus className="size-3.5" /> بازهٔ جدید
+              </Button>
+            )}
           </>
         }
       />
@@ -831,7 +840,7 @@ export function SchedulingView() {
               for the race that removal cannot prevent — someone else cancelling
               the session first — and reports `SESSION_ALREADY_CANCELLED` verbatim.
             */}
-            {selected?.status !== "cancelled" && (
+            {canWriteSchedule && selected?.status !== "cancelled" && (
               <>
                 <Button
                   size="sm"
@@ -927,7 +936,7 @@ export function SchedulingView() {
         repository's.
       */}
       <GenerateSessionsDialog
-        open={generationOpen}
+        open={generationOpen && canWriteSchedule}
         classes={classes.items}
         classesUnavailable={classes.error !== null}
         defaultFrom={from}
@@ -948,7 +957,7 @@ export function SchedulingView() {
       {selected !== undefined && (
         <>
           <RescheduleSessionDialog
-            open={writeForm === "reschedule"}
+            open={writeForm === "reschedule" && canWriteSchedule}
             session={selected}
             classTitle={titleOf(selected)}
             rooms={rooms.items}
@@ -961,7 +970,7 @@ export function SchedulingView() {
             onClose={() => setWriteForm(null)}
           />
           <CancelSessionDialog
-            open={writeForm === "cancel"}
+            open={writeForm === "cancel" && canWriteSchedule}
             session={selected}
             classTitle={titleOf(selected)}
             onSubmit={cancelSession}

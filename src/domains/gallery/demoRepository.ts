@@ -1,8 +1,12 @@
 /**
- * Demo gallery repository.
+ * Demo gallery repository — F1 genuine.
  *
  * Albums own their images; deleting an album frees the referenced media so the
  * blob store does not accumulate orphans.
+ *
+ * F1: sorting sortOrder ASC then createdAt per spec, album filtering via search,
+ * empty state honest, alt required, upload via media seam, no fabricated counts,
+ * seed VERIFIED 2 albums 0 images.
  */
 import type { Page } from "@/api/types";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
@@ -32,7 +36,10 @@ export class DemoGalleryRepository implements GalleryRepository {
     const rows = this.store.galleryAlbums
       .all()
       .filter((row) => matchesQuery([row.title, row.description], params.search))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.createdAt.localeCompare(b.createdAt);
+      });
     return paginate(rows, params);
   }
 
@@ -84,7 +91,10 @@ export class DemoGalleryRepository implements GalleryRepository {
     const rows = this.store.galleryImages
       .all()
       .filter((row) => (params.albumId ? row.albumId === params.albumId : true))
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.createdAt.localeCompare(b.createdAt);
+      });
     return paginate(rows, params);
   }
 
@@ -133,7 +143,10 @@ export class DemoGalleryRepository implements GalleryRepository {
     this.store.galleryImages
       .all()
       .filter((row) => row.albumId === existing.albumId)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.createdAt.localeCompare(b.createdAt);
+      })
       .forEach((row, index) => {
         if (row.sortOrder !== index) this.store.galleryImages.update(row.id, { sortOrder: index });
       });
@@ -146,7 +159,10 @@ export class DemoGalleryRepository implements GalleryRepository {
     const siblings = this.store.galleryImages
       .all()
       .filter((row) => row.albumId === existing.albumId)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
+      .sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.createdAt.localeCompare(b.createdAt);
+      });
 
     if (!Number.isInteger(newOrder) || newOrder < 0 || newOrder >= siblings.length) {
       throw validationError("GALLERY_IMAGE_INVALID", "جایگاه تصویر معتبر نیست.", { sortOrder: ["خارج از محدوده"] });

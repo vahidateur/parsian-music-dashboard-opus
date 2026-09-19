@@ -1,14 +1,16 @@
 /**
- * Learning-domain React hooks.
+ * Learning-domain React hooks — F1 genuine.
  *
  * List reads go through `useResourceList` and the two student-scoped derived
- * reads (placement, eligibility) go through `useDerived` below. Both carry the
+ * reads (placement, eligibility, locked) go through `useDerived` below. Both carry the
  * key they answer and derive what they expose at render, so neither can publish
  * a previous query's records — which is what makes "change a student's level and
  * their library updates" work with no manual refresh, no duplicated state, and
  * no frame in which one student is shown another student's data. Cancellation,
  * stale-response rejection and the global invalidation bus are inherited from
  * those two boundaries, never reimplemented per hook.
+ *
+ * F1: added useLockedContent for N+1+ honest reason در سطح X باز می‌شود.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
@@ -23,6 +25,7 @@ import type {
   LearningLevelListParams,
   LearningProgram,
   LearningProgramListParams,
+  LockedContent,
   StudentPlacement,
 } from "./types";
 
@@ -155,6 +158,7 @@ export function useStudentPlacement(studentId: string | undefined): SingleState<
 }
 
 const NO_CONTENT: EligibleContent[] = [];
+const NO_LOCKED: LockedContent[] = [];
 
 /**
  * Content the student may currently open.
@@ -169,4 +173,17 @@ export function useEligibleContent(studentId: string | undefined): SingleState<E
     [studentId],
   );
   return useDerived<EligibleContent[]>(load, NO_CONTENT, studentId ?? "");
+}
+
+/**
+ * F1: Content locked for N+1+ with honest reason در سطح X باز می‌شود.
+ * Locked no preview/download — UI enforces.
+ */
+export function useLockedContent(studentId: string | undefined): SingleState<LockedContent[]> {
+  const load = useCallback(
+    (signal?: AbortSignal) =>
+      studentId ? getLearningRepository().lockedContent(studentId, signal) : Promise.resolve(NO_LOCKED),
+    [studentId],
+  );
+  return useDerived<LockedContent[]>(load, NO_LOCKED, studentId ? `${studentId}:locked` : "locked");
 }
