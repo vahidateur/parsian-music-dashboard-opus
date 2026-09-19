@@ -20,7 +20,7 @@ import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/p
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
 import { ErrorState } from "@/components/ds/states";
-import { useClasses } from "@/domains/classes/useClasses";
+import { useClass, useClasses } from "@/domains/classes/useClasses";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
 import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
 import { getClassRepository } from "@/domains/registry";
@@ -675,7 +675,11 @@ export function ClassesView() {
   const [editing, setEditing] = useState<AcademyClass | undefined>(undefined);
   const [enrollFor, setEnrollFor] = useState<string | undefined>(undefined);
 
-  const detail = detailId ? classes.find((c) => c.id === detailId) : undefined;
+  // F1 absorbed hardening: Classes deep-link get(id) authoritative beyond capped list
+  // Previously: classes.find((c) => c.id === detailId) — capped list scan reports existing beyond 200 as not-found
+  // Now: authoritative single-record lookup via useClass(detailId) — owning repository get(id)
+  const { class: classById, loading: detailLoading, error: detailError, reload: reloadDetail } = useClass(detailId);
+  const detail = detailId ? (classById ?? classes.find((c) => c.id === detailId)) : undefined;
 
   const dialogs = (
     <>
@@ -710,6 +714,17 @@ export function ClassesView() {
   );
 
   if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال چیدن کلاس‌ها…" />;
+  if (detailId && detailLoading) return <LoadingState className="py-32" label="در حال بارگذاری کلاس…" />;
+  if (detailId && detailError) {
+    return (
+      <ErrorState
+        className="py-32"
+        title="بارگذاری کلاس ناموفق بود"
+        description={detailError.message}
+        onRetry={reloadDetail}
+      />
+    );
+  }
   if (error || teachers.error) {
     const failure = error ?? teachers.error!;
     return (

@@ -13,6 +13,7 @@ import type {
   LearningProgram,
   LearningProgramListParams,
   LevelContentLink,
+  LockedContent,
   PlacementListParams,
   StudentPlacement,
   UpdateContentInput,
@@ -28,6 +29,8 @@ import type {
  * Keeping them behind one contract lets the invariants (unique level order,
  * no orphan links, placement matches program) be enforced in one place
  * instead of being split across four repositories that must agree.
+ *
+ * F1: lockedContent added per Level N eligible 1..N, N+1+ locked with honest reason.
  */
 export interface LearningRepository {
   /* programs */
@@ -77,6 +80,8 @@ export interface LearningRepository {
   /* derived */
   /** Content the student may currently open. Computed, never stored. */
   eligibleContent(studentId: string, signal?: AbortSignal): Promise<EligibleContent[]>;
+  /** Content locked for N+1+ with honest reason — F1. Computed, never stored. */
+  lockedContent(studentId: string, signal?: AbortSignal): Promise<LockedContent[]>;
   /** Students who can currently open a given content item. */
   eligibleStudentIds(contentId: string, signal?: AbortSignal): Promise<string[]>;
 }

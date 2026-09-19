@@ -96,7 +96,7 @@ describe("albums", () => {
     expect(albums.data.length).toBeGreaterThan(0);
     expect(demoStore.galleryImages.all()).toHaveLength(0);
     expect(demoStore.media.all().filter((asset) => asset.kind === "image")).toHaveLength(0);
-    expect(await screen.findByText("این آلبوم خالی است")).toBeDefined();
+    expect(await screen.findByText("تصویری نیست")).toBeDefined();
   });
 });
 
