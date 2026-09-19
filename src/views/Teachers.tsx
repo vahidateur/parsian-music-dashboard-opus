@@ -17,6 +17,7 @@ import { useStudentList } from "@/domains/students";
 import { faNum, faPercent, faTime, NO_DATA } from "@/lib/format";
 import { meanOf } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
@@ -693,6 +694,9 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
 /* ------------------------------------------------------------------ */
 function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () => void }) {
   const { filter, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteTeachers = useCan("teachers.write") || !user;
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<InstrumentId | "all">("all");
   // Filter chips enumerate the live instrument catalogue, so an academy's own
@@ -802,9 +806,11 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>
-            <Button size="sm" variant="primary" onClick={onAdd}>
-              <Plus className="size-3.5" /> افزودن مدرس
-            </Button>
+            {canWriteTeachers && (
+              <Button size="sm" variant="primary" onClick={onAdd}>
+                <Plus className="size-3.5" /> افزودن مدرس
+              </Button>
+            )}
           </>
         }
       />
@@ -906,6 +912,9 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
   const { detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteTeachers = useCan("teachers.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
   // Repository-backed: loading reflects a real read, not a timer.
   // I16: list view keeps per_page 200 ceiling; detail/deep-link uses authoritative get(id)

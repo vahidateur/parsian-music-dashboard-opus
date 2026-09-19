@@ -16,6 +16,7 @@ import { useTeachers } from "@/domains/teachers/useTeachers";
 import { faNum, faPercent, faTime, faToman, NO_DATA } from "@/lib/format";
 import { meanOf, ratioPct, topBy } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
@@ -476,6 +477,9 @@ function ClassesRoster({
   onAdd: () => void;
 }) {
   const { navigate } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteClasses = useCan("classes.write") || !user;
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<InstrumentId | "all">("all");
   // Filter chips enumerate the live instrument catalogue, so an academy's own
@@ -555,9 +559,11 @@ function ClassesRoster({
         title="کلاس‌ها"
         description="هر کلاس یک واحد زندهٔ آموزشگاه است — ظرفیت، ریتم هفتگی و کیفیت حضور آن را اینجا ببینید."
         actions={
-          <Button size="sm" variant="primary" onClick={onAdd}>
-            <Plus className="size-3.5" /> کلاس جدید
-          </Button>
+          canWriteClasses ? (
+            <Button size="sm" variant="primary" onClick={onAdd}>
+              <Plus className="size-3.5" /> کلاس جدید
+            </Button>
+          ) : null
         }
       />
 
@@ -659,6 +665,9 @@ function ClassesRoster({
 /* ------------------------------------------------------------------ */
 export function ClassesView() {
   const { detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteClasses = useCan("classes.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
   // Repository-backed. Archived classes are excluded by the repository unless
   // explicitly requested.

@@ -23,6 +23,8 @@ import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
+import { assignedStudentIdsForTeacher } from "@/domains/auth/scope";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
@@ -253,6 +255,9 @@ function StudentDetail({
   onEdit: () => void;
 }) {
   const { navigate, notify, openSheet } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const [statusBusy, setStatusBusy] = useState(false);
 
   /**
@@ -416,16 +421,20 @@ function StudentDetail({
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "messages" })}>
               <MessageSquare className="size-3.5" /> پیام
             </Button>
-            <Button size="sm" variant="subtle" onClick={onEdit}>
-              <Pencil className="size-3.5" /> ویرایش
-            </Button>
-            <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
-              <UserX className="size-3.5" />
-              {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
-            </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
-              <Wallet className="size-3.5" /> ثبت پرداخت
-            </Button>
+            {canWriteStudents && (
+              <>
+                <Button size="sm" variant="subtle" onClick={onEdit}>
+                  <Pencil className="size-3.5" /> ویرایش
+                </Button>
+                <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
+                  <UserX className="size-3.5" />
+                  {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
+                  <Wallet className="size-3.5" /> ثبت پرداخت
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -901,7 +910,13 @@ function StudentDetail({
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
   const { filter, detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
+  // For T-02 assigned-only filtering (teacher sees assigned students only as smallest model)
+  const classesForScope = useClasses({ per_page: 200 });
+  const enrollmentsForScope = useEnrollments({ per_page: 200 });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
@@ -919,6 +934,17 @@ export function StudentsView() {
   // authoritative single-record lookup. `useStudent(detailId)` is that lookup
   // with loading/error/not-found distinguishable.
   const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+  const filteredStudents = useMemo(() => {
+    if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
+    if (classesForScope.loading || enrollmentsForScope.loading) return students;
+    if (classesForScope.error || enrollmentsForScope.error) return students;
+    const assigned = assignedStudentIdsForTeacher(
+      (user as any).teacherId,
+      classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId })),
+      enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status })),
+    );
+    return students.filter((s) => assigned.has(s.id));
+  }, [students, user, classesForScope.items, classesForScope.loading, classesForScope.error, enrollmentsForScope.items, enrollmentsForScope.loading, enrollmentsForScope.error]);
   const { student: detailStudent, loading: detailLoading, error: detailError, reload: reloadDetail } = useStudent(
     detailId ?? undefined,
   );
@@ -972,24 +998,25 @@ export function StudentsView() {
 
   const list = useMemo(
     () =>
-      students.filter(
+      filteredStudents.filter(
         (s) =>
           (status === "all" || s.status === status) &&
           (instrument === "all" || s.instrument === instrument) &&
           (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
       ),
-    [students, status, instrument, query],
+    [filteredStudents, status, instrument, query],
   );
 
   // Stats are derived from the loaded dataset — never hardcoded totals.
+  // For teacher role, filteredStudents is assigned-only per T-02 smallest model.
   const stats = useMemo(
     () => ({
-      active: students.filter((s) => s.status === "active").length,
-      atRisk: students.filter((s) => s.status === "at-risk").length,
-      waitlist: students.filter((s) => s.status === "waitlist").length,
-      paused: students.filter((s) => s.status === "paused").length,
+      active: filteredStudents.filter((s) => s.status === "active").length,
+      atRisk: filteredStudents.filter((s) => s.status === "at-risk").length,
+      waitlist: filteredStudents.filter((s) => s.status === "waitlist").length,
+      paused: filteredStudents.filter((s) => s.status === "paused").length,
     }),
-    [students],
+    [filteredStudents],
   );
 
   // I16: list view still uses capped list; detail view uses authoritative get(id)
@@ -1108,9 +1135,11 @@ export function StudentsView() {
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
-            <Button size="sm" variant="primary" onClick={openCreate}>
-              <Plus className="size-3.5" /> افزودن هنرجو
-            </Button>
+            {canWriteStudents && (
+              <Button size="sm" variant="primary" onClick={openCreate}>
+                <Plus className="size-3.5" /> افزودن هنرجو
+              </Button>
+            )}
           </>
         }
       />
