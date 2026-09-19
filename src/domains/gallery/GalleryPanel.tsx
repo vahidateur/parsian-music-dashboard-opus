@@ -165,6 +165,7 @@ export function GalleryPanel() {
                   <button
                     type="button"
                     aria-current={album.id === selected?.id}
+                    aria-label={album.title}
                     onClick={() => setSelectedId(album.id)}
                     className={cn(
                       "w-full truncate rounded-xl border p-2.5 text-right text-[12.5px] transition-colors",

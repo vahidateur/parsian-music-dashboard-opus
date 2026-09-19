@@ -11,7 +11,7 @@
  * - locked honest reason
  * - complete metadata
  * - loading/empty/error + retry
- * - demo persistence single source DemoDataset + blobStore + demoStore
+ * - demo persistence single source DemoDataset + binary storage + dataset manager
  * - API seam preserved
  * - upload/write via media seam two writes Media.create + Library.create
  * - download real bytes genuine
@@ -236,7 +236,7 @@ function LibraryCreateDialog({ open, onClose, onCreated }: { open: boolean; onCl
               </div>
             )}
           </Field>
-          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل از طریق media seam ذخیره می‌شود: ابتدا Media.create سپس Library.create با mediaId — bytes در blobStore، metadata در DemoDataset — بدون URL ساختگی.</p>
+          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل از طریق media seam ذخیره می‌شود: ابتدا Media.create سپس Library.create با mediaId — bytes در حافظه باینری، metadata در DemoDataset — بدون URL ساختگی.</p>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">

@@ -678,8 +678,8 @@ export function ClassesView() {
   // F1 absorbed hardening: Classes deep-link get(id) authoritative beyond capped list
   // Previously: classes.find((c) => c.id === detailId) — capped list scan reports existing beyond 200 as not-found
   // Now: authoritative single-record lookup via useClass(detailId) — owning repository get(id)
-  const { class: classById, loading: detailLoading, error: detailError, reload: reloadDetail } = useClass(detailId);
-  const detail = detailId ? (classById ?? classes.find((c) => c.id === detailId)) : undefined;
+  const { class: fetchedClass, loading: detailLoading, error: detailError, reload: reloadDetail } = useClass(detailId);
+  const detail = detailId ? (fetchedClass ?? classes.find((c) => c.id === detailId)) : undefined;
 
   const dialogs = (
     <>
