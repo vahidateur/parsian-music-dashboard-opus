@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useHeroStats, type HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useDashboardInsights } from "@/domains/shared/useDashboardInsights";
 import { useAcademyNow } from "@/domains/shared/clock";
@@ -14,6 +15,9 @@ import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/Busine
 import { SectionHeader, Surface } from "@/components/ds/primitives";
 import { DemoNote, ErrorState } from "@/components/ds/states";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
+import { Button } from "@/components/ds/primitives";
+import { Panel, Field, inputCls } from "@/components/ds/patterns";
+import { addDays, isoToJalaliDisplay, jalaliToIso } from "@/domains/scheduling/dateBridge";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 /**
@@ -90,7 +94,54 @@ export function Dashboard() {
   */
   const now = useAcademyNow();
   const todayIso = academyIsoDate();
-  const insights = useDashboardInsights({ todayIso, nowMinutes: now });
+
+  // F5 date-range filtering — Jalali inputs with presets today/week/month, bounded window same as scheduling
+  const [fromJalali, setFromJalali] = useState("");
+  const [toJalali, setToJalali] = useState("");
+  const [rangePreset, setRangePreset] = useState<"13w" | "today" | "week" | "month">("13w");
+
+  const fromIso = useMemo(() => {
+    if (!fromJalali) return undefined;
+    return jalaliToIso(fromJalali) ?? undefined;
+  }, [fromJalali]);
+  const toIso = useMemo(() => {
+    if (!toJalali) return undefined;
+    return jalaliToIso(toJalali) ?? undefined;
+  }, [toJalali]);
+
+  const applyPreset = (preset: "today" | "week" | "month" | "13w") => {
+    setRangePreset(preset);
+    if (preset === "13w") {
+      setFromJalali("");
+      setToJalali("");
+      return;
+    }
+    if (preset === "today") {
+      const jalali = isoToJalaliDisplay(todayIso);
+      setFromJalali(jalali);
+      setToJalali(jalali);
+      return;
+    }
+    if (preset === "week") {
+      const from = addDays(todayIso, -6) ?? todayIso;
+      setFromJalali(isoToJalaliDisplay(from));
+      setToJalali(isoToJalaliDisplay(todayIso));
+      return;
+    }
+    if (preset === "month") {
+      const from = addDays(todayIso, -29) ?? todayIso;
+      setFromJalali(isoToJalaliDisplay(from));
+      setToJalali(isoToJalaliDisplay(todayIso));
+      return;
+    }
+  };
+
+  const insights = useDashboardInsights({
+    todayIso,
+    nowMinutes: now,
+    from: fromIso,
+    to: toIso,
+  });
   // The hero's four figures are read by the VIEW, once, and handed to both the
   // desktop hero and the mobile pulse card. Each surface calling the hook itself
   // would give each its own idea of whether the read succeeded — and a retry that
@@ -107,6 +158,70 @@ export function Dashboard() {
 
       {/* 2 · Today's key metrics — derived from the record set read above */}
       <div className="order-2 lg:order-none lg:col-span-12 flex flex-col gap-5">
+        <Panel title="بازهٔ زمانی" kicker="فیلتر تاریخ شمسی — از همان مرزی که برنامه‌ریزی استفاده می‌کند — پیش‌فرض ۱۳ هفته">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="از تاریخ (شمسی YYYY/MM/DD)">
+              {(control) => (
+                <input
+                  {...control}
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder="۱۴۰۴/۰۷/۰۱"
+                  value={fromJalali}
+                  onChange={(e) => {
+                    setFromJalali(e.target.value);
+                    setRangePreset("13w");
+                  }}
+                />
+              )}
+            </Field>
+            <Field label="تا تاریخ (شمسی)">
+              {(control) => (
+                <input
+                  {...control}
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder="۱۴۰۴/۰۷/۳۰"
+                  value={toJalali}
+                  onChange={(e) => {
+                    setToJalali(e.target.value);
+                    setRangePreset("13w");
+                  }}
+                />
+              )}
+            </Field>
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant={rangePreset === "13w" ? "primary" : "subtle"} onClick={() => applyPreset("13w")}>
+                ۱۳ هفته
+              </Button>
+              <Button size="sm" variant={rangePreset === "today" ? "primary" : "subtle"} onClick={() => applyPreset("today")}>
+                امروز
+              </Button>
+              <Button size="sm" variant={rangePreset === "week" ? "primary" : "subtle"} onClick={() => applyPreset("week")}>
+                هفته
+              </Button>
+              <Button size="sm" variant={rangePreset === "month" ? "primary" : "subtle"} onClick={() => applyPreset("month")}>
+                ماه
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <EntityExportButton entity="dashboard" label="خروجی تحلیلی داشبورد" filters={{ ...(fromIso ? { from: fromIso } : {}), ...(toIso ? { to: toIso } : {}) }} />
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
+            بازهٔ پیش‌فرض ۱۳ هفتهٔ اخیر تا امروز است — همان پنجره‌ای که نمودار هفتگی رسم می‌کند. فیلتر روی همین ۵۰۰ ردیفِ خوانده‌شده اعمال می‌شود
+            (سمت کلاینت) و برای مجموعه‌های بزرگ سرور باید تجمیع کند. خروجی تحلیلی همین محاسبهٔ یکتا را دوباره استفاده می‌کند، نه موتور دوم.
+            {(fromIso || toIso) && (
+              <span className="ms-1">
+                فیلتر فعال: {fromJalali || "—"} تا {toJalali || "—"} → {fromIso ?? "—"} تا {toIso ?? "—"}.
+              </span>
+            )}
+          </p>
+          {(fromJalali && !fromIso) || (toJalali && !toIso) ? (
+            <p className="mt-2 text-[11px] text-warn-400">تاریخ شمسی نامعتبر است — قالب YYYY/MM/DD مثل ۱۴۰۴/۰۷/۰۱.</p>
+          ) : null}
+        </Panel>
+
         {heroError !== null && (
           /*
             One disclosure for the whole page, naming the failure the read set
@@ -130,10 +245,6 @@ export function Dashboard() {
           />
         )}
         <Signals signals={insights.signals} loading={insights.loading} />
-      </div>
-
-      <div className="order-2 lg:order-none lg:col-span-12 flex justify-end">
-        <EntityExportButton entity="dashboard" label="خروجی تحلیلی داشبورد" />
       </div>
 
       {/* 3 · Needs attention */}

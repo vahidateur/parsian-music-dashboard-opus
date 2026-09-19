@@ -171,13 +171,16 @@ export async function buildExportTable(entity: ExportEntity, filters: Record<str
       return tableFromColumns(compensationColumns, page.data as any, total);
     }
     case "dashboard": {
-      // Dashboard tabular summary reuse canonical calc — no duplicate engine
+      // Dashboard tabular summary reuse canonical calc — no duplicate engine, respects date-range filters
+      const from = (filters as any).from as string | undefined;
+      const to = (filters as any).to as string | undefined;
+      const todayIso = (to as string) ?? new Date().toISOString().slice(0, 10);
       const [studentsPage, classesPage, roomsPage, teachersPage, sessionsPage] = await Promise.all([
         getStudentRepository().list({ per_page: 1000 } as any),
         getClassRepository().list({ per_page: 1000, includeArchived: true } as any),
         getRoomRepository().list({ per_page: 1000 } as any),
         getTeacherRepository().list({ per_page: 1000 } as any),
-        getSchedulingRepository().list({ per_page: 500 } as any),
+        getSchedulingRepository().list({ per_page: 500, ...(from ? { from } : {}), ...(to ? { to } : {}) } as any),
       ]);
       const students = studentsPage.data as any[];
       const classes = classesPage.data as any[];
@@ -185,10 +188,9 @@ export async function buildExportTable(entity: ExportEntity, filters: Record<str
       const teachers = teachersPage.data as any[];
       const sessions = sessionsPage.data as any[];
 
-      const todayIso = new Date().toISOString().slice(0, 10);
       const metrics = null; // hero metrics require bounded window, keep null for export to avoid fabricated
 
-      // Reuse canonical derivations
+      // Reuse canonical derivations — single source for visualization and export
       const signals = deriveSignals({ metrics, students, classes, rooms, teachers: teachers.map((t: any) => ({ id: t.id, name: t.name })), sessions, todayIso, nowMinutes: 0 } as any);
       const occupancy = deriveOccupancy(classes, rooms);
       const receivables = deriveReceivables(students);
@@ -199,6 +201,7 @@ export async function buildExportTable(entity: ExportEntity, filters: Record<str
         { metric: "تعداد کلاس‌ها", value: String(counts.classes), derivation: "classes.length (includeArchived)" },
         { metric: "تعداد اتاق‌ها", value: String(counts.rooms), derivation: "rooms.length" },
         { metric: "تعداد مدرسین", value: String(counts.teachers), derivation: "teachers.length" },
+        { metric: "جلسات در بازه", value: String(sessions.length), derivation: `sessions from ${from ?? "13w"} to ${to ?? todayIso}` },
         { metric: "جلسات ۷ روز گذشته", value: signals.find((s) => s.id === "sessions")?.value ?? "—", derivation: "weeklyCounts(sessions, date, todayIso)" },
         { metric: "لغوهای ۳۰ روز گذشته", value: signals.find((s) => s.id === "cancellations")?.value ?? "—", derivation: "weeklyCounts cancelled" },
         { metric: "هنرجویان نیازمند توجه", value: signals.find((s) => s.id === "at-risk")?.value ?? "—", derivation: "students.filter status at-risk" },
