@@ -56,6 +56,7 @@ Evidence-based, no fake backend behavior.
 | 14-handoff-checkpoint.md | Session continuation checkpoint branch/HEAD/base/purpose/audited/decided/open/must-not-touch/files changed/validation/known failures/next action/continuation prompt | DONE |
 | 15-student-portal-architecture.md | Student Portal architecture profile/classes/schedule/level/resources/progress/attendance/tickets/messages/files communication demo vs backend identity scope self/assigned/org/device identity linking user_student_links telegram_links bale_links contract only no UI per D1 | DONE F7 |
 | 16-telegram-bale-backup-integration.md | Telegram/Bale/Backup integration contracts — Telegram backup vs student access different adapters not business owner, Bale avoid duplicate logic Core->Adapter->Telegram/Bale via common MessagingAdapter, backup envelope versioned migration retention/integrity/restore/encryption/failure OPEN, no business logic in bots — B CONTRACT NOW BACKEND LATER REQUIRED | DONE F8 |
+| 17-mobile-client-contract.md | Mobile Client Contract — Mobile student client = REQUIRED PRODUCT CAPABILITY — mobile app client of same backend contracts, media/file abstraction -> storage provider — contract doc for mobile auth bearer secure storage not localStorage, same API envelope Collection/Item PageMeta, same domain repos, same RBAC, media upload same endpoint, no second API — B CONTRACT NOW BACKEND LATER REQUIRED | DONE F9 |
 
 ## Classification Principle — CORRECTED
 
