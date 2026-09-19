@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
@@ -803,6 +804,13 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
         description="بار کاری، در دسترس بودن و کیفیت عملیاتی هر مدرس در یک نگاه."
         actions={
           <>
+            <EntityExportButton
+              entity="teachers"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(inst !== "all" ? { instrument: inst } : {}),
+              }}
+            />
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>

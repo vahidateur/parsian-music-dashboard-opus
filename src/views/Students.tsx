@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { CalendarPlus, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
@@ -1132,9 +1133,14 @@ export function StudentsView() {
         description="پروندهٔ کامل هنرجویان، وضعیت حضور، پیشرفت و مالی — همه در یک نما."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
-              <Download className="size-3.5" /> خروجی
-            </Button>
+            <EntityExportButton
+              entity="students"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(status !== "all" ? { status } : {}),
+                ...(instrument !== "all" ? { instrument } : {}),
+              }}
+            />
             {canWriteStudents && (
               <Button size="sm" variant="primary" onClick={openCreate}>
                 <Plus className="size-3.5" /> افزودن هنرجو
