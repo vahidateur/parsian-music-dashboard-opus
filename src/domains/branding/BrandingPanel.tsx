@@ -15,7 +15,7 @@ import { getBrandingRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
-import { PERSIAN_FONTS, type BrandingSettings } from "./types";
+import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
 import { cn } from "@/utils/cn";
 
 interface Draft {
@@ -105,6 +105,16 @@ export function BrandingPanel() {
       const next = { ...prev };
       delete next[key];
       return next;
+    });
+  };
+
+  const resetToDefaults = () => {
+    setDraft(toDraft(DEFAULT_BRANDING));
+    setFields({});
+    notify({
+      tone: "info",
+      title: "پیش‌نمایش بازنشانی شد",
+      detail: "مقادیر به پیش‌فرض بازگشت — برای اعمال ذخیره کنید.",
     });
   };
 
@@ -211,10 +221,51 @@ export function BrandingPanel() {
           <p className="text-[11px] leading-relaxed text-ink-400">
             {savedAt ? "آخرین ذخیره‌سازی انجام شد." : "تغییرات پس از ذخیره در همهٔ بخش‌ها اعمال می‌شود."}
           </p>
-          <Button variant="primary" size="sm" onClick={() => void save()} disabled={!dirty || saving}>
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-            {saving ? "در حال ذخیره…" : "ذخیرهٔ تغییرات"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={resetToDefaults} disabled={saving}>
+              بازنشانی به پیش‌فرض
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => void save()} disabled={!dirty || saving}>
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+              {saving ? "در حال ذخیره…" : "ذخیرهٔ تغییرات"}
+            </Button>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="پیش‌نمایش زنده" kicker="پیش‌نمایش محلی قبل از ذخیره — فقط این کادر رنگ‌ها و فونت پیش‌نویس را نشان می‌دهد">
+        <div
+          className="rounded-xl border p-4"
+          style={
+            {
+              backgroundColor: draft.primaryColor,
+              color: draft.textColor,
+              borderColor: draft.accentColor,
+              fontFamily: draft.persianFont,
+              // CSS vars for preview only, not document
+              ["--brand-primary" as any]: draft.primaryColor,
+              ["--brand-accent" as any]: draft.accentColor,
+              ["--brand-text" as any]: draft.textColor,
+              ["--brand-font-fa" as any]: draft.persianFont,
+            } as React.CSSProperties
+          }
+        >
+          <div className="text-[13px] font-medium" style={{ color: draft.textColor }}>
+            {draft.academyName || "نام آموزشگاه"}
+          </div>
+          <div className="mt-1 text-[11px] opacity-80" style={{ color: draft.textColor }}>
+            {draft.tagline || "شعار / معرفی کوتاه"}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <span
+              className="inline-flex size-6 items-center justify-center rounded-lg border text-[10px]"
+              style={{ backgroundColor: draft.accentColor, borderColor: draft.accentColor, color: draft.primaryColor }}
+            >
+              لوگو
+            </span>
+            <span className="text-[11px] opacity-70">فونت: {draft.persianFont}</span>
+          </div>
+          <div className="mt-2 text-[10px] opacity-60">این پیش‌نمایش فقط محلی است — تا ذخیره نکنید در همهٔ بخش‌ها اعمال نمی‌شود.</div>
         </div>
       </Panel>
 
