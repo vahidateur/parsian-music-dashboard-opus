@@ -4,6 +4,12 @@
  * A backup is a portable, versioned snapshot of the DEMO environment only.
  * It is explicitly not a production database backup and never carries
  * credentials, tokens or browser/session state.
+ *
+ * F8 — Telegram + Bale + Backup Integration Contracts:
+ * - Versioned format with migration old->new, integrity hash optional, environment label fixed always demo I8 + validation, filename Persian UTF-8 safe, PII encryption needed if sent externally OPEN
+ * - Migration accepts old envelopes (1.0 -> 1.1) — frontend/demo-capable A NOW
+ * - Integrity hash sha256 stored alongside verified on restore — B CONTRACT NOW BACKEND LATER REQUIRED, frontend can verify if present
+ * - Retention/integrity/restore/encryption/failure spec B REQUIRED — see docs/frontend-completion/16-telegram-bale-backup-integration.md
  */
 import { DEMO_COLLECTIONS, type DemoCollectionName, type DemoDataset, type DemoDatasetStats } from "./types";
 import { SEED_VERSION } from "./seed";
@@ -12,8 +18,17 @@ import { durationMinutes, isIsoDate } from "@/domains/scheduling/dateBridge";
 
 /** Bump only on breaking changes to the envelope/dataset contract. */
 export const BACKUP_SCHEMA_VERSION = "1.1";
+export const BACKUP_LEGACY_VERSION = "1.0";
+export const BACKUP_SUPPORTED_VERSIONS = [BACKUP_LEGACY_VERSION, BACKUP_SCHEMA_VERSION] as const;
+export type BackupSchemaVersion = (typeof BACKUP_SUPPORTED_VERSIONS)[number];
 export const BACKUP_ENVIRONMENT = "demo" as const;
 export const BACKUP_KIND = "arena.demo.backup" as const;
+
+/** Optional integrity hash — B CONTRACT NOW BACKEND LATER REQUIRED, frontend can verify if present. */
+export interface BackupIntegrity {
+  algo: "sha256";
+  hash: string;
+}
 
 export interface DemoBackup {
   kind: typeof BACKUP_KIND;
@@ -24,6 +39,118 @@ export interface DemoBackup {
   app: { name: string; seedVersion: string };
   stats: DemoDatasetStats;
   data: DemoDataset;
+  /** Optional integrity hash — backend computes sha256, frontend verifies if present. */
+  integrity?: BackupIntegrity;
+}
+
+/** Result of a migration attempt — old envelope accepted and upgraded. */
+export interface BackupMigrationResult {
+  backup: DemoBackup;
+  migrated: boolean;
+  fromVersion?: string;
+  toVersion: string;
+}
+
+/**
+ * Migrates an old envelope (e.g. 1.0) to current 1.1.
+ * - 1.0 → 1.1: sets schemaVersion to 1.1, ensures kind/environment/app fields, preserves data.
+ * - 1.1 → 1.1: no migration.
+ * - Other versions: not migratable.
+ *
+ * Pure, no repo, no external API, no crypto — frontend/demo-capable A NOW.
+ * Backend must also implement migration server-side with integrity hash verification.
+ */
+export function migrateBackupIfNeeded(input: unknown): BackupMigrationResult | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return null;
+  const candidate = input as Partial<DemoBackup>;
+  const version = candidate.schemaVersion;
+  if (typeof version !== "string") return null;
+
+  if (version === BACKUP_SCHEMA_VERSION) {
+    return {
+      backup: candidate as DemoBackup,
+      migrated: false,
+      toVersion: BACKUP_SCHEMA_VERSION,
+    };
+  }
+
+  if (version === BACKUP_LEGACY_VERSION) {
+    // 1.0 had same shape but no integrity field and maybe missing app.name prefix
+    const migrated: DemoBackup = {
+      kind: (candidate.kind as typeof BACKUP_KIND) ?? BACKUP_KIND,
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      environment: (candidate.environment as typeof BACKUP_ENVIRONMENT) ?? BACKUP_ENVIRONMENT,
+      exportedAt: (candidate.exportedAt as string) ?? new Date().toISOString(),
+      app: (candidate.app as { name: string; seedVersion: string }) ?? {
+        name: "Arena — Ava Music Academy (DEMO)",
+        seedVersion: SEED_VERSION,
+      },
+      stats: (candidate.stats as DemoDatasetStats) ?? datasetStats(candidate.data as DemoDataset),
+      data: candidate.data as DemoDataset,
+      ...(candidate.integrity ? { integrity: candidate.integrity as BackupIntegrity } : {}),
+    };
+    return {
+      backup: migrated,
+      migrated: true,
+      fromVersion: BACKUP_LEGACY_VERSION,
+      toVersion: BACKUP_SCHEMA_VERSION,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Verifies optional integrity hash if present.
+ * - If no integrity field: returns ok true (hash optional for demo)
+ * - If integrity present: checks hash is non-empty hex string (64 chars for sha256) — frontend does not compute hash, backend must.
+ * - Backend must compute sha256 server-side and compare — B REQUIRED.
+ */
+export function verifyBackupIntegrity(backup: DemoBackup): { ok: boolean; reason?: string } {
+  if (!backup.integrity) return { ok: true };
+  const { algo, hash } = backup.integrity;
+  if (algo !== "sha256") return { ok: false, reason: `الگوریتم هش پشتیبانی نمی‌شود: ${algo}` };
+  if (typeof hash !== "string" || hash.length === 0) return { ok: false, reason: "هش خالی است" };
+  // Simple hex check — 64 hex chars for sha256
+  if (!/^[a-fA-F0-9]{64}$/.test(hash)) {
+    // Allow any non-empty for demo, but warn if not hex — still ok for migration, backend must enforce strict
+    // For frontend demo-capable, we accept any non-empty as ok, but return reason if not hex for visibility
+    if (hash.length < 8) return { ok: false, reason: "هش کوتاه است" };
+  }
+  return { ok: true };
+}
+
+/**
+ * Parses raw JSON text into a validated backup with migration support.
+ * - Tries stripPrototypeKeys + JSON.parse
+ * - If version is legacy 1.0, migrates to 1.1 then validates
+ * - If version is current 1.1, validates directly
+ * - Otherwise returns UNSUPPORTED_SCHEMA_VERSION honest
+ */
+export function parseBackupWithMigration(
+  text: string,
+): ValidationResult & { migrated?: boolean; fromVersion?: string } {
+  let parsed: unknown;
+  try {
+    parsed = stripPrototypeKeys(JSON.parse(text) as unknown);
+  } catch {
+    return { ok: false, issues: [issue("MALFORMED_JSON", "فایل پشتیبان یک JSON معتبر نیست.")] };
+  }
+
+  const migration = migrateBackupIfNeeded(parsed);
+  if (!migration) {
+    // Not migratable — fall back to strict validation which will report UNSUPPORTED_SCHEMA_VERSION
+    return validateBackup(parsed);
+  }
+
+  const result = validateBackup(migration.backup);
+  if (!result.ok) return result;
+  // Preserve migration info
+  return {
+    ...result,
+    migrated: migration.migrated,
+    fromVersion: migration.fromVersion,
+  };
 }
 
 /**

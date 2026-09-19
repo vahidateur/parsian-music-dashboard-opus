@@ -298,3 +298,70 @@ describe("list hooks request an explicit page size", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("F8 — Telegram/Bale adapters keep business logic out of bots", () => {
+  it("chat provider adapter does not import business logic domains", () => {
+    // Core business logic must remain independent of Telegram/Bale/external providers.
+    // Adapter calls domain services, domain services enforce RBAC + scope — no business logic in bots.
+    const providerFile = join(ROOT, "domains", "chat", "provider.ts");
+    const source = code(readFileSync(providerFile, "utf8"));
+    const forbidden = [
+      "enrollment",
+      "eligibility",
+      "placement",
+      "progress",
+      "attendance",
+      "compensation",
+      "scheduling",
+      "library",
+      "gallery",
+      "branding",
+      "finance",
+      "demoStore",
+      "demo\\/store",
+      "scope",
+      "permissions",
+      "canRead",
+      "canWrite",
+    ];
+    const offenders: string[] = [];
+    for (const term of forbidden) {
+      if (new RegExp(`\\b${term}\\b`, "i").test(source)) {
+        offenders.push(`provider.ts → contains business logic term ${term}`);
+      }
+    }
+    // Also must not contain fetch, Telegram Bot API URL, Bale API URL, token
+    // Use code-stripped source so comments mentioning VITE_* as documentation don't trigger
+    if (/fetch\s*\(/.test(source)) offenders.push("provider.ts → fetch");
+    if (/api\.telegram\.org/.test(source)) offenders.push("provider.ts → Telegram API URL");
+    if (/bale\.ai|bale\.bot/.test(source)) offenders.push("provider.ts → Bale API URL");
+    if (/BOT_TOKEN|TELEGRAM_TOKEN|BALE_TOKEN/.test(source)) offenders.push("provider.ts → token constant");
+    if (/VITE_/.test(source)) offenders.push("provider.ts → VITE_ token");
+    expect(offenders).toEqual([]);
+  });
+
+  it("backup envelope does not contain Telegram/Bale/external provider code", () => {
+    const backupFile = join(ROOT, "domains", "demo", "backup.ts");
+    const source = code(readFileSync(backupFile, "utf8"));
+    const forbidden = ["telegram", "bale", "api.telegram", "fetch", "axios", "BOT_TOKEN", "VITE_", "sendDocument"];
+    const offenders: string[] = [];
+    for (const term of forbidden) {
+      if (new RegExp(term, "i").test(source)) {
+        offenders.push(`backup.ts → contains external provider term ${term}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("no view contains Telegram/Bale token or hardcoded Bot API URL", () => {
+    const offenders: string[] = [];
+    for (const file of viewLayer) {
+      const raw = readFileSync(file, "utf8");
+      if (/api\.telegram\.org/.test(raw)) offenders.push(`${file} → Telegram API URL`);
+      if (/bale\.ai|bale\.bot/.test(raw)) offenders.push(`${file} → Bale API URL`);
+      if (/BOT_TOKEN|TELEGRAM_TOKEN|BALE_TOKEN/.test(raw)) offenders.push(`${file} → token`);
+      if (/VITE_TELEGRAM|VITE_BALE/.test(raw)) offenders.push(`${file} → VITE_ token`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
