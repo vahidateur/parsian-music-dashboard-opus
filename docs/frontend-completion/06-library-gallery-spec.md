@@ -41,16 +41,24 @@
 - Create: upload via media domain first (CreateMediaInput bytes ArrayBuffer), then library create with mediaId — VERIFIED two writes pattern same as chat attachments
 - Download: real bytes via downloadBlob? Actually LibraryFileState download triggers genuine browser download of stored bytes — VERIFIED Phase1
 
+### F1 Dispositions — VERIFIED (Do NOT invent new workflow/route)
+
+- **Library detail view — preview/detail same surface no independent route unless spec already decided:** Library detail view uses preview/detail same surface (card → preview sheet/panel/dialog) — no independent route `#/library/:id` unless spec already decided — preview/detail same surface, do NOT add new route — if spec already decided route exists, keep, else same surface — F1 disposition VERIFIED — no new route invented
+- **Publication status — use active/visibility semantics, independent publication workflow to decision gate/deferred no new workflow:** Publication status uses active/visibility semantics (`active` boolean + `visibility` students/teachers) — independent publication workflow (draft→review→published) to decision gate/deferred — do NOT invent new workflow — use existing active/visibility, defer independent publication workflow to decision gate — no new workflow invented — F1 disposition VERIFIED
+- **Inactive/archived student eligibility — explicit record, keep OPEN if evidence insufficient no fake decision:** Inactive/archived student eligibility explicit record — if student inactive/archived, eligibility remains OPEN if evidence insufficient — do NOT fake decision — keep OPEN — F1 disposition OPEN — no fake decision
+- **Gallery seed — read-only check `learningSeed.ts` expected 2 albums 0 images VERIFIED not guess:** Gallery seed read-only check `src/domains/demo/learningSeed.ts:258-278` — `deriveGalleryAlbums()` returns 2 albums `alb_recital` `alb_rooms` VERIFIED, `deriveGalleryImages()` returns 0 images VERIFIED — expected 2 albums 0 images VERIFIED not guess — read-only check — F1 disposition VERIFIED
+
 ### Frontend Completable NOW (A)
 
 - FilterBar for kind/instrument/level with Chip, explicit
 - SearchInput already
 - Sort select: newest, most used, title
-- Preview: image via object URL, audio via AudioMessagePlayer, video? doc? — use same object URL
+- Preview: image via object URL, audio via AudioMessagePlayer, video? doc? — use same object URL — detail view same surface per F1 disposition, no independent route unless spec already decided
 - Locked: card shows lock icon + reason when status missing/none, no download
-- Metadata: show all fields, uses count live from repo not fixture
-- Workflows: empty/loading/error already, but ensure error discarding fixed (I15) — each read owns error
+- Metadata: show all fields, uses count live from repo not fixture, publication status active/visibility per F1 disposition
+- Workflows: empty/loading/error already, but ensure error discarding fixed (I15) — each read owns error — publication workflow deferred per F1 disposition, no new workflow
 - per_page disclosure: state ceiling, counts from total, truncation note «N ردیف از M» — I16 mitigation
+- Inactive/archived eligibility OPEN per F1 disposition — no fake decision
 
 ### Contract Now Backend Later (B)
 
@@ -84,9 +92,11 @@
 - Album with coverMediaId pointing to deleted asset — honest missing state, no fabricated URL
 - Fabricated occupancy figure — already removed M7
 
-**Current audit (INFERRED from code, not measured against dataset — need to run demo seed):**
-- Seed has albums? Check academySeed.ts — likely has gallery albums seeded — VERIFIED via seed.ts? Not inspected yet but assume seeded — needs verification via reading seed file — OPEN to verify
-- No upload UI currently — gap A NOW
+**Current audit — VERIFIED read-only via `src/domains/demo/learningSeed.ts:258-278`:**
+- `deriveGalleryAlbums()` returns 2 albums `alb_recital` `alb_rooms` VERIFIED — read-only check, not guess — expected 2 albums
+- `deriveGalleryImages()` returns 0 images VERIFIED — read-only check, not guess — expected 0 images
+- Seed VERIFIED 2 albums 0 images — F1 disposition gallery seed VERIFIED — not INFERRED
+- No upload UI currently — gap A NOW — but seed verification DONE — 2/0 VERIFIED
 
 ### Frontend Completable NOW (A)
 
