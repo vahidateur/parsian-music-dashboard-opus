@@ -259,3 +259,141 @@ export function canExport(actor: Actor, requiredPermission: Permission): boolean
 export function isEligibleLevel(currentOrder: number, contentLevelOrder: number): boolean {
   return contentLevelOrder <= currentOrder;
 }
+
+/* =======================================================================
+ * F7 — Student Portal — self scope helpers + identity linking validation
+ * =======================================================================
+ *
+ * Portal is separate app or separate view with self scope per D1 deferred —
+ * for first product contract only no UI, then separate app later keeps admin
+ * RBAC clean. No student role in admin panel D1 preserved.
+ *
+ * Self = linked studentId via user_student_links relation self/guardian,
+ * assigned = teacher's classes' students via enrollment, org = manager/admin
+ * all in org — per 11-roadmap F7 acceptance.
+ *
+ * Demo single-viewer no per-user vs backend per-user read cursor actor from
+ * token org_id scoping per-object auth for files — documented in
+ * 10-integration-architecture.md + 15-student-portal-architecture.md.
+ */
+
+/**
+ * Can actor read own profile? Self scope only — linked studentId via
+ * user_student_links relation self/guardian verified_at NOT NULL.
+ */
+export function canReadOwnProfile(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+/**
+ * Can actor read own classes? Self scope + active enrollment filter.
+ * Pure: checks self, enrollment existence is caller responsibility for full
+ * list, but this helper returns true if self — caller filters classes via
+ * enrollment active.
+ */
+export function canReadOwnClasses(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+export function canReadOwnSchedule(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+export function canReadOwnResources(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+export function canReadOwnProgress(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+export function canReadOwnAttendance(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+export function canReadOwnTickets(actor: Actor, studentId: string): boolean {
+  return isSelfStudent(actor, studentId);
+}
+
+/**
+ * Identity linking table spec — B CONTRACT NOW BACKEND LATER
+ * user_student_links (user_id, student_id, relation self/guardian, verified_at)
+ * + telegram_links bale_links + chat_read_cursors
+ *
+ * Validation is pure, no repo, same logic backend can reuse.
+ */
+
+export type UserStudentLinkRelation = "self" | "guardian";
+
+export interface UserStudentLinkInput {
+  userId: string;
+  studentId: string;
+  relation: UserStudentLinkRelation;
+  orgId: string;
+  verifiedAt?: string | null; // ISO or null = pending
+}
+
+export interface LinkValidationResult {
+  ok: boolean;
+  reason?: string;
+}
+
+const UUID_LIKE = /^[a-zA-Z0-9_-]{2,}$/; // demo id shape, not strict UUID for demo compatibility
+
+export function validateUserStudentLink(input: UserStudentLinkInput): LinkValidationResult {
+  if (!input.userId || !UUID_LIKE.test(input.userId)) return { ok: false, reason: "user_id الزامی است." };
+  if (!input.studentId || !UUID_LIKE.test(input.studentId)) return { ok: false, reason: "student_id الزامی است." };
+  if (!input.orgId || !UUID_LIKE.test(input.orgId)) return { ok: false, reason: "org_id الزامی است." };
+  if (input.relation !== "self" && input.relation !== "guardian") {
+    return { ok: false, reason: "relation باید self یا guardian باشد." };
+  }
+  if (input.verifiedAt !== undefined && input.verifiedAt !== null) {
+    const d = new Date(input.verifiedAt);
+    if (Number.isNaN(d.getTime())) return { ok: false, reason: "verified_at نامعتبر است." };
+  }
+  return { ok: true };
+}
+
+export interface TelegramLinkInput {
+  userId: string;
+  studentId: string;
+  telegramChatId: string;
+  orgId: string;
+  verifiedAt?: string | null;
+}
+
+export function validateTelegramLink(input: TelegramLinkInput): LinkValidationResult {
+  if (!input.userId || !UUID_LIKE.test(input.userId)) return { ok: false, reason: "user_id الزامی است." };
+  if (!input.studentId || !UUID_LIKE.test(input.studentId)) return { ok: false, reason: "student_id الزامی است." };
+  if (!input.orgId || !UUID_LIKE.test(input.orgId)) return { ok: false, reason: "org_id الزامی است." };
+  if (!input.telegramChatId || input.telegramChatId.trim().length < 2) {
+    return { ok: false, reason: "telegram_chat_id الزامی است." };
+  }
+  if (input.verifiedAt !== undefined && input.verifiedAt !== null) {
+    const d = new Date(input.verifiedAt);
+    if (Number.isNaN(d.getTime())) return { ok: false, reason: "verified_at نامعتبر است." };
+  }
+  return { ok: true };
+}
+
+export interface BaleLinkInput {
+  userId: string;
+  studentId: string;
+  baleChatId: string;
+  orgId: string;
+  verifiedAt?: string | null;
+}
+
+export function validateBaleLink(input: BaleLinkInput): LinkValidationResult {
+  if (!input.userId || !UUID_LIKE.test(input.userId)) return { ok: false, reason: "user_id الزامی است." };
+  if (!input.studentId || !UUID_LIKE.test(input.studentId)) return { ok: false, reason: "student_id الزامی است." };
+  if (!input.orgId || !UUID_LIKE.test(input.orgId)) return { ok: false, reason: "org_id الزامی است." };
+  if (!input.baleChatId || input.baleChatId.trim().length < 2) {
+    return { ok: false, reason: "bale_chat_id الزامی است." };
+  }
+  if (input.verifiedAt !== undefined && input.verifiedAt !== null) {
+    const d = new Date(input.verifiedAt);
+    if (Number.isNaN(d.getTime())) return { ok: false, reason: "verified_at نامعتبر است." };
+  }
+  return { ok: true };
+}
