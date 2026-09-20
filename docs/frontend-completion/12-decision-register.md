@@ -20,7 +20,7 @@
 > See [`docs/engineering/GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) and
 > [`docs/engineering/DECISIONS.md`](../engineering/DECISIONS.md) §20.
 >
-> **Live `O-*` / `T-02` status is governed by `GOVERNANCE_CHECKPOINT.md` (2026-09-20)** — the
+> **Live `O-*` / `T-02` status is governed by `GOVERNANCE_CHECKPOINT.md` (2026-09-21)** — the
 > `O-01..O-20` wording carried inside this register's sibling
 > [`13-open-decisions.md`](13-open-decisions.md) is a **historical F0 / 2026-09-19 snapshot**.
 
@@ -559,16 +559,17 @@ authority. **“Prerequisite”** means: do not create the affected table/relati
 
 | ID | Topic | Current status | Authority / basis | Backend prerequisite |
 |---|---|---|---|---|
-| `O-01` | Student level scope (global vs per-program vs per-instrument) | **OPEN — audited for closure 2026-09-21: evidence INSUFFICIENT, remains OPEN.** Global is *not chosen* (documented leak: “violin classic L3 would grant piano L3 incorrectly”) but is **not formally excluded** by the record; the implemented form is per-program. The missing input is the academy’s product answer — see §“O-01 closure audit — 2026-09-21” below. **Must be resolved before backend.** | `04-learning-access-policy.md` §“Per-Program / Instrument Scope — OPEN Decision O-01” (“do not invent this decision”, “high-cost decision before Laravel schema — must resolve O-01 before backend”); `NEW-LRN-01` ACCEPTED fixes the canonical rule (“per-program/instrument scope”, placement per `(student,program)` VERIFIED) | **Yes** — determines the key of `student_placements`. Do **not** use `production-handoff.md:155`’s `UNIQUE(student_id)` sketch: it contradicts the verified one-active-placement-per-`(student,program)` model. |
+| `O-01` | Student level scope (per-program / per-instrument) | **DECIDED 2026-09-21 — PER-PROGRAM (per-instrument/program independent).** Product-owner final decision: educational level is determined independently for each instrument/program; one student may hold different levels in different programs/instruments simultaneously (e.g. piano L3, vocals L1, violin L2). Per-program is the chosen model; global per-student and per-instrument options are formally excluded. The implemented form is per-program and is now ratified. Teacher manual override: a teacher may grant exceptional access to a specific resource for a specific student without changing the student’s level or program placement — resource-level exception only, not a level change. **Resolved before backend.** | Owner decision recorded 2026-09-21 (this document); `04-learning-access-policy.md` §“Per-Program / Instrument Scope — DECIDED O-01”; `NEW-LRN-01` ACCEPTED fixes the canonical rule (“per-program/instrument scope”, placement per `(student,program)` VERIFIED) | **Yes** — determines the key of `student_placements`: key is `(student_id, program_id)`; one active placement per `(student, program)`. Do **not** use `production-handoff.md:155`’s `UNIQUE(student_id)` sketch: it predates the model and is superseded by this decision (marked NOT AUTHORITATIVE inline). Teacher exception access is a backend authorization concern (policy-level), not a placement/schema change — exact persistence model is a future decision, not part of O-01. |
 | `O-02` | Library resource level: string vocabulary vs relation to `LearningLevel` | **OPEN — narrowed to the storage question.** The separation of *Library Resource* (catalogue) from *Learning Content* (curriculum) is settled and verified in the shipped model: two types, two owners, different visibility/eligibility. Whether `LibraryItem.level` stays a display string or gains a `level_id` FK is **not** decided. | `NEW-LIB-01` PROVISIONAL (“Reversibility: provisional — level relation decision pending”); `PROP-LIB-01` OPEN (proposal: keep the string, add a nullable relation later); `06-library-gallery-spec.md` (two concepts, VERIFIED) | **Yes** — the library table’s level column shape (`level` string vs `level_id` FK). |
 | `O-03` | Visibility field for Library / Gallery | **Library: DISCHARGED** — decided *and already implemented*: publication status uses the existing `active` + `visibility` (students/teachers) semantics, no new workflow. **Gallery: OPEN** — no visibility field exists; “public demo” is the current placeholder. | F1 publication-status disposition (`06-library-gallery-spec.md`, VERIFIED) + shipped `src/domains/library/types.ts` (`visibility?`, `active?`); gallery: `NEW-GAL-01` PROVISIONAL follow-up “visibility permission decision”, `06` “OPEN — for now public demo” | **Yes for the Library** — the client already models and filters `visibility`, so the server must persist `active` + `visibility` (and filter them in SQL) or its own contract is unimplementable. **Yes for Gallery** before a gallery visibility column/filter exists. |
 | `O-04` | Theme persistence: org vs device-local | **DISCHARGED for v1 — device-local.** Branding is org data; appearance/theme/accent/density/motion is device-local per browser. An *org default theme* is explicitly a **later, optional** change requiring a decision — not a v1 item. | Canonical `D2` (`DECISIONS.md` §19: branding is the source of truth for academy identity) + this register’s `D2` ACCEPTED (“organizations table + branding_settings, appearance stays localStorage”; “reversible — can add org theme optional later with decision”) | No — v1 carries no `default_theme`. (`PROP-THEME-01`’s viewer-vs-org accent *naming* clarification stays an open proposal and does not affect persistence.) |
 | `O-05` | Export formats | **DISCHARGED for v1 — the implemented set stands** (CSV/XLSX tabular; chat export stays single-conversation TXT per `D14`). PDF requires the Finance/Reports domain and stays **deferred** with `D6`/`I2`. Any *additional* format is a new decision, not an implementation choice. | Canonical `D6` (Finance/Reports deferred), `D14` (no new verb, chat TXT, metadata only), `08-export-architecture.md` (format table + “Future: PDF? Deferred C”), `O-15` (downloads raw/signed, never JSON-wrapped) | No — but large exports are async jobs and must not stream bytes through the Laravel request path (`PERF`). |
 | `O-06` | Permission for dashboard / analytical export | **DISCHARGED for v1 — the view’s own permission, no new permission.** Analytical/dashboard export requires the same permission as the view it exports (`students.read` today, as `viewPermissions` already maps). Introducing `reports.read` or a new `dashboard.export` would be a **new decision** and needs a proven gap. | `NEW-RBAC-01` ACCEPTED (“smallest permission model”, “new permissions without gap (expands)” rejected); `05-rbac-access-control.md` / `viewPermissions` mapping dashboard → `students.read` VERIFIED | No (no schema change) — but the permission must be enforced **server-side** on the export endpoint, not only in the client guard. |
 
-**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; **`O-01`,
-`O-02`, and the Gallery half of `O-03` stay genuinely open and are prerequisites** for the tables they
-touch. No product decision was invented in reaching any of these statuses.
+**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; **`O-02`,
+and the Gallery half of `O-03` stay genuinely open and are prerequisites** for the tables they touch
+(`O-01` was resolved to DECIDED per-program by the owner decision recorded 2026-09-21 — see
+§“O-01 closure — 2026-09-21” below). No product decision was invented in reaching any of these statuses.
 
 ### 3. O-12 — web transport: recorded pre-start integration requirement (decision unchanged)
 
@@ -631,14 +632,69 @@ framework mechanics and file layout are implementation detail and are deliberate
 
 ---
 
-## O-01 closure audit — 2026-09-21 — outcome: REMAINS OPEN (read-only)
+## O-01 closure — 2026-09-21 — outcome: DECIDED (per-program, product-owner final)
 
 > **Why this section exists.** `O-01` (student level scope) directly determines the backend schema for
-> student placements, so it was audited for closure. The audit found the evidence **insufficient**, so
-> `O-01` **stays OPEN** and **no decision was invented**. This section also rules on the schema
-> contradiction at [`production-handoff.md`](../production-handoff.md):155 so that a stale sketch cannot
-> be mistaken for current law. Nothing here authorizes implementation; no code, migration or schema was
-> written and no historical record was rewritten.
+> student placements. The 2026-09-21 closure audit (kept below in its historical wording as it stood
+> before the product decision) found the evidence **insufficient** from the repository alone and
+> explicitly required the academy's product answer. **That product answer was delivered on
+> 2026-09-21** and is recorded here. Nothing here authorizes implementation; no code, migration or
+> schema was written and no historical record was rewritten.
+
+### Final decision — recorded 2026-09-21 (owner decision, documentation only)
+
+**Decision:** Educational level is independent per instrument/program. One student may hold
+**different levels in different programs/instruments simultaneously**:
+
+- Piano → Level 3
+- Vocals → Level 1
+- Violin → Level 2
+
+Therefore the relation is **Student → Program/Instrument → Level** (per-program model).
+
+**Consequences for placement:** Placement is keyed `(student_id, program_id)` — one active placement
+per (student, program). This ratifies the already-implemented per-program model; global per-student
+and per-instrument scope are formally excluded. Placement for each (student, program) pair is
+independent.
+
+**Consequences for class assignment:** When a class is defined for a student, it must be tied to a
+specific program/instrument and its corresponding level; the class level must be consistent with the
+learning path for that program/instrument.
+
+**Consequences for library/resource access:** Learning resources are offered to the student according
+to the program/instrument and the level for **that** program/instrument, ensuring a controlled
+learning path so that higher-level resources are not accessible without authorization. Eligibility
+already enforces this per-program in `resolveEligibleContent` (`learning/eligibility.ts`, Level N ⇒
+1..N cumulative/exclusive within `placement.programId`).
+
+**Teacher exceptional access (resource grant):** A teacher may manually authorize a specific
+resource/file for a specific student, even if that resource falls outside the student's normal
+level access. This exception:
+
+- Does **not** change the student's primary level.
+- Does **not** change the student's program/instrument level.
+- Only grants access to that **one specific resource**.
+- Must be enforceable in backend authorization (policy-level) in the future.
+- The exact persistence model / table for this exception is **not** decided here — only the
+  product behaviour is recorded. No schema is invented.
+
+**Contradiction ruled on (unchanged from 2026-09-21 audit):** `production-handoff.md:155`'s
+`UNIQUE(student_id)` sketch is NOT AUTHORITATIVE — it predates the placement model and is superseded
+by this decision (marked inline in that file). It was not deleted or rewritten.
+
+**What this decision does NOT do:**
+
+- It does **not** create any migration, model, controller, route, policy or frontend change.
+- It does **not** invent a schema for teacher exceptional access.
+- It does **not** authorize backend implementation (the implementation authorization gate in §5
+  stands unchanged: Laravel is NOT STARTED and NOT AUTHORIZED).
+- It does **not** close `O-02` (library level string vs relation) or the Gallery half of `O-03`;
+  those remain genuinely open.
+
+### Historical audit — 2026-09-21 (kept verbatim, records the state BEFORE the product decision)
+
+> The text below is the 2026-09-21 closure audit as written when O-01 was still OPEN. It is kept
+> verbatim as historical record and is **superseded** by the “Final decision” subsection above.
 
 ### 6.1 What the record says (compared, not summarised from memory)
 

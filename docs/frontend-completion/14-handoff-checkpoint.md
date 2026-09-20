@@ -2,6 +2,44 @@
 
 > Documentation continuation system: roadmap, architecture/spec, capability matrix, decision register, open items, phase state, session handoff checkpoint with branch/HEAD/base/purpose/audited/decided/open/must-not-touch/files changed/validation/known failures/next action/continuation prompt — corrected F0 COMPLETE F1 NEXT canonical F0..F10 — SHA semantics no longer ambiguous
 
+## Addendum — 2026-09-21 — O-01 FINAL DECISION (documentation only)
+
+> **Status of this addendum.** A documents-only addendum recording the owner's final decision on
+> `O-01` (student level scope). **No code, migration, model, controller, route, policy or frontend
+> change was created by this addendum.** The body of this file below is the historical F1-kickoff
+> record (2026-09-19) and is kept verbatim; references to `O-01 OPEN` in that body describe the state
+> **before** this addendum and are no longer current law. Current law lives in
+> [`12-decision-register.md`](12-decision-register.md) → “O-01 closure — 2026-09-21” and
+> [`04-learning-access-policy.md`](04-learning-access-policy.md) §“Per-Program / Instrument Scope —
+> DECIDED O-01”.
+
+- **O-01 status:** OPEN → **DECIDED (2026-09-21, owner decision, documentation only).**
+- **Decision:** Educational level is independent per instrument/program. One student may hold
+  different levels in different programs/instruments simultaneously (e.g. piano L3, vocals L1,
+  violin L2). The relation is **Student → Program/Instrument → Level** (per-program model).
+  Global per-student and per-instrument scopes are formally excluded.
+- **Placement key:** One active placement per `(student, program)` — key `(student_id, program_id)`.
+  Independent active placement per (student, program) pair.
+- **Classes:** When a class is defined for a student, it must be tied to a specific
+  program/instrument and its corresponding level; the class level must be consistent with the
+  learning path for that program/instrument.
+- **Library/resources:** Resources are classifiable by program/instrument and level and are offered
+  to the student according to the student's level for **that** program/instrument (controlled
+  learning path; higher-level resources not accessible without authorization).
+- **Teacher exceptional access:** A teacher may manually authorize a specific resource/file for a
+  specific student outside that student's normal per-program level eligibility. This exception does
+  not change the student's level, does not change the program/instrument level, grants access only
+  to that one specific resource, and must be enforceable in backend authorization (policy-level) in
+  the future. The persistence model for this exception is **not** decided here — only product
+  behaviour is recorded; no schema is invented.
+- **Stale `UNIQUE(student_id)` sketch in `production-handoff.md:155`:** marked NOT AUTHORITATIVE and
+  superseded by `UNIQUE(student_id, program_id)` (historical sketch kept, not deleted or rewritten).
+- **Remaining high-cost decisions before backend:** O-02, O-08, O-09, O-10, O-13, O-14 (six open;
+  O-01 is no longer on the open list).
+- **This addendum changes Markdown documentation only.** No `src/`, no PHP, no migration, no model,
+  no controller, no route, no package or deployment file was changed. No commit was made and no
+  push was performed by this addendum.
+
 ## Branch / HEAD / Base — CORRECTED SHA SEMANTICS — F1-KICKOFF CORRECTION
 
 - **CURRENT_BRANCH:** `arena/frontend-completion-spec`

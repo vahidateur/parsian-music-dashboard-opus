@@ -1,6 +1,6 @@
 # Governance Decision Register — Laravel-bound checkpoint
 
-**Recorded:** 2026-09-20  
+**Recorded:** 2026-09-21  
 **Workspace branch:** `arena/01a0bf6d-parsian-music-dashboard-opus`  
 **Parent HEAD at record:** `02b74996e6458d10a5d9e8d1023890239342c4e4` (frontend freeze; this file does not implement backend)  
 **Nature:** documentation-only closure of product/architecture audits. **Does not authorize** Laravel code, migrations, or frontend edits.
@@ -16,6 +16,7 @@ Evidence was frozen frontend (PR #4 / local contracts) plus prior session audits
 | ID | Topic | Status | v1 Laravel |
 |---|---|---|---|
 | T-02 | Teacher student-read scope | **ACCEPTED / ASSIGNED-ONLY** | Enforce in query/policy |
+| O-01 | Student level scope (per-program/instrument) | **DECIDED 2026-09-21 — PER-PROGRAM** | Placement key `(student_id, program_id)`; one active placement per (student, program); level independent per program/instrument; teacher may grant exceptional per-resource access (resource-grant only, no level change; persistence model future decision). See `docs/frontend-completion/12-decision-register.md` → “O-01 closure — 2026-09-21”. |
 | O-12 | Web vs mobile auth transport | **ACCEPTED / DUAL TRANSPORT** | Same `/api/v1`; cookie web, Bearer mobile |
 | O-13 | Student portal authentication | **ACCEPTED** | Same `users`; separate guard; credential factor **OPEN** |
 | O-10 / O-11 | Telegram / Bale identity | **ACCEPTED** | `chat_id` → `user_id` + `org_id`; uniqueness/UX **OPEN** |

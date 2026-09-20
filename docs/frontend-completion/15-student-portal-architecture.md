@@ -44,13 +44,13 @@ students, classes, enrollments, scheduling, learning/eligibility, progress, atte
 ## Level
 
 - Level: placement current level + history — via learning repo StudentPlacement programId levelId assigned_at history JSON
-- Scope self: placement where studentId=self per program — O-01 per-program provisional
+- Scope self: placement where studentId=self per program — O-01 DECIDED 2026-09-21 per-program (per instrument/program independent, key (student_id, program_id))
 - Demo vs backend: demo per-program, backend same table student_placements (student_id, program_id, level_id, assigned_at, history JSON)
 - Visible outcome: Student Level 3 sees levels 1..N eligible N+1+ locked with reason «در سطح X باز می‌شود» + lock icon no preview no download, not_visible hidden from students, not_found honest, not_applicable empty «هنوز در برنامه‌ای قرار نگرفته» — per F1 acceptance
 
 ## Resources
 
-- Resources: eligible content via resolveEligibleContent with placement — VERIFIED pure learning/eligibility.ts Level N=>1..N cumulative exclusive exact-only per-program O-01 OPEN
+- Resources: eligible content via resolveEligibleContent with placement — VERIFIED pure learning/eligibility.ts Level N=>1..N cumulative exclusive exact-only per-program O-01 DECIDED per-program (per instrument/program independent)
 - Scope self: eligible via placement self per program, locked honest reason, not_visible hidden, not_found honest, not_applicable empty
 - Demo vs backend: demo pure function, backend must enforce same rule server-side
 - Empty honest: «منبعی نیست» if no eligible content
@@ -184,7 +184,7 @@ CREATE TABLE chat_read_cursors (
 - canWriteStudent, canReadTeacher, canWriteAttendance (attendance.write + session teacherId + assigned), canReadAttendance, canWriteCompensation (schedule.write teacher DENIED staff ALLOWED), canReadCompensation, canReadSchedule, canWriteSchedule, canExport, isEligibleLevel (contentLevelOrder <= currentOrder)
 - Tests: src/domains/auth/__tests__/scope.test.ts 15+ cases S-01 self ALLOWED S-02 other DENIED T-01 assigned ALLOWED T-02 unassigned DENIED smallest vs ALLOWED historical M-01 manager org-wide A-01 admin org-wide attendance assigned vs unassigned compensation teacher DENIED staff ALLOWED export hidden if no perm — VERIFIED
 - Additional for portal: canReadOwnProfile, canReadOwnClasses, canReadOwnSchedule, canReadOwnResources, canReadOwnProgress, canReadOwnAttendance, canReadOwnTickets — can be wrappers over isSelfStudent + enrollment filter — A NOW small addition if needed, or document that existing isSelfStudent + canReadStudent covers self scope
-- O-01 student level scope per-program vs global — remains OPEN — scope functions operate per-program where placement exists not global — provisional per-program
+- O-01 student level scope DECIDED 2026-09-21 per-program (per instrument/program independent) — scope functions operate per-program where placement exists, placement key (student_id, program_id) ratified
 
 ## Auth Student Portal Separate App vs Same Panel
 
@@ -225,7 +225,7 @@ CREATE TABLE chat_read_cursors (
 - D1 student role in admin panel vs separate app — decision needed before schema O-13 — O-13 OPEN REQUIRED PRODUCT CAPABILITY B CONTRACT NOW — for first product contract only no UI then separate app later keeps admin RBAC clean — no fake boundary
 - Org/user relation O-14 — org_id on all tables — OPEN high-cost before backend — single org demo provisional
 - Identity linking O-10 — user↔student relation self/guardian — OPEN high-cost before backend — B linking tables
-- Student level scope O-01 — per-program vs global — OPEN — keep per-program provisional per placement table evidence
+- Student level scope O-01 — DECIDED 2026-09-21 per-program — placement key (student_id, program_id) ratified; teacher exceptional resource access is a future authorization/persistence decision (not part of O-01)
 - File ownership O-08 — owner+org_id — OPEN REQUIRED B owner+org_id
 - No student role in admin panel preserved — no fake boundary — VERIFIED
 
@@ -244,7 +244,7 @@ B CONTRACT NOW BACKEND LATER (A for scope pure functions) — REQUIRED PRODUCT C
 
 ## Follow-up
 
-- O-01 O-10 O-13 O-14 remain OPEN — do not resolve by assumption
+- O-10 O-13 O-14 remain OPEN — do not resolve by assumption (O-01 DECIDED 2026-09-21 per-program)
 - F8 Telegram + Bale + Backup integration contracts — next
 - F9 Mobile client contract — after F8
 - F10 Cross-surface QA + final frontend freeze — after F1..F9

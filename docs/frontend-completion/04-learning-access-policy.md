@@ -36,34 +36,58 @@ reachable = { l ∈ Levels | l.programId = placement.programId ∧ l.active
 | not_found | Content or level missing | link points to deleted content/level | Honest missing state, not empty |
 | not_applicable | No placement or inconsistent | placement undefined or level outside program | «هنوز در برنامه‌ای قرار نگرفته» empty state, not error |
 
-## Per-Program / Instrument Scope — OPEN Decision O-01
+## Per-Program / Instrument Scope — DECIDED O-01 (per-program, 2026-09-21)
 
-> **Scope decision remains OPEN where evidence is insufficient: global vs per-program vs per-instrument — do not invent this decision — O-01.**
+> **Final product decision recorded 2026-09-21: scope is per-program.** Educational level is
+> determined independently for each instrument/program; one student may hold different levels in
+> different programs/instruments simultaneously (e.g. piano L3, vocals L1, violin L2). Global
+> per-student and per-instrument options are formally excluded.
 
-**Current implementation (VERIFIED):**
+**Decided model (VERIFIED implementation now ratified):**
 - Level order N is per program, never global — VERIFIED types.ts: order unique within program
 - Program instrumentId scopes: instrument may have several programs (e.g. violin classic/irani)
 - Eligibility scoped to programId, not instrumentId — so violin classic level 3 does not grant violin irani level 3 — VERIFIED current code `resolveEligibleContent` takes programId from placement
 - InstrumentId on content optional (theory, ear training instrument-agnostic) — library can filter by it, but eligibility still via level link
-- Placement one active per (student,program) — history records past levels for progression
+- Placement one active per (student,program) — history records past levels for progression — **key: (student_id, program_id)**
 - PrerequisiteLevelIds advisory not enforced — UI surfaces unmet as info, repo does not refuse — DOCUMENTED
 
-**Scope options — OPEN, evidence insufficient, do not invent:**
+**Scope options — decided:**
 
 | Option | Meaning | Pros | Cons | Current code | Decision status |
 |---|---|---|---|---|---|
-| global | Level N global across all programs/instruments — Level 3 student sees all Level 1..3 content regardless of program | Simplest, no per-program table | Breaks multi-instrument academy — violin L3 grants piano L3 incorrectly | Not implemented — code is per-program | OPEN — not chosen |
-| per-program | Level N per program — student Level 3 in violin classic sees violin classic 1..3, not violin irani nor piano — current implementation | Matches multi-program academy, placement per (student,program) already, prevents cross-program leak, D10 intent guard programId independent | Needs product confirmation if academy wants global? But global would be leak | **Current implementation** — VERIFIED types.ts order unique within program, placement programId, eligibility scoped to programId | OPEN — provisional current, needs product confirmation per O-01 |
-| per-instrument | Level N per instrument — student Level 3 violin sees all violin programs 1..3, not piano | Groups by instrument family | Still cross-program within instrument — violin classic L3 grants violin irani L3 — maybe desired? But evidence insufficient | Not implemented — code is per-program not per-instrument | OPEN — not chosen |
+| global | Level N global across all programs/instruments — Level 3 student sees all Level 1..3 content regardless of program | Simplest, no per-program table | Breaks multi-instrument academy — violin L3 grants piano L3 incorrectly | Not implemented — code is per-program | **REJECTED 2026-09-21** |
+| per-program | Level N per program — student Level 3 in violin classic sees violin classic 1..3, not violin irani nor piano | Matches multi-program academy, placement per (student,program) already, prevents cross-program leak, D10 intent guard programId independent | — | **Current implementation** — VERIFIED types.ts order unique within program, placement programId, eligibility scoped to programId | **DECIDED 2026-09-21 — chosen model** |
+| per-instrument | Level N per instrument — student Level 3 violin sees all violin programs 1..3, not piano | Groups by instrument family | Still cross-program within instrument — violin classic L3 grants violin irani L3 | Not implemented — code is per-program not per-instrument | **REJECTED 2026-09-21** |
 
-**Recommendation per correction task:** Keep canonical rule student Level N → access 1..N, keep central ownership learning/eligibility.ts, document scope decision remains OPEN where evidence insufficient global vs per-program vs per-instrument, do not invent decision — so document as OPEN O-01 with current implementation per-program provisional.
+**Placement:** One active placement per `(student, program)`. The per-program model allows independent
+active placements for every (student, program) combination the student is enrolled in. For example,
+a student can simultaneously be placed at piano L3, vocals L1, and violin L2.
+
+**Class consistency rule:** If a class is defined for a student, it must be tied to a specific
+program/instrument and its corresponding level; the class level must be consistent with the learning
+path for that program/instrument.
+
+**Library/resource access:** Resources must be categorizable by program/instrument and level so that
+they are offered only to students who meet the per-program level eligibility — enforcing the
+controlled learning path. Higher-level resources must not be offered without authorization.
+
+**Teacher exceptional access:** A teacher may manually authorize a specific resource/file for a
+specific student even outside that student's normal per-program level access. This exception does
+not change the student's level, does not change the program/instrument level, grants access only to
+that specific resource, and must be enforceable via backend authorization (policy-level) in the
+future. The persistence model for this exception is a future decision and is not designed here —
+no schema is invented.
 
 **Impact:**
-- Frontend: current per-program, no change until decision
-- Backend: table student_placements (student_id, program_id, level_id, assigned_at, history JSON) already per-program — if global chosen, would need migration to student_id level_id only — high-cost decision before Laravel schema — must resolve O-01 before backend
-- No business logic invented — scope remains OPEN
+- Frontend: current per-program implementation is ratified; no source change required by this decision.
+- Backend: table `student_placements` keyed `(student_id, program_id)` carrying `level_id, assigned_at,
+  history JSON` — one active placement per (student, program). Do **not** use the `UNIQUE(student_id)`
+  sketch in `production-handoff.md:155` (already marked NOT AUTHORITATIVE inline). A separate
+  resource-exception mechanism will be designed later as its own backend decision.
+- The canonical rule `student Level N → access to levels 1..N` (owner `learning/eligibility.ts`) is
+  preserved; scope is now fixed as per-program.
 
-**Canonical rule preserved:** student Level N → access to levels 1..N — owner learning/eligibility.ts — scope OPEN per above.
+**Canonical rule preserved:** student Level N → access to levels 1..N — owner learning/eligibility.ts — scope DECIDED per-program.
 
 ## Owner Audit
 
