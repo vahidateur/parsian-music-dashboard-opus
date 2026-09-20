@@ -126,9 +126,26 @@
 - Library: search/filter/sort work live on repo data, no fixture counts, preview real bytes, locked honest, metadata all fields, workflows empty/loading/error/demo persistence, API seam declared
 - Gallery: albums genuine if images backed by media, metadata complete, filtering by album, ordering by sortOrder, visibility all demo (or permission if added), storage seam metadata dataset bytes blobStore, no fabricated figures
 
+## Per-Program / Instrument Classification — DECIDED O-01 (2026-09-21)
+
+Per the O-01 final decision (per-program level scope), library resources must be classifiable by
+**program/instrument and level** so that they can be offered to students according to the student's
+level in **that** program/instrument — enforcing the controlled learning path. A student eligible at
+piano L3 must not automatically receive violin L3 resources (the per-instrument option was rejected)
+or global L3 resources (the global option was rejected).
+
+- Resource classification by instrument is already present (`Resource.instrument: InstrumentId`).
+- Resource classification by program/level is served either through `LearningContent` links
+  (curriculum-gated via the eligibility rule in `learning/eligibility.ts`) or through a
+  yet-to-be-decided level association for catalogue `Resource` rows (see O-02 below).
+- Teacher exceptional access: a teacher may grant a specific student access to a specific resource
+  outside normal per-program eligibility. This is a product-level exception (resource-grant only,
+  does not change level or program placement). Backend must enforce this in authorization; exact
+  persistence is not decided here.
+
 ## Open Decisions for Library/Gallery
 
-- Library.level string vs relation to LearningLevel — keep string vocabulary D or link? See 13-open-decisions
-- Library visibility field — add or keep public?
+- Library.level string vs relation to LearningLevel — keep string vocabulary D or link? See 13-open-decisions (O-02 — remains open)
+- Library visibility field — add or keep public? (O-03 — Library half discharged; Gallery half open)
 - Gallery visibility/permission — add reports.read? Actually library.read?
 - Gallery album cover fallback logic — spec as is (fallback first image) — keep
