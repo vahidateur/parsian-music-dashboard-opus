@@ -17,14 +17,14 @@ Git-history change is authorized by this file.
 | Field | Value |
 |---|---|
 | Canonical branch | **`main`** |
-| Canonical HEAD | **`f63ebaab37096fcb25063aca51c713e26d3b3da7`** |
+| Canonical HEAD | **`6ca25be654b56579054c88cd498a42f57ea63582`** — the **D1 documentation checkpoint**, committed locally and **not yet pushed**; the **consolidation merge base** beneath it is `f63ebaab37096fcb25063aca51c713e26d3b3da7` (PR #5), which is still the remote `main` until the push happens. **D1 is not the consolidation merge.** |
 | How to verify | `git rev-parse HEAD` and `git rev-parse --abbrev-ref HEAD`; verify the remote independently with `git ls-remote origin refs/heads/main`. **Do not trust a local clone's ancestry — measure whether it is shallow** (`git rev-parse --is-shallow-repository`). |
 | F0–F10 frontend product completion | ✅ **COMPLETE / DELIVERED** on canonical history — `docs/frontend-completion/` 01–17 + README |
 | Arena Frontend Freeze (M-1..M-6, D7, D9) | ✅ **COMPLETE** — frozen at `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb`, preserved |
 | M10 / M11 chains | ✅ preserved — M10 `e7a64b7777be36ddd97fc3337898fad794118e5b`; M11 `3ed0bfe4ac928451a4bddf9de3a34f7be681c33f` → … → `f7eb86762dc11f7d5dd3c7218e7c697fad29488e` |
 | Consolidation | ✅ **COMPLETE** — PR #5 *Consolidate frontend F0–F10 + governance into main* **MERGED** 2026-09-20T21:11:18Z |
 | Laravel / backend | ❌ **NOT STARTED and NOT AUTHORIZED** |
-| Current gate | **Completion and verification of the documentation pass (D1/D2)** — see §4 |
+| Current gate | **Completion and verification of the documentation pass (D1/D2)** — **D1 committed (`6ca25be…`), D2 being recorded now**; the evidence for D1 is that this handoff's live state rows name it, and no entry may carry its own SHA |
 
 ### 1.1 Live vs historical — do not conflate these
 
@@ -121,7 +121,9 @@ environment, and no claim of browser verification may be made without external e
 {
   "CURRENT_PHASE": "POST_CONSOLIDATION — documentation gate (D1/D2)",
   "CANONICAL_BRANCH": "main",
-  "CANONICAL_HEAD": "f63ebaab37096fcb25063aca51c713e26d3b3da7",
+  "CANONICAL_HEAD": "6ca25be654b56579054c88cd498a42f57ea63582",
+  "CONSOLIDATION_MERGE_BASE": "f63ebaab37096fcb25063aca51c713e26d3b3da7",
+  "PUSH_STATE": "D1 committed locally, NOT pushed — remote main is still f63ebaab",
   "CONSOLIDATION": "COMPLETE — PR #5 merged 2026-09-20T21:11:18Z",
   "FRONTEND_PRODUCT_COMPLETION": "F0–F10 COMPLETE / DELIVERED",
   "FRONTEND_FREEZE": "COMPLETE — M-1..M-6, D7, D9 at a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb",
@@ -134,7 +136,7 @@ environment, and no claim of browser verification may be made without external e
     "docs/engineering/archive/SESSION_HANDOFF-2026-09-18-pre-M1.md"
   ],
   "LARAVEL_BACKEND": "NOT STARTED and NOT AUTHORIZED",
-  "NEXT_GATE": "Completion and verification of the documentation pass (D1/D2)",
+  "NEXT_GATE": "Completion and verification of the documentation pass (D1/D2) — D1 committed, D2 being recorded",
   "AFTER_GATE": "Laravel/backend planning or implementation — only on explicit owner authorization",
   "PRESERVED_SHAS": [
     "f00f85e6f817369a32b8921ffb64f58e17ea154e",

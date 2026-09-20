@@ -1,6 +1,6 @@
 # OPEN ITEMS — categorised backlog of unresolved work
 
-> **✅ POST-CONSOLIDATION — 2026-09-21 — canonical branch `main` @ `f63ebaab37096fcb25063aca51c713e26d3b3da7`.**
+> **✅ POST-CONSOLIDATION — 2026-09-21 — canonical branch `main`** (consolidation base `f63ebaab37096fcb25063aca51c713e26d3b3da7`; **D1 documentation checkpoint `6ca25be654b56579054c88cd498a42f57ea63582` on top of it, committed locally — push pending**).
 > This backlog rides the canonical tip since PR #5 merged the frontend F0–F10 completion, the Arena
 > Frontend Freeze line (M-1..M-6, D7, D9) and the governance checkpoint into `main`. **PR #4 is
 > CLOSED and was never merged.**
