@@ -50,8 +50,15 @@ import {
   getStudentRepository,
   getTeacherRepository,
   resetRegistry,
+  setAuthRepository,
+  setUserRepository,
 } from "@/domains/registry";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
+import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { demoStore } from "@/services/demoStore";
+import { memoryStorage } from "@/services/demoStore";
+import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { demoDataManager } from "@/domains/demo";
 
 /** The confirmation for a saved record, per environment. */
 const DEMO_DETAIL = "تغییرات در دادهٔ دمو ذخیره شد.";
@@ -69,11 +76,18 @@ const OWN_BRANDING_DETAIL = "تغییرات در داده‌ها ثبت شد.";
  */
 const FLOW_TIMEOUT = 20_000;
 
-beforeEach(() => {
+beforeEach(async () => {
   window.location.hash = "";
   localStorage.clear();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
+  resetToDemoEnvironment();
+  demoDataManager.initialize();
+  const sessionStore = memoryStorage();
+  const authRepo = new DemoAuthRepository(demoStore, sessionStore);
+  setAuthRepository(authRepo);
+  setUserRepository(new DemoUserRepository(demoStore));
+  await authRepo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
 });
 
 afterEach(() => {

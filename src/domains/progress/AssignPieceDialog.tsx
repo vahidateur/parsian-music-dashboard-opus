@@ -74,7 +74,7 @@ export function AssignPieceDialog({
   // `piecesLoading` is read, not ignored: the params change the moment the
   // student's instrument resolves, and the rows rendered before that belong to
   // the unfiltered query (I13).
-  const { items: pieces, loading: piecesLoading } = usePieces({ per_page: 200, activeOnly: true, instrumentId });
+  const { items: pieces, loading: piecesLoading, error: piecesError, reload: reloadPieces } = usePieces({ per_page: 200, activeOnly: true, instrumentId });
 
   /** In flight until the filter is known AND that filter's page has arrived. */
   const pickerLoading = !instrumentResolved || piecesLoading;
@@ -82,9 +82,10 @@ export function AssignPieceDialog({
   // An empty `options` while loading is not a false empty: the control below is
   // disabled and says it is loading, which is the explicit in-flight state the
   // invariant asks for instead of another query's rows.
+  // On failure, options stay empty and the error is disclosed below, not as «۰ قطعه».
   const options = useMemo(
-    () => (pickerLoading ? [] : [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa"))),
-    [pieces, pickerLoading],
+    () => (pickerLoading || piecesError ? [] : [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa"))),
+    [pieces, pickerLoading, piecesError],
   );
 
   const form = useEntityForm<AssignDraft, PieceAssignment>({
@@ -141,16 +142,25 @@ export function AssignPieceDialog({
           </p>
         )}
 
+        {piecesError && (
+          <p role="alert" className="sm:col-span-2 rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری قطعه‌ها ناموفق بود: {piecesError.message}{" "}
+            <button type="button" className="underline" onClick={reloadPieces}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+
         <Field label="قطعه" error={form.errors.pieceId} required className="sm:col-span-2">
           {(control) => (
             <select
               {...control}
               className={inputCls}
               value={form.draft.pieceId}
-              disabled={busy || pickerLoading}
+              disabled={busy || pickerLoading || Boolean(piecesError)}
               onChange={(e) => form.set("pieceId", e.target.value)}
             >
-              <option value="">{pickerLoading ? "در حال بارگذاری قطعه‌های این ساز…" : "— انتخاب کنید —"}</option>
+              <option value="">{pickerLoading ? "در حال بارگذاری قطعه‌های این ساز…" : piecesError ? "بارگذاری قطعه‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
               {options.map((piece) => (
                 <option key={piece.id} value={piece.id}>
                   {`${piece.title} — ${piece.composer}`}

@@ -1,164 +1,171 @@
-import { useEffect, useState } from "react";
-import { Check, ChevronDown, Info, TriangleAlert, X } from "lucide-react";
+import { useEffect } from "react";
+import { Check, Info, TriangleAlert, X } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import type { QuickActionDef } from "@/lib/viewContracts";
 import { Button } from "@/components/ds/primitives";
+import { Dialog } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
+import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
+import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
+import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 
 /* ------------------------------------------------------------------ */
-/* Quick-action definitions (M10)                                       */
+/* Quick-action definitions (M-1)                                       */
 /*                                                                      */
-/* The sheet builds its forms from these — so they live here, in the    */
-/* sheet's own module, not in a data file (D5 category D, relocated     */
-/* from `src/data/academy.ts`). The fixture's `success` sentences are    */
-/* gone: the submit path below shows the honest "not connected" toast   */
-/* (M2), so a canned success claim would lie.                           */
+/* M10 had the sheet build fake forms from hardcoded option arrays      */
+/* (instrument names, teacher names, room names) — category D content   */
+/* that claimed a closed world. M-1 removes those arrays entirely: each */
+/* action now routes to a real dialog or view that reads its options    */
+/* from the repositories. The definitions carry only id/label/hint,     */
+/* no fields, no options, no counts.                                    */
 /* ------------------------------------------------------------------ */
 export const quickActions: QuickActionDef[] = [
   {
     id: "student",
     label: "افزودن هنرجو",
     hint: "ثبت‌نام جدید",
-    fields: [
-      { label: "نام و نام خانوادگی", placeholder: "مثلاً: نیلوفر رستمی" },
-      { label: "شمارهٔ تماس", placeholder: "۰۹۱۲ ··· ····" },
-      { label: "ساز", placeholder: "انتخاب ساز", type: "select", options: ["پیانو", "گیتار", "ویولن", "آواز", "درامز"] },
-      { label: "مدرس پیشنهادی", placeholder: "انتخاب مدرس", type: "select", options: ["سارا احمدی", "محمد رضایی", "علی موسوی", "نرگس حسینی"] },
-    ],
   },
   {
     id: "class",
     label: "برنامه‌ریزی کلاس",
     hint: "بازهٔ زمانی جدید",
-    fields: [
-      { label: "عنوان کلاس", placeholder: "مثلاً: پیانو گروهی" },
-      { label: "اتاق", placeholder: "انتخاب اتاق", type: "select", options: ["اتاق ۱", "اتاق ۲", "اتاق ۳", "اتاق ۴"] },
-      { label: "روز و ساعت", placeholder: "سه‌شنبه · ۱۶:۰۰" },
-      { label: "مدرس", placeholder: "انتخاب مدرس", type: "select", options: ["سارا احمدی", "محمد رضایی", "علی موسوی", "نرگس حسینی"] },
-    ],
   },
   {
     id: "payment",
     label: "ثبت پرداخت",
     hint: "شهریه یا جلسه",
-    fields: [
-      { label: "هنرجو", placeholder: "جستجوی نام هنرجو" },
-      { label: "مبلغ (تومان)", placeholder: "۱٬۲۰۰٬۰۰۰" },
-      { label: "روش پرداخت", placeholder: "انتخاب روش", type: "select", options: ["کارت‌خوان", "انتقال بانکی", "نقدی", "درگاه آنلاین"] },
-    ],
   },
   {
     id: "message",
     label: "ارسال پیام",
     hint: "به هنرجو یا مدرس",
-    fields: [
-      { label: "گیرندگان", placeholder: "انتخاب گروه", type: "select", options: ["هنرجویان در معرض ریزش", "مدرسین", "همهٔ هنرجویان پیانو", "والدین کلاس کودکان"] },
-      { label: "متن پیام", placeholder: "سلام، یادآوری می‌کنیم که…" },
-    ],
   },
 ];
 
 /* ------------------------------------------------------------------ */
-/* Action sheet — quick actions open a focused, minimal form            */
+/* Action sheet — M-1 routes to real dialogs/views                      */
+/*                                                                      */
+/* - student → StudentFormDialog (real repository write)                */
+/* - class   → ClassFormDialog   (real repository write)                */
+/*   EnrollmentDialog is the other real class-related dialog; it is     */
+/*   reached from the class detail view where a classId exists, not     */
+/*   from the global quick-action list which has no class context.      */
+/*   The quick-action for class therefore opens ClassFormDialog;        */
+/*   enrollment stays honest by requiring a class scope.                */
+/* - payment → honest Finance deferral (D6/I2) — no invented repo       */
+/* - message → navigate to Messages composer/view                       */
+/*                                                                      */
+/* Focus ownership: AppContext.openSheet closes the palette in the same */
+/* render, and the shell effect keeps body overflow hidden across the   */
+/* handoff. Each real Dialog owns its own focus trap (useFocusTrap), so */
+/* Tab stays inside and Escape closes only the top overlay.             */
 /* ------------------------------------------------------------------ */
 export function ActionSheet() {
-  const { sheet, closeSheet, notify } = useApp();
-  const def = quickActions.find((a) => a.id === sheet);
-  const [busy, setBusy] = useState(false);
+  const { sheet, closeSheet, navigate, notify } = useApp();
+  const demoEnvironment = useIsDemoEnvironment();
 
+  // Message quick action: navigate to messages and close the sheet.
+  // This is a view navigation, not a dialog, so it must not render a Dialog.
   useEffect(() => {
-    if (!sheet) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeSheet();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [sheet, closeSheet]);
-
-  if (!def) return null;
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    window.setTimeout(() => {
-      setBusy(false);
+    if (sheet !== "message") return;
+    // Defer navigation to after render so the sheet's close animation (if any)
+    // does not fight with the view transition. The palette is already closed
+    // by AppContext.openSheet.
+    const id = window.setTimeout(() => {
       closeSheet();
-      // Honest feedback: this sheet does not persist anything yet.
-      notify({ tone: "info", title: "این فرم هنوز به سرور متصل نیست", detail: "داده‌های واردشده ذخیره نشدند." });
-    }, 650);
-  };
+      navigate({ view: "messages" });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [sheet, closeSheet, navigate]);
 
-  return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-      <button type="button" aria-label="بستن" onClick={closeSheet} className="absolute inset-0 animate-fade-in bg-ink-950/60 backdrop-blur-[2px]" />
-      <form
-        onSubmit={submit}
-        className={cn(
-          "absolute flex flex-col border-white/[0.08] bg-ink-900 shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.7)]",
-          // mobile: bottom sheet · desktop: end-side (left) panel
-          "inset-x-0 bottom-0 max-h-[88vh] animate-sheet-up rounded-t-3xl border-t",
-          "sm:inset-y-0 sm:left-0 sm:right-auto sm:max-h-none sm:w-[420px] sm:animate-sheet-in sm:rounded-none sm:border-r sm:border-t-0",
-        )}
+  // Payment quick action: honest Finance deferral per D6/I2.
+  // No repository exists, so we show an info dialog and offer to go to Finance.
+  if (sheet === "payment") {
+    return (
+      <Dialog
+        open={true}
+        onClose={closeSheet}
+        title="ثبت پرداخت"
+        description="گزارش مالی نیازمند سرور است — این بخش در M10 به‌عنوان D6/I2 موکول شد و هیچ مخزن مالی ساخته نشده است."
+        footer={
+          <>
+            <Button variant="subtle" onClick={closeSheet}>
+              بستن
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                closeSheet();
+                navigate({ view: "finance" });
+                notify({
+                  tone: "info",
+                  title: "گزارش مالی نیازمند سرور است",
+                  detail: "بخش مالی و گزارش‌ها در این نسخه تنها وضعیت موکول‌شده را نمایش می‌دهد.",
+                });
+              }}
+            >
+              رفتن به مالی
+            </Button>
+          </>
+        }
       >
-        <div className="absolute inset-x-0 top-0 h-px hairline-gold sm:hidden" />
-        <header className="flex items-start justify-between gap-3 px-6 pt-6">
-          <div>
-            <div className="text-[10.5px] font-medium text-gold-400">اقدام سریع</div>
-            <h2 id="sheet-title" className="mt-1 text-lg font-semibold text-ink-50">
-              {def.label}
-            </h2>
-            <p className="mt-1 text-xs text-ink-400">{def.hint}</p>
-          </div>
-          <button type="button" onClick={closeSheet} aria-label="بستن" className="flex size-9 items-center justify-center rounded-xl border border-white/[0.07] text-ink-300 hover:bg-white/[0.05]">
-            <X className="size-4" />
-          </button>
-        </header>
-
-        <div className="stagger flex-1 space-y-4 overflow-y-auto px-6 py-6">
-          {def.fields.map((f, i) => (
-            <label key={f.label} className="block">
-              <span className="mb-1.5 block text-xs font-medium text-ink-200">{f.label}</span>
-              {f.type === "select" ? (
-                <span className="relative block">
-                  <select
-                    defaultValue=""
-                    className="h-11 w-full appearance-none rounded-xl border border-white/[0.08] bg-ink-850 pl-9 pr-3.5 text-sm text-ink-50 outline-none transition-colors focus:border-gold-500/50"
-                  >
-                    <option value="" disabled>
-                      {f.placeholder}
-                    </option>
-                    {f.options?.map((o) => (
-                      <option key={o} value={o}>
-                        {o}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-400" />
-                </span>
-              ) : (
-                <input
-                  autoFocus={i === 0}
-                  placeholder={f.placeholder}
-                  className="h-11 w-full rounded-xl border border-white/[0.08] bg-ink-850 px-3.5 text-sm text-ink-50 outline-none transition-colors placeholder:text-ink-500 focus:border-gold-500/50"
-                />
-              )}
-            </label>
-          ))}
+        <div className="space-y-3">
           <p className="flex items-start gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 text-[11px] leading-relaxed text-ink-400">
             <Info className="mt-0.5 size-3.5 shrink-0 text-ink-400" />
-            نسخهٔ دمو: این فرم هنوز به سرور متصل نیست و اطلاعات واردشده ذخیره نمی‌شود.
+            نسخهٔ دمو: ثبت پرداخت به سرویس مالی سمت سرور نیاز دارد. در این نسخه، داده‌های مالی از طریق مخزن خوانده نمی‌شوند و هیچ مبلغی ذخیره نمی‌شود. برای مشاهدهٔ وضعیت فعلی، به بخش مالی بروید.
+          </p>
+          <p className="text-[11px] leading-relaxed text-ink-500">
+            تصمیم D6 و کار I2 (DECISIONS §۱۹) صراحتاً می‌گویند: هیچ مخزن مالی، هیچ خوانش مالی و هیچ دامنهٔ مالی در M10 ساخته نشده است. این دیالوگ به‌جای ساختن یک مخزن جعلی، وضعیت موکول‌شده را صادقانه بیان می‌کند.
           </p>
         </div>
+      </Dialog>
+    );
+  }
 
-        <footer className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-6 py-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-          <Button variant="ghost" onClick={closeSheet}>
-            انصراف
-          </Button>
-          <Button variant="primary" type="submit" disabled={busy} className="min-w-28">
-            {busy ? "در حال ثبت…" : "ثبت"}
-          </Button>
-        </footer>
-      </form>
-    </div>
-  );
+  // Student quick action → real StudentFormDialog
+  if (sheet === "student") {
+    return (
+      <StudentFormDialog
+        open={true}
+        onClose={closeSheet}
+        onSaved={(saved, mode) =>
+          notify({
+            tone: "success",
+            title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+          })
+        }
+      />
+    );
+  }
+
+  // Class quick action → real ClassFormDialog
+  // EnrollmentDialog is reachable from class detail (needs classId), so the
+  // global quick action opens the class creation dialog.
+  if (sheet === "class") {
+    return (
+      <ClassFormDialog
+        open={true}
+        onClose={closeSheet}
+        onSaved={(saved, mode) =>
+          notify({
+            tone: "success",
+            title: mode === "create" ? `${saved.title} ساخته شد` : `${saved.title} به‌روزرسانی شد`,
+            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+          })
+        }
+      />
+    );
+  }
+
+  // Message is handled by the effect above (navigates away). While the timeout
+  // is pending, render nothing to avoid a flash of the old fake form.
+  if (sheet === "message") {
+    return null;
+  }
+
+  // No sheet open
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

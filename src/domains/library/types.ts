@@ -50,28 +50,46 @@ export interface Resource {
 }
 
 /**
+ * Visibility semantics reused from LearningContent per F1 disposition:
+ * publication status uses existing active/visibility semantics, no new workflow.
+ * Library visibility is students (public to students) or teachers (staff-facing).
+ */
+export type LibraryVisibility = "students" | "teachers";
+
+/**
  * One catalogue record.
  *
  * `size`, `duration` and `added` are Persian display labels carried by the
  * persisted entity (they predate this domain). `createdAt` is the authoritative
  * timestamp for rows created through the repository; `added` is derived from it
  * so the two can never disagree.
+ *
+ * F1: added visibility + active per publication status disposition — uses
+ * existing semantics active/visibility from LearningContent, no new workflow.
  */
 export interface LibraryItem extends Resource {
   /** `MediaAsset.id` of the stored file. Absent = a catalogue row with no file. */
   mediaId?: string;
   /** ISO-8601 creation time, set by the repository on create. */
   createdAt?: string;
+  /** Visibility — students or teachers — per F1 disposition publication status */
+  visibility?: LibraryVisibility;
+  /** Active flag — per F1 disposition publication status */
+  active?: boolean;
 }
 
 export interface LibraryListParams extends ListParams {
   kind?: ResourceKind;
   instrument?: InstrumentId;
+  level?: string;
+  visibility?: LibraryVisibility;
 }
 
 /**
  * A new catalogue row. The file itself is uploaded through the media domain
  * first; this input only references the resulting `MediaAsset.id`.
+ *
+ * F1: includes visibility + active per publication status disposition.
  */
 export interface CreateLibraryItemInput {
   title: string;
@@ -85,6 +103,8 @@ export interface CreateLibraryItemInput {
   durationSeconds?: number;
   /** Precomputed waveform peaks for audio (see the media domain). */
   peaks?: number[];
+  visibility?: LibraryVisibility;
+  active?: boolean;
 }
 
 export type UpdateLibraryItemInput = Partial<CreateLibraryItemInput>;
@@ -108,7 +128,7 @@ export interface LibraryFileState {
   status: LibraryFileStatus;
   /** Media metadata, when the row references an asset that exists. */
   asset?: MediaAsset;
-  /** The actual bytes, only when `status === "ready"`. */
+  /** The actual bytes, only when `status === \"ready\"`. */
   blob?: Blob;
   /** Honest, user-facing explanation whenever the file cannot be downloaded. */
   reason?: string;

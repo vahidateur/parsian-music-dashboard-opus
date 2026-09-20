@@ -1,8 +1,9 @@
-import { useHeroStats } from "@/domains/shared/useAcademyMetrics";
+import { useMemo, useState } from "react";
+import { useHeroStats, type HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useDashboardInsights } from "@/domains/shared/useDashboardInsights";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { academyIsoDate } from "@/views/relations/academyDay";
-import { faNum } from "@/lib/format";
+import { faNum, NO_DATA } from "@/lib/format";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useApp } from "@/context/AppContext";
 import { Hero } from "@/components/hero/Hero";
@@ -12,7 +13,11 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
 import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
-import { DemoNote } from "@/components/ds/states";
+import { DemoNote, ErrorState } from "@/components/ds/states";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
+import { Button } from "@/components/ds/primitives";
+import { Panel, Field, inputCls } from "@/components/ds/patterns";
+import { addDays, isoToJalaliDisplay, jalaliToIso } from "@/domains/scheduling/dateBridge";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 /**
@@ -29,19 +34,33 @@ function PulseCard({
   attentionCount,
   hasRecords,
   loading,
+  stats: heroStats,
 }: {
-  sessionsToday: number;
+  /** `null` while the calendar read is unavailable; never a zero for it. */
+  sessionsToday: number | null;
   attentionCount: number;
   hasRecords: boolean;
   loading: boolean;
+  /** The same four figures the desktop hero renders, from the same one read. */
+  stats: readonly HeroStat[];
 }) {
+  /*
+   * No banner here and no read here: a failed read yields `null`, so these tiles
+   * go silent on their own, and the single disclosure lives above the panels —
+   * which is also why the figures arrive as a prop rather than as a second read.
+   */
   const { navigate, accent } = useApp();
-  const { stats: heroStats } = useHeroStats();
   const kicker = loading
     ? "فعالیت امروز · در حال خواندن رکوردها…"
     : !hasRecords
       ? "فعالیت امروز · هنوز رکوردی ثبت نشده"
-      : `فعالیت امروز · ${faNum(sessionsToday)} جلسه روی تقویم · ${faNum(attentionCount)} مورد نیازمند پیگیری`;
+      : [
+          "فعالیت امروز",
+          sessionsToday === null ? null : `${faNum(sessionsToday)} جلسه روی تقویم`,
+          `${faNum(attentionCount)} مورد نیازمند پیگیری`,
+        ]
+          .filter((part): part is string => part !== null)
+          .join(" · ");
   return (
     <Surface className="p-5">
       <SectionHeader title="نبض آموزشگاه" kicker={kicker} />
@@ -49,8 +68,9 @@ function PulseCard({
         {heroStats.map((s) => (
           <button key={s.label} type="button" onClick={() => navigate(s.target)} className="text-right">
             <div className="nums text-2xl font-semibold leading-none text-ink-50">
-              {faNum(s.value)}
-              {s.suffix && <span className="text-base text-ink-300">{s.suffix}</span>}
+              {/* Same rule as the desktop hero: no figure, no number. */}
+              {s.value === null ? NO_DATA : faNum(s.value)}
+              {s.value !== null && s.suffix && <span className="text-base text-ink-300">{s.suffix}</span>}
             </div>
             <div className="mt-1 text-xs text-ink-300">{s.label}</div>
           </button>
@@ -74,17 +94,156 @@ export function Dashboard() {
   */
   const now = useAcademyNow();
   const todayIso = academyIsoDate();
-  const insights = useDashboardInsights({ todayIso, nowMinutes: now });
+
+  // F5 date-range filtering — Jalali inputs with presets today/week/month, bounded window same as scheduling
+  const [fromJalali, setFromJalali] = useState("");
+  const [toJalali, setToJalali] = useState("");
+  const [rangePreset, setRangePreset] = useState<"13w" | "today" | "week" | "month">("13w");
+
+  const fromIso = useMemo(() => {
+    if (!fromJalali) return undefined;
+    return jalaliToIso(fromJalali) ?? undefined;
+  }, [fromJalali]);
+  const toIso = useMemo(() => {
+    if (!toJalali) return undefined;
+    return jalaliToIso(toJalali) ?? undefined;
+  }, [toJalali]);
+
+  const applyPreset = (preset: "today" | "week" | "month" | "13w") => {
+    setRangePreset(preset);
+    if (preset === "13w") {
+      setFromJalali("");
+      setToJalali("");
+      return;
+    }
+    if (preset === "today") {
+      const jalali = isoToJalaliDisplay(todayIso);
+      setFromJalali(jalali);
+      setToJalali(jalali);
+      return;
+    }
+    if (preset === "week") {
+      const from = addDays(todayIso, -6) ?? todayIso;
+      setFromJalali(isoToJalaliDisplay(from));
+      setToJalali(isoToJalaliDisplay(todayIso));
+      return;
+    }
+    if (preset === "month") {
+      const from = addDays(todayIso, -29) ?? todayIso;
+      setFromJalali(isoToJalaliDisplay(from));
+      setToJalali(isoToJalaliDisplay(todayIso));
+      return;
+    }
+  };
+
+  const insights = useDashboardInsights({
+    todayIso,
+    nowMinutes: now,
+    from: fromIso,
+    to: toIso,
+  });
+  // The hero's four figures are read by the VIEW, once, and handed to both the
+  // desktop hero and the mobile pulse card. Each surface calling the hook itself
+  // would give each its own idea of whether the read succeeded — and a retry that
+  // cleared one while the other still showed dashes.
+  const hero = useHeroStats();
+  const heroError = hero.error ?? insights.error;
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
       {/* 1 · Hero / academy context */}
       <div className="order-1 lg:order-none lg:col-span-12">
-        <Hero compact={!isDesktop} />
+        <Hero compact={!isDesktop} stats={hero.stats} />
       </div>
 
       {/* 2 · Today's key metrics — derived from the record set read above */}
-      <div className="order-2 lg:order-none lg:col-span-12">
+      <div className="order-2 lg:order-none lg:col-span-12 flex flex-col gap-5">
+        <Panel title="بازهٔ زمانی" kicker="فیلتر تاریخ شمسی — از همان مرزی که برنامه‌ریزی استفاده می‌کند — پیش‌فرض ۱۳ هفته">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="از تاریخ (شمسی YYYY/MM/DD)">
+              {(control) => (
+                <input
+                  {...control}
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder="۱۴۰۴/۰۷/۰۱"
+                  value={fromJalali}
+                  onChange={(e) => {
+                    setFromJalali(e.target.value);
+                    setRangePreset("13w");
+                  }}
+                />
+              )}
+            </Field>
+            <Field label="تا تاریخ (شمسی)">
+              {(control) => (
+                <input
+                  {...control}
+                  className={inputCls}
+                  dir="ltr"
+                  placeholder="۱۴۰۴/۰۷/۳۰"
+                  value={toJalali}
+                  onChange={(e) => {
+                    setToJalali(e.target.value);
+                    setRangePreset("13w");
+                  }}
+                />
+              )}
+            </Field>
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant={rangePreset === "13w" ? "primary" : "subtle"} onClick={() => applyPreset("13w")}>
+                ۱۳ هفته
+              </Button>
+              <Button size="sm" variant={rangePreset === "today" ? "primary" : "subtle"} onClick={() => applyPreset("today")}>
+                امروز
+              </Button>
+              <Button size="sm" variant={rangePreset === "week" ? "primary" : "subtle"} onClick={() => applyPreset("week")}>
+                هفته
+              </Button>
+              <Button size="sm" variant={rangePreset === "month" ? "primary" : "subtle"} onClick={() => applyPreset("month")}>
+                ماه
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <EntityExportButton entity="dashboard" label="خروجی تحلیلی داشبورد" filters={{ ...(fromIso ? { from: fromIso } : {}), ...(toIso ? { to: toIso } : {}) }} />
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
+            بازهٔ پیش‌فرض ۱۳ هفتهٔ اخیر تا امروز است — همان پنجره‌ای که نمودار هفتگی رسم می‌کند. فیلتر روی همین ۵۰۰ ردیفِ خوانده‌شده اعمال می‌شود
+            (سمت کلاینت) و برای مجموعه‌های بزرگ سرور باید تجمیع کند. خروجی تحلیلی همین محاسبهٔ یکتا را دوباره استفاده می‌کند، نه موتور دوم.
+            {(fromIso || toIso) && (
+              <span className="ms-1">
+                فیلتر فعال: {fromJalali || "—"} تا {toJalali || "—"} → {fromIso ?? "—"} تا {toIso ?? "—"}.
+              </span>
+            )}
+          </p>
+          {(fromJalali && !fromIso) || (toJalali && !toIso) ? (
+            <p className="mt-2 text-[11px] text-warn-400">تاریخ شمسی نامعتبر است — قالب YYYY/MM/DD مثل ۱۴۰۴/۰۷/۰۱.</p>
+          ) : null}
+        </Panel>
+
+        {heroError !== null && (
+          /*
+            One disclosure for the whole page, naming the failure the read set
+            already knew about instead of leaving it as a screenful of dashes:
+            an unreadable academy and an empty one are different facts, and this
+            product says which (D12). A partial failure is the ordinary case —
+            the aggregate read answers for its own tiles only — so the copy
+            claims exactly what this disclosure owns: a tile keeps the figure its
+            own read measured and shows NO_DATA otherwise. Retry re-reads both
+            halves of what is on screen, the aggregate read included.
+          */
+          <ErrorState
+            title="خواندن رکوردها کامل نشد"
+            description="خواندن بعضی از رکوردها ناموفق بود؛ هر شاخص روی این صفحه فقط وقتی عدد دارد که خواندنش موفق بوده باشد، وگرنه «—» می‌ماند؛ صفر، اندازه‌گیری نیست."
+            onRetry={() => {
+              // Both halves at once, because both are on screen: the retry the
+              // tiles answer to, and the one the read set answers to.
+              hero.reload();
+              insights.reload();
+            }}
+          />
+        )}
         <Signals signals={insights.signals} loading={insights.loading} />
       </div>
 
@@ -114,10 +273,11 @@ export function Dashboard() {
       {!isDesktop && (
         <div className="order-5">
           <PulseCard
-              sessionsToday={insights.flowSummary.total}
+              sessionsToday={insights.flowSummary?.total ?? null}
               attentionCount={insights.attention.length}
               hasRecords={insights.hasRecords}
               loading={insights.loading}
+              stats={hero.stats}
             />
         </div>
       )}

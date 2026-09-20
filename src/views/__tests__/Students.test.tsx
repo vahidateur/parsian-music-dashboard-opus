@@ -42,7 +42,11 @@ function student(over: Partial<Student> & { id: string; name: string }): Student
 function repoWith(rows: Student[]): StudentRepository {
   return {
     list: vi.fn(async () => ({ data: rows, meta: { page: 1, per_page: 25, total: rows.length } })),
-    get: vi.fn(),
+    get: vi.fn(async (id: string) => {
+      const found = rows.find((r) => r.id === id);
+      if (!found) throw new ApiError({ kind: "not_found", message: "not found" });
+      return found;
+    }),
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -104,7 +108,9 @@ describe("StudentsView", () => {
       list: vi.fn(async () => {
         throw new ApiError({ kind: "server", code: "BOOM", message: "سرویس در دسترس نیست." });
       }),
-      get: vi.fn(),
+      get: vi.fn(async () => {
+        throw new ApiError({ kind: "server", code: "BOOM", message: "سرویس در دسترس نیست." });
+      }),
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),

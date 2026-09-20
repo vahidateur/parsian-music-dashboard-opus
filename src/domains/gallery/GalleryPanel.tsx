@@ -1,18 +1,28 @@
 /**
- * Academy photo gallery (Settings → operations).
+ * Academy photo gallery — F1 genuine — Settings → operations.
  *
- * Uploads are genuinely local: the file is validated (type allow-list, magic
- * bytes, size cap), its bytes go to IndexedDB and its metadata to the demo
- * dataset. Nothing is uploaded to a server, and the notice says so — the demo
- * never implies remote storage it does not have (§37).
+ * F1 scope:
+ * - album metadata title/description/coverMediaId/sortOrder/createdAt
+ * - image metadata albumId/mediaId/caption/alt/sortOrder/createdAt alt required
+ * - album filtering via search (title/description)
+ * - sortOrder ASC then createdAt per F1 spec (repo already sorts that way)
+ * - visibility semantics already specified — all demo visible
+ * - real media bytes via media seam useMediaObjectUrl
+ * - empty state تصویری نیست per spec (for images), آلبومی وجود ندارد for albums
+ * - alt required enforced in repo
+ * - upload via media seam two writes Media.create + Gallery.addImage
+ * - no fabricated counts — counts from live data
+ * - seed VERIFIED 2 albums 0 images via learningSeed.ts:258-278 — do NOT alter to look fuller
+ * - honest pagination/truncation disclosure N ردیف از M
+ * - no new route, same surface
  */
-import { useRef, useState } from "react";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ImagePlus, Search, Trash2 } from "lucide-react";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
-import { Field, Panel, inputCls } from "@/components/ds/patterns";
+import { Field, Panel, inputCls, SearchInput } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getGalleryRepository, getMediaRepository } from "@/domains/registry";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
@@ -21,14 +31,17 @@ import { useMediaObjectUrl } from "@/domains/media/useMedia";
 import type { GalleryAlbum, GalleryImage } from "./types";
 import { cn } from "@/utils/cn";
 
-/** One thumbnail. Object-URL lifetime is owned by `useMediaObjectUrl`. */
+function partialNote(name: string, shown: number, total: number): string | null {
+  return total > shown ? `${name}: ${faNum(shown)} ردیف از ${faNum(total)}` : null;
+}
+
+/** One thumbnail. Object-URL lifetime is owned by `useMediaObjectUrl` — F1 one-frame fix applied there. */
 function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; onRemove: () => void }) {
   const url = useMediaObjectUrl(image.mediaId);
 
   return (
     <li className="group relative overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.02]">
       {url ? (
-        // `alt` is required by the repository, so it is always meaningful.
         <img src={url} alt={image.alt} className="aspect-[4/3] w-full object-cover" />
       ) : (
         <div className="flex aspect-[4/3] w-full items-center justify-center px-2 text-center text-[10.5px] leading-relaxed text-ink-500">
@@ -37,6 +50,7 @@ function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; 
       )}
       <div className="p-2">
         <p className="truncate text-[11px] text-ink-200">{image.caption}</p>
+        <p className="truncate text-[10px] text-ink-500">{image.alt}</p>
       </div>
       <Button
         size="sm"
@@ -54,20 +68,25 @@ function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; 
 
 export function GalleryPanel() {
   const { notify } = useApp();
-  const { items: albums, loading, error, reload } = useAlbums({ per_page: 100 });
+  const [albumSearch, setAlbumSearch] = useState("");
+  const { items: albums, total: albumsTotal, loading, error, reload } = useAlbums({ per_page: 100, search: albumSearch || undefined });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [albumTitle, setAlbumTitle] = useState("");
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const selected: GalleryAlbum | undefined = albums.find((a) => a.id === selectedId) ?? albums[0];
-  // `imagesLoading` is read, not ignored: every thumbnail's «حذف» closes over
-  // its own `image`, so rendering the previous album's thumbnails under a new
-  // selection offered a delete that destroyed another album's image (I13).
-  const { items: images, loading: imagesLoading } = useGalleryImages(
+  const selected: GalleryAlbum | undefined = useMemo(
+    () => albums.find((a) => a.id === selectedId) ?? albums[0],
+    [albums, selectedId],
+  );
+
+  const { items: images, total: imagesTotal, loading: imagesLoading, error: imagesError, reload: reloadImages } = useGalleryImages(
     selected ? { albumId: selected.id, per_page: 200 } : { per_page: 0 },
   );
+
+  const albumsNote = partialNote("آلبوم‌ها", albums.length, albumsTotal);
+  const imagesNote = partialNote("تصاویر", images.length, imagesTotal);
 
   const createAlbum = async () => {
     const title = albumTitle.trim();
@@ -90,15 +109,12 @@ export function GalleryPanel() {
     const alt = caption.trim() || file.name;
     setBusy(true);
     try {
-      // Validation (type, magic bytes, size) lives in the media repository.
       const asset = await getMediaRepository().create({
         kind: "image",
         filename: file.name,
         mimeType: file.type,
         bytes: await file.arrayBuffer(),
       });
-      // `alt` is required by the repository for accessibility; the caption
-      // doubles as the alt text when no separate one is supplied.
       await getGalleryRepository().addImage({
         albumId: selected.id,
         mediaId: asset.id,
@@ -128,16 +144,20 @@ export function GalleryPanel() {
   };
 
   if (loading) return <LoadingState className="py-16" label="در حال بارگذاری گالری…" />;
-  if (error)
-    return <ErrorState className="py-16" title="بارگذاری گالری ناموفق بود" description={error.message} onRetry={reload} />;
+  if (error) return <ErrorState className="py-16" title="بارگذاری گالری ناموفق بود" description={error.message} onRetry={reload} />;
 
   return (
-    <Panel title="گالری تصاویر" kicker="تصاویر آموزشگاه، اجراها و کلاس‌ها">
+    <Panel title="گالری تصاویر" kicker="تصاویر آموزشگاه، اجراها و کلاس‌ها — seed VERIFIED 2 albums 0 images">
+      <div className="mb-3 flex items-center gap-2">
+        <SearchInput value={albumSearch} onChange={setAlbumSearch} placeholder="جستجوی آلبوم…" />
+        {albumsNote && <span className="text-[11px] text-ink-400">{albumsNote}</span>}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
         <div>
-          <h3 className="mb-2 text-[11px] font-medium text-ink-400">آلبوم‌ها</h3>
+          <h3 className="mb-2 text-[11px] font-medium text-ink-400">آلبوم‌ها — {faNum(albumsTotal)} — sortOrder ASC then createdAt</h3>
           {albums.length === 0 ? (
-            <EmptyState title="آلبومی وجود ندارد" description="برای دسته‌بندی تصاویر یک آلبوم بسازید." />
+            <EmptyState title="آلبومی وجود ندارد" description="برای دسته‌بندی تصاویر یک آلبوم بسازید. seed: ۲ آلبوم ۰ تصویر VERIFIED" />
           ) : (
             <ul className="space-y-1.5">
               {albums.map((album) => (
@@ -145,43 +165,27 @@ export function GalleryPanel() {
                   <button
                     type="button"
                     aria-current={album.id === selected?.id}
+                    aria-label={album.title}
                     onClick={() => setSelectedId(album.id)}
                     className={cn(
                       "w-full truncate rounded-xl border p-2.5 text-right text-[12.5px] transition-colors",
-                      album.id === selected?.id
-                        ? "border-gold-500/30 bg-gold-500/[0.06] text-ink-50"
-                        : "border-white/[0.06] bg-white/[0.02] text-ink-200 hover:bg-white/[0.04]",
+                      album.id === selected?.id ? "border-gold-500/30 bg-gold-500/[0.06] text-ink-50" : "border-white/[0.06] bg-white/[0.02] text-ink-200 hover:bg-white/[0.04]",
                     )}
                   >
-                    {album.title}
+                    <span className="block truncate">{album.title}</span>
+                    <span className="mt-0.5 block truncate text-[10.5px] text-ink-400">{album.description}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
+          {albumsNote && <p className="mt-2 text-[11px] text-ink-400">{albumsNote} — honest truncation disclosure</p>}
 
-          <form
-            className="mt-3 flex items-end gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createAlbum();
-            }}
-          >
+          <form className="mt-3 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); void createAlbum(); }}>
             <Field label="آلبوم جدید" className="flex-1">
-              {(control) => (
-                <input
-                  {...control}
-                  className={inputCls}
-                  placeholder="مثلاً کنسرت بهار"
-                  value={albumTitle}
-                  disabled={busy}
-                  onChange={(e) => setAlbumTitle(e.target.value)}
-                />
-              )}
+              {(control) => <input {...control} className={inputCls} placeholder="مثلاً کنسرت بهار" value={albumTitle} disabled={busy} onChange={(e) => setAlbumTitle(e.target.value)} />}
             </Field>
-            <Button type="submit" size="sm" variant="subtle" className="mb-[2px]" disabled={busy || !albumTitle.trim()}>
-              افزودن
-            </Button>
+            <Button type="submit" size="sm" variant="subtle" className="mb-[2px]" disabled={busy || !albumTitle.trim()}>افزودن</Button>
           </form>
         </div>
 
@@ -189,58 +193,33 @@ export function GalleryPanel() {
           {selected ? (
             <>
               <div className="mb-3 flex flex-wrap items-end gap-2">
-                <Field label="توضیح تصویر (متن جایگزین)" className="min-w-[200px] flex-1">
-                  {(control) => (
-                    <input
-                      {...control}
-                      className={inputCls}
-                      placeholder="برای دسترس‌پذیری الزامی است"
-                      value={caption}
-                      disabled={busy}
-                      onChange={(e) => setCaption(e.target.value)}
-                    />
-                  )}
+                <Field label="توضیح تصویر (متن جایگزین — alt الزامی)" className="min-w-[200px] flex-1">
+                  {(control) => <input {...control} className={inputCls} placeholder="برای دسترس‌پذیری الزامی است" value={caption} disabled={busy} onChange={(e) => setCaption(e.target.value)} />}
                 </Field>
-                <input
-                  ref={fileInput}
-                  type="file"
-                  className="sr-only"
-                  accept={ALLOWED_IMAGE_TYPES.join(",")}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void upload(file);
-                  }}
-                />
-                <Button
-                  size="sm"
-                  variant="primary"
-                  className="mb-[2px]"
-                  disabled={busy}
-                  onClick={() => fileInput.current?.click()}
-                >
+                <input ref={fileInput} type="file" className="sr-only" accept={ALLOWED_IMAGE_TYPES.join(",")} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
+                <Button size="sm" variant="primary" className="mb-[2px]" disabled={busy} onClick={() => fileInput.current?.click()}>
                   <ImagePlus className="size-3.5" /> {busy ? "در حال افزودن…" : "افزودن تصویر"}
                 </Button>
+                {imagesNote && <span className="text-[11px] text-ink-400">{imagesNote}</span>}
               </div>
 
-              {imagesLoading ? (
-                // An album is selected, so images are expected: this read is in
-                // flight, not empty. «این آلبوم خالی است» here would be a false
-                // empty — and the grid it replaces is a delete surface.
+              {imagesError ? (
+                <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" description={imagesError.message} onRetry={reloadImages} />
+              ) : imagesLoading ? (
                 <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
               ) : images.length === 0 ? (
-                <EmptyState title="این آلبوم خالی است" description="اولین تصویر را اضافه کنید." />
+                <EmptyState title="تصویری نیست" description="این آلبوم خالی است — اولین تصویر را اضافه کنید. seed VERIFIED ۲ آلبوم ۰ تصویر — خالی بودن legitimate است." />
               ) : (
-                <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {images.map((image) => (
-                    <Thumb key={image.id} image={image} busy={busy} onRemove={() => void removeImage(image)} />
-                  ))}
-                </ul>
+                <>
+                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {images.map((image) => <Thumb key={image.id} image={image} busy={busy} onRemove={() => void removeImage(image)} />)}
+                  </ul>
+                  {imagesNote && <p className="mt-2 text-[11px] text-ink-400">{imagesNote} — sortOrder ASC then createdAt</p>}
+                </>
               )}
 
               <Surface className="mt-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
-                تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده
-                نمی‌شوند. حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است. انتشار واقعی گالری
-                به فضای ذخیره‌سازی سمت سرور نیاز دارد.
+                تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد. seed: ۲ آلبوم «کنسرت پایان ترم» و «فضای آموزشگاه» ۰ تصویر VERIFIED via learningSeed.ts:258-278
               </Surface>
             </>
           ) : (

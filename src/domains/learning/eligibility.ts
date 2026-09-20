@@ -1,5 +1,5 @@
 /**
- * Content-eligibility rules.
+ * Content-eligibility rules — F1 canonical owner per spec.
  *
  * Pure functions over already-loaded rows: no storage, no repository, no React.
  * Keeping the rule here (rather than inside a repository method) means the demo
@@ -15,12 +15,22 @@
  * K = links and C = eligible content.
  *
  * That matters because this runs on every render of a student's library view.
+ *
+ * F1:
+ * - Student Level N eligible 1..N
+ * - N+1+ locked with honest reason در سطح X باز می‌شود, locked no preview/download
+ * - not_visible hidden, not_found honest, not_applicable empty
+ * - one content linked to several reachable levels emitted once lowest level
+ * - sorting levelOrder ASC sortOrder ASC title fa locale
+ * - canonical owner this file
+ * - O-01 remains OPEN (locked semantics preserved)
  */
 import type {
   EligibleContent,
   LearningContent,
   LearningLevel,
   LevelContentLink,
+  LockedContent,
   StudentPlacement,
 } from "./types";
 
@@ -47,6 +57,8 @@ export interface EligibilityInput {
  *
  * Returns an empty list when the student has no placement — an unplaced
  * student is not silently granted everything.
+ *
+ * F1 preserved: dedup lowest level, sorting levelOrder ASC sortOrder ASC title fa.
  */
 export function resolveEligibleContent(input: EligibilityInput): EligibleContent[] {
   const { placement, levels, links, content, audience = "students" } = input;
@@ -87,6 +99,7 @@ export function resolveEligibleContent(input: EligibilityInput): EligibleContent
     if (!item || !item.active) continue;
     // Teacher-only material is never eligible for a student, regardless of
     // level. This is a UX filter; the server must enforce the same rule (§31).
+    // F1: not_visible hidden
     if (audience === "students" && item.visibility === "teachers") continue;
 
     const existing = chosen.get(item.id);
@@ -97,6 +110,73 @@ export function resolveEligibleContent(input: EligibilityInput): EligibleContent
       levelOrder: level.order,
       levelName: level.name,
       sortOrder: link.sortOrder,
+    });
+  }
+
+  return [...chosen.values()].sort(
+    (a, b) => a.levelOrder - b.levelOrder || a.sortOrder - b.sortOrder || a.content.title.localeCompare(b.content.title, "fa"),
+  );
+}
+
+/**
+ * F1: Resolves locked content — N+1+ levels with honest reason.
+ *
+ * Rule: content linked to active levels of same program whose order > current,
+ * excluding content already eligible via lower level (dedup), excluding teacher-only
+ * for students (not_visible hidden), excluding inactive content.
+ * Reason: `در سطح X باز می‌شود` where X is the lowest locked level that grants it.
+ * Locked no preview/download — UI must enforce.
+ * Sorting same as eligible: levelOrder ASC sortOrder ASC title fa.
+ */
+export function resolveLockedContent(input: EligibilityInput): LockedContent[] {
+  const { placement, levels, links, content, audience = "students" } = input;
+  if (!placement) return [];
+
+  const programLevels = new Map<string, LearningLevel>();
+  let current: LearningLevel | undefined;
+  for (const level of levels) {
+    if (level.programId !== placement.programId) continue;
+    programLevels.set(level.id, level);
+    if (level.id === placement.levelId) current = level;
+  }
+  if (!current) return [];
+
+  // Eligible ids to exclude from locked (already unlocked via lower level)
+  const eligible = resolveEligibleContent(input);
+  const eligibleIds = new Set(eligible.map((e) => e.content.id));
+
+  // Locked levels: active, order > current.order, OR exclusive levels not exactly current (also locked)
+  const lockedLevels = new Map<string, LearningLevel>();
+  for (const level of programLevels.values()) {
+    if (!level.active) continue;
+    if (level.exclusive) {
+      if (level.id !== current.id) lockedLevels.set(level.id, level);
+      continue;
+    }
+    if (level.order > current.order) lockedLevels.set(level.id, level);
+  }
+
+  const byId = new Map<string, LearningContent>();
+  for (const item of content) byId.set(item.id, item);
+
+  const chosen = new Map<string, LockedContent>();
+  for (const link of links) {
+    const level = lockedLevels.get(link.levelId);
+    if (!level) continue;
+    if (eligibleIds.has(link.contentId)) continue; // already unlocked via lower level
+    const item = byId.get(link.contentId);
+    if (!item || !item.active) continue;
+    if (audience === "students" && item.visibility === "teachers") continue; // not_visible hidden
+
+    const existing = chosen.get(item.id);
+    if (existing && existing.levelOrder <= level.order) continue; // keep lowest locked level
+    chosen.set(item.id, {
+      content: item,
+      levelId: level.id,
+      levelOrder: level.order,
+      levelName: level.name,
+      sortOrder: link.sortOrder,
+      reason: `در سطح ${level.name} باز می‌شود`,
     });
   }
 

@@ -1,12 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { CalendarPlus, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
 import { paymentLabel, type PaymentStatus } from "@/lib/financeVocabulary";
 import { studentStatusLabel, type ActivityEntry, type Student, type StudentStatus } from "@/domains/students/types";
-import { useStudentList } from "@/domains/students";
+import { useStudentList, useStudent } from "@/domains/students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { getStudentRepository } from "@/domains/registry";
 import { ATTENDANCE_STATUSES, ATTENDANCE_STATUS_LABEL, type AttendanceStatus } from "@/domains/attendance/types";
@@ -23,8 +24,10 @@ import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
+import { assignedStudentIdsForTeacher, isAssignedStudent } from "@/domains/auth/scope";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { EmptyState, LoadingState } from "@/components/ds/states";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
 import { StudentLearningPanel } from "@/domains/learning/StudentLearningPanel";
 import { StudentProgressPanel } from "@/domains/progress/StudentProgressPanel";
@@ -189,7 +192,7 @@ function StudentCard({ s, teacherName, onOpen }: { s: Student; teacherName: stri
       className="surface group flex flex-col gap-4 p-4 text-right transition-all duration-[var(--sixteenth)] hover:border-white/[0.14] hover:bg-white/[0.02]"
     >
       <div className="flex items-start gap-3">
-        <Avatar name={s.name} size="md" ring={statusTone[s.status]} />
+        <Avatar name={s.name} size="md" ring={statusTone[s.status]} photoMediaId={s.photoMediaId} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold text-ink-50">{s.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
@@ -253,6 +256,9 @@ function StudentDetail({
   onEdit: () => void;
 }) {
   const { navigate, notify, openSheet } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const [statusBusy, setStatusBusy] = useState(false);
 
   /**
@@ -390,6 +396,7 @@ function StudentDetail({
         breadcrumb={[{ label: "هنرجویان", onClick: () => navigate({ view: "students" }) }, { label: student.name }]}
         title={
           <span className="flex flex-wrap items-center gap-3">
+            <Avatar name={student.name} size="md" ring={statusTone[student.status]} photoMediaId={student.photoMediaId} />
             {student.name}
             <StatusBadge tone={statusTone[student.status]} label={studentStatusLabel[student.status]} />
           </span>
@@ -415,16 +422,20 @@ function StudentDetail({
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "messages" })}>
               <MessageSquare className="size-3.5" /> پیام
             </Button>
-            <Button size="sm" variant="subtle" onClick={onEdit}>
-              <Pencil className="size-3.5" /> ویرایش
-            </Button>
-            <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
-              <UserX className="size-3.5" />
-              {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
-            </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
-              <Wallet className="size-3.5" /> ثبت پرداخت
-            </Button>
+            {canWriteStudents && (
+              <>
+                <Button size="sm" variant="subtle" onClick={onEdit}>
+                  <Pencil className="size-3.5" /> ویرایش
+                </Button>
+                <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
+                  <UserX className="size-3.5" />
+                  {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
+                  <Wallet className="size-3.5" /> ثبت پرداخت
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -900,7 +911,13 @@ function StudentDetail({
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
   const { filter, detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
+  // For T-02 assigned-only filtering (teacher sees assigned students only as smallest model)
+  const classesForScope = useClasses({ per_page: 200 });
+  const enrollmentsForScope = useEnrollments({ per_page: 200 });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
@@ -912,11 +929,28 @@ export function StudentsView() {
   // Repository-backed: the view no longer imports the student fixture. Loading
   // state is the repository's real state, not a simulated delay.
   //
-  // `per_page` is explicit because the detail page resolves `detailId` against
-  // this list: relying on the repository default silently hid every student
-  // past the first page behind a "not found" state. BACKEND REQUIRED: server-side
-  // paging plus a `get(id)` fetch for the detail route replaces this ceiling.
+  // I16: detail/deep-link resolution must NOT rely on scanning a capped list.
+  // `per_page: 200` is the list ceiling; an entity beyond it would be reported
+  // as not-found. The owning repository already exposes `get(id)` which is the
+  // authoritative single-record lookup. `useStudent(detailId)` is that lookup
+  // with loading/error/not-found distinguishable.
   const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+  const filteredStudents = useMemo(() => {
+    if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
+    // AUDIT-002 FIX: When teacher scope dependencies are loading or erroring, NEVER fall back to org-wide students.
+    // Return safe restricted empty set instead of leaking org-wide.
+    if (classesForScope.loading || enrollmentsForScope.loading) return [];
+    if (classesForScope.error || enrollmentsForScope.error) return [];
+    const assigned = assignedStudentIdsForTeacher(
+      (user as any).teacherId,
+      classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId })),
+      enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status })),
+    );
+    return students.filter((s) => assigned.has(s.id));
+  }, [students, user, classesForScope.items, classesForScope.loading, classesForScope.error, enrollmentsForScope.items, enrollmentsForScope.loading, enrollmentsForScope.error]);
+  const { student: detailStudent, loading: detailLoading, error: detailError, reload: reloadDetail } = useStudent(
+    detailId ?? undefined,
+  );
 
   /**
    * The teacher relation, read once for the whole surface.
@@ -967,52 +1001,99 @@ export function StudentsView() {
 
   const list = useMemo(
     () =>
-      students.filter(
+      filteredStudents.filter(
         (s) =>
           (status === "all" || s.status === status) &&
           (instrument === "all" || s.instrument === instrument) &&
           (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
       ),
-    [students, status, instrument, query],
+    [filteredStudents, status, instrument, query],
   );
 
   // Stats are derived from the loaded dataset — never hardcoded totals.
+  // For teacher role, filteredStudents is assigned-only per T-02 smallest model.
   const stats = useMemo(
     () => ({
-      active: students.filter((s) => s.status === "active").length,
-      atRisk: students.filter((s) => s.status === "at-risk").length,
-      waitlist: students.filter((s) => s.status === "waitlist").length,
-      paused: students.filter((s) => s.status === "paused").length,
+      active: filteredStudents.filter((s) => s.status === "active").length,
+      atRisk: filteredStudents.filter((s) => s.status === "at-risk").length,
+      waitlist: filteredStudents.filter((s) => s.status === "waitlist").length,
+      paused: filteredStudents.filter((s) => s.status === "paused").length,
     }),
-    [students],
+    [filteredStudents],
   );
 
-  const detail = detailId ? students.find((s) => s.id === detailId) : undefined;
+  // I16: list view still uses capped list; detail view uses authoritative get(id)
+  const detailFromList = detailId ? students.find((s) => s.id === detailId) : undefined;
+  // Prefer authoritative detail when available, fall back to list entry for backwards compat
+  const detail = detailStudent ?? detailFromList;
 
-  // The list and the names it shows arrive together: a card that renders «—» for
-  // a moment and then a name is a card that was drawn from half a read.
-  if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
-  if (error)
-    return (
-      <EmptyState
-        className="py-32"
-        title="بارگذاری هنرجویان ناموفق بود"
-        description={error.message}
-        action="تلاش دوباره"
-        onAction={reload}
-      />
-    );
-  if (detailId && !detail)
-    return (
-      <EmptyState
-        className="py-32"
-        title="هنرجو یافت نشد"
-        description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
-        action="بازگشت به فهرست"
-        onAction={() => navigate({ view: "students" })}
-      />
-    );
-  if (detail)
+  // When a deep-link is active, resolution is independent of the 200-row ceiling
+  if (detailId) {
+    const isTeacherWithId = user?.role === "teacher" && (user as any).teacherId;
+    const teacherScopeLoadingForDetail = isTeacherWithId ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+    if (detailLoading || teachers.loading || teacherScopeLoadingForDetail) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+    if (detailError) {
+      if (detailError.kind === "not_found") {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+      return (
+        <ErrorState
+          className="py-32"
+          title="بارگذاری پروندهٔ هنرجو ناموفق بود"
+          description={detailError.message}
+          onRetry={reloadDetail}
+        />
+      );
+    }
+    if (!detail) {
+      return (
+        <EmptyState
+          className="py-32"
+          title="هنرجو یافت نشد"
+          description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+          action="بازگشت به فهرست"
+          onAction={() => navigate({ view: "students" })}
+        />
+      );
+    }
+    // SEC-003-01 defense-in-depth: teacher deep-link must not render unassigned student.
+    // Reuses canonical scope function isAssignedStudent, respects loading/error, renders 404 style.
+    // Backend object-level authorization remains mandatory.
+    if (isTeacherWithId) {
+      if (classesForScope.error || enrollmentsForScope.error) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+      const teacherId = (user as any).teacherId as string;
+      const classRefs = classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId }));
+      const enrollmentRefs = enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status }));
+      if (!isAssignedStudent(teacherId, detail.id, classRefs, enrollmentRefs)) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+    }
     return (
       <>
         <StudentDetail
@@ -1031,6 +1112,23 @@ export function StudentsView() {
         />
       </>
     );
+  }
+
+  // List view: existing behavior and pagination remain unchanged
+  // AUDIT-002 FIX: For teacher role, scope dependencies loading should show loading state, not empty (false empty) nor org-wide leak.
+  const isTeacherForLoading = user?.role === "teacher" && (user as any).teacherId;
+  const teacherScopeLoading = isTeacherForLoading ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+  if (loading || teachers.loading || teacherScopeLoading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  if (error)
+    return (
+      <EmptyState
+        className="py-32"
+        title="بارگذاری هنرجویان ناموفق بود"
+        description={error.message}
+        action="تلاش دوباره"
+        onAction={reload}
+      />
+    );
 
   const columns: Column<Student>[] = [
     {
@@ -1038,7 +1136,7 @@ export function StudentsView() {
       header: "هنرجو",
       cell: (s) => (
         <div className="flex items-center gap-2.5">
-          <Avatar name={s.name} size="sm" ring={statusTone[s.status]} />
+          <Avatar name={s.name} size="sm" ring={statusTone[s.status]} photoMediaId={s.photoMediaId} />
           <div className="min-w-0">
             <div className="truncate font-medium text-ink-50">{s.name}</div>
             <div className="truncate text-[11px] text-ink-400">{s.level}</div>
@@ -1072,12 +1170,19 @@ export function StudentsView() {
         description="پروندهٔ کامل هنرجویان، وضعیت حضور، پیشرفت و مالی — همه در یک نما."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
-              <Download className="size-3.5" /> خروجی
-            </Button>
-            <Button size="sm" variant="primary" onClick={openCreate}>
-              <Plus className="size-3.5" /> افزودن هنرجو
-            </Button>
+            <EntityExportButton
+              entity="students"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(status !== "all" ? { status } : {}),
+                ...(instrument !== "all" ? { instrument } : {}),
+              }}
+            />
+            {canWriteStudents && (
+              <Button size="sm" variant="primary" onClick={openCreate}>
+                <Plus className="size-3.5" /> افزودن هنرجو
+              </Button>
+            )}
           </>
         }
       />

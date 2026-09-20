@@ -125,7 +125,7 @@ export interface PermissionHolder {
 }
 
 export function can(holder: PermissionHolder | null | undefined, permission: Permission): boolean {
-  return holder?.permissions.includes(permission) ?? false;
+  return (holder?.permissions as readonly Permission[] | undefined)?.includes(permission) ?? false;
 }
 
 export function canAny(holder: PermissionHolder | null | undefined, permissions: readonly Permission[]): boolean {

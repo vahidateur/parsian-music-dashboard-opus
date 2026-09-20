@@ -17,7 +17,8 @@
  * counts should come from a `GET /dashboard/metrics` endpoint that aggregates
  * in the database; this hook is the seam where that swap happens.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import {
   getAttendanceRepository,
   getClassRepository,
@@ -87,6 +88,14 @@ export interface AcademyMetrics {
   attendanceSampleSize: number;
 }
 
+/**
+ * The initial, never-presented value.
+ *
+ * It exists so the state has a shape before the first read resolves; nothing may
+ * render from it while `available` is false. A failed read deliberately does NOT
+ * write this object — zeroing a figure is a claim about the academy, and a read
+ * that failed is not entitled to make one.
+ */
 const EMPTY: AcademyMetrics = {
   students: 0,
   activeStudents: 0,
@@ -129,10 +138,42 @@ function computeAttendanceRate(records: readonly AttendanceRecord[]): {
   return { pct: Math.round((attended / counted) * 100), sample: counted };
 }
 
-export function useAcademyMetrics(): { metrics: AcademyMetrics; loading: boolean } {
+export interface AcademyMetricsState {
+  /**
+   * The last snapshot a completed read produced.
+   *
+   * A failed read leaves this untouched rather than rewriting it with zeros —
+   * but it is only *presentable* while `available` holds, so a stale snapshot can
+   * never be read as a current measurement either.
+   */
+  metrics: AcademyMetrics;
+  loading: boolean;
+  /**
+   * The failure behind an unavailable set, normalized through the product's one
+   * error taxonomy. `null` while the last attempt succeeded, and `null` for an
+   * aborted or superseded read — cancelling a read is not a fault.
+   */
+  error: ApiError | null;
+  /**
+   * `false` until a read has completed successfully, and again from the moment
+   * one fails. Every figure in `metrics` describes the whole six-source read set
+   * (capacity needs classes *and* enrollments, the rate needs attendance), so a
+   * half-read set has no honest figure to offer: this is what consumers branch
+   * on, in place of a zero they would have to invent.
+   */
+  available: boolean;
+  /** Re-reads all six sources, wired to the dashboard's retry affordance. */
+  reload: () => void;
+}
+
+export function useAcademyMetrics(): AcademyMetricsState {
   const dataVersion = useDataVersion();
   const [metrics, setMetrics] = useState<AcademyMetrics>(EMPTY);
+  const [available, setAvailable] = useState(false);
+  const [error, setError] = useState<ApiError | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nonce, setNonce] = useState(0);
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
 
   const repositories = useMemo(
     () => ({
@@ -184,10 +225,19 @@ export function useAcademyMetrics(): { metrics: AcademyMetrics; loading: boolean
           takenSeats,
           capacityUsedPct: totalSeats > 0 ? Math.round((takenSeats / totalSeats) * 100) : 0,
         });
+        setAvailable(true);
+        setError(null);
       })
-      .catch(() => {
-        // Showing stale numbers would be worse than showing none.
-        if (!cancelled) setMetrics(EMPTY);
+      .catch((cause: unknown) => {
+        const normalized = apiErrorFromThrown(cause);
+        // An abort is not a failure to report: a superseded read or an unmounting
+        // tree must not leave the dashboard apologising for nothing.
+        if (cancelled || normalized.kind === "cancelled") return;
+        // Showing stale numbers would be worse than showing none — and showing
+        // zeros would be worse still, because a zero is a measurement. The set
+        // becomes unavailable and the error becomes the product's to display.
+        setAvailable(false);
+        setError(normalized);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -197,14 +247,21 @@ export function useAcademyMetrics(): { metrics: AcademyMetrics; loading: boolean
       cancelled = true;
       controller.abort();
     };
-  }, [dataVersion, repositories]);
+  }, [dataVersion, repositories, nonce]);
 
-  return { metrics, loading };
+  return { metrics, loading, error, available, reload };
 }
 
 export interface HeroStat {
   label: string;
-  value: number;
+  /**
+   * `null` — never 0 — when the read behind this tile has no trustworthy value.
+   *
+   * The formatter renders `NO_DATA` («—») for a null, which is the product's
+   * standing rule for a missing figure (DECISIONS §14): a dash is a fact about
+   * the read, a zero is a fact about the academy.
+   */
+  value: number | null;
   suffix?: string;
   target: Target;
 }
@@ -226,16 +283,24 @@ export interface HeroStat {
  * A regression test asserts this omission; adding it here would fail the
  * build rather than quietly shipping a misleading headline number.
  */
-export function useHeroStats(): { stats: HeroStat[]; loading: boolean } {
-  const { metrics, loading } = useAcademyMetrics();
-  const stats = useMemo<HeroStat[]>(
-    () => [
-      { label: "هنرجوی فعال", value: metrics.activeStudents, target: { view: "students", filter: "active" } },
-      { label: "کلاس فعال", value: metrics.classes, target: { view: "classes" } },
-      { label: "ثبت‌نام فعال", value: metrics.activeEnrollments, target: { view: "classes" } },
-      { label: "اشغال ظرفیت", value: metrics.capacityUsedPct, suffix: "٪", target: { view: "classes" } },
-    ],
-    [metrics],
-  );
-  return { stats, loading };
+export function useHeroStats(): {
+  stats: HeroStat[];
+  loading: boolean;
+  error: ApiError | null;
+  reload: () => void;
+} {
+  const { metrics, loading, available, error, reload } = useAcademyMetrics();
+  const stats = useMemo<HeroStat[]>(() => {
+    // One decision, applied to all four tiles: an unavailable read has no number
+    // to show. The labels and their targets stay — the navigation does not depend
+    // on having read anything, and dropping the tiles would hide the failure.
+    const figure = (value: number): number | null => (available ? value : null);
+    return [
+      { label: "هنرجوی فعال", value: figure(metrics.activeStudents), target: { view: "students", filter: "active" } },
+      { label: "کلاس فعال", value: figure(metrics.classes), target: { view: "classes" } },
+      { label: "ثبت‌نام فعال", value: figure(metrics.activeEnrollments), target: { view: "classes" } },
+      { label: "اشغال ظرفیت", value: figure(metrics.capacityUsedPct), suffix: "٪", target: { view: "classes" } },
+    ];
+  }, [metrics, available]);
+  return { stats, loading, error, reload };
 }

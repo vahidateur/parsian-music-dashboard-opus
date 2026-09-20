@@ -31,6 +31,34 @@ const kindIcon: Record<SearchResultKind, ReactNode> = {
 
 const normalize = (s: string) => s.replace(/ي/g, "ی").replace(/ك/g, "ک").replace(/\u200c/g, " ").trim().toLowerCase();
 
+/**
+ * D7 · hand focus back to the control that opened the palette.
+ *
+ * `useFocusTrap` (ds/patterns.tsx) is the project's canonical overlay focus
+ * manager, and it saves `document.activeElement` on open and restores it in the
+ * same effect's cleanup. The palette cannot simply mount that hook: it owns its
+ * own entry focus (the 30 ms deferred focus into the search field) and its own
+ * Escape/arrow keys, so a second system entering through the first focusable node
+ * would fight it and land the caret somewhere else. What the palette borrows is
+ * the semantics, at the boundary it already has — one owner, one system.
+ *
+ * Two guards the trap does not need and the palette does. `body` means nothing was
+ * focused when the palette opened (the Ctrl+K shell shortcut in `App.tsx` is the
+ * shipped case: a key chord has no opener), and an element removed while the
+ * palette was up is no longer anywhere to return to. Both restore nothing rather
+ * than throwing the page into an unhandled error at close time.
+ */
+function returnFocusToOpener(opener: HTMLElement | null) {
+  if (opener === null || opener === document.body || opener === document.documentElement) return;
+  if (!opener.isConnected || typeof opener.focus !== "function") return;
+  try {
+    opener.focus();
+  } catch {
+    // A control that refuses focus is not worth a crash over: the palette has
+    // closed either way, and the browser decides where the caret goes now.
+  }
+}
+
 export function CommandPalette() {
   const { paletteOpen, closePalette, navigate, openSheet } = useApp();
   const [query, setQuery] = useState("");
@@ -39,6 +67,9 @@ export function CommandPalette() {
   const [recents, setRecents] = useState<RecentTarget[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // M-1 handoff flag: when palette closes because openSheet was called,
+  // we must NOT restore focus to the opener — the sheet's Dialog owns focus.
+  const handingOffToSheetRef = useRef(false);
 
   /* Recent actions — the palette gets smarter the more you use it */
   useEffect(() => {
@@ -60,17 +91,27 @@ export function CommandPalette() {
 
   useEffect(() => {
     if (paletteOpen) {
+      // D7: capture opener BEFORE deferred focus moves caret inside, and while
+      // paletteOpen is true only — a render that found palette closed saves nothing.
+      const opener = document.activeElement as HTMLElement | null;
       setQuery("");
       setActive(0);
       setResult(null);
-      document.body.style.overflow = "hidden";
+      // M-1: body scroll lock is owned by AppContext (palette → sheet handoff),
+      // so this effect no longer touches `document.body.style.overflow`.
       window.setTimeout(() => inputRef.current?.focus(), 30);
-    } else {
-      document.body.style.overflow = "";
+      return () => {
+        // D7 + M-1: one cleanup for every close path — Escape, backdrop, action
+        // that hands off to sheet, or navigation — because they all end by
+        // flipping `paletteOpen`. If handing off to sheet, skip restore so the
+        // sheet's Dialog can own focus (M-1). Otherwise restore to opener (D7).
+        if (handingOffToSheetRef.current) {
+          handingOffToSheetRef.current = false;
+          return;
+        }
+        returnFocusToOpener(opener);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [paletteOpen]);
 
   // Repository-backed record search; empty query returns nothing.
@@ -143,7 +184,12 @@ export function CommandPalette() {
       return navigate(item.target);
     }
     if (item.type === "action") {
-      closePalette();
+      // M-1: palette → sheet focus ownership — openSheet closes the palette
+      // in the same render (AppContext), so the palette does not restore focus
+      // to the page and then let the sheet steal it back. The shell's overflow
+      // effect keeps the body locked across the handoff. D7: mark handoff so
+      // cleanup skips opener restore.
+      handingOffToSheetRef.current = true;
       openSheet(item.action);
     }
   };

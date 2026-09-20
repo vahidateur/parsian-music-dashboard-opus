@@ -107,7 +107,7 @@ export function StudentFormDialog({
 
   const repository = useMemo(() => getStudentRepository(), []);
   // Only active teachers can be assigned to a new student.
-  const { items: teachers } = useTeachers({ assignableOnly: true, per_page: 200 });
+  const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
 
   const form = useEntityForm<StudentDraft, Student>({
     initial: toDraft(student),
@@ -188,6 +188,15 @@ export function StudentFormDialog({
           </p>
         )}
 
+        {teachersError && (
+          <p role="alert" className="sm:col-span-2 rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری مدرسان ناموفق بود: {teachersError.message}{" "}
+            <button type="button" className="underline" onClick={reloadTeachers}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+
         <div className="sm:col-span-2">
           <ProfilePhotoField
             mediaId={form.draft.photoMediaId}
@@ -254,15 +263,18 @@ export function StudentFormDialog({
               {...control}
               className={inputCls}
               value={form.draft.teacherId}
-              disabled={busy}
+              disabled={busy || !!teachersLoading || !!teachersError}
               onChange={(e) => form.set("teacherId", e.target.value)}
             >
-              <option value="">— انتخاب کنید —</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </option>
-              ))}
+              <option value="">
+                {teachersLoading ? "در حال بارگذاری…" : teachersError ? "خطا در بارگذاری" : "— انتخاب کنید —"}
+              </option>
+              {!teachersError &&
+                teachers.map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.name}
+                  </option>
+                ))}
             </select>
           )}
         </Field>

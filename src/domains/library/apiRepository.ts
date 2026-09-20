@@ -29,6 +29,8 @@ const RESOURCE = "resources";
  * implementation in both modes: no server serves these endpoints, and silently
  * returning demo data while claiming to be in API mode is exactly the dishonest
  * fallback the composition root forbids.
+ *
+ * F1: added level + visibility to query per publication status disposition.
  */
 export class ApiLibraryRepository implements LibraryRepository {
   constructor(private readonly client: ApiClient) {}
@@ -60,6 +62,8 @@ export function toQuery(params: LibraryListParams): QueryParams {
     search: params.search,
     kind: params.kind,
     instrument: params.instrument,
+    level: params.level,
+    visibility: params.visibility,
     sort: params.sort,
     page: params.page,
     per_page: params.per_page,

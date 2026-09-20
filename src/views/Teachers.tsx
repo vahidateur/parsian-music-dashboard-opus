@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
@@ -17,11 +18,12 @@ import { useStudentList } from "@/domains/students";
 import { faNum, faPercent, faTime, NO_DATA } from "@/lib/format";
 import { meanOf } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
 import { ErrorState } from "@/components/ds/states";
-import { useTeachers } from "@/domains/teachers/useTeachers";
+import { useTeachers, useTeacher } from "@/domains/teachers/useTeachers";
 import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
 import { getTeacherRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
@@ -191,7 +193,7 @@ function TeacherCard({
   return (
     <button type="button" onClick={onOpen} className="surface group flex flex-col gap-4 p-4 text-right transition-all hover:border-white/[0.14] hover:bg-white/[0.02]">
       <div className="flex items-start gap-3">
-        <Avatar name={t.name} size="md" ring={meta.tone} />
+        <Avatar name={t.name} size="md" ring={meta.tone} photoMediaId={t.photoMediaId} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[14px] font-semibold text-ink-50">{t.name}</div>
           <div className="mt-1 flex items-center gap-1.5 text-[11.5px] text-ink-300">
@@ -431,6 +433,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
         breadcrumb={[{ label: "مدرسین", onClick: () => navigate({ view: "teachers" }) }, { label: teacher.name }]}
         title={
           <span className="flex flex-wrap items-center gap-3">
+            <Avatar name={teacher.name} size="md" ring={meta.tone} photoMediaId={teacher.photoMediaId} />
             {teacher.name}
             <StatusBadge tone={meta.tone} label={meta.label} />
           </span>
@@ -598,7 +601,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                   return (
                     <ListRow
                       key={student.id}
-                      lead={<Avatar name={student.name} size="sm" />}
+                      lead={<Avatar name={student.name} size="sm" ring={studentStatusTone[student.status]} photoMediaId={student.photoMediaId} />}
                       title={student.name}
                       meta={[`${instrumentName(student.instrument)} · ${student.level}`, titles.join("، ")]
                         .filter(Boolean)
@@ -692,6 +695,9 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
 /* ------------------------------------------------------------------ */
 function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () => void }) {
   const { filter, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteTeachers = useCan("teachers.write") || !user;
   const [query, setQuery] = useState("");
   const [inst, setInst] = useState<InstrumentId | "all">("all");
   // Filter chips enumerate the live instrument catalogue, so an academy's own
@@ -798,12 +804,21 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
         description="بار کاری، در دسترس بودن و کیفیت عملیاتی هر مدرس در یک نگاه."
         actions={
           <>
+            <EntityExportButton
+              entity="teachers"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(inst !== "all" ? { instrument: inst } : {}),
+              }}
+            />
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "درخواست در دسترس بودن", detail: "ارسال فرم به مدرسین به سرور پیام‌رسان نیاز دارد." })}>
               <UserCheck className="size-3.5" /> درخواست ساعات آزاد
             </Button>
-            <Button size="sm" variant="primary" onClick={onAdd}>
-              <Plus className="size-3.5" /> افزودن مدرس
-            </Button>
+            {canWriteTeachers && (
+              <Button size="sm" variant="primary" onClick={onAdd}>
+                <Plus className="size-3.5" /> افزودن مدرس
+              </Button>
+            )}
           </>
         }
       />
@@ -880,7 +895,7 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
             .map((t) => (
               <div key={t.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                 <div className="flex items-center gap-2.5">
-                  <Avatar name={t.name} size="sm" />
+                  <Avatar name={t.name} size="sm" photoMediaId={t.photoMediaId} />
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink-50">{t.name}</div>
                     <div className="text-[11px] text-ink-400">{instrumentName(t.instrument)}</div>
@@ -904,10 +919,17 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
 
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
-  const { detailId, notify } = useApp();
+  const { detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteTeachers = useCan("teachers.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
   // Repository-backed: loading reflects a real read, not a timer.
+  // I16: list view keeps per_page 200 ceiling; detail/deep-link uses authoritative get(id)
   const { items: teachers, loading, error, reload } = useTeachers({ per_page: RELATIONS_PER_PAGE });
+  const { teacher: detailTeacher, loading: detailLoading, error: detailError, reload: reloadDetail } = useTeacher(
+    detailId ?? undefined,
+  );
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Teacher | undefined>(undefined);
 
@@ -925,14 +947,43 @@ export function TeachersView() {
     <TeacherFormDialog open={formOpen} teacher={editing} onClose={() => setFormOpen(false)} onSaved={savedToast} />
   );
 
-  const detail = detailId ? teachers.find((t) => t.id === detailId) : undefined;
+  const detailFromList = detailId ? teachers.find((t) => t.id === detailId) : undefined;
+  const detail = detailTeacher ?? detailFromList;
 
-  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
-  if (error)
-    return (
-      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
-    );
-  if (detail)
+  if (detailId) {
+    if (detailLoading || loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+    if (detailError) {
+      if (detailError.kind === "not_found") {
+        return (
+          <EmptyState
+            className="py-32"
+            title="مدرس یافت نشد"
+            description="این پیوند به مدرسی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "teachers" })}
+          />
+        );
+      }
+      return (
+        <ErrorState
+          className="py-32"
+          title="بارگذاری پروندهٔ مدرس ناموفق بود"
+          description={detailError.message}
+          onRetry={reloadDetail}
+        />
+      );
+    }
+    if (!detail) {
+      return (
+        <EmptyState
+          className="py-32"
+          title="مدرس یافت نشد"
+          description="این پیوند به مدرسی اشاره دارد که دیگر وجود ندارد."
+          action="بازگشت به فهرست"
+          onAction={() => navigate({ view: "teachers" })}
+        />
+      );
+    }
     return (
       <>
         {/*
@@ -956,6 +1007,13 @@ export function TeachersView() {
         />
         {dialog}
       </>
+    );
+  }
+
+  if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
+  if (error)
+    return (
+      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
     );
 
   return (

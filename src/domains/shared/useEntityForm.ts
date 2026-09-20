@@ -65,6 +65,10 @@ export function useEntityForm<TDraft extends object, TResult>(
   const [errors, setErrors] = useState<FieldErrors<TDraft>>({});
   const [formError, setFormError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // AUDIT-001 FIX: Synchronous ref guard prevents double-submit race.
+  // React state `submitting` updates async, so two rapid clicks before render would both see false and both call submitFn.
+  // Ref is synchronous, so second call is dropped immediately. State is kept for UI disabled.
+  const submittingRef = useRef(false);
 
   /*
     The newest `initial`, read at the moment the draft is rebuilt.
@@ -101,6 +105,7 @@ export function useEntityForm<TDraft extends object, TResult>(
     setErrors({});
     setFormError(null);
     setSubmitting(false);
+    submittingRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -109,7 +114,8 @@ export function useEntityForm<TDraft extends object, TResult>(
   }, [open, reset]);
 
   const submit = useCallback(async (): Promise<TResult | undefined> => {
-    if (submitting) return undefined;
+    // AUDIT-001 FIX: Synchronous ref guard — state guard alone is async and allows race.
+    if (submittingRef.current) return undefined;
     setFormError(null);
 
     const localErrors = validate?.(draft) ?? {};
@@ -118,6 +124,7 @@ export function useEntityForm<TDraft extends object, TResult>(
       return undefined;
     }
     setErrors({});
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       const result = await submitFn(draft);
@@ -134,9 +141,10 @@ export function useEntityForm<TDraft extends object, TResult>(
       setFormError(error);
       return undefined;
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
-  }, [draft, onSuccess, submitFn, submitting, validate]);
+  }, [draft, onSuccess, submitFn, validate]);
 
   return { draft, set, patch, reset, errors, formError, submitting, submit };
 }

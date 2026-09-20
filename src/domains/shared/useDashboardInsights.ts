@@ -67,6 +67,13 @@ const WEEKS = 13;
 
 export interface DashboardInsights {
   loading: boolean;
+  /**
+   * The first failure across the whole read set — the aggregate metrics read
+   * included — or `null` when every source answered.
+   *
+   * The consumer that renders this is `src/views/Dashboard.tsx`; a computed error
+   * no view reads is the same bug as a zero no view should have shown.
+   */
   error: ApiError | null;
   counts: DashboardCounts;
   /** Zero stored rows: the panels say «داده‌ای نیست» rather than a figure. */
@@ -75,7 +82,8 @@ export interface DashboardInsights {
   attention: AttentionItem[];
   intelligence: IntelligenceCard[];
   flow: FlowRow[];
-  flowSummary: FlowSummary;
+  /** `null` — never an empty summary — while the calendar read is unavailable. */
+  flowSummary: FlowSummary | null;
   roster: RosterModel;
   occupancy: OccupancyModel;
   instruments: InstrumentRow[];
@@ -92,49 +100,91 @@ export interface DashboardInsights {
  * conversion. A hook under `domains/` importing from `views/` would invert the
  * layering, and formatting the day a second time would create the second
  * conversion that module exists to prevent.
+ *
+ * F5 adds optional date-range filtering: from/to ISO dates bound the session window
+ * same as scheduling, with presets today/week/month. When from/to omitted, fallback
+ * to 13-week rolling window (existing behavior).
  */
-export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: string; nowMinutes: number }): DashboardInsights {
-  const { metrics, loading: metricsLoading } = useAcademyMetrics();
+export function useDashboardInsights({
+  todayIso,
+  nowMinutes,
+  from,
+  to,
+}: {
+  todayIso: string;
+  nowMinutes: number;
+  from?: string;
+  to?: string;
+}): DashboardInsights {
+  const {
+    metrics,
+    loading: metricsLoading,
+    available: metricsAvailable,
+    error: metricsError,
+    reload: reloadMetrics,
+  } = useAcademyMetrics();
   const students = useStudentList({ per_page: PAGE });
   const classes = useClasses({ per_page: PAGE });
   const rooms = useRooms({ per_page: PAGE });
   const teachers = useTeachers({ per_page: PAGE });
 
   const windowStart = useMemo(() => {
+    if (from) return from;
     const reference = isoDayNumber(todayIso);
     return reference === null ? todayIso : isoFromDayNumber(reference - (WEEKS * 7 - 1));
-  }, [todayIso]);
+  }, [todayIso, from]);
 
-  const sessions = useSessions({ from: windowStart, to: todayIso, per_page: PAGE });
+  const windowEnd = useMemo(() => {
+    return to ?? todayIso;
+  }, [to, todayIso]);
+
+  const sessions = useSessions({ from: windowStart, to: windowEnd, per_page: PAGE });
+  /**
+   * Whether the calendar read may be spoken about.
+   *
+   * `sessions.items` cannot answer that on its own — an empty page and a failed
+   * read are the same empty array there — so the fact is established once, here at
+   * the boundary, and everything downstream receives `null` rather than a guess.
+   * Gating on `error` (and not on `loading`) keeps the successful path, including
+   * the first-load frames, exactly as it was; it is also what handles a failed
+   * refetch, because `error` is then set and the rows the list retained stop being
+   * presented as current.
+   */
+  const sessionsAvailable = sessions.error === null;
 
   const reload = useMemo(
     () => () => {
+      reloadMetrics();
       students.reload();
       classes.reload();
       rooms.reload();
       teachers.reload();
       sessions.reload();
     },
-    [students, classes, rooms, teachers, sessions],
+    [reloadMetrics, students, classes, rooms, teachers, sessions],
   );
 
   const input: InsightInput = useMemo(
     () => ({
-      metrics,
+      // An unavailable aggregate read is passed as `null`, not as the zeros it
+      // started life as: the derivations decide what silence looks like.
+      metrics: metricsAvailable ? metrics : null,
       students: students.students,
       classes: classes.items,
       rooms: rooms.items,
       teachers: teachers.items,
-      sessions: sessions.items,
+      sessions: sessionsAvailable ? sessions.items : null,
       todayIso,
       nowMinutes,
     }),
     [
       metrics,
+      metricsAvailable,
       students.students,
       classes.items,
       rooms.items,
       teachers.items,
+      sessionsAvailable,
       sessions.items,
       todayIso,
       nowMinutes,
@@ -158,7 +208,16 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
   const signals = useMemo(() => deriveSignals(input), [input]);
   const attention = useMemo(() => deriveAttentionItems(input), [input]);
   const intelligence = useMemo(() => deriveIntelligenceCards(input), [input]);
-  const flow = useMemo(() => deriveFlowRows(input.sessions, todayIso, nowMinutes, lookups), [input, todayIso, nowMinutes, lookups]);
+  // With no rows there is no day to summarise, and an empty `FlowSummary` would be
+  // a real calendar with nothing on it. `null` is the honest shape, and it is what
+  // lets PulseCard and the flow panel say "not read" instead of "zero".
+  const flow = useMemo(
+    () =>
+      input.sessions === null
+        ? { rows: [] as FlowRow[], summary: null as FlowSummary | null }
+        : deriveFlowRows(input.sessions, todayIso, nowMinutes, lookups),
+    [input, todayIso, nowMinutes, lookups],
+  );
   const roster = useMemo(() => rosterSeries(input.students), [input.students]);
   const occupancy = useMemo(() => deriveOccupancy(input.classes, input.rooms), [input.classes, input.rooms]);
   const instruments = useMemo(() => deriveInstrumentMix(input.students), [input.students]);
@@ -177,7 +236,11 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
 
   return {
     loading: metricsLoading || students.loading || classes.loading || rooms.loading || teachers.loading || sessions.loading,
-    error: students.error ?? classes.error ?? rooms.error ?? teachers.error ?? sessions.error,
+    // The aggregate read's failure is folded in first, so a failed metrics read
+    // reaches the view instead of being absorbed into `metrics: null`. D12's rule
+    // applies to this read set as a whole: a failed read is a failure, not an
+    // empty one — and not a zero one either.
+    error: metricsError ?? students.error ?? classes.error ?? rooms.error ?? teachers.error ?? sessions.error,
     counts,
     hasRecords: counts.records > 0,
     signals,

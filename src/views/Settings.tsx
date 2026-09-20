@@ -132,10 +132,10 @@ export function SettingsView() {
                     <div className="text-[13px] text-ink-50">تعطیلی جمعه‌ها</div>
                     <div className="mt-0.5 text-[11px] text-ink-400">در تقویم به‌عنوان روز غیرفعال نمایش داده می‌شود</div>
                   </div>
-                  <Toggle checked={toggles.friday ?? false} onChange={set("friday")} label="تعطیلی جمعه" />
+                  <Toggle checked={toggles.friday ?? false} onChange={set("friday")} disabled label="تعطیلی جمعه — غیرفعال" />
                 </div>
                 <p className="mt-3 text-[11px] leading-relaxed text-warn-400">
-                  ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است.
+                  ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است و پس از بارگذاری مجدد بازنشانی می‌شود. اتصال به تقویم واقعی به سرور نیاز دارد.
                 </p>
               </Panel>
             </>
@@ -295,6 +295,9 @@ export function SettingsView() {
           {section === "notifications" && (
             <>
               <Panel title="رویدادهایی که به شما اطلاع داده می‌شود" kicker="فقط چیزهایی که نیاز به تصمیم دارند">
+                <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
+                  اعلان‌ها نیازمند سرور است — دامنهٔ اعلان‌ها هنوز پیاده‌سازی نشده و این تنظیمات ذخیره نمی‌شود. ارسال واقعی پیامک، ایمیل و اعلان درون‌برنامه‌ای به سرور نیاز دارد و در دمو فعال نیست. این کلیدها صرفاً نمایشی هستند و پس از بارگذاری مجدد بازنشانی می‌شوند.
+                </Surface>
                 <ul className="space-y-2">
                   {[
                     { k: "overdue", label: "فاکتور سررسید گذشته", hint: "به‌محض گذشتن از موعد" },
@@ -307,12 +310,15 @@ export function SettingsView() {
                         <div className="text-[13px] text-ink-50">{n.label}</div>
                         <div className="mt-0.5 text-[11px] text-ink-400">{n.hint}</div>
                       </div>
-                      <Toggle checked={toggles[n.k]} onChange={set(n.k)} label={n.label} />
+                      <Toggle checked={toggles[n.k]} onChange={set(n.k)} disabled label={`${n.label} — غیرفعال`} />
                     </li>
                   ))}
                 </ul>
               </Panel>
               <Panel title="کانال‌ها" kicker="مسیر رسیدن اعلان‌ها به شما و مخاطبان آموزشگاه">
+                <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
+                  کانال‌های اعلان نیازمند سرور است — دامنهٔ اعلان‌ها هنوز پیاده‌سازی نشده و این تنظیمات ذخیره نمی‌شود. اتصال به ارائه‌دهندهٔ پیامک/ایمیل به سرور نیاز دارد.
+                </Surface>
                 <div className="grid gap-2 sm:grid-cols-3">
                   {[
                     { k: "sms", label: "پیامک" },
@@ -321,7 +327,7 @@ export function SettingsView() {
                   ].map((c) => (
                     <div key={c.k} className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
                       <span className="text-[13px] text-ink-50">{c.label}</span>
-                      <Toggle checked={toggles[c.k]} onChange={set(c.k)} label={c.label} />
+                      <Toggle checked={toggles[c.k]} onChange={set(c.k)} disabled label={`${c.label} — غیرفعال`} />
                     </div>
                   ))}
                 </div>
@@ -331,46 +337,49 @@ export function SettingsView() {
 
           {section === "localization" && (
             <Panel title="زبان و تقویم" kicker="پیش‌فرض‌های نمایش برای همهٔ کاربران">
+              <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
+                بومی‌سازی هنوز به دامنهٔ تنظیمات متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است و پس از بارگذاری مجدد بازنشانی می‌شود. تغییر زبان، تقویم و واحد پول به سرور و دامنهٔ تنظیمات نیاز دارد.
+              </Surface>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="زبان">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="fa">
+                  <select className={inputCls} disabled defaultValue="fa">
                     <option value="fa">فارسی</option>
                     <option value="en">English</option>
                   </select>
                 </Field>
                 <Field label="جهت نوشتار">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="rtl">
+                  <select className={inputCls} disabled defaultValue="rtl">
                     <option value="rtl">راست‌به‌چپ (RTL)</option>
                     <option value="ltr">چپ‌به‌راست (LTR)</option>
                   </select>
                 </Field>
                 <Field label="تقویم">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="jalali">
+                  <select className={inputCls} disabled defaultValue="jalali">
                     <option value="jalali">هجری شمسی</option>
                     <option value="gregorian">میلادی</option>
                   </select>
                 </Field>
                 <Field label="اولین روز هفته">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="sat">
+                  <select className={inputCls} disabled defaultValue="sat">
                     <option value="sat">شنبه</option>
                     <option value="sun">یکشنبه</option>
                   </select>
                 </Field>
-                <Field label="واحد پول" hint="فقط نمایشی">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="toman">
+                <Field label="واحد پول" hint="فقط نمایشی — غیرفعال">
+                  <select className={inputCls} disabled defaultValue="toman">
                     <option value="toman">تومان</option>
                     <option value="rial">ریال</option>
                   </select>
                 </Field>
                 <Field label="قالب اعداد">
-                  <select className={inputCls} onChange={() => setDirty(true)} defaultValue="fa">
+                  <select className={inputCls} disabled defaultValue="fa">
                     <option value="fa">ارقام فارسی (۱۲۳)</option>
                     <option value="latin">ارقام لاتین (123)</option>
                   </select>
                 </Field>
               </div>
               <div className="mt-4 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-[11.5px] leading-relaxed text-ink-300">
-                پیش‌نمایش: <span className="nums text-ink-50">سه‌شنبه ۱۹ اسفند ۱۴۰۴ · ۱۲٬۵۴۳٬۰۰۰ تومان</span>
+                پیش‌نمایش: <span className="nums text-ink-50">سه‌شنبه ۱۹ اسفند ۱۴۰۴ · ۱۲٬۵۴۳٬۰۰۰ تومان</span> — صرفاً نمایشی
               </div>
             </Panel>
           )}
@@ -383,14 +392,17 @@ export function SettingsView() {
               <RepertoirePanel />
               <GalleryPanel />
               <Panel title="قواعد جلسه" kicker="رفتار پیش‌فرض سامانه هنگام ثبت جلسات">
+                <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
+                  قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است و پس از بارگذاری مجدد بازنشانی می‌شود. اتصال به دامنهٔ زمان‌بندی واقعی به سرور نیاز دارد.
+                </Surface>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="مدت پیش‌فرض جلسه" hint="دقیقه"><input defaultValue="۶۰" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="فاصلهٔ بین جلسات" hint="دقیقه"><input defaultValue="۱۰" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="مهلت لغو بدون جریمه" hint="ساعت"><input defaultValue="۲۴" onChange={() => setDirty(true)} className={inputCls} /></Field>
-                  <Field label="سقف جلسات جبرانی در دوره"><input defaultValue="۲" onChange={() => setDirty(true)} className={inputCls} /></Field>
+                  <Field label="مدت پیش‌فرض جلسه" hint="دقیقه — غیرفعال"><input defaultValue="۶۰" disabled className={inputCls} /></Field>
+                  <Field label="فاصلهٔ بین جلسات" hint="دقیقه — غیرفعال"><input defaultValue="۱۰" disabled className={inputCls} /></Field>
+                  <Field label="مهلت لغو بدون جریمه" hint="ساعت — غیرفعال"><input defaultValue="۲۴" disabled className={inputCls} /></Field>
+                  <Field label="سقف جلسات جبرانی در دوره — غیرفعال"><input defaultValue="۲" disabled className={inputCls} /></Field>
                 </div>
                 <Surface className="mt-4 border-white/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-300">
-                  این مقادیر فقط پیش‌فرض فرم‌ها هستند و روی جلسات ثبت‌شدهٔ گذشته اثری ندارند.
+                  این مقادیر هنوز به هیچ فرم یا دامنه‌ای متصل نیستند و روی جلسات ثبت‌شدهٔ گذشته و آینده اثری ندارند — صرفاً نمایشی.
                 </Surface>
               </Panel>
               <DemoDataPanel />

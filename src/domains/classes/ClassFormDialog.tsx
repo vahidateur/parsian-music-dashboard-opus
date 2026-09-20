@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
+import { isHhMm } from "@/domains/scheduling/dateBridge";
 import type { AcademyClass } from "@/domains/classes/types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
@@ -62,7 +63,8 @@ function validate(draft: ClassDraft): FieldErrors<ClassDraft> {
   if (!draft.teacherId) errors.teacherId = "انتخاب مدرس الزامی است.";
   if (!draft.roomId) errors.roomId = "انتخاب اتاق الزامی است.";
   if (draft.days.length === 0) errors.days = "حداقل یک روز هفته را انتخاب کنید.";
-  if (!/^\d{1,2}:\d{2}$/.test(draft.time)) errors.time = "ساعت باید به شکل ۱۷:۰۰ باشد.";
+  // AUDIT-003 FIX: Reuse existing time validator isHhMm (00:00–23:59) instead of loose regex that allowed 99:99.
+  if (!isHhMm(draft.time)) errors.time = "ساعت باید به شکل ۱۷:۰۰ باشد (۰۰:۰۰ تا ۲۳:۵۹).";
 
   const duration = Number(draft.duration);
   if (!Number.isInteger(duration) || duration < 15 || duration > 240) {
@@ -102,8 +104,8 @@ export function ClassFormDialog({
   }, [catalog, academyClass]);
 
   const repository = useMemo(() => getClassRepository(), []);
-  const { items: teachers } = useTeachers({ assignableOnly: true, per_page: 200 });
-  const { items: rooms } = useRooms({ assignableOnly: true, per_page: 200 });
+  const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
+  const { items: rooms, loading: roomsLoading, error: roomsError, reload: reloadRooms } = useRooms({ assignableOnly: true, per_page: 200 });
 
   const form = useEntityForm<ClassDraft, AcademyClass>({
     initial: toDraft(academyClass),
@@ -179,6 +181,23 @@ export function ClassFormDialog({
           </p>
         )}
 
+        {teachersError && (
+          <p role="alert" className="sm:col-span-2 rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری مدرسین ناموفق بود: {teachersError.message}{" "}
+            <button type="button" className="underline" onClick={reloadTeachers}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+        {roomsError && (
+          <p role="alert" className="sm:col-span-2 rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+            بارگذاری اتاق‌ها ناموفق بود: {roomsError.message}{" "}
+            <button type="button" className="underline" onClick={reloadRooms}>
+              تلاش دوباره
+            </button>
+          </p>
+        )}
+
         <Field label="عنوان کلاس" error={form.errors.title} required className="sm:col-span-2">
           {(control) => (
             <input {...control} className={inputCls} value={form.draft.title} disabled={busy} onChange={(e) => form.set("title", e.target.value)} />
@@ -220,8 +239,8 @@ export function ClassFormDialog({
 
         <Field label="مدرس" error={form.errors.teacherId} required>
           {(control) => (
-            <select {...control} className={inputCls} value={form.draft.teacherId} disabled={busy} onChange={(e) => form.set("teacherId", e.target.value)}>
-              <option value="">— انتخاب کنید —</option>
+            <select {...control} className={inputCls} value={form.draft.teacherId} disabled={busy || teachersLoading || Boolean(teachersError)} onChange={(e) => form.set("teacherId", e.target.value)}>
+              <option value="">{teachersLoading ? "در حال بارگذاری مدرسین…" : teachersError ? "بارگذاری مدرسین ناموفق بود" : "— انتخاب کنید —"}</option>
               {teachers.map((teacher) => (
                 <option key={teacher.id} value={teacher.id}>
                   {teacher.name}
@@ -233,8 +252,8 @@ export function ClassFormDialog({
 
         <Field label="اتاق" error={form.errors.roomId} required>
           {(control) => (
-            <select {...control} className={inputCls} value={form.draft.roomId} disabled={busy} onChange={(e) => form.set("roomId", e.target.value)}>
-              <option value="">— انتخاب کنید —</option>
+            <select {...control} className={inputCls} value={form.draft.roomId} disabled={busy || roomsLoading || Boolean(roomsError)} onChange={(e) => form.set("roomId", e.target.value)}>
+              <option value="">{roomsLoading ? "در حال بارگذاری اتاق‌ها…" : roomsError ? "بارگذاری اتاق‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
               {rooms.map((room) => (
                 <option key={room.id} value={room.id}>
                   {room.name} (ظرفیت {room.capacity})

@@ -4,6 +4,7 @@ import { cn } from "@/utils/cn";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Delta, Sparkline, Surface, type Tone } from "./primitives";
+import { useMediaObjectUrl } from "@/domains/media/useMedia";
 
 /* ================================================================== */
 /* PAGE HEADER — same rhythm on every screen                           */
@@ -316,11 +317,14 @@ export function Avatar({
   size = "md",
   ring,
   className,
+  photoMediaId,
 }: {
   name: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   ring?: Tone;
   className?: string;
+  /** Optional profile photo — resolves through media repo, falls back to initials. */
+  photoMediaId?: string;
 }) {
   const initials = name.trim().split(" ").slice(0, 2).map((p) => p[0]).join("");
   const tone = avatarTones[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % avatarTones.length];
@@ -328,12 +332,37 @@ export function Avatar({
   const ringCls = ring
     ? { ok: "ring-ok-500/40", warn: "ring-warn-500/45", danger: "ring-danger-500/45", info: "ring-info-400/40", gold: "ring-gold-500/40", violet: "ring-violet-500/40", neutral: "ring-white/10" }[ring]
     : "ring-white/[0.08]";
+
+  // M-2: Teacher (and Student) photo support through existing media mechanism.
+  const url = useMediaObjectUrl(photoMediaId);
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [photoMediaId]);
+
+  const showImage = Boolean(photoMediaId && url && !imgError);
+
   return (
     <span
-      className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br font-semibold text-ink-50 ring-2", tone, dims, ringCls, className)}
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br font-semibold text-ink-50 ring-2",
+        tone,
+        dims,
+        ringCls,
+        className,
+      )}
       aria-hidden
     >
-      {initials}
+      {showImage ? (
+        <img
+          src={url}
+          alt={`تصویر ${name}`}
+          className="size-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }
@@ -797,17 +826,22 @@ export interface FieldControlProps {
 export const inputCls =
   "h-10 w-full rounded-xl border border-white/[0.08] bg-ink-850 px-3.5 text-[13px] text-ink-50 outline-none transition-colors placeholder:text-ink-500 hover:border-white/[0.14] focus:border-gold-500/50";
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      onClick={() => {
+        if (disabled) return;
+        onChange(!checked);
+      }}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-[var(--eighth)]",
         checked ? "border-gold-500/40 bg-gold-500/25" : "border-white/[0.08] bg-white/[0.05]",
+        disabled && "cursor-not-allowed opacity-50",
       )}
     >
       <span

@@ -11,6 +11,9 @@
  * values — the linked asset's byte length, the declared duration, the creation
  * timestamp — so a created row shows measurements that came from somewhere,
  * never a constant (§38).
+ *
+ * F1: added visibility + active filtering per publication status disposition —
+ * uses existing active/visibility semantics from LearningContent, no new workflow.
  */
 import type { Page } from "@/api/types";
 import { faNum } from "@/lib/format";
@@ -35,6 +38,10 @@ export class DemoLibraryRepository implements LibraryRepository {
     const rows = this.store.resources.all().filter((row) => {
       if (params.kind && row.kind !== params.kind) return false;
       if (params.instrument && row.instrument !== params.instrument) return false;
+      if (params.level && row.level !== params.level) return false;
+      if (params.visibility && row.visibility && row.visibility !== params.visibility) return false;
+      // If row has no visibility, treat as students visible (public) per default
+      if (params.visibility && !row.visibility && params.visibility !== "students") return false;
       return matchesQuery([row.title, row.composer, row.level], params.search);
     });
     return paginate(rows, params);
@@ -65,6 +72,8 @@ export class DemoLibraryRepository implements LibraryRepository {
       createdAt,
       added: addedLabel(createdAt),
       size: asset ? sizeLabel(asset.sizeBytes) : UNKNOWN_SIZE,
+      visibility: input.visibility ?? "students",
+      active: input.active ?? true,
       ...(input.pages !== undefined ? { pages: input.pages } : {}),
       ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
       ...(input.peaks ? { peaks: input.peaks } : {}),
@@ -87,6 +96,8 @@ export class DemoLibraryRepository implements LibraryRepository {
       ...(input.level !== undefined ? { level: input.level.trim() } : {}),
       ...(input.pages !== undefined ? { pages: input.pages } : {}),
       ...(input.peaks !== undefined ? { peaks: input.peaks } : {}),
+      ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      ...(input.active !== undefined ? { active: input.active } : {}),
       ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
     };
 

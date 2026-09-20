@@ -25,6 +25,10 @@ import { useLevels, usePrograms } from "./useLearning";
 import type { LearningLevel, LearningProgram } from "./types";
 import { cn } from "@/utils/cn";
 
+function partialNote(name: string, shown: number, total: number): string | null {
+  return total > shown ? `${name}: ${shown} ردیف از ${total} — برای بارگذاری کامل نیاز به سرور است.` : null;
+}
+
 /** Inline "add" row shared by the program and level lists. */
 function QuickAdd({
   label,
@@ -81,9 +85,10 @@ function QuickAdd({
 
 export function LearningPanel() {
   const { notify } = useApp();
-  const { items: instruments } = useInstruments({ per_page: 200 });
+  const { items: instruments, loading: instrumentsLoading, error: instrumentsError, reload: reloadInstruments } = useInstruments({ per_page: 200 });
   const {
     items: programs,
+    total: programsTotal,
     loading,
     error,
     reload,
@@ -101,7 +106,7 @@ export function LearningPanel() {
     if (selected && selected.id !== selectedId) setSelectedId(selected.id);
   }, [selected, selectedId]);
 
-  const { items: levels, loading: levelsLoading } = useLevels(
+  const { items: levels, total: levelsTotal, loading: levelsLoading, error: levelsError, reload: reloadLevels } = useLevels(
     selected ? { programId: selected.id, per_page: 200 } : { per_page: 0 },
   );
 
@@ -222,7 +227,7 @@ export function LearningPanel() {
     });
   };
 
-  if (loading)
+  if (loading || instrumentsLoading)
     return <LoadingState className="py-16" label="در حال بارگذاری دوره‌ها…" />;
   if (error)
     return (
@@ -231,6 +236,15 @@ export function LearningPanel() {
         title="بارگذاری دوره‌ها ناموفق بود"
         description={error.message}
         onRetry={reload}
+      />
+    );
+  if (instrumentsError)
+    return (
+      <ErrorState
+        className="py-16"
+        title="بارگذاری سازها ناموفق بود"
+        description={instrumentsError.message}
+        onRetry={reloadInstruments}
       />
     );
 
@@ -275,6 +289,9 @@ export function LearningPanel() {
               ))}
             </ul>
           )}
+          {programsTotal > programs.length && (
+            <p className="mt-2 text-[11px] text-ink-400">{partialNote("دوره‌ها", programs.length, programsTotal)}</p>
+          )}
           <QuickAdd
             label="دورهٔ جدید"
             placeholder="مثلاً دورهٔ مقدماتی سنتور"
@@ -301,7 +318,13 @@ export function LearningPanel() {
                 </h3>
               </div>
 
-              {levelsLoading ? (
+              {levelsError ? (
+                <ErrorState
+                  title="بارگذاری سطوح ناموفق بود"
+                  description={levelsError.message}
+                  onRetry={reloadLevels}
+                />
+              ) : levelsLoading ? (
                 <LoadingState label="در حال بارگذاری سطوح…" />
               ) : levels.length === 0 ? (
                 <EmptyState
@@ -378,6 +401,9 @@ export function LearningPanel() {
                     </li>
                   ))}
                 </ul>
+              )}
+              {selected && levelsTotal > levels.length && (
+                <p className="mt-2 text-[11px] text-ink-400">{partialNote("سطوح", levels.length, levelsTotal)}</p>
               )}
 
               <QuickAdd

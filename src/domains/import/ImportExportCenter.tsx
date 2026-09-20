@@ -8,13 +8,15 @@
  * default commit mode refuses to write anything if the file contains invalid
  * rows. Nothing is uploaded to a server: parsing happens in the browser.
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/domains/auth/AuthContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Panel, Segmented } from "@/components/ds/patterns";
 import { EmptyState } from "@/components/ds/states";
-import { EXPORT_LABELS, downloadTable, exportEntity, type ExportEntity, type ExportFormat } from "@/domains/export/exportService";
+import { EXPORT_LABELS, EXPORT_PERMISSIONS, downloadTable, exportEntity, type ExportEntity, type ExportFormat } from "@/domains/export/exportService";
+import { can } from "@/domains/auth/permissions";
 import { cn } from "@/utils/cn";
 import { MAX_FILE_BYTES, SpreadsheetError, parseSpreadsheet, type SheetData } from "./spreadsheet";
 import {
@@ -35,6 +37,7 @@ const PREVIEW_ROWS = 8;
 
 export function ImportExportCenter() {
   const { notify } = useApp();
+  const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("upload");
@@ -49,6 +52,23 @@ export function ImportExportCenter() {
 
   const [exportEntityName, setExportEntityName] = useState<ExportEntity>("students");
   const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
+
+  // Permission-filtered entity options — M2 rule: no control if forbidden, hide option if no perm
+  const allowedEntities = useMemo(
+    () =>
+      (Object.keys(EXPORT_LABELS) as ExportEntity[]).filter((key) => {
+        const perm = EXPORT_PERMISSIONS[key];
+        return !perm || can(user as any, perm);
+      }),
+    [user],
+  );
+
+  // Keep selected entity within allowed set — M2 rule
+  useEffect(() => {
+    if (allowedEntities.length > 0 && !allowedEntities.includes(exportEntityName)) {
+      setExportEntityName(allowedEntities[0]);
+    }
+  }, [allowedEntities, exportEntityName]);
 
   const reset = () => {
     setStep("upload");
@@ -118,13 +138,22 @@ export function ImportExportCenter() {
   );
 
   const runExport = async () => {
+    // M2 rule: no control if forbidden — permission guard before export
+    const required = EXPORT_PERMISSIONS[exportEntityName];
+    if (required && !can(user as any, required)) {
+      notify({ tone: "danger", title: "دسترسی ندارید", detail: `برای خروجی ${EXPORT_LABELS[exportEntityName]} به مجوز ${required} نیاز است.` });
+      return;
+    }
     setBusy(true);
     try {
-      const count = await exportEntity(exportEntityName, exportFormat);
+      const result = await exportEntity(exportEntityName, exportFormat);
+      const detail = result.truncated
+        ? `${result.count} ردیف از ${result.total} — خروجی به سقف ۱۰۰۰ ردیف محدود شد. برای مجموعه‌های بزرگ، سرور باید صفحه‌بندی کند.`
+        : `${result.count} سطر از ${EXPORT_LABELS[exportEntityName]} در قالب ${exportFormat.toUpperCase()} دانلود شد.`;
       notify({
-        tone: "success",
-        title: "خروجی آماده شد",
-        detail: `${count} سطر از ${EXPORT_LABELS[exportEntityName]} در قالب ${exportFormat.toUpperCase()} دانلود شد.`,
+        tone: result.truncated ? "warn" : "success",
+        title: result.truncated ? "خروجی با محدودیت" : "خروجی آماده شد",
+        detail,
       });
     } catch {
       notify({ tone: "danger", title: "تهیهٔ خروجی ناموفق بود", detail: "دادهٔ فعلی خوانده نشد." });
@@ -137,34 +166,41 @@ export function ImportExportCenter() {
     <div className="grid gap-4">
       {/* ---------------- Export ---------------- */}
       <Panel title="خروجی گرفتن" kicker="بر اساس وضعیت فعلی داده‌ها، نه دادهٔ نمونه">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-ink-200">موجودیت</span>
-            <Segmented
-              value={exportEntityName}
-              onChange={setExportEntityName}
-              options={(Object.keys(EXPORT_LABELS) as ExportEntity[]).map((key) => ({ value: key, label: EXPORT_LABELS[key] }))}
-            />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-medium text-ink-200">قالب</span>
-            <Segmented
-              value={exportFormat}
-              onChange={setExportFormat}
-              options={[
-                { value: "csv", label: "CSV" },
-                { value: "xlsx", label: "Excel" },
-              ]}
-            />
-          </label>
-          <Button variant="primary" onClick={() => void runExport()} disabled={busy}>
-            <Download className="size-3.5" /> دانلود خروجی
-          </Button>
-        </div>
-        <p className="mt-3 text-[11.5px] leading-relaxed text-ink-400">
-          خروجی CSV با BOM ذخیره می‌شود تا اکسل متن فارسی را درست بخواند. مقادیری که با «=» یا «+» شروع شوند به‌صورت متن ذخیره می‌شوند تا
-          به‌عنوان فرمول اجرا نشوند.
-        </p>
+        {allowedEntities.length === 0 ? (
+          <p className="text-[12px] text-ink-400">برای هیچ موجودیتی مجوز خروجی ندارید.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-ink-200">موجودیت</span>
+                <Segmented
+                  value={exportEntityName}
+                  onChange={setExportEntityName}
+                  options={allowedEntities.map((key) => ({ value: key, label: EXPORT_LABELS[key] }))}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-medium text-ink-200">قالب</span>
+                <Segmented
+                  value={exportFormat}
+                  onChange={setExportFormat}
+                  options={[
+                    { value: "csv", label: "CSV" },
+                    { value: "xlsx", label: "Excel" },
+                  ]}
+                />
+              </label>
+              <Button variant="primary" onClick={() => void runExport()} disabled={busy}>
+                <Download className="size-3.5" /> دانلود خروجی
+              </Button>
+            </div>
+            <p className="mt-3 text-[11.5px] leading-relaxed text-ink-400">
+              خروجی CSV با BOM ذخیره می‌شود تا اکسل متن فارسی را درست بخواند. مقادیری که با «=» یا «+» شروع شوند به‌صورت متن ذخیره می‌شوند تا
+              به‌عنوان فرمول اجرا نشوند. خروجی به سقف ۱۰۰۰ ردیف محدود است — اگر داده بیشتر باشد «N ردیف از M» نمایش داده می‌شود و سرور باید
+              صفحه‌بندی کند.
+            </p>
+          </>
+        )}
       </Panel>
 
       {/* ---------------- Import ---------------- */}
