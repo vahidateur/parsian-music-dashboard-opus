@@ -1693,8 +1693,37 @@ any notification and the server are still unbuilt (**I20**); the compensation su
 in the same workstream (`fc83d6d`, hardened at `79fd44e`/`79ec13d`) **does** render `studentOnRoster`, as
 the per-read disclosure this decision describes and never as a gate.
 
+## 20. Backend governance checkpoint (2026-09-20) — recorded, not implemented
+
+**Decision.** Laravel-bound product decisions from the 2026-09-20 architecture audits are recorded
+in [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md). They use IDs **T-02** and **O-*** (plus
+PERF / HELP). They **do not** amend D1–D20 above and **do not** authorize backend or frontend
+implementation.
+
+**Why.** This workspace’s D1–D20 register is the frontend product-phase ledger. The T-02 / O-*
+closures were session audits against frozen frontend evidence and were not previously written into
+`docs/engineering/`. Without a durable file they evaporate; stuffing them into D1–D20 would collide
+IDs (D7 accessibility ≠ O-07 tickets; D15 attachment-reference ≠ O-15 API envelope).
+
+**Enforced by.** [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md) (index + conditions). No
+Laravel, migration, or `src/` change is part of this record.
+
+**Status.** ✅ Recorded 2026-09-20 as documentation. Backend ❌ not built.
+
+Closed for Laravel *policy* (still unimplemented): T-02 ASSIGNED-ONLY; O-12 DUAL TRANSPORT; O-13
+portal = separate guard / same `users` (credential factor OPEN); O-10/O-11 chat_id→user+org
+(uniqueness/UX OPEN); O-08 / O-09/O-20 / O-14 / O-16 / O-18 / O-15 / PERF = ACCEPT WITH CONDITIONS.
+KEEP OPEN (no v1 domain): O-07 tickets, O-17 notifications, O-19 retention numbers, Help/KB/AI.
+
+Performance (PERF) remains an **ongoing operational requirement**, not a v1 schema gate: Measure →
+Profile → Bottleneck → Change → Re-measure; paginate with a server `per_page` cap; tenant/T-02/O-13
+in SQL; indexes only for real filters/FKs/uniques; time-bounded session queries; media bytes off the
+Laravel path; backup/restore/large export as async jobs; keep frontend code-splitting; audit off the
+read hot path; do not add Redis, Elasticsearch, WebSocket, CDN, or microservices now.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and
 link it from [PROJECT_STATE.md](PROJECT_STATE.md) §6 if it is test-protected. A decision nobody
-can point at in code is a wish, not a decision.
+can point at in code is a wish, not a decision. Laravel-bound T-02 / O-* closures go in
+[GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md), not as new D-numbers.
