@@ -1,5 +1,29 @@
 # 12 — Decision Register — CORRECTED 2026-09-19
 
+> ## ⚠️ ID NAMESPACE — this file's `D1` / `D2` are **NOT** `docs/engineering/DECISIONS.md` `D1` / `D2`
+>
+> **This register uses its own identifier namespace**, which is **separate** from the canonical
+> engineering register [`docs/engineering/DECISIONS.md`](../engineering/DECISIONS.md) **D1–D20**.
+> The two are not linked, not aliases, and must not be cross-cited as if they were.
+>
+> | ID here (frontend-completion namespace) | ID there (canonical engineering namespace) |
+> |---|---|
+> | **`D1`** — *Student Role Not In Admin Panel* (this file, and `docs/engineering/DECISIONS.md`-style shorthand in the F-series docs) | **`D1`** — *Student role — deferred, not designed* ([DECISIONS.md](../engineering/DECISIONS.md) §19). **Same subject, different register and different recorded reasoning — not the same entry.** |
+> | **`D2`** — branding / identity in the frontend-completion sense | **`D2`** — *Branding is the source of truth for the academy identity* ([DECISIONS.md](../engineering/DECISIONS.md) §19), recorded 2026-09-16, shipped default name **«آموزشگاه موسیقی پارسیان»**. **The canonical `D2` governs**; this register's entry does not override it. |
+>
+> **Rule.** Where the two disagree, **`docs/engineering/DECISIONS.md` wins** — it is the durable
+> architecture record. The substantive decisions in *both* registers are **unaltered**: this note
+> clarifies naming only.
+>
+> **Same collision class the governance checkpoint already fixed for `T-02` / `O-*`:**
+> `D7` (accessibility) ≠ `O-07` (tickets) and `D15` (attachment reference) ≠ `O-15` (API envelope).
+> See [`docs/engineering/GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) and
+> [`docs/engineering/DECISIONS.md`](../engineering/DECISIONS.md) §20.
+>
+> **Live `O-*` / `T-02` status is governed by `GOVERNANCE_CHECKPOINT.md` (2026-09-20)** — the
+> `O-01..O-20` wording carried inside this register's sibling
+> [`13-open-decisions.md`](13-open-decisions.md) is a **historical F0 / 2026-09-19 snapshot**.
+
 > ID/Title/Status/Date/Context/Evidence/Decision/Alternatives/Why/Consequences/Frontend/Backend/Reversibility/Follow-up ACCEPTED/PROVISIONAL/OPEN/DEFERRED + 3 agent proposals — unique IDs — canonical engineering docs point same active branch/SHA/spec PR #4 F0 complete F1 next — classification correction Telegram backup/student access/Bale/Mobile = REQUIRED PRODUCT CAPABILITY IMPLEMENTATION deferred until backend/integration layer exists
 
 > **CORRECTION 2026-09-19 — Classification + SHA SEMANTICS CORRECTION 2026-09-19:** Telegram backup = REQUIRED PRODUCT CAPABILITY, Telegram student access = REQUIRED, Bale student access = REQUIRED, Mobile student client = REQUIRED — IMPLEMENTATION may remain deferred until backend/integration layer exists — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile, no business logic in bots — previous wording "C DEFERRED (or B if product needs)" corrected to REQUIRED — see 10-integration-architecture.md, 13-open-decisions.md, docs/engineering/ OPEN_ITEMS.md PROJECT_STATE.md PHASES.md SESSION_HANDOFF.md — canonical engineering docs updated same CURRENT_BRANCH `arena/frontend-completion-spec` CURRENT_HEAD `a251e6942b2a645987286de6e822607554e84df9` PLANNING_CHECKPOINT `e57bf1922e4ca3b80796715028445cfe8a077c9c` PREVIOUS_PLANNING_CHECKPOINT `c244fec142fcc35faff8e8548c8ebbc05cb53bf5` PREVIOUS_CORRECTION_COMMITS `a251e6942b2a645987286de6e822607554e84df9` spec `docs/frontend-completion/` v14 @ `e57bf19` planning checkpoint + corrections + SHA semantics correction PR #4 F0 COMPLETE + corrections + SHA semantics correction F1 NEXT — SHA semantics no longer ambiguous: CURRENT_HEAD = actual Git HEAD (9695097 before this correction), PLANNING_CHECKPOINT = last planning checkpoint (e57bf19), PREVIOUS_PLANNING_CHECKPOINT = historical only (c244fec), PREVIOUS_CORRECTION_COMMITS = documentation-only NOT planning milestone (9695097) — decision IDs unique D1..D20 B1 NEW-LRN-01/LIB-01/GAL-01/SET-01/EXP-01/DASH-01/RBAC-01/PORTAL-01/CHAT-01/TG-01/BALE-01/MOB-01/CLASS-01 + PROP-BRAND-01/PROP-LIB-01/PROP-THEME-01 O-01..O-20 — RBAC T-02 OPEN CURRENT OBSERVED DENIED PRODUCT DECISION OPEN — NEXT ACTION exactly ONE F1 — do NOT change product decisions

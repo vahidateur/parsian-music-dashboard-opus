@@ -14,13 +14,13 @@ this file.
 
 | Fact | Value |
 |---|---|
-| Current branch | `arena/01a0bf6d-parsian-music-dashboard-opus` |
+| Current branch | `arena/01a0bf6d-parsian-music-dashboard-opus` — *at the time of this record; **superseded: the canonical branch is now `main`*** |
 | Current HEAD (governance checkpoint; parent of this handoff) | `374cc479e34d4fb7af3e27bcf2455480dc1f286e` |
 | Working tree at record | **clean** of product/WIP implementation (docs-only line) |
 | Governance checkpoint | `374cc47` — `docs: synchronize governance decision closure checkpoint` |
 | Frozen frontend source of truth | PR #4 / `arena/frontend-completion-spec` @ `f00f85e6f817369a32b8921ffb64f58e17ea154e` |
 | Freeze ancestor | `02b74996e6458d10a5d9e8d1023890239342c4e4` (`docs: freeze Arena frontend checkpoint`) |
-| GitHub default branch | `main` @ `a6469759fea743b9332702bb9a20e69fc4abc1be` (**protected**) |
+| GitHub default branch | `main` @ `a6469759fea743b9332702bb9a20e69fc4abc1be` (**protected**) — *at the time of this record; **superseded 2026-09-20: `main` is now `f63ebaab37096fcb25063aca51c713e26d3b3da7`** (PR #5 merged). `a646975` remains an ancestor.* |
 | Local clone | **shallow / grafted**. Local `merge-base` / ahead-behind vs `main` is untrustworthy. |
 | Remote ancestry | **GitHub API / `git ls-remote` are authoritative.** Do not treat this clone’s object graph as complete. `f00f85e` is **not** in this clone. |
 
@@ -173,7 +173,7 @@ Deleted already (do not revive): `arena/01a07c61-…` (PR #2 closed; tip ancesto
 | Field | Value |
 |---|---|
 | Number | [#4](https://github.com/vahidateur/parsian-music-dashboard-opus/pull/4) |
-| State | **OPEN** (not merged) |
+| State | **CLOSED — NEVER MERGED** *(as of 2026-09-20; recorded here as "OPEN" when this section was written — its line was integrated into `main` by PR #5 instead)* |
 | Base | `arena/01a0b6be-parsian-music-dashboard-opus` (**not** `main`) |
 | Head | `arena/frontend-completion-spec` @ `f00f85e6f817369a32b8921ffb64f58e17ea154e` |
 | Role | **The only live frontend-completion vehicle** |
@@ -188,6 +188,27 @@ Other PRs: #3 MERGED into `main`; #1 MERGED; #2 CLOSED unmerged (work later on `
 ---
 
 ## 9. Current decision
+
+> **✅ DISCHARGED — Git consolidation is COMPLETE (2026-09-20).** The verdict below is preserved as
+> the state at the time this handoff was written; it is **no longer current**.
+>
+> **What happened:** PR #5 *Consolidate frontend F0–F10 + governance into main* was **MERGED** on
+> 2026-09-20T21:11:18Z, producing `main` @ `f63ebaab37096fcb25063aca51c713e26d3b3da7`. **PR #4 was
+> CLOSED, never merged**; its line `f00f85e6f817369a32b8921ffb64f58e17ea154e` reached canonical
+> history through PR #5's merge commit `112f1160104d375481b930517d08592bb67a0a72`. The canonical tip
+> now contains **all five** things this section listed as split across branches: the freeze line
+> (M-1..M-6, D7, D9), the PR #4 F0–F10 work, the `374cc47`-era governance checkpoint, the frontend
+> product-completion docs, and the archived historical handoff. **No history was rewritten** — the
+> advance was merge-only, and `a6469759fea743b9332702bb9a20e69fc4abc1be` remains `main`'s previous
+> tip and an ancestor.
+>
+> **Gate outcome:** the pre-Laravel condition in §10 step 14 / §11 below is **satisfied**, so
+> **Laravel/backend may be planned only after the documentation gate (D1/D2) completes and the owner
+> authorizes it explicitly.** It remains ❌ **NOT STARTED and NOT AUTHORIZED** today. The data-loss
+> warning in §12 is resolved: every item it listed as unique/remote-only is preserved and reachable.
+> See [PHASES.md](PHASES.md) → "Consolidation — 2026-09-20".
+
+*Historical verdict, as written on 2026-09-20 — kept for provenance, not current:*
 
 > **Git consolidation is NOT yet safe.**
 >
@@ -228,6 +249,13 @@ The next session must continue in **this order**:
 
 ## 11. Do not start Laravel
 
+> **Status 2026-09-21: the consolidation this section awaited is COMPLETE** (§9). The condition below
+> is therefore **satisfied** — but satisfying it is a **precondition, not a work order**.
+> **Laravel/backend remains ❌ NOT STARTED and NOT AUTHORIZED**, and may begin only after the
+> documentation gate (D1/D2) is complete and the owner authorizes it explicitly.
+
+*Historical statement of the gate, as written on 2026-09-20 — kept for provenance:*
+
 > Laravel/backend implementation MUST NOT start before Git consolidation is complete, the
 > canonical branch is established, unique work is preserved, unnecessary branches are removed,
 > and the final Git baseline is clean.
@@ -239,6 +267,13 @@ schema gate.
 ---
 
 ## 12. Data-loss warning
+
+> **✅ RESOLVED 2026-09-20.** Consolidation completed (PR #5 merged into `main`). Every item the
+> table below lists as unique or remote-only is **preserved and reachable** on the canonical tip:
+> `f00f85e6f817369a32b8921ffb64f58e17ea154e`, `02b74996e6458d10a5d9e8d1023890239342c4e4`,
+> `112f1160104d375481b930517d08592bb67a0a72` and `59fdacf9606fdc2ded3f060603405f94c7408d30` were
+> all re-verified against GitHub, and the archive below is present on `main`. The table is kept as
+> the state at the time of writing.
 
 The following are currently **unique and/or remote-only** and **must be preserved**:
 
