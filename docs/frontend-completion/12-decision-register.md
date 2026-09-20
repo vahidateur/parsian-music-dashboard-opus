@@ -221,7 +221,7 @@
 
 - **ID:** B1
 - **Title:** Laravel domain structure mirrors frontend domains, Sanctum cookie primary + bearer fallback
-- **Status:** PROVISIONAL (from PROJECT_STATE.md)
+- **Status:** **DECIDED** (2026-09-21 pre-start decision pass — resolved from PROVISIONAL; historical status text preserved: “PROVISIONAL (from PROJECT_STATE.md)”)
 - **Date:** 2025-10-13
 - **Context:** Integration boundary Core API->Auth+RBAC->Domain Services
 - **Evidence:** ApiClient Bearer, isApiMode, OrganizationScope, apiErrorFromThrown — VERIFIED
@@ -231,8 +231,8 @@
 - **Consequences:** Mobile app client of same backend, no second API
 - **Frontend:** ApiClient already bearer, needs cookie support later
 - **Backend:** Laravel with Sanctum, OrganizationScope, per-object auth
-- **Reversibility:** provisional — can adjust auth method
-- **Follow-up:** Resolve before backend start — open decision
+- **Reversibility:** decided — the architecture is fixed for Laravel v1; changing the transport or the tenancy model requires a new decision, it is no longer an open provisional choice (historical wording preserved: “provisional — can adjust auth method”)
+- **Follow-up:** RESOLVED 2026-09-21 — see “Pre-start resolution pass — 2026-09-21” at the end of this file (historical wording preserved: “Resolve before backend start — open decision”). Resolution is an **architecture** decision only and is **not** implementation authorization.
 
 ## NEW — Learning Eligibility Canonical Owner
 
@@ -502,3 +502,129 @@
 - **Scope:** Frontend types + UI labels + localStorage key
 - **Backend impact:** None for viewer accent (device-local), org accent is branding table
 - **Follow-up:** Open decision
+
+---
+
+## Pre-start resolution pass — 2026-09-21 — documents only
+
+> **What this section is.** A single dated pass that closes the *documentation* items a read-only
+> backend-architecture gate found open before any Laravel work. It adds **no new register**, no new
+> D-number, and no new product decision. `O-07`…`O-20`, `T-02`, `PERF` and `HELP` keep their statuses in
+> [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) (reached from
+> [`DECISIONS.md`](../engineering/DECISIONS.md) **§20**), which this pass does **not** modify.
+> `O-01`…`O-06` are supplied here because that checkpoint’s index does not carry them and their only
+> previous status lines lived in the superseded F0 snapshot [`13-open-decisions.md`](13-open-decisions.md).
+>
+> **What this section is not.** It is **not** implementation authorization (see §“Implementation
+> authorization gate” below), and it is **not** a commitment that any of these decisions can be *acted on*
+> yet.
+>
+> **Identifier caution.** `B1` below means **this register’s `B1` — Laravel Domain Structure**. The
+> `B1` / `B2` recorded in [`PROJECT_STATE.md`](../engineering/PROJECT_STATE.md) and
+> [`PHASES.md`](../engineering/PHASES.md) are an **unrelated M4 audit’s acceptance-coverage findings**
+> (`df70148…`) and must not be conflated with this entry.
+>
+> **Historical reports keep their historical wording.** `F7_REPORT.md`, `F8_REPORT.md`,
+> `F10_INVENTORY.md` and the superseded F0 snapshot state `B1 PROVISIONAL` and `O-01 OPEN` as they stood
+> when written. They record the past accurately and are **not** updated by this pass.
+
+### 1. B1 — Laravel Domain Structure — RESOLVED (DECIDED)
+
+**Status:** DECIDED (2026-09-21). Recorded from PROVISIONAL, with the original evidence fields above left intact.
+
+**The decided architecture (unchanged in substance from B1’s own `Decision` field; this restates it as
+current law, it does not extend it):**
+
+- Laravel backend domain structure **mirrors the established frontend domain boundaries where appropriate**.
+- **One `/api/v1` API.** No second API for mobile, no parallel web API.
+- **Sanctum cookie is the web transport**; **Bearer** authentication supports the mobile client
+  (token in OS secure storage — never `localStorage`). One user identity across both.
+- **Organization / tenant scope derives from the authenticated principal** (never from the request).
+- **The server-side role/permission matrix is authoritative**; frontend guards stay UX-only.
+- **Authorization is enforced server-side through policy/query boundaries** — never by loading rows and
+  filtering in application code.
+- **No generic CRUD architecture** (aligns with `O-15`: no universal CRUD, no GraphQL).
+- **No microservices and no speculative infrastructure** (aligns with `PERF`: no Redis, Elasticsearch,
+  WebSocket, CDN).
+
+**What this resolution is not:** it is not authorization to begin implementation, and it is not a licence
+to invent detail beyond the list above. The transport caveat in §3 below stays live until the client is
+reconciled.
+
+### 2. O-01…O-06 — current status (narrowest lawful clarification)
+
+Each row states what the **existing** authority already fixes, and what — if anything — still needs a
+decision. Nothing here is copied from the superseded snapshot; each status is derived from a named
+authority. **“Prerequisite”** means: do not create the affected table/relation until this is closed.
+
+| ID | Topic | Current status | Authority / basis | Backend prerequisite |
+|---|---|---|---|---|
+| `O-01` | Student level scope (global vs per-program vs per-instrument) | **OPEN — narrowed.** Global is excluded by evidence (it cross-leaks between instruments — violin classic L3 would grant piano L3 — and it contradicts the program-scoped attach-intent guard); the live choice is the **implemented per-program** form vs **per-instrument**. **Must be resolved before backend.** | `04-learning-access-policy.md` §“Per-Program / Instrument Scope — OPEN Decision O-01” (“do not invent this decision”, “high-cost decision before Laravel schema — must resolve O-01 before backend”); `NEW-LRN-01` ACCEPTED fixes the canonical rule (“per-program/instrument scope”, placement per `(student,program)` VERIFIED) | **Yes** — determines the key of `student_placements`. Do **not** use `production-handoff.md:155`’s `UNIQUE(student_id)` sketch: it contradicts the verified one-active-placement-per-`(student,program)` model. |
+| `O-02` | Library resource level: string vocabulary vs relation to `LearningLevel` | **OPEN — narrowed to the storage question.** The separation of *Library Resource* (catalogue) from *Learning Content* (curriculum) is settled and verified in the shipped model: two types, two owners, different visibility/eligibility. Whether `LibraryItem.level` stays a display string or gains a `level_id` FK is **not** decided. | `NEW-LIB-01` PROVISIONAL (“Reversibility: provisional — level relation decision pending”); `PROP-LIB-01` OPEN (proposal: keep the string, add a nullable relation later); `06-library-gallery-spec.md` (two concepts, VERIFIED) | **Yes** — the library table’s level column shape (`level` string vs `level_id` FK). |
+| `O-03` | Visibility field for Library / Gallery | **Library: DISCHARGED** — decided *and already implemented*: publication status uses the existing `active` + `visibility` (students/teachers) semantics, no new workflow. **Gallery: OPEN** — no visibility field exists; “public demo” is the current placeholder. | F1 publication-status disposition (`06-library-gallery-spec.md`, VERIFIED) + shipped `src/domains/library/types.ts` (`visibility?`, `active?`); gallery: `NEW-GAL-01` PROVISIONAL follow-up “visibility permission decision”, `06` “OPEN — for now public demo” | **Yes for the Library** — the client already models and filters `visibility`, so the server must persist `active` + `visibility` (and filter them in SQL) or its own contract is unimplementable. **Yes for Gallery** before a gallery visibility column/filter exists. |
+| `O-04` | Theme persistence: org vs device-local | **DISCHARGED for v1 — device-local.** Branding is org data; appearance/theme/accent/density/motion is device-local per browser. An *org default theme* is explicitly a **later, optional** change requiring a decision — not a v1 item. | Canonical `D2` (`DECISIONS.md` §19: branding is the source of truth for academy identity) + this register’s `D2` ACCEPTED (“organizations table + branding_settings, appearance stays localStorage”; “reversible — can add org theme optional later with decision”) | No — v1 carries no `default_theme`. (`PROP-THEME-01`’s viewer-vs-org accent *naming* clarification stays an open proposal and does not affect persistence.) |
+| `O-05` | Export formats | **DISCHARGED for v1 — the implemented set stands** (CSV/XLSX tabular; chat export stays single-conversation TXT per `D14`). PDF requires the Finance/Reports domain and stays **deferred** with `D6`/`I2`. Any *additional* format is a new decision, not an implementation choice. | Canonical `D6` (Finance/Reports deferred), `D14` (no new verb, chat TXT, metadata only), `08-export-architecture.md` (format table + “Future: PDF? Deferred C”), `O-15` (downloads raw/signed, never JSON-wrapped) | No — but large exports are async jobs and must not stream bytes through the Laravel request path (`PERF`). |
+| `O-06` | Permission for dashboard / analytical export | **DISCHARGED for v1 — the view’s own permission, no new permission.** Analytical/dashboard export requires the same permission as the view it exports (`students.read` today, as `viewPermissions` already maps). Introducing `reports.read` or a new `dashboard.export` would be a **new decision** and needs a proven gap. | `NEW-RBAC-01` ACCEPTED (“smallest permission model”, “new permissions without gap (expands)” rejected); `05-rbac-access-control.md` / `viewPermissions` mapping dashboard → `students.read` VERIFIED | No (no schema change) — but the permission must be enforced **server-side** on the export endpoint, not only in the client guard. |
+
+**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; **`O-01`,
+`O-02`, and the Gallery half of `O-03` stay genuinely open and are prerequisites** for the tables they
+touch. No product decision was invented in reaching any of these statuses.
+
+### 3. O-12 — web transport: recorded pre-start integration requirement (decision unchanged)
+
+**Governance is unchanged and is not reinterpreted here.** `O-12` = one identity, one `/api/v1`;
+**web = Sanctum cookie + CSRF**; **mobile = Bearer** in OS secure storage.
+
+**The actual state of the client today (read-only evidence):** `src/api/client.ts` is a Bearer-oriented
+JSON boundary — it attaches `Authorization: Bearer …` from an injectable token provider, sends **no**
+`credentials: "include"`, performs **no** CSRF/XSRF token exchange, and has no cookie awareness anywhere;
+`deploy/` carries no CORS configuration (same-origin only) and already proxies `/api/*` to
+`127.0.0.1:8080` with login rate limiting.
+
+**Requirement recorded:** the first authenticated **web** implementation must **not** claim full `O-12`
+compliance until that client transport is reconciled. Either the server is built to the governed
+cookie + CSRF half (and the client gains cookie/CSRF support), or the web half temporarily ships
+Bearer-only as an **explicitly recorded deviation**. Choosing between those two is **not** decided by this
+pass: it is a known integration requirement to be closed before the first authenticated web release.
+
+**Freeze policy is untouched.** No reopening of the frontend freeze is decided here, and none is implied;
+if the chosen path requires a client change, the existing freeze rule applies unchanged (an explicit
+decision is required first). This pass writes no `src/` file.
+
+### 4. Tenant enforcement — one authoritative seam (implementation-level decision)
+
+**Decision.** Before the first organisation-scoped domain query is written, the backend establishes
+**one** authoritative tenant-enforcement seam — a deliberately documented **combination** of a
+query-layer scope and the policy layer, with the following invariants preserved:
+
+- **Organisation from the authenticated principal only.** The acting org is resolved from the session /
+  token. Never from a request body, header, query parameter, or route segment — a client may not select
+  its own tenant.
+- **Fail-closed.** Absence of a resolvable organisation (unauthenticated, suspended org, unknown
+  principal) **denies**; it never broadens. A scoped query that reaches an organisation-owned model
+  without the seam applied is a **defect**, not a default-allow.
+- **Owner-per-rule preserved (D5).** Row visibility (which org's rows may be seen) belongs to the query
+  seam; object-level, role and scope authorization belongs to policy/query boundaries. Neither layer
+  re-derives the other's decision from request input.
+- **T-02 assigned-only is part of the seam, not a caller's responsibility.** Teacher student-read =
+  *active enrolment ∩ `class.teacherId`*, enforced in query/policy, fail-closed. `Student.teacherId` is
+  **not** authorization. It must not be ported from any frontend convenience path that fails open.
+- **No second tenancy model.** v1 keeps many users : one org via `users.organization_id` (`O-14`); no
+  membership pivot; no super-admin switcher; no "load-then-filter" anywhere; no `owner_id` as a
+  substitute for tenant scope (`O-08`).
+
+**Status.** Recorded 2026-09-21 as an architecture decision — **no code is part of it.** Naming,
+framework mechanics and file layout are implementation detail and are deliberately not fixed here.
+
+### 5. Implementation authorization gate — unchanged and CLOSED
+
+**Architecture decisions ≠ implementation authorization.**
+
+- Laravel / backend implementation is **NOT STARTED and NOT AUTHORIZED**.
+- This pass **grants no authorization**; it removes documentation ambiguity only.
+- B1 resolved to DECIDED does **not** start the backend, and no item above is a green light.
+- The next phase still requires an **explicit owner authorization**, as
+  [`DECISIONS.md`](../engineering/DECISIONS.md) §20 and
+  [`SESSION_HANDOFF.md`](../engineering/SESSION_HANDOFF.md) §4 already require.
+- This pass changed documentation only: **no** `src/`, test, package/dependency, deployment or backend
+  file; **no** commit was made by it.
