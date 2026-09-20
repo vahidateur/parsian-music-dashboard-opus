@@ -1729,6 +1729,25 @@ in SQL; indexes only for real filters/FKs/uniques; time-bounded session queries;
 Laravel path; backup/restore/large export as async jobs; keep frontend code-splitting; audit off the
 read hot path; do not add Redis, Elasticsearch, WebSocket, CDN, or microservices now.
 
+### Pre-start decision pass (2026-09-21) — pointer, amends no D-entry
+
+**Decision.** A documents-only pass closed the documentation items a read-only backend-architecture gate
+found open before Laravel work: **`B1` (Laravel Domain Structure)** was resolved from PROVISIONAL to
+**DECIDED** in [12-decision-register.md](../frontend-completion/12-decision-register.md) — that file's
+`B1`, **not** the unrelated M4 audit `B1`/`B2` in [PROJECT_STATE.md](PROJECT_STATE.md); the live status of
+**`O-01`…`O-06`** (which the 2026-09-20 checkpoint's index does not carry) was recorded there, with `O-01`,
+`O-02` and the Gallery half of `O-03` marked **open and prerequisite** for the tables they touch; the
+**`O-12` client-transport reconciliation requirement** was documented without reinterpreting the decision;
+and **one tenant-enforcement seam** was recorded as an implementation-level architecture decision.
+
+**Enforced by.** [12-decision-register.md](../frontend-completion/12-decision-register.md) → “Pre-start
+resolution pass — 2026-09-21”. This pointer adds no D-number, amends no D1–D20 entry, and does not alter
+[GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md), whose statuses stand as recorded.
+
+**Status.** ✅ Recorded as documentation. It is **not** implementation authorization: Laravel/backend
+remains ❌ not started and not authorized, and no `src/`, test, package, deployment or backend file is
+part of the pass.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

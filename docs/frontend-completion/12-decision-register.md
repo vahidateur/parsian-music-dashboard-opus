@@ -221,7 +221,7 @@
 
 - **ID:** B1
 - **Title:** Laravel domain structure mirrors frontend domains, Sanctum cookie primary + bearer fallback
-- **Status:** PROVISIONAL (from PROJECT_STATE.md)
+- **Status:** **DECIDED** (2026-09-21 pre-start decision pass — resolved from PROVISIONAL; historical status text preserved: “PROVISIONAL (from PROJECT_STATE.md)”)
 - **Date:** 2025-10-13
 - **Context:** Integration boundary Core API->Auth+RBAC->Domain Services
 - **Evidence:** ApiClient Bearer, isApiMode, OrganizationScope, apiErrorFromThrown — VERIFIED
@@ -231,8 +231,8 @@
 - **Consequences:** Mobile app client of same backend, no second API
 - **Frontend:** ApiClient already bearer, needs cookie support later
 - **Backend:** Laravel with Sanctum, OrganizationScope, per-object auth
-- **Reversibility:** provisional — can adjust auth method
-- **Follow-up:** Resolve before backend start — open decision
+- **Reversibility:** decided — the architecture is fixed for Laravel v1; changing the transport or the tenancy model requires a new decision, it is no longer an open provisional choice (historical wording preserved: “provisional — can adjust auth method”)
+- **Follow-up:** RESOLVED 2026-09-21 — see “Pre-start resolution pass — 2026-09-21” at the end of this file (historical wording preserved: “Resolve before backend start — open decision”). Resolution is an **architecture** decision only and is **not** implementation authorization.
 
 ## NEW — Learning Eligibility Canonical Owner
 
@@ -502,3 +502,224 @@
 - **Scope:** Frontend types + UI labels + localStorage key
 - **Backend impact:** None for viewer accent (device-local), org accent is branding table
 - **Follow-up:** Open decision
+
+---
+
+## Pre-start resolution pass — 2026-09-21 — documents only
+
+> **What this section is.** A single dated pass that closes the *documentation* items a read-only
+> backend-architecture gate found open before any Laravel work. It adds **no new register**, no new
+> D-number, and no new product decision. `O-07`…`O-20`, `T-02`, `PERF` and `HELP` keep their statuses in
+> [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) (reached from
+> [`DECISIONS.md`](../engineering/DECISIONS.md) **§20**), which this pass does **not** modify.
+> `O-01`…`O-06` are supplied here because that checkpoint’s index does not carry them and their only
+> previous status lines lived in the superseded F0 snapshot [`13-open-decisions.md`](13-open-decisions.md).
+>
+> **What this section is not.** It is **not** implementation authorization (see §“Implementation
+> authorization gate” below), and it is **not** a commitment that any of these decisions can be *acted on*
+> yet.
+>
+> **Identifier caution.** `B1` below means **this register’s `B1` — Laravel Domain Structure**. The
+> `B1` / `B2` recorded in [`PROJECT_STATE.md`](../engineering/PROJECT_STATE.md) and
+> [`PHASES.md`](../engineering/PHASES.md) are an **unrelated M4 audit’s acceptance-coverage findings**
+> (`df70148…`) and must not be conflated with this entry.
+>
+> **Historical reports keep their historical wording.** `F7_REPORT.md`, `F8_REPORT.md`,
+> `F10_INVENTORY.md` and the superseded F0 snapshot state `B1 PROVISIONAL` and `O-01 OPEN` as they stood
+> when written. They record the past accurately and are **not** updated by this pass.
+
+### 1. B1 — Laravel Domain Structure — RESOLVED (DECIDED)
+
+**Status:** DECIDED (2026-09-21). Recorded from PROVISIONAL, with the original evidence fields above left intact.
+
+**The decided architecture (unchanged in substance from B1’s own `Decision` field; this restates it as
+current law, it does not extend it):**
+
+- Laravel backend domain structure **mirrors the established frontend domain boundaries where appropriate**.
+- **One `/api/v1` API.** No second API for mobile, no parallel web API.
+- **Sanctum cookie is the web transport**; **Bearer** authentication supports the mobile client
+  (token in OS secure storage — never `localStorage`). One user identity across both.
+- **Organization / tenant scope derives from the authenticated principal** (never from the request).
+- **The server-side role/permission matrix is authoritative**; frontend guards stay UX-only.
+- **Authorization is enforced server-side through policy/query boundaries** — never by loading rows and
+  filtering in application code.
+- **No generic CRUD architecture** (aligns with `O-15`: no universal CRUD, no GraphQL).
+- **No microservices and no speculative infrastructure** (aligns with `PERF`: no Redis, Elasticsearch,
+  WebSocket, CDN).
+
+**What this resolution is not:** it is not authorization to begin implementation, and it is not a licence
+to invent detail beyond the list above. The transport caveat in §3 below stays live until the client is
+reconciled.
+
+### 2. O-01…O-06 — current status (narrowest lawful clarification)
+
+Each row states what the **existing** authority already fixes, and what — if anything — still needs a
+decision. Nothing here is copied from the superseded snapshot; each status is derived from a named
+authority. **“Prerequisite”** means: do not create the affected table/relation until this is closed.
+
+| ID | Topic | Current status | Authority / basis | Backend prerequisite |
+|---|---|---|---|---|
+| `O-01` | Student level scope (global vs per-program vs per-instrument) | **OPEN — audited for closure 2026-09-21: evidence INSUFFICIENT, remains OPEN.** Global is *not chosen* (documented leak: “violin classic L3 would grant piano L3 incorrectly”) but is **not formally excluded** by the record; the implemented form is per-program. The missing input is the academy’s product answer — see §“O-01 closure audit — 2026-09-21” below. **Must be resolved before backend.** | `04-learning-access-policy.md` §“Per-Program / Instrument Scope — OPEN Decision O-01” (“do not invent this decision”, “high-cost decision before Laravel schema — must resolve O-01 before backend”); `NEW-LRN-01` ACCEPTED fixes the canonical rule (“per-program/instrument scope”, placement per `(student,program)` VERIFIED) | **Yes** — determines the key of `student_placements`. Do **not** use `production-handoff.md:155`’s `UNIQUE(student_id)` sketch: it contradicts the verified one-active-placement-per-`(student,program)` model. |
+| `O-02` | Library resource level: string vocabulary vs relation to `LearningLevel` | **OPEN — narrowed to the storage question.** The separation of *Library Resource* (catalogue) from *Learning Content* (curriculum) is settled and verified in the shipped model: two types, two owners, different visibility/eligibility. Whether `LibraryItem.level` stays a display string or gains a `level_id` FK is **not** decided. | `NEW-LIB-01` PROVISIONAL (“Reversibility: provisional — level relation decision pending”); `PROP-LIB-01` OPEN (proposal: keep the string, add a nullable relation later); `06-library-gallery-spec.md` (two concepts, VERIFIED) | **Yes** — the library table’s level column shape (`level` string vs `level_id` FK). |
+| `O-03` | Visibility field for Library / Gallery | **Library: DISCHARGED** — decided *and already implemented*: publication status uses the existing `active` + `visibility` (students/teachers) semantics, no new workflow. **Gallery: OPEN** — no visibility field exists; “public demo” is the current placeholder. | F1 publication-status disposition (`06-library-gallery-spec.md`, VERIFIED) + shipped `src/domains/library/types.ts` (`visibility?`, `active?`); gallery: `NEW-GAL-01` PROVISIONAL follow-up “visibility permission decision”, `06` “OPEN — for now public demo” | **Yes for the Library** — the client already models and filters `visibility`, so the server must persist `active` + `visibility` (and filter them in SQL) or its own contract is unimplementable. **Yes for Gallery** before a gallery visibility column/filter exists. |
+| `O-04` | Theme persistence: org vs device-local | **DISCHARGED for v1 — device-local.** Branding is org data; appearance/theme/accent/density/motion is device-local per browser. An *org default theme* is explicitly a **later, optional** change requiring a decision — not a v1 item. | Canonical `D2` (`DECISIONS.md` §19: branding is the source of truth for academy identity) + this register’s `D2` ACCEPTED (“organizations table + branding_settings, appearance stays localStorage”; “reversible — can add org theme optional later with decision”) | No — v1 carries no `default_theme`. (`PROP-THEME-01`’s viewer-vs-org accent *naming* clarification stays an open proposal and does not affect persistence.) |
+| `O-05` | Export formats | **DISCHARGED for v1 — the implemented set stands** (CSV/XLSX tabular; chat export stays single-conversation TXT per `D14`). PDF requires the Finance/Reports domain and stays **deferred** with `D6`/`I2`. Any *additional* format is a new decision, not an implementation choice. | Canonical `D6` (Finance/Reports deferred), `D14` (no new verb, chat TXT, metadata only), `08-export-architecture.md` (format table + “Future: PDF? Deferred C”), `O-15` (downloads raw/signed, never JSON-wrapped) | No — but large exports are async jobs and must not stream bytes through the Laravel request path (`PERF`). |
+| `O-06` | Permission for dashboard / analytical export | **DISCHARGED for v1 — the view’s own permission, no new permission.** Analytical/dashboard export requires the same permission as the view it exports (`students.read` today, as `viewPermissions` already maps). Introducing `reports.read` or a new `dashboard.export` would be a **new decision** and needs a proven gap. | `NEW-RBAC-01` ACCEPTED (“smallest permission model”, “new permissions without gap (expands)” rejected); `05-rbac-access-control.md` / `viewPermissions` mapping dashboard → `students.read` VERIFIED | No (no schema change) — but the permission must be enforced **server-side** on the export endpoint, not only in the client guard. |
+
+**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; **`O-01`,
+`O-02`, and the Gallery half of `O-03` stay genuinely open and are prerequisites** for the tables they
+touch. No product decision was invented in reaching any of these statuses.
+
+### 3. O-12 — web transport: recorded pre-start integration requirement (decision unchanged)
+
+**Governance is unchanged and is not reinterpreted here.** `O-12` = one identity, one `/api/v1`;
+**web = Sanctum cookie + CSRF**; **mobile = Bearer** in OS secure storage.
+
+**The actual state of the client today (read-only evidence):** `src/api/client.ts` is a Bearer-oriented
+JSON boundary — it attaches `Authorization: Bearer …` from an injectable token provider, sends **no**
+`credentials: "include"`, performs **no** CSRF/XSRF token exchange, and has no cookie awareness anywhere;
+`deploy/` carries no CORS configuration (same-origin only) and already proxies `/api/*` to
+`127.0.0.1:8080` with login rate limiting.
+
+**Requirement recorded:** the first authenticated **web** implementation must **not** claim full `O-12`
+compliance until that client transport is reconciled. Either the server is built to the governed
+cookie + CSRF half (and the client gains cookie/CSRF support), or the web half temporarily ships
+Bearer-only as an **explicitly recorded deviation**. Choosing between those two is **not** decided by this
+pass: it is a known integration requirement to be closed before the first authenticated web release.
+
+**Freeze policy is untouched.** No reopening of the frontend freeze is decided here, and none is implied;
+if the chosen path requires a client change, the existing freeze rule applies unchanged (an explicit
+decision is required first). This pass writes no `src/` file.
+
+### 4. Tenant enforcement — one authoritative seam (implementation-level decision)
+
+**Decision.** Before the first organisation-scoped domain query is written, the backend establishes
+**one** authoritative tenant-enforcement seam — a deliberately documented **combination** of a
+query-layer scope and the policy layer, with the following invariants preserved:
+
+- **Organisation from the authenticated principal only.** The acting org is resolved from the session /
+  token. Never from a request body, header, query parameter, or route segment — a client may not select
+  its own tenant.
+- **Fail-closed.** Absence of a resolvable organisation (unauthenticated, suspended org, unknown
+  principal) **denies**; it never broadens. A scoped query that reaches an organisation-owned model
+  without the seam applied is a **defect**, not a default-allow.
+- **Owner-per-rule preserved (D5).** Row visibility (which org's rows may be seen) belongs to the query
+  seam; object-level, role and scope authorization belongs to policy/query boundaries. Neither layer
+  re-derives the other's decision from request input.
+- **T-02 assigned-only is part of the seam, not a caller's responsibility.** Teacher student-read =
+  *active enrolment ∩ `class.teacherId`*, enforced in query/policy, fail-closed. `Student.teacherId` is
+  **not** authorization. It must not be ported from any frontend convenience path that fails open.
+- **No second tenancy model.** v1 keeps many users : one org via `users.organization_id` (`O-14`); no
+  membership pivot; no super-admin switcher; no "load-then-filter" anywhere; no `owner_id` as a
+  substitute for tenant scope (`O-08`).
+
+**Status.** Recorded 2026-09-21 as an architecture decision — **no code is part of it.** Naming,
+framework mechanics and file layout are implementation detail and are deliberately not fixed here.
+
+### 5. Implementation authorization gate — unchanged and CLOSED
+
+**Architecture decisions ≠ implementation authorization.**
+
+- Laravel / backend implementation is **NOT STARTED and NOT AUTHORIZED**.
+- This pass **grants no authorization**; it removes documentation ambiguity only.
+- B1 resolved to DECIDED does **not** start the backend, and no item above is a green light.
+- The next phase still requires an **explicit owner authorization**, as
+  [`DECISIONS.md`](../engineering/DECISIONS.md) §20 and
+  [`SESSION_HANDOFF.md`](../engineering/SESSION_HANDOFF.md) §4 already require.
+- This pass changed documentation only: **no** `src/`, test, package/dependency, deployment or backend
+  file; **no** commit was made by it.
+
+---
+
+## O-01 closure audit — 2026-09-21 — outcome: REMAINS OPEN (read-only)
+
+> **Why this section exists.** `O-01` (student level scope) directly determines the backend schema for
+> student placements, so it was audited for closure. The audit found the evidence **insufficient**, so
+> `O-01` **stays OPEN** and **no decision was invented**. This section also rules on the schema
+> contradiction at [`production-handoff.md`](../production-handoff.md):155 so that a stale sketch cannot
+> be mistaken for current law. Nothing here authorizes implementation; no code, migration or schema was
+> written and no historical record was rewritten.
+
+### 6.1 What the record says (compared, not summarised from memory)
+
+| Source | What it establishes about scope |
+|---|---|
+| [`04-learning-access-policy.md`](04-learning-access-policy.md) §“Per-Program / Instrument Scope — OPEN Decision O-01” (:39–:63) | “**Scope decision remains OPEN** where evidence is insufficient: global vs per-program vs per-instrument — **do not invent this decision — O-01**.” Current implementation is per-program and labelled **“OPEN — provisional current, needs product confirmation per O-01”**; global and per-instrument are both **“OPEN — not chosen”**. Backend impact: *“if global chosen, would need migration to `student_id level_id` only — high-cost decision before Laravel schema — **must resolve O-01 before backend**”*. |
+| [`13-open-decisions.md`](13-open-decisions.md) (:36–:45, :243, :268) — **historical F0 snapshot, superseded** | `O-01` **OPEN — needs product confirmation**; listed first under *“High-Cost Decisions to Resolve Before Coding”*: *“affects placement table”*. |
+| [`11-roadmap.md`](11-roadmap.md):246 | “Learning access scope decision **remains OPEN** … where evidence insufficient **do not invent** — O-01”. |
+| [`14-handoff-checkpoint.md`](14-handoff-checkpoint.md):70, :165, :191 | Scope OPEN, current per-program provisional, *“do **NOT** change”*; among the high-cost items before Laravel schema/API. |
+| [`15-student-portal-architecture.md`](15-student-portal-architecture.md):187, :228, :247 | “**remains OPEN** … scope functions operate per-program where placement exists, not global — provisional per-program”; *“do not resolve by assumption”*. |
+| [`F1_INVENTORY.md`](../engineering/F1_INVENTORY.md):19, :188 · [`F2_INVENTORY.md`](../engineering/F2_INVENTORY.md):178 | *“scope O-01 OPEN … **do NOT decide** — current per-program provisional via `placement.programId` — keep OPEN”*; `F2`: *“**MUST NOT resolve** … do not invent — must keep per-program provisional”*. |
+| `F3`–`F6` reports/inventories | “`O-01` remains OPEN … does **NOT** own” — four consecutive passes explicitly refused to resolve it. |
+| [`F7_REPORT.md`](../engineering/F7_REPORT.md):80, :88, :159, :166 · [`F8_REPORT.md`](../engineering/F8_REPORT.md):87, :96 | “Placement per `(student,program)` … **per-program provisional `O-01` OPEN** — keep, not resolved by assumption”. |
+| [`F10_REPORT.md`](../engineering/F10_REPORT.md):242 · [`F10_INVENTORY.md`](../engineering/F10_INVENTORY.md):47, :83 | “`O-01` … **OPEN** — per-program provisional — **do not invent** — preserved”; *“remain OPEN per F10 requirement — no resolution by assumption”*. |
+| [`NEW-LRN-01`](#new--learning-eligibility-canonical-owner) (this file, ACCEPTED 2026-09-19, :237–:252) | Accepts the **canonical rule and its owner** (`learning/eligibility.ts`, Level N ⇒ 1..N, cumulative/exclusive, the five named states), with *Evidence:* “placement per `(student,program)`, **level order per program** — VERIFIED” and *Alternatives:* “Global level order (breaks per-program)”. It records the **implemented** scope inside the rule it accepts; its *Follow-up* names only “Detach guard, sortOrder UI”. **It is not a product confirmation of the scope question**, and the policy document it is drawn from keeps that question explicitly OPEN. |
+| Frontend source comments | `src/domains/learning/types.ts`:39 “**O-01 remains OPEN**”; `eligibility.ts`:26 “**O-01 remains OPEN** (locked semantics preserved)”; `src/domains/auth/scope.ts`:22 “remains OPEN, not resolved”; `StudentLearningPanel.tsx`:14 “O-01 remains OPEN”. |
+
+**What is verified about the current model (constraints, not a decision):**
+
+- `StudentPlacement = { id, studentId, programId, levelId, assignedAt, history }`, documented in
+  `src/domains/learning/types.ts`:227–:240 as *“One active placement per **(student, program)**”*;
+  `history` records past levels.
+- Level **definitions** are per program: `learning_levels … UNIQUE(program_id, order)` and
+  “order unique within program — VERIFIED” (`04`; `production-handoff.md`:152).
+- Eligibility is resolved **within `placement.programId`**: `resolveEligibleContent`
+  (`eligibility.ts`:63–:75) indexes only the levels of that program, so a placement pointing at a level
+  outside its program is treated as inconsistent data.
+- **The access surface is student-singular today**: `getStudentPlacement(studentId)` and
+  `removePlacement(studentId)` are keyed by student alone, and the demo resolves the **first** row for
+  that student (`demoRepository.ts`:287–:289), while `AssignPlacementInput` and `PlacementListParams`
+  carry `programId` (`types.ts`:268–:281). A per-program scope therefore implies a **contract change**
+  (a student-keyed accessor cannot address several placements) — which is itself a decision, not
+  something a backend may settle by adapting silently.
+
+### 6.2 Why the evidence is insufficient (and what exactly is missing)
+
+**The missing decision.** The academy’s product answer to one question: **may one student hold different
+levels in different programs at the same time?** Concretely, is a level *scope*:
+
+| Option | Meaning | Schema consequence (from the record) |
+|---|---|---|
+| **per-program** *(implemented)* | A student has a separate level in each program (violin classic L3 ≠ violin irani L1). | Key `(student_id, program_id)`; row carries `program_id`; server eligibility joins on `program_id`. |
+| **per-instrument** | One level spans all programs of one instrument. | Key `(student_id, instrument_id)`; row carries `instrument_id`; level definitions per program must be reconciled. |
+| **global per student** | One level across all programs/instruments. | Key `(student_id)` alone; row carries neither; **documented leak**: “violin classic L3 would grant piano L3 incorrectly”; `04`:63 records the migration this would force. |
+
+**Why that is not answerable from this repository.** (1) No document records a product/academy statement
+on the question — every source above either *records the implementation* or *asks the question*. (2) The
+record explicitly **forbids** resolving it by assumption (“do not invent”, “MUST NOT resolve”, “do not
+resolve by assumption”), across the policy document, the F0 snapshot, the F-series inventories/reports and
+the source comments. (3) `NEW-LRN-01`’s ACCEPTED status governs the **rule, its owner and its semantics**;
+its own Evidence line describes the *existing* placement model, and the policy doc it derives from keeps
+scope OPEN — so treating it as the missing product confirmation would be exactly the invention the record
+prohibits. (4) The three options require *different* keys, columns and join paths, so no single schema can
+safely serve all three and none is reachable from another by configuration. Per the closure rule, the
+audit therefore **keeps `O-01` OPEN and invents nothing**.
+
+### 6.3 Contradiction ruled on — `production-handoff.md`:155
+
+`| student_placements | UNIQUE(student_id) — one active placement per student; keep an append-only history table. |`
+
+**Ruling: NOT AUTHORITATIVE — provisional planning sketch, contradicted by the verified model.** Evidence:
+the file is a **checklist** (“Status of this build: demo-complete, not production-deployable”; labels
+`IMPLEMENTED / BACKEND REQUIRED / FUTURE`), its table is headed “### Schema” with a `Table | Notes` sketch
+layout, and it was written for the earlier phase (“Added this phase: `instruments`, `learning`, …”), i.e.
+**before** the placement model landed. It is cited by **no** decision; `NEW-LRN-01` and
+`04-learning-access-policy.md` (with `types.ts` as code evidence) supersede it in substance; and the same
+table’s `learning_levels … UNIQUE(program_id, order)` already contradicts a global reading. It was **not
+deleted or rewritten** — it now carries an inline marker so it cannot be mistaken for current law.
+
+**Identifier caution (pre-existing record noise).** [`05-rbac-access-control.md`](05-rbac-access-control.md):165
+and [`11-roadmap.md`](11-roadmap.md):115 say “assigned scope decision **O-01**” about **teacher student-read
+scope** — that is **`T-02`**, not `O-01` (level scope). Those are historical spec texts and are left
+untouched; do not read their `O-01` as this item.
+
+### 6.4 What must NOT be implemented while `O-01` is open
+
+- **No** `student_placements` table, migration, model or schema — in any of the three forms.
+- **No** `UNIQUE(student_id)` (the `production-handoff.md`:155 sketch), and equally **no**
+  `UNIQUE(student_id, program_id)` chosen silently: both are decisions the record has not taken.
+- **No** reinterpretation of `NEW-LRN-01` as a scope confirmation, and no change to
+  `resolveEligibleContent`’s program-scoped behaviour, its five named states, or the Level N ⇒ 1..N rule.
+- **No** change to the student-keyed placement accessors to “make the backend fit” — that is a contract
+  decision.
+- **No** freezing of the placement key by any other route (view, index, or convenience endpoint).

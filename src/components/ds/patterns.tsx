@@ -678,7 +678,17 @@ export function Drawer({
             <X className="size-4" />
           </button>
         </header>
-        <div className="flex-1 overflow-y-auto p-5">{children}</div>
+        {/*
+          `min-h-0` is load-bearing, not decoration. This body is a flex ITEM in
+          a column flex container whose height is capped (`max-h-[90vh]` on
+          mobile, the viewport on desktop). A flex item's initial `min-height`
+          is `auto`, which resolves to its CONTENT height, so without this the
+          body refuses to shrink to the panel and instead grows past it — the
+          panel clips it and `overflow-y-auto` never gets a scroll box to
+          scroll. Permitting the body to shrink is what makes the existing
+          `overflow-y-auto` do its job. Do not remove.
+        */}
+        <div className="flex-1 min-h-0 overflow-y-auto p-5">{children}</div>
         {footer && (
           <footer className="flex items-center justify-end gap-2 border-t border-white/[0.06] px-5 py-3.5" style={{ paddingBottom: "max(0.875rem, env(safe-area-inset-bottom))" }}>
             {footer}

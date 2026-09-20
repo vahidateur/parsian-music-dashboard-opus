@@ -152,7 +152,7 @@ rather than being a silent production fallback.
 | `learning_levels` | FK → programs, `UNIQUE(program_id, order)`, contiguous ordering enforced in a transaction. |
 | `learning_content` | FK → `media` (nullable). |
 | `level_content_links` | `UNIQUE(level_id, content_id)`. |
-| `student_placements` | `UNIQUE(student_id)` — one active placement per student; keep an append-only history table. |
+| `student_placements` | `UNIQUE(student_id)` — one active placement per student; keep an append-only history table. **⚠️ NOT AUTHORITATIVE — 2026-09-21 (kept as historical sketch, not deleted):** this line predates the placement model and must **not** be used as the schema form. The verified model is one active placement per **`(student, program)`** (`src/domains/learning/types.ts`), and the key itself **stays undecided while `O-01` is open**. See `docs/frontend-completion/12-decision-register.md` → “O-01 closure audit — 2026-09-21”. |
 | `chat_conversations` / `chat_messages` | FK conversation → messages; index `(conversation_id, sent_at)`. |
 | `media_assets` | Metadata only. Bytes belong in object storage, never in the database. |
 | `gallery_albums` / `gallery_images` | `UNIQUE(album_id, sort_order)` or renumber transactionally. |
