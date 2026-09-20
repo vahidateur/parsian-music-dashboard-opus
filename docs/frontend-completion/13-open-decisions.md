@@ -1,5 +1,36 @@
 # 13 — Open Decisions Register
 
+> ## ⛔ HISTORICAL SNAPSHOT — F0 / 2026-09-19 — NOT CURRENT LAW
+>
+> **This document records the open-decision state at the F0 checkpoint on 2026-09-19.** It is kept
+> for audit and provenance. **Its `O-01..O-20` statuses — and its `T-02` status — are superseded.**
+>
+> **Live source of truth for `T-02` and the `O-*` items:**
+> [`docs/engineering/GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md), recorded
+> **2026-09-20**, reached from [`docs/engineering/DECISIONS.md`](../engineering/DECISIONS.md) **§20**
+> (a *pointer*; it amends no D-entry).
+>
+> **What changed on 2026-09-20 — the short form:**
+>
+> - **`T-02` is no longer OPEN.** Live status: **ACCEPTED / ASSIGNED-ONLY** — teacher student-read =
+>   active enrollment ∩ `class.teacherId`; `Student.teacherId` is not authorization; fail-closed;
+>   do not revisit. The *"OPEN — EVIDENCE CONFLICTING — do NOT change"* wording below is historical.
+> - **Closed for Laravel policy:** `O-12` DUAL TRANSPORT; `O-13` separate guard / same `users`
+>   (credential factor still OPEN); `O-10` / `O-11` `chat_id` → user + org (uniqueness/UX still OPEN).
+> - **ACCEPT WITH CONDITIONS:** `O-08`, `O-09` / `O-20`, `O-14`, `O-16`, `O-18`, `O-15`, `PERF`.
+> - **Still genuinely OPEN (no v1 domain):** `O-07` tickets, `O-17` notifications, `O-19` retention
+>   numbers, Help/KB/AI.
+>
+> **Rules.** Do **not** rewrite the `O-01..O-20` rows below — they are the historical record, and
+> porting them into the later checkpoint (or the reverse) requires an explicit product decision.
+> Do **not** treat this file as current law when answering "what is decided?".
+>
+> **Also historical:** the `CURRENT_BRANCH` / `CURRENT_HEAD` / `PLANNING_CHECKPOINT` values quoted
+> anywhere in this file or its siblings (branch `arena/frontend-completion-spec`, `CURRENT_HEAD`
+> `a251e69…`) — the canonical branch is now **`main`** at
+> **`f63ebaab37096fcb25063aca51c713e26d3b3da7`** (see
+> [`docs/engineering/PROJECT_STATE.md`](../engineering/PROJECT_STATE.md) §2).
+
 > student level scope level/resource relation visibility theme persistence export formats permission analytical contract ticket vs chat ownership scope file ownership Telegram backup semantics identity linking Bale linking mobile auth student portal auth org/user relation API boundaries media storage notification audit retention backup restore
 
 ## O-01 — Student Level Scope

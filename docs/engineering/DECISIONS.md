@@ -7,6 +7,14 @@ delete it silently.
 
 Format: **Decision** → **Why** → **Enforced by** → **Status**.
 
+> **§20 is a pointer, not a decision.** The Laravel-bound governance register dated **2026-09-20**
+> — IDs **`T-02`**, **`O-*`**, **PERF**, **HELP** — lives in
+> [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md) and is reached through **§20** below. Those
+> IDs are a **separate namespace** from this file's **D1–D20** (collisions: `D7 ≠ O-07`,
+> `D15 ≠ O-15`), and §20 amends no D-entry. **Read §20 before treating D1–D20 as the complete
+> register.** The frontend-completion register's own `D1`/`D2` identifiers are a third, unrelated
+> namespace — see `docs/frontend-completion/12-decision-register.md`.
+
 ---
 
 ## 1. Layering: View → Domain Hook → Repository → DemoStore | ApiClient
