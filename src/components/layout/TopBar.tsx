@@ -57,7 +57,10 @@ export function CommandSearchTrigger({ className, compact }: { className?: strin
 export function TopBar({ onMenu }: { onMenu: () => void }) {
   const { view, notify } = useApp();
   // Live count from the scheduling seam (M10) — it moves when sessions change.
-  const pulse = useDayPulse(academyIsoDate(), useAcademyNow());
+  // GAP-010: use same academy date source as Dashboard/Hero for coherent display.
+  const now = useAcademyNow();
+  const todayIso = academyIsoDate();
+  const pulse = useDayPulse(todayIso, now);
   const live = pulse.live;
   const [notified, setNotified] = useState(false);
 
@@ -70,7 +73,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
 
         <div className="min-w-0 shrink-0">
           <div className="text-sm font-semibold text-ink-50">{viewTitles[view]}</div>
-          <div className="hidden truncate text-[11px] text-ink-400 sm:block">{faToday()}</div>
+          <div className="hidden truncate text-[11px] text-ink-400 sm:block">{faToday(todayIso)}</div>
         </div>
 
         <div className="mx-auto hidden w-full max-w-xl md:block">

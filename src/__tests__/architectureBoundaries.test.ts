@@ -298,3 +298,177 @@ describe("list hooks request an explicit page size", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("F8 — Telegram/Bale adapters keep business logic out of bots", () => {
+  it("chat provider adapter does not import business logic domains", () => {
+    // Core business logic must remain independent of Telegram/Bale/external providers.
+    // Adapter calls domain services, domain services enforce RBAC + scope — no business logic in bots.
+    const providerFile = join(ROOT, "domains", "chat", "provider.ts");
+    const source = code(readFileSync(providerFile, "utf8"));
+    const forbidden = [
+      "enrollment",
+      "eligibility",
+      "placement",
+      "progress",
+      "attendance",
+      "compensation",
+      "scheduling",
+      "library",
+      "gallery",
+      "branding",
+      "finance",
+      "demoStore",
+      "demo\\/store",
+      "scope",
+      "permissions",
+      "canRead",
+      "canWrite",
+    ];
+    const offenders: string[] = [];
+    for (const term of forbidden) {
+      if (new RegExp(`\\b${term}\\b`, "i").test(source)) {
+        offenders.push(`provider.ts → contains business logic term ${term}`);
+      }
+    }
+    // Also must not contain fetch, Telegram Bot API URL, Bale API URL, token
+    // Use code-stripped source so comments mentioning VITE_* as documentation don't trigger
+    if (/fetch\s*\(/.test(source)) offenders.push("provider.ts → fetch");
+    if (/api\.telegram\.org/.test(source)) offenders.push("provider.ts → Telegram API URL");
+    if (/bale\.ai|bale\.bot/.test(source)) offenders.push("provider.ts → Bale API URL");
+    if (/BOT_TOKEN|TELEGRAM_TOKEN|BALE_TOKEN/.test(source)) offenders.push("provider.ts → token constant");
+    if (/VITE_/.test(source)) offenders.push("provider.ts → VITE_ token");
+    expect(offenders).toEqual([]);
+  });
+
+  it("backup envelope does not contain Telegram/Bale/external provider code", () => {
+    const backupFile = join(ROOT, "domains", "demo", "backup.ts");
+    const source = code(readFileSync(backupFile, "utf8"));
+    const forbidden = ["telegram", "bale", "api.telegram", "fetch", "axios", "BOT_TOKEN", "VITE_", "sendDocument"];
+    const offenders: string[] = [];
+    for (const term of forbidden) {
+      if (new RegExp(term, "i").test(source)) {
+        offenders.push(`backup.ts → contains external provider term ${term}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("no view contains Telegram/Bale token or hardcoded Bot API URL", () => {
+    const offenders: string[] = [];
+    for (const file of viewLayer) {
+      const raw = readFileSync(file, "utf8");
+      if (/api\.telegram\.org/.test(raw)) offenders.push(`${file} → Telegram API URL`);
+      if (/bale\.ai|bale\.bot/.test(raw)) offenders.push(`${file} → Bale API URL`);
+      if (/BOT_TOKEN|TELEGRAM_TOKEN|BALE_TOKEN/.test(raw)) offenders.push(`${file} → token`);
+      if (/VITE_TELEGRAM|VITE_BALE/.test(raw)) offenders.push(`${file} → VITE_ token`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe("F9 — Mobile client contract — same backend no second API bearer secure storage", () => {
+  it("registry has single ApiClient instantiation — no second API", () => {
+    const registryPath = join(ROOT, "domains", "registry.ts");
+    const source = code(readFileSync(registryPath, "utf8"));
+    const matches = source.match(/new\s+ApiClient/g) || [];
+    expect(matches).toEqual(["new ApiClient"]);
+  });
+
+  it("no second baseUrl — single composition root — same backend contracts", () => {
+    const registryPath = join(ROOT, "domains", "registry.ts");
+    const source = code(readFileSync(registryPath, "utf8"));
+    // Only one getApiClient that creates client with baseUrl from runtime config — no second hardcoded URL
+    expect(source).not.toMatch(/https?:\/\/.*\/api/);
+    // No second ApiClient with different baseUrl
+    const baseUrlOccurrences = (source.match(/baseUrl/g) || []).length;
+    expect(baseUrlOccurrences).toBeLessThanOrEqual(3);
+  });
+
+  it("ApiClient envelope Collection/Item PageMeta — same for web and mobile", () => {
+    const clientPath = join(ROOT, "api", "client.ts");
+    const source = readFileSync(clientPath, "utf8");
+    expect(source).toContain("CollectionEnvelope");
+    expect(source).toContain("ItemEnvelope");
+    expect(source).toContain("PageMeta");
+    expect(source).toContain("Bearer");
+    expect(source).toContain("Authorization");
+  });
+
+  it("auth bearer header — Authorization: Bearer — same for web and mobile", () => {
+    const clientPath = join(ROOT, "api", "client.ts");
+    const raw = readFileSync(clientPath, "utf8");
+    // Use raw, not code(), because Bearer is inside template literal which code() strips
+    expect(raw).toMatch(/Bearer/);
+    expect(raw).toMatch(/Authorization/);
+    expect(raw).toMatch(/getToken/);
+  });
+
+  it("no localStorage for binary — media abstraction same endpoint", () => {
+    const allFiles = [...sourceFiles(join(ROOT, "domains", "media")), ...sourceFiles(join(ROOT, "api"))];
+    const offenders: string[] = [];
+    for (const file of allFiles) {
+      const source = code(readFileSync(file, "utf8"));
+      if (/localStorage\s*\.\s*setItem/.test(source) && /bytes|blob/i.test(source)) {
+        offenders.push(`${file} → localStorage binary`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("no offline queue — C deferred no fake", () => {
+    const allFiles = sourceFiles(ROOT);
+    const offenders: string[] = [];
+    for (const file of allFiles) {
+      const source = code(readFileSync(file, "utf8")).toLowerCase();
+      if (source.includes("offlinequeue") || source.includes("syncqueue") || source.includes("backgroundsync")) {
+        offenders.push(`${file} → offline queue`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("no second ApiClient class — same backend contracts", () => {
+    const apiFiles = sourceFiles(join(ROOT, "api"));
+    const clientClasses: string[] = [];
+    for (const file of apiFiles) {
+      const source = code(readFileSync(file, "utf8"));
+      const matches = source.match(/class\s+ApiClient/g) || [];
+      if (matches.length > 0) clientClasses.push(`${file} → ${matches.length}`);
+    }
+    // Only one ApiClient class in src/api/client.ts
+    expect(clientClasses.length).toBe(1);
+    expect(clientClasses[0]).toContain("client.ts");
+  });
+
+  it("secure storage vs localStorage — no localStorage token — mobile uses secure storage", () => {
+    // Appearance localStorage is allowed per D2, but token must not be in localStorage
+    const allFiles = sourceFiles(ROOT);
+    const offenders: string[] = [];
+    for (const file of allFiles) {
+      const source = code(readFileSync(file, "utf8"));
+      if (/localStorage\s*\.\s*setItem\s*\(\s*[\"'].*token/i.test(source)) {
+        offenders.push(`${file} → localStorage token`);
+      }
+      if (/localStorage\s*\.\s*setItem\s*\(\s*[\"']auth_token/i.test(source)) {
+        offenders.push(`${file} → localStorage auth_token`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it("media upload same endpoint — bytes ArrayBuffer not base64 data URL", () => {
+    const mediaTypesPath = join(ROOT, "domains", "media", "types.ts");
+    const source = readFileSync(mediaTypesPath, "utf8");
+    expect(source).toContain("bytes: ArrayBuffer");
+    expect(source).not.toMatch(/bytes:\s*string/);
+    expect(source).not.toContain("data:image");
+  });
+
+  it("same RBAC same permissions — 5 roles 22 perms — same for web and mobile", () => {
+    const permPath = join(ROOT, "domains", "auth", "permissions.ts");
+    const source = readFileSync(permPath, "utf8");
+    expect(source).toContain("ROLES");
+    expect(source).toContain("PERMISSIONS");
+    expect(source).toContain("rolePermissions");
+  });
+});

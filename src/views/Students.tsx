@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { CalendarPlus, Download, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { CalendarPlus, LayoutGrid, MessageSquare, Music2, Pencil, Phone, Plus, Rows3, StickyNote, UserPlus, UserX, Wallet } from "lucide-react";
+import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useAcademyNow } from "@/domains/shared/clock";
@@ -23,6 +24,8 @@ import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
+import { assignedStudentIdsForTeacher, isAssignedStudent } from "@/domains/auth/scope";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, DataTable, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, type Column } from "@/components/ds/patterns";
@@ -253,6 +256,9 @@ function StudentDetail({
   onEdit: () => void;
 }) {
   const { navigate, notify, openSheet } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const [statusBusy, setStatusBusy] = useState(false);
 
   /**
@@ -416,16 +422,20 @@ function StudentDetail({
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "messages" })}>
               <MessageSquare className="size-3.5" /> پیام
             </Button>
-            <Button size="sm" variant="subtle" onClick={onEdit}>
-              <Pencil className="size-3.5" /> ویرایش
-            </Button>
-            <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
-              <UserX className="size-3.5" />
-              {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
-            </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
-              <Wallet className="size-3.5" /> ثبت پرداخت
-            </Button>
+            {canWriteStudents && (
+              <>
+                <Button size="sm" variant="subtle" onClick={onEdit}>
+                  <Pencil className="size-3.5" /> ویرایش
+                </Button>
+                <Button size="sm" variant="subtle" onClick={() => void toggleStatus()} disabled={statusBusy}>
+                  <UserX className="size-3.5" />
+                  {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
+                  <Wallet className="size-3.5" /> ثبت پرداخت
+                </Button>
+              </>
+            )}
           </>
         }
       />
@@ -901,7 +911,13 @@ function StudentDetail({
 /* ------------------------------------------------------------------ */
 export function StudentsView() {
   const { filter, detailId, navigate, notify } = useApp();
+  let user: any = null;
+  try { user = useAuth().user; } catch { user = null; }
+  const canWriteStudents = useCan("students.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
+  // For T-02 assigned-only filtering (teacher sees assigned students only as smallest model)
+  const classesForScope = useClasses({ per_page: 200 });
+  const enrollmentsForScope = useEnrollments({ per_page: 200 });
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StudentStatus | "all">((filter as StudentStatus) ?? "all");
   const [instrument, setInstrument] = useState<InstrumentId | "all">("all");
@@ -919,6 +935,19 @@ export function StudentsView() {
   // authoritative single-record lookup. `useStudent(detailId)` is that lookup
   // with loading/error/not-found distinguishable.
   const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+  const filteredStudents = useMemo(() => {
+    if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
+    // AUDIT-002 FIX: When teacher scope dependencies are loading or erroring, NEVER fall back to org-wide students.
+    // Return safe restricted empty set instead of leaking org-wide.
+    if (classesForScope.loading || enrollmentsForScope.loading) return [];
+    if (classesForScope.error || enrollmentsForScope.error) return [];
+    const assigned = assignedStudentIdsForTeacher(
+      (user as any).teacherId,
+      classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId })),
+      enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status })),
+    );
+    return students.filter((s) => assigned.has(s.id));
+  }, [students, user, classesForScope.items, classesForScope.loading, classesForScope.error, enrollmentsForScope.items, enrollmentsForScope.loading, enrollmentsForScope.error]);
   const { student: detailStudent, loading: detailLoading, error: detailError, reload: reloadDetail } = useStudent(
     detailId ?? undefined,
   );
@@ -972,24 +1001,25 @@ export function StudentsView() {
 
   const list = useMemo(
     () =>
-      students.filter(
+      filteredStudents.filter(
         (s) =>
           (status === "all" || s.status === status) &&
           (instrument === "all" || s.instrument === instrument) &&
           (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
       ),
-    [students, status, instrument, query],
+    [filteredStudents, status, instrument, query],
   );
 
   // Stats are derived from the loaded dataset — never hardcoded totals.
+  // For teacher role, filteredStudents is assigned-only per T-02 smallest model.
   const stats = useMemo(
     () => ({
-      active: students.filter((s) => s.status === "active").length,
-      atRisk: students.filter((s) => s.status === "at-risk").length,
-      waitlist: students.filter((s) => s.status === "waitlist").length,
-      paused: students.filter((s) => s.status === "paused").length,
+      active: filteredStudents.filter((s) => s.status === "active").length,
+      atRisk: filteredStudents.filter((s) => s.status === "at-risk").length,
+      waitlist: filteredStudents.filter((s) => s.status === "waitlist").length,
+      paused: filteredStudents.filter((s) => s.status === "paused").length,
     }),
-    [students],
+    [filteredStudents],
   );
 
   // I16: list view still uses capped list; detail view uses authoritative get(id)
@@ -999,7 +1029,9 @@ export function StudentsView() {
 
   // When a deep-link is active, resolution is independent of the 200-row ceiling
   if (detailId) {
-    if (detailLoading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+    const isTeacherWithId = user?.role === "teacher" && (user as any).teacherId;
+    const teacherScopeLoadingForDetail = isTeacherWithId ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+    if (detailLoading || teachers.loading || teacherScopeLoadingForDetail) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
     if (detailError) {
       if (detailError.kind === "not_found") {
         return (
@@ -1032,6 +1064,36 @@ export function StudentsView() {
         />
       );
     }
+    // SEC-003-01 defense-in-depth: teacher deep-link must not render unassigned student.
+    // Reuses canonical scope function isAssignedStudent, respects loading/error, renders 404 style.
+    // Backend object-level authorization remains mandatory.
+    if (isTeacherWithId) {
+      if (classesForScope.error || enrollmentsForScope.error) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+      const teacherId = (user as any).teacherId as string;
+      const classRefs = classesForScope.items.map((c: any) => ({ id: c.id, teacherId: c.teacherId }));
+      const enrollmentRefs = enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status }));
+      if (!isAssignedStudent(teacherId, detail.id, classRefs, enrollmentRefs)) {
+        return (
+          <EmptyState
+            className="py-32"
+            title="هنرجو یافت نشد"
+            description="این پیوند به هنرجویی اشاره دارد که دیگر وجود ندارد."
+            action="بازگشت به فهرست"
+            onAction={() => navigate({ view: "students" })}
+          />
+        );
+      }
+    }
     return (
       <>
         <StudentDetail
@@ -1053,7 +1115,10 @@ export function StudentsView() {
   }
 
   // List view: existing behavior and pagination remain unchanged
-  if (loading || teachers.loading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
+  // AUDIT-002 FIX: For teacher role, scope dependencies loading should show loading state, not empty (false empty) nor org-wide leak.
+  const isTeacherForLoading = user?.role === "teacher" && (user as any).teacherId;
+  const teacherScopeLoading = isTeacherForLoading ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+  if (loading || teachers.loading || teacherScopeLoading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
   if (error)
     return (
       <EmptyState
@@ -1105,12 +1170,19 @@ export function StudentsView() {
         description="پروندهٔ کامل هنرجویان، وضعیت حضور، پیشرفت و مالی — همه در یک نما."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی CSV نیازمند سرور است", detail: "تولید فایل در سرور انجام می‌شود و در دمو فعال نیست." })}>
-              <Download className="size-3.5" /> خروجی
-            </Button>
-            <Button size="sm" variant="primary" onClick={openCreate}>
-              <Plus className="size-3.5" /> افزودن هنرجو
-            </Button>
+            <EntityExportButton
+              entity="students"
+              filters={{
+                ...(query ? { search: query } : {}),
+                ...(status !== "all" ? { status } : {}),
+                ...(instrument !== "all" ? { instrument } : {}),
+              }}
+            />
+            {canWriteStudents && (
+              <Button size="sm" variant="primary" onClick={openCreate}>
+                <Plus className="size-3.5" /> افزودن هنرجو
+              </Button>
+            )}
           </>
         }
       />

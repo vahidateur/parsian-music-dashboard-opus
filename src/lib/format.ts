@@ -1,3 +1,6 @@
+import { isoToJalaliDisplay, isIsoDate } from "@/domains/scheduling/dateBridge";
+import { academyIsoDate } from "@/views/relations/academyDay";
+
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 
 /** Convert any Latin digits in a string/number to Persian digits. */
@@ -66,17 +69,41 @@ export const parseTime = (hhmm: string) => {
   return h * 60 + m;
 };
 
-/** Today's date in the Persian (Solar Hijri) calendar. */
-export const faToday = (): string => {
+/**
+ * Today's date in the Persian (Solar Hijri) calendar — canonical path via dateBridge.
+ *
+ * GAP-010 fix: previously used `new Date()` directly, bypassing the academy's
+ * single clock (`academyNow()`) and the canonical Jalali conversion
+ * (`dateBridge.isoToJalaliDisplay`). Now derives from `academyIsoDate()` which
+ * itself uses `academyNow()` (frozen 10:47 in demo, real clock in api), and
+ * converts via `isoToJalaliDisplay` — the canonical bridge.
+ *
+ * Accepts an optional ISO date (`YYYY-MM-DD`) so callers like Hero/TopBar can
+ * pass the same `academyIsoDate()` used by Dashboard, ensuring coherent source.
+ * Falls back to a date-derived value, never a hardcoded calendar date.
+ */
+export const faToday = (isoDate?: string): string => {
   try {
-    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+    const iso = isoDate && isIsoDate(isoDate) ? isoDate : academyIsoDate();
+    const formatted = isoToJalaliDisplay(iso, {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
-    }).format(new Date());
+    });
+    if (formatted) return formatted;
+    return isoToJalaliDisplay(iso) || iso;
   } catch {
-    return "سه‌شنبه، ۱۹ اسفند ۱۴۰۴";
+    try {
+      const iso = isoDate && isIsoDate(isoDate) ? isoDate : academyIsoDate();
+      return isoToJalaliDisplay(iso) || iso;
+    } catch {
+      try {
+        return isoDate && isIsoDate(isoDate) ? isoDate : academyIsoDate();
+      } catch {
+        return "";
+      }
+    }
   }
 };
 

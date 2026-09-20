@@ -100,8 +100,22 @@ export interface DashboardInsights {
  * conversion. A hook under `domains/` importing from `views/` would invert the
  * layering, and formatting the day a second time would create the second
  * conversion that module exists to prevent.
+ *
+ * F5 adds optional date-range filtering: from/to ISO dates bound the session window
+ * same as scheduling, with presets today/week/month. When from/to omitted, fallback
+ * to 13-week rolling window (existing behavior).
  */
-export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: string; nowMinutes: number }): DashboardInsights {
+export function useDashboardInsights({
+  todayIso,
+  nowMinutes,
+  from,
+  to,
+}: {
+  todayIso: string;
+  nowMinutes: number;
+  from?: string;
+  to?: string;
+}): DashboardInsights {
   const {
     metrics,
     loading: metricsLoading,
@@ -115,11 +129,16 @@ export function useDashboardInsights({ todayIso, nowMinutes }: { todayIso: strin
   const teachers = useTeachers({ per_page: PAGE });
 
   const windowStart = useMemo(() => {
+    if (from) return from;
     const reference = isoDayNumber(todayIso);
     return reference === null ? todayIso : isoFromDayNumber(reference - (WEEKS * 7 - 1));
-  }, [todayIso]);
+  }, [todayIso, from]);
 
-  const sessions = useSessions({ from: windowStart, to: todayIso, per_page: PAGE });
+  const windowEnd = useMemo(() => {
+    return to ?? todayIso;
+  }, [to, todayIso]);
+
+  const sessions = useSessions({ from: windowStart, to: windowEnd, per_page: PAGE });
   /**
    * Whether the calendar read may be spoken about.
    *

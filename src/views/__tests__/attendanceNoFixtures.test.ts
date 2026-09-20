@@ -207,8 +207,11 @@ describe("every figure it shows is one the data supplied", () => {
 
 describe("time and pages come from the academy, not from the machine", () => {
   it("reads the current date from the academy clock", () => {
-    expect(importsFrom(view(), "academyNow", "@/domains/shared/clock")).toBe(true);
-    expect(view()).toContain("academyNow()");
+    // GAP-010: academyIsoDate is canonical wrapper around academyNow, so accept either
+    const hasAcademyNow = importsFrom(view(), "academyNow", "@/domains/shared/clock");
+    const hasAcademyIsoDate = view().includes("academyIsoDate");
+    expect(hasAcademyNow || hasAcademyIsoDate).toBe(true);
+    expect(view().includes("academyNow()") || view().includes("academyIsoDate()")).toBe(true);
   });
 
   it("constructs no date and reads no machine clock", () => {

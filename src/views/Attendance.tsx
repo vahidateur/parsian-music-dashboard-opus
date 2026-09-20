@@ -93,7 +93,8 @@ import { getAttendanceRepository } from "@/domains/registry";
 import { addDays, isoToJalaliDisplay, weekdayIndex } from "@/domains/scheduling/dateBridge";
 import { SESSION_STATUS_LABEL, type Session } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
-import { academyNow } from "@/domains/shared/clock";
+import { academyIsoDate } from "@/views/relations/academyDay";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { useStudentList } from "@/domains/students/useStudents";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime } from "@/lib/format";
@@ -113,21 +114,6 @@ const SESSIONS_PER_PAGE = 200;
 const SUPPORT_PER_PAGE = 200;
 const RECORDS_PER_PAGE = 200;
 const CORRECTIONS_PER_PAGE = 50;
-
-/**
- * The academy clock's own calendar date as `YYYY-MM-DD`.
- *
- * `academyNow()` is the single source of "now" (frozen time of day in demo, the
- * real clock in production); this only reformats it. Local getters, not UTC: the
- * academy's day is the day on its own wall clock. No date library and no inline
- * `new Date()` anywhere in this view — a wall clock the user cannot see is a
- * wall clock the tests cannot hold still.
- */
-function isoFromAcademyDate(date: Date): string {
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 /** Saturday-first week start, using the domain's own weekday convention. */
 function startOfWeek(iso: string): string {
@@ -174,7 +160,8 @@ export function AttendanceView() {
   const recorderId = user?.id ?? null;
   const canWrite = useCan("attendance.write") && recorderId !== null;
 
-  const todayIso = useMemo(() => isoFromAcademyDate(academyNow()), []);
+  const now = useAcademyNow();
+  const todayIso = useMemo(() => academyIsoDate(), [now]);
 
   /**
    * `filter=pending` arrives from the command palette («ثبت حضور و غیاب امروز») and

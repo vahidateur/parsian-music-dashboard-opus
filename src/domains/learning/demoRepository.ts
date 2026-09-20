@@ -1,5 +1,5 @@
 /**
- * Demo learning repository.
+ * Demo learning repository — F1 genuine.
  *
  * Invariants owned here (never by a dialog):
  *  - a program belongs to an existing instrument
@@ -9,11 +9,13 @@
  *  - a link's level must belong to the program the caller resolved it from
  *  - one active placement per student
  *  - attaching content twice to the same level is a no-op conflict, not a copy
+ *
+ * F1: lockedContent added per Level N eligible 1..N, N+1+ locked honest reason.
  */
 import type { Page } from "@/api/types";
 import { conflict, matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { resolveEligibleContent, resolveEligibleStudentIds } from "./eligibility";
+import { resolveEligibleContent, resolveEligibleStudentIds, resolveLockedContent } from "./eligibility";
 import type { LearningRepository } from "./repository";
 import type {
   AssignPlacementInput,
@@ -29,6 +31,7 @@ import type {
   LearningProgram,
   LearningProgramListParams,
   LevelContentLink,
+  LockedContent,
   PlacementListParams,
   StudentPlacement,
   UpdateContentInput,
@@ -237,11 +240,7 @@ export class DemoLearningRepository implements LearningRepository {
     return levelId ? rows.filter((row) => row.levelId === levelId) : rows;
   }
 
-  async attachContent(
-    levelId: string,
-    contentId: string,
-    intent: AttachContentIntent,
-  ): Promise<LevelContentLink> {
+  async attachContent(levelId: string, contentId: string, intent: AttachContentIntent): Promise<LevelContentLink> {
     const level = await this.getLevel(levelId);
     await this.getContent(contentId);
     await this.getProgram(intent.programId);
@@ -259,9 +258,7 @@ export class DemoLearningRepository implements LearningRepository {
       });
     }
 
-    const existing = this.store.levelContent
-      .all()
-      .find((row) => row.levelId === levelId && row.contentId === contentId);
+    const existing = this.store.levelContent.all().find((row) => row.levelId === levelId && row.contentId === contentId);
     if (existing) {
       throw conflict("CONTENT_ALREADY_LINKED", "این محتوا از قبل به این سطح متصل است.");
     }
@@ -270,9 +267,7 @@ export class DemoLearningRepository implements LearningRepository {
   }
 
   async detachContent(levelId: string, contentId: string): Promise<void> {
-    const link = this.store.levelContent
-      .all()
-      .find((row) => row.levelId === levelId && row.contentId === contentId);
+    const link = this.store.levelContent.all().find((row) => row.levelId === levelId && row.contentId === contentId);
     if (!link) throw notFound("LINK_NOT_FOUND", "این محتوا به این سطح متصل نیست.");
     this.store.levelContent.remove(link.id);
   }
@@ -359,6 +354,15 @@ export class DemoLearningRepository implements LearningRepository {
 
   async eligibleContent(studentId: string): Promise<EligibleContent[]> {
     return resolveEligibleContent({
+      placement: await this.getStudentPlacement(studentId),
+      levels: this.store.levels.all(),
+      links: this.store.levelContent.all(),
+      content: this.store.learningContent.all(),
+    });
+  }
+
+  async lockedContent(studentId: string): Promise<LockedContent[]> {
+    return resolveLockedContent({
       placement: await this.getStudentPlacement(studentId),
       levels: this.store.levels.all(),
       links: this.store.levelContent.all(),

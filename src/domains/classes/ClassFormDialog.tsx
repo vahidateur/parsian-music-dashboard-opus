@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
+import { isHhMm } from "@/domains/scheduling/dateBridge";
 import type { AcademyClass } from "@/domains/classes/types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
@@ -62,7 +63,8 @@ function validate(draft: ClassDraft): FieldErrors<ClassDraft> {
   if (!draft.teacherId) errors.teacherId = "انتخاب مدرس الزامی است.";
   if (!draft.roomId) errors.roomId = "انتخاب اتاق الزامی است.";
   if (draft.days.length === 0) errors.days = "حداقل یک روز هفته را انتخاب کنید.";
-  if (!/^\d{1,2}:\d{2}$/.test(draft.time)) errors.time = "ساعت باید به شکل ۱۷:۰۰ باشد.";
+  // AUDIT-003 FIX: Reuse existing time validator isHhMm (00:00–23:59) instead of loose regex that allowed 99:99.
+  if (!isHhMm(draft.time)) errors.time = "ساعت باید به شکل ۱۷:۰۰ باشد (۰۰:۰۰ تا ۲۳:۵۹).";
 
   const duration = Number(draft.duration);
   if (!Number.isInteger(duration) || duration < 15 || duration > 240) {

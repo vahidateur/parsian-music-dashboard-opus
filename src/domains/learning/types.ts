@@ -31,6 +31,12 @@
  * exact level.
  *
  * MULTI-TENANCY (§21): every table here needs `organization_id` in production.
+ *
+ * F1: Level N eligible 1..N, N+1+ locked with honest reason در سطح X باز می‌شود,
+ * locked no preview/download, not_visible hidden, not_found honest, not_applicable empty,
+ * one content linked to several reachable levels emitted once lowest level,
+ * sorting levelOrder ASC sortOrder ASC title fa, canonical owner learning/eligibility.ts,
+ * O-01 remains OPEN.
  */
 import type { ListParams } from "@/api/types";
 import type { InstrumentId } from "@/domains/instruments/types";
@@ -275,7 +281,7 @@ export interface AssignPlacementInput {
 }
 
 /* ------------------------------------------------------------------ */
-/* Eligibility (derived — never stored)                                */
+/* Eligibility (derived — never stored) — F1 canonical owner            */
 /* ------------------------------------------------------------------ */
 
 /** One eligible item plus the level that granted access, for UI grouping. */
@@ -285,4 +291,15 @@ export interface EligibleContent {
   levelOrder: number;
   levelName: string;
   sortOrder: number;
+}
+
+/** One locked item — content attached to N+1+ levels with honest reason. F1 */
+export interface LockedContent {
+  content: LearningContent;
+  levelId: string;
+  levelOrder: number;
+  levelName: string;
+  sortOrder: number;
+  /** Honest reason per F1: در سطح X باز می‌شود */
+  reason: string;
 }

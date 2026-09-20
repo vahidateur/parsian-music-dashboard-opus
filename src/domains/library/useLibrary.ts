@@ -73,11 +73,19 @@ const REASON_NO_BYTES =
  * A record whose metadata exists but whose bytes do not is `missing`, not an
  * error: backups carry metadata only, and the UI says so instead of offering a
  * download that produces an empty file.
+ *
+ * F1 absorbed hardening: media one-frame stale asset/blob/object-URL fix.
+ * Previously, when mediaId changed, asset/blob from previous item remained for
+ * one frame, showing previous file's metadata/bytes. Now asset/blob are cleared
+ * synchronously when mediaId changes and only exposed when they belong to
+ * current mediaId — no frame can show previous asset.
  */
 export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undefined): LibraryFileState {
   const mediaId = item?.mediaId;
   const [asset, setAsset] = useState<LibraryFileState["asset"]>(undefined);
   const [blob, setBlob] = useState<Blob | undefined>(undefined);
+  const [assetFor, setAssetFor] = useState<string | undefined>(undefined);
+  const [blobFor, setBlobFor] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(Boolean(mediaId));
   const [error, setError] = useState<ApiError | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -86,12 +94,20 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
     if (!mediaId) {
       setAsset(undefined);
       setBlob(undefined);
+      setAssetFor(undefined);
+      setBlobFor(undefined);
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
+    // Clear previous asset/blob synchronously for new mediaId — prevents one-frame stale
+    setAsset(undefined);
+    setBlob(undefined);
+    setAssetFor(undefined);
+    setBlobFor(undefined);
     setLoading(true);
+
+    let cancelled = false;
     const media = getMediaRepository();
 
     void Promise.all([
@@ -109,6 +125,8 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
       if (cancelled) return;
       setAsset(metadata);
       setBlob(bytes);
+      setAssetFor(metadata ? mediaId : undefined);
+      setBlobFor(bytes ? mediaId : undefined);
       setLoading(false);
     });
 
@@ -117,21 +135,32 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
     };
   }, [mediaId]);
 
+  // Render-time guard: only expose asset/blob when they belong to current mediaId
+  const currentAsset = assetFor === mediaId ? asset : undefined;
+  const currentBlob = blobFor === mediaId ? blob : undefined;
+
   const status = useMemo<LibraryFileState["status"]>(() => {
     if (!mediaId) return "none";
+    // If mediaId changed but asset/blob not yet for this id, it's loading
+    if (assetFor !== mediaId || blobFor !== mediaId) {
+      // If we have no asset/blob for current id and loading true, show loading
+      // If loading false but no blob, it's missing — but only after load attempted
+      // For one-frame fix, when mediaId just changed, loading is true, so return loading
+      if (loading) return "loading";
+    }
     if (loading) return "loading";
-    return blob ? "ready" : "missing";
-  }, [mediaId, loading, blob]);
+    return currentBlob ? "ready" : "missing";
+  }, [mediaId, loading, currentBlob, assetFor, blobFor]);
 
   const reason = useMemo(() => {
     if (status === "none") return REASON_NO_FILE;
     if (status !== "missing") return undefined;
-    return asset ? REASON_NO_BYTES : REASON_NO_METADATA;
-  }, [status, asset]);
+    return currentAsset ? REASON_NO_BYTES : REASON_NO_METADATA;
+  }, [status, currentAsset]);
 
   /** Kept in a ref so the callback identity does not churn the drawer. */
-  const latest = useRef({ blob, asset });
-  latest.current = { blob, asset };
+  const latest = useRef({ blob: currentBlob, asset: currentAsset });
+  latest.current = { blob: currentBlob, asset: currentAsset };
 
   const download = useCallback(() => {
     const { blob: bytes, asset: meta } = latest.current;
@@ -150,8 +179,8 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
 
   return {
     status,
-    ...(asset ? { asset } : {}),
-    ...(blob ? { blob } : {}),
+    ...(currentAsset ? { asset: currentAsset } : {}),
+    ...(currentBlob ? { blob: currentBlob } : {}),
     ...(reason ? { reason } : {}),
     downloading,
     error: error?.message ?? null,
