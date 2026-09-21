@@ -109,14 +109,14 @@ App → Media/File abstraction → Storage provider
 - MediaRepository.create bytes ArrayBuffer — VERIFIED — binary client where needed for media — ApiClient speaks JSON only — so registering it — `downloadBlob` single seam — VERIFIED exportService.ts — same seam for web and mobile
 - Same endpoint for web and mobile — `POST /media` — bytes to S3 metadata to DB — same for web and mobile — no second media endpoint — no second API — contract tests assert MediaRepository.create uses bytes ArrayBuffer not base64 not data URL — A NOW
 - Frontend evidence: `src/domains/media/__tests__/media.test.ts` etc — allow-list, size ceilings, SVG excluded, no data URL — VERIFIED
-- Backend impact: Media table + object storage + signed URLs + scanning + per-object owner check owner userId+org_id O-08 — B REQUIRED — per O-08 O-16 — per-object auth D15 signed expiring URLs content sniffing virus scanning — B
+- Backend impact: Media table + object storage + signed URLs + scanning + per-object authorization per O-08 / O-16 ACCEPT WITH CONDITIONS (`GOVERNANCE_CHECKPOINT.md`: no `owner_id`; media ACL = parent + org + T-02/O-13; `uploaded_by` = provenance; unreferenced media = uploader or admin) — B REQUIRED — per O-08 O-16 — per-object auth D15 signed expiring URLs content sniffing virus scanning — B
 
 ### Media Upload Same Endpoint — Flow
 
 1. App: user selects file — file.type checked against allow-list — size checked against ceiling per kind — SVG rejected — VERIFIED frontend
 2. App: `MediaRepository.create({ kind, fileName, mimeType, size, bytes: ArrayBuffer })` — bytes ArrayBuffer — not base64 — not data URL — VERIFIED
 3. ApiClient: `POST /media` with binary (multipart/form-data or binary stream) — header `Authorization: Bearer ${token}` — same for web and mobile — no second endpoint
-4. Backend: MediaService validates allow-list + size ceiling server-enforced same as frontend — content-type sniffing — virus scanning — per-object auth owner userId+org_id — StorageProvider S3 putObject — returns metadata `{ id, kind, fileName, mimeType, size, url? signed expiring }` — dataset store metadata — B
+4. Backend: MediaService validates allow-list + size ceiling server-enforced same as frontend — content-type sniffing — virus scanning — per-object auth per O-08 / O-16 (parent + org + T-02/O-13; no `owner_id`) — StorageProvider S3 putObject — returns metadata `{ id, kind, fileName, mimeType, size, url? signed expiring }` — dataset store metadata — B
 5. App: receives ItemEnvelope<Media> — stores metadata — blobStore only for demo — objectUrl via `useMediaObjectUrl` creates object URL from blobStore — not signed URL — D15 ref != auth — backend must enforce signed expiring URLs — B
 6. Same for web and mobile — no second API — same envelope — same RBAC — media.read/write permissions — same scope
 
@@ -210,9 +210,9 @@ App → Media/File abstraction → Storage provider
 - Linking tables user_student_links + telegram_links + bale_links + chat_read_cursors — B REQUIRED but implementation deferred until backend/integration layer — per 15-student-portal-architecture.md — VERIFIED F7 spec — same for mobile
 - Self scope enforcement via actor.studentId from token via user_student_links where relation=self verified_at NOT NULL org_id scoping — B REQUIRED — per F7 spec
 - Per-user cursor table user_id conversation_id last_read_message_id unread_count — B REQUIRED — per F6 backend impact + F7 spec — demo single-viewer unread on thread — VERIFIED F6 — backend per-user cursor B
-- Media table + object storage + signed URLs + scanning + per-object owner check owner userId+org_id O-08 — B REQUIRED — per O-08 O-16 — per-object auth D15 signed expiring URLs content sniffing virus scanning — B — same for web and mobile
+- Media table + object storage + signed URLs + scanning + per-object authorization per O-08 / O-16 ACCEPT WITH CONDITIONS (no `owner_id`; media ACL = parent + org + T-02/O-13; `uploaded_by` = provenance; unreferenced media = uploader or admin) — B REQUIRED — per O-08 O-16 — per-object auth D15 signed expiring URLs content sniffing virus scanning — B — same for web and mobile
 - Sanctum cookie primary + bearer fallback B1 — same backend supports web cookie + mobile bearer secure storage — B — per B1 decision — same Laravel structure B1 — no second API
-- Org_id scoping OrganizationScope global scope all tables — B — O-14 OPEN single org demo provisional — same for web and mobile
+- Org_id scoping OrganizationScope global scope all tables — B — O-14 ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (`users.organization_id` NOT NULL; tenant from token) — single org demo provisional — same for web and mobile
 - Transaction SELECT FOR UPDATE for scheduling/attendance/compensation — B — same for web and mobile
 - No backend code in F9 — contract only — per hard boundary — frontend remains docs-only + contract tests A NOW — per F9 AUTHORIZED hard boundaries: Do NOT modify backend/Laravel/database/migrations
 - All B items are REQUIRED PRODUCT CAPABILITY per correction 2026-09-19 — IMPLEMENTATION may remain deferred until backend/integration layer exists — adapter architecture Core domain/business logic → integration adapter → Telegram/Bale/Mobile no business logic in bots — per correction
@@ -230,14 +230,14 @@ App → Media/File abstraction → Storage provider
 ## Risks
 
 - O-12 mobile auth bearer vs cookie REQUIRED OPEN provisional B1 — cookie primary web + bearer fallback mobile — OPEN but provisional B1 — REQUIRED PRODUCT CAPABILITY per correction — mobile app client of same backend contracts same envelope Collection/Item PageMeta same domain repos same RBAC media/file abstraction -> storage provider bearer secure storage — B CONTRACT NOW BACKEND LATER but REQUIRED per correction — per 13-open-decisions.md O-12
-- O-10 identity linking user↔student self/guardian REQUIRED OPEN — B linking tables — high-cost before backend — affects portal auth + scope — per O-10
-- O-13 student portal auth separate app REQUIRED OPEN — B contract only first product — high-cost before backend — affects RBAC + routes — per O-13 — D1 preserved no student role in admin panel
-- O-14 org/user relation — org_id on all tables — OPEN high-cost before backend — single org demo provisional — per O-14
+- O-10 identity linking user↔student self/guardian REQUIRED — O-10/O-11 ACCEPTED per `GOVERNANCE_CHECKPOINT.md` (`chat_id` → `user_id` + `org_id`; explicit residue OPEN: uniqueness details and linking UX) — B linking tables — affects portal auth + scope — per O-10
+- O-13 student portal auth separate app REQUIRED — O-13 ACCEPTED per `GOVERNANCE_CHECKPOINT.md` (separate guard, same `users`; explicit residue OPEN: portal credential factor) — B contract only first product — affects RBAC + routes — per O-13 — D1 preserved no student role in admin panel
+- O-14 org/user relation — org_id on all tables — ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (`users.organization_id` NOT NULL; tenant from token; no membership pivot in v1) — single org demo provisional — per O-14
 - O-16 media storage S3 signed scanning REQUIRED OPEN — B S3 signed expiring URLs scanning per-object auth — per O-16 — same endpoint for web and mobile
-- O-08 file ownership owner+org_id REQUIRED — B owner+org_id — per O-08
+- O-08 file ownership REQUIRED — ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (no personal `owner_id`; tenant = `organization_id`; `uploaded_by` = provenance, not ACL; media ACL = parent + org + T-02/O-13; unreferenced media = uploader or admin) — B — per O-08 — *earlier “owner+org_id” wording here was a pre-checkpoint sketch and is superseded*
 - O-15 API boundaries envelope binary streaming cursor linking — OPEN — same envelope Collection/Item PageMeta — same for web and mobile — no second API — per O-15
 - O-17 notification provider integration REQUIRED — B — per O-17 — Telegram/Bale/SMS/email REQUIRED — implementation deferred — per correction
-- O-20 backup restore versioned integrity encryption REQUIRED — B — per O-20 — same for web and mobile — backup envelope versioned migration retention/integrity/restore/encryption/failure OPEN — per F8
+- O-20 backup restore versioned integrity encryption REQUIRED — O-09/O-20 ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (org `backup_jobs` to object storage; admin-gated; checksum; pre-restore snapshot; no secrets in blobs; Telegram/Bale secondary; retention numbers stay OPEN under O-19) — B — per O-20 — same for web and mobile — per F8
 - No student role in admin panel preserved — no fake boundary — VERIFIED D1 ACCEPTED — same for mobile — mobile app is separate app — keeps admin RBAC clean
 - No invented backend — per hard boundary — no Laravel/backend code — contract only — no credentials — no VITE_* token — no PII in logs — per security §24
 
@@ -257,7 +257,7 @@ B CONTRACT NOW BACKEND LATER — A for contract tests — REQUIRED PRODUCT CAPAB
 
 ## Follow-up
 
-- O-12 O-10 O-13 O-14 O-16 O-08 O-15 O-17 O-20 remain OPEN — do not resolve by assumption — per hard boundary — preserve OPEN decisions
+- Live status per `GOVERNANCE_CHECKPOINT.md` (reconciled 2026-09-21; the F9-era “remain OPEN” list is superseded): O-12 ACCEPTED / DUAL TRANSPORT; O-10/O-11 ACCEPTED (residue OPEN: uniqueness details and linking UX); O-13 ACCEPTED (residue OPEN: credential factor); O-14, O-16, O-08, O-15, O-09/O-20 ACCEPT WITH CONDITIONS; O-17 KEEP OPEN — do not resolve the named residues or O-17 by assumption — per hard boundary
 - F10 Cross-surface QA + final frontend freeze — after F1..F9 — do not start F10 per F9 AUTHORIZED hard boundaries
 - F9 final verification: focused `npx vitest run src/api/__tests__/mobileContract.test.ts src/__tests__/architectureBoundaries.test.ts --reporter=dot` then full suite `npx vitest run --reporter=dot` — classify failures A) F9 regression B) F1-F8 regression C) pre-existing governance/documentation drift D) unrelated/environmental — keep `projectState.test.ts` failures separately classified unless F9 explicitly requires phase-state update — per F2 execution rules
 - No merge PR #4 — per F9 AUTHORIZED hard boundaries — work only on `arena/frontend-completion-spec` — no rebase/amend/force-push/history rewrite — keep working tree clean at end — push normally — preserve all previous commits

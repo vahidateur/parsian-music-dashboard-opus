@@ -8,7 +8,10 @@
 > `O-01` (student level scope) and `O-02` (library resource level). **No code, migration, model, controller,
 > route, policy or frontend change was created by this addendum.** The body of this file below is the
 > historical F1-kickoff record (2026-09-19) and is kept verbatim; references to `O-01 OPEN` or `O-02 OPEN`
-> in that body describe the state **before** this addendum and are no longer current law. Current law lives in
+> in that body — and likewise its `T-02 OPEN EVIDENCE CONFLICTING` and “high-cost 7 … before Laravel
+> schema/API” wording — describe the state **before** this addendum and the governance checkpoint and are
+> no longer current law (live `T-02` / `O-*` / `PERF` / `HELP` status:
+> [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md)). Current law lives in
 > [`12-decision-register.md`](12-decision-register.md) → “O-01 closure — 2026-09-21” & “O-02 closure — 2026-09-21”,
 > [`04-learning-access-policy.md`](04-learning-access-policy.md) §“Per-Program / Instrument Scope — DECIDED O-01”,
 > and [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md).
@@ -41,8 +44,13 @@
   remains strictly governed by O-01 and the Learning domain.
 - **Stale `UNIQUE(student_id)` sketch in `production-handoff.md:155`:** marked NOT AUTHORITATIVE and
   superseded by `UNIQUE(student_id, program_id)` (historical sketch kept, not deleted or rewritten).
-- **Remaining high-cost decisions before backend:** O-08, O-09, O-10, O-13, O-14 (five open;
-  O-01 and O-02 are no longer on the open list).
+- **Remaining high-cost decisions before backend:** none of O-08, O-09, O-10, O-13, O-14 is open as a
+  whole decision — per the live [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md):
+  O-08 ACCEPT WITH CONDITIONS; O-09/O-20 ACCEPT WITH CONDITIONS; O-10/O-11 ACCEPTED (explicit residue
+  OPEN: uniqueness details and linking UX); O-13 ACCEPTED (explicit residue OPEN: portal credential
+  factor — password vs OTP vs other); O-14 ACCEPT WITH CONDITIONS. Their conditions and the two named
+  residues still bind Laravel v1. (O-01 and O-02 are no longer on the open list. *Reconciled 2026-09-21,
+  governance documentation pass — the earlier “five open” count was superseded by the checkpoint.*)
 - **This addendum changes Markdown documentation only.** No `src/`, no PHP, no migration, no model,
   no controller, no route, no package or deployment file was changed. No commit was made and no
   push was performed by this addendum.
