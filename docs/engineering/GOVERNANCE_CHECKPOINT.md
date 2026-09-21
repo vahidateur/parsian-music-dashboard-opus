@@ -5,6 +5,8 @@
 **Parent HEAD at record:** `02b74996e6458d10a5d9e8d1023890239342c4e4` (frontend freeze; this file does not implement backend)  
 **Nature:** documentation-only closure of product/architecture audits. **Does not authorize** Laravel code, migrations, or frontend edits.
 
+> **Date provenance.** First recorded **2026-09-20** (the date cited by [DECISIONS.md](DECISIONS.md) §20, `SESSION_HANDOFF.md` and `PROJECT_STATE.md`); amended **2026-09-21** to add the O-01 / O-02 closure rows. Both dates are correct for what they name; no T-02 / O-* / PERF / HELP status changed between them.
+
 IDs **T-02** and **O-*** are **not** D1–D20 in [DECISIONS.md](DECISIONS.md) §19. D1–D20 stay unchanged. This register does not reopen closed D-entries.
 
 Evidence was frozen frontend (PR #4 / local contracts) plus prior session audits. Implementation remains **BACKEND REQUIRED**.

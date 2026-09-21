@@ -1,5 +1,14 @@
 # Frontend Product Completion — Architecture + Spec + Execution Map — CORRECTED 2026-09-19
 
+> **Governance status pointer — 2026-09-21 (documentation reconciliation).** The status banner below is the
+> F0 / 2026-09-19 kickoff snapshot and is kept verbatim as history. Its `T-02 STATUS OPEN EVIDENCE CONFLICTING`,
+> `scope decision OPEN` and “open decisions 20 items” wording is **not current law**. Live `T-02` / `O-*` / `PERF` /
+> `HELP` status is [`docs/engineering/GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md):
+> `T-02` ACCEPTED / ASSIGNED-ONLY; `O-01` / `O-02` DECIDED 2026-09-21; `O-08`, `O-09/O-20`, `O-14`, `O-16`, `O-18`,
+> `O-15`, `PERF` ACCEPT WITH CONDITIONS; `O-12`, `O-13`, `O-10/O-11` ACCEPTED (explicit residues OPEN: `O-13`
+> credential factor; `O-10/O-11` uniqueness details and linking UX); `O-07`, `O-17`, `O-19`, `HELP` KEEP OPEN.
+> `13-open-decisions.md` is a historical snapshot, not current law.
+
 > Branch: `arena/frontend-completion-spec`
 > Base: `02b74996e6458d10a5d9e8d1023890239342c4e4` docs-only descendant of frozen product `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb`
 > Mode: READ-MOSTLY / DOCS-FIRST / GIT-PERSISTED

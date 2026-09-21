@@ -115,6 +115,14 @@ CREATE TABLE user_student_links (
 
 ### telegram_links
 
+> **Reconciled 2026-09-21 against the live [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) (O-10 / O-11 — ACCEPTED).**
+> The two `CREATE TABLE` sketches below (`telegram_links`, `bale_links`) are an **illustrative F8-era sketch, not a decided
+> schema**. Live law: the messaging `chat_id` binds to **`user_id` + `org_id`**; adapters are not authorization; *“Do not
+> require `student_id` on the link row as the authz key.”* The sketch’s `student_id … NOT NULL`, `UNIQUE(telegram_chat_id)` /
+> `UNIQUE(bale_chat_id)` and `UNIQUE(user_id, student_id)` lines therefore present **unresolved** details as if decided —
+> per the checkpoint, **uniqueness details and linking UX remain OPEN** and must not be resolved by copying this sketch.
+> The self-scope derivation stays `user_student_links` (verified, `org_id`-matched), not the messaging link row.
+
 ```sql
 CREATE TABLE telegram_links (
   id UUID PRIMARY KEY,
@@ -214,19 +222,19 @@ CREATE TABLE chat_read_cursors (
 - Linking tables user_student_links + telegram_links + bale_links + chat_read_cursors — B REQUIRED but implementation deferred until backend/integration layer
 - Self scope enforcement via actor.studentId from token via user_student_links where relation=self verified_at NOT NULL org_id scoping — B
 - Per-user cursor table user_id conversation_id last_read_message_id unread_count — B
-- Media table + object storage + signed URLs + scanning + per-object owner check owner userId+org_id O-08 — B
+- Media table + object storage + signed URLs + scanning + per-object authorization per O-08 (ACCEPT WITH CONDITIONS — live rule in `GOVERNANCE_CHECKPOINT.md`: no personal `owner_id`; tenant = `organization_id`; `uploaded_by` = provenance, not ACL; media ACL = parent + org + T-02/O-13; unreferenced media = uploader or admin) — B
 - Sanctum cookie primary + bearer fallback B1 — same backend supports web cookie + mobile bearer secure storage — B
-- Org_id scoping OrganizationScope global scope all tables — B — O-14 OPEN single org demo provisional
+- Org_id scoping OrganizationScope global scope all tables — B — O-14 ACCEPT WITH CONDITIONS (`users.organization_id` NOT NULL; tenant from token) — single org demo provisional
 - Transaction SELECT FOR UPDATE for scheduling/attendance/compensation — B
 - No backend code in F7 — contract only
 
 ## Risks
 
-- D1 student role in admin panel vs separate app — decision needed before schema O-13 — O-13 OPEN REQUIRED PRODUCT CAPABILITY B CONTRACT NOW — for first product contract only no UI then separate app later keeps admin RBAC clean — no fake boundary
-- Org/user relation O-14 — org_id on all tables — OPEN high-cost before backend — single org demo provisional
-- Identity linking O-10 — user↔student relation self/guardian — OPEN high-cost before backend — B linking tables
+- D1 student role in admin panel vs separate app — O-13 ACCEPTED (separate guard, same `users`, access via verified `user_student_links`; explicit residue OPEN: portal credential factor — password vs OTP vs other) — REQUIRED PRODUCT CAPABILITY B CONTRACT NOW — for first product contract only no UI then separate app later keeps admin RBAC clean — no fake boundary
+- Org/user relation O-14 — org_id on all tables — ACCEPT WITH CONDITIONS (`users.organization_id` NOT NULL; tenant from token; no membership pivot in v1) — single org demo provisional
+- Identity linking O-10 (with O-11) — user↔student relation self/guardian — ACCEPTED (`chat_id` → `user_id` + `org_id`; explicit residue OPEN: uniqueness details and linking UX) — B linking tables
 - Student level scope O-01 — DECIDED 2026-09-21 per-program — placement key (student_id, program_id) ratified; teacher exceptional resource access is a future authorization/persistence decision (not part of O-01)
-- File ownership O-08 — owner+org_id — OPEN REQUIRED B owner+org_id
+- File ownership O-08 — ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (no personal `owner_id` on catalogue/academy rows; tenant = `organization_id`; `created_by` / `uploaded_by` / `recordedByUserId` = provenance, not ACL; media ACL = parent + org + T-02/O-13; unreferenced media = uploader or admin) — REQUIRED B — *the earlier “owner+org_id” wording here was a pre-checkpoint sketch and is superseded*
 - No student role in admin panel preserved — no fake boundary — VERIFIED
 
 ## Acceptance
@@ -244,7 +252,7 @@ B CONTRACT NOW BACKEND LATER (A for scope pure functions) — REQUIRED PRODUCT C
 
 ## Follow-up
 
-- O-10 O-13 O-14 remain OPEN — do not resolve by assumption (O-01 DECIDED 2026-09-21 per-program)
+- O-10/O-11 ACCEPTED, O-13 ACCEPTED, O-14 ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` — only their explicit residues stay OPEN (O-10/O-11: uniqueness details and linking UX; O-13: portal credential factor) — do not resolve those residues by assumption (O-01 DECIDED 2026-09-21 per-program)
 - F8 Telegram + Bale + Backup integration contracts — next
 - F9 Mobile client contract — after F8
 - F10 Cross-surface QA + final frontend freeze — after F1..F9

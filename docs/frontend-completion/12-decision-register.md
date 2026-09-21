@@ -568,9 +568,15 @@ authority. **“Prerequisite”** means: do not create the affected table/relati
 
 **Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; `O-01` was
 resolved to DECIDED per-program; `O-02` was resolved to DECIDED descriptive string vocabulary (see
-§“O-02 closure — 2026-09-21” below); **the Gallery half of `O-03` stays genuinely open**; the remaining
-high-cost open decisions before backend schema are reduced to five (`O-08`, `O-09`, `O-10`, `O-13`,
-`O-14`). No product decision was invented in reaching any of these statuses.
+§“O-02 closure — 2026-09-21” below); **the Gallery half of `O-03` stays genuinely open**. `O-08`,
+`O-09`/`O-20`, `O-10`/`O-11`, `O-13` and `O-14` are **not** open decisions: per the live
+[`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) they stand at O-08 ACCEPT WITH
+CONDITIONS, O-09/O-20 ACCEPT WITH CONDITIONS, O-10/O-11 ACCEPTED (explicit residue **OPEN**: uniqueness
+details and linking UX), O-13 ACCEPTED (explicit residue **OPEN**: portal credential factor), O-14 ACCEPT
+WITH CONDITIONS — their conditions and those two residues still bind the v1 schema. *(Reconciled
+2026-09-21, governance documentation pass: an earlier wording of this paragraph counted them as “five
+remaining high-cost open decisions”; that count predated the checkpoint and is superseded.)* No product
+decision was invented in reaching any of these statuses.
 
 ### 3. O-12 — web transport: recorded pre-start integration requirement (decision unchanged)
 
@@ -818,8 +824,10 @@ untouched; do not read their `O-01` as this item.
 - It does **not** create any migration, model, controller, route, policy, or frontend change.
 - It does **not** authorize backend implementation (the implementation authorization gate in §5
   stands unchanged: Laravel is NOT STARTED and NOT AUTHORIZED).
-- It does **not** close the Gallery half of `O-03` (which remains genuinely open), or the remaining
-  open decisions (`O-08`, `O-09`, `O-10`, `O-13`, `O-14`).
+- It does **not** close the Gallery half of `O-03` (which remains genuinely open), and it does **not**
+  alter the live [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) statuses of
+  `O-08`, `O-09`/`O-20`, `O-10`/`O-11`, `O-13`, `O-14` (ACCEPT WITH CONDITIONS / ACCEPTED with their
+  explicit open residues — not open decisions).
 
 ---
 

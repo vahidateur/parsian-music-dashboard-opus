@@ -150,6 +150,11 @@ Student Portal SPA (or Mobile)
 
 ## Telegram Backup — Retention / Integrity / Restore / Encryption / Failure (OPEN)
 
+> *Status pointer (reconciled 2026-09-21):* the backup/restore decision itself is **O-09/O-20 ACCEPT WITH CONDITIONS** per
+> [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md) (org `backup_jobs` to object storage; Telegram/Bale =
+> notify ± encrypted secondary, not source of truth). “OPEN” in this heading refers only to the retention numbers (KEEP OPEN under
+> O-19) and the missing provider research I7 — not to O-09/O-20 as a decision.
+
 - Retention: how long backup kept in Telegram? Telegram file storage indefinite? But channel may delete? Needs research I7 — OPEN
 - Integrity: hash (sha256) of backup JSON, stored alongside, verified on restore — spec B
 - Restore: decrypt, validate envelope environment, migration accepts old envelopes, integrity check — spec B, implementation B

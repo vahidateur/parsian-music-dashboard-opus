@@ -97,7 +97,7 @@ BackupService (domain)
 
 **No business logic in adapter:** Adapter calls domain services, domain services enforce RBAC + scope — e.g. /resources calls `resolveEligibleContent(placement, content, levels)` same as web, not re-implemented in bot. Eligibility, scope, RBAC, file resolution, message persistence in domain service, not adapter — adapter only transmits.
 
-**Identity linking:** user ↔ student ↔ telegram_id table telegram_links (user_id, student_id, telegram_chat_id, verified_at, org_id, UNIQUE telegram_chat_id, UNIQUE user_id+student_id) — B — per O-10.
+**Identity linking:** user ↔ student ↔ telegram_id table telegram_links (user_id, student_id, telegram_chat_id, verified_at, org_id, UNIQUE telegram_chat_id, UNIQUE user_id+student_id) — B — per O-10. *Reconciled 2026-09-21 against `GOVERNANCE_CHECKPOINT.md` (O-10/O-11 ACCEPTED): the column list is an illustrative sketch, not a decided schema — live law binds `chat_id` to `user_id` + `org_id`, does **not** require `student_id` on the link row as the authz key, and keeps **uniqueness details and linking UX OPEN**; the `UNIQUE …` clauses above are not decided.*
 
 **Security:**
 
@@ -135,7 +135,7 @@ Core Domain Services (same)
 - **Deduplication:** eligibility, scope, RBAC, file resolution, message persistence in domain service, not adapter — adapter only transmits, no business logic in bots — VERIFIED requirement, provider.ts has no enrollment/eligibility/RBAC imports
 - **Contract:** provider enum already includes bale — VERIFIED chat/types.ts, providerLabel Persian includes bale, status unavailable when no backend — VERIFIED
 - **Failure:** same as Telegram — queued, unavailable, failed with statusReason Persian honest
-- **Identity linking:** bale_links table (user_id, student_id, bale_chat_id, verified_at, org_id, UNIQUE bale_chat_id, UNIQUE user_id+student_id) — B — per O-11
+- **Identity linking:** bale_links table (user_id, student_id, bale_chat_id, verified_at, org_id, UNIQUE bale_chat_id, UNIQUE user_id+student_id) — B — per O-11 — *same reconciliation note as `telegram_links` above: illustrative sketch; `chat_id` → `user_id` + `org_id`; `student_id` not the authz key; uniqueness details and linking UX remain OPEN per `GOVERNANCE_CHECKPOINT.md`*
 - **Security:** same as Telegram — no token in React, backend-only, rate limiting, no PII in logs
 
 **Frontend Demo-Capable NOW (A):**
@@ -214,7 +214,7 @@ Core Domain Services (same)
 
 ## Risks
 
-- Telegram backup retention/encryption PII minors OPEN O-09 — needs product decision on semantics retention/encryption/integrity/restore but REQUIRED per correction — mitigated by spec marking OPEN with research tasks I7
+- Telegram backup retention/encryption PII minors — O-09/O-20 ACCEPT WITH CONDITIONS per `GOVERNANCE_CHECKPOINT.md` (prod = org `backup_jobs` to object storage; admin-gated; checksum; pre-restore snapshot; no secrets in blobs; Telegram/Bale = notify ± encrypted secondary, not source of truth; restore is not a naive overwrite) — retention numbers remain OPEN under O-19 (KEEP OPEN) and provider research I7 remains missing — REQUIRED per correction — mitigated by spec marking those residues OPEN with research tasks I7 *(reconciled 2026-09-21; the earlier “OPEN O-09 — needs product decision on semantics” wording predated the checkpoint)*
 - Research I7 missing Telegram file retention/size/rate limits — OPEN — mitigated by spec marking OPEN
 - Backup contains PII must encrypt backend-only — mitigated by spec encryption org key backend-only never in React
 - Credentials backend-only never VITE_* localStorage — mitigated by security §24
