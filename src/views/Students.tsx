@@ -55,7 +55,8 @@ const WEEK_COLUMNS = 7;
  * §30: never render a full national ID in a list/detail chrome. Only the last
  * four digits are shown; the full value stays in the domain layer.
  */
-function maskNationalId(nationalId: string): string {
+function maskNationalId(nationalId: string | undefined): string {
+  if (!nationalId) return NO_DATA;
   const tail = nationalId.slice(-4);
   return `کد ملی ···${tail}`;
 }
@@ -406,8 +407,15 @@ function StudentDetail({
           <>
             <span className="nums">{faNum(student.age)} ساله</span>
             {/* §9/§30: the national ID is a domain identifier, shown masked by
-                default so it is not casually exposed on screen or in screenshots. */}
-            <span className="nums" dir="ltr" title="کد ملی">{maskNationalId(student.nationalId)}</span>
+                default so it is not casually exposed on screen or in screenshots.
+                A legacy/edited payload may carry a row with no national ID at all
+                (backup validation reports it as MISSING_ID); the profile renders
+                the honest missing label rather than crashing or inventing one. */}
+            {student.nationalId ? (
+              <span className="nums" dir="ltr" title="کد ملی">{maskNationalId(student.nationalId)}</span>
+            ) : (
+              <span className="text-ink-500">{`کد ملی: ${NO_DATA}`}</span>
+            )}
             <span className="nums" dir="ltr">{student.phone}</span>
             {student.guardian && <span>ولی: {student.guardian}</span>}
             <span>عضو از {student.since}</span>
