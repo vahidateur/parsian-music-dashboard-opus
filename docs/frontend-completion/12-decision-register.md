@@ -560,16 +560,17 @@ authority. **“Prerequisite”** means: do not create the affected table/relati
 | ID | Topic | Current status | Authority / basis | Backend prerequisite |
 |---|---|---|---|---|
 | `O-01` | Student level scope (per-program / per-instrument) | **DECIDED 2026-09-21 — PER-PROGRAM (per-instrument/program independent).** Product-owner final decision: educational level is determined independently for each instrument/program; one student may hold different levels in different programs/instruments simultaneously (e.g. piano L3, vocals L1, violin L2). Per-program is the chosen model; global per-student and per-instrument options are formally excluded. The implemented form is per-program and is now ratified. Teacher manual override: a teacher may grant exceptional access to a specific resource for a specific student without changing the student’s level or program placement — resource-level exception only, not a level change. **Resolved before backend.** | Owner decision recorded 2026-09-21 (this document); `04-learning-access-policy.md` §“Per-Program / Instrument Scope — DECIDED O-01”; `NEW-LRN-01` ACCEPTED fixes the canonical rule (“per-program/instrument scope”, placement per `(student,program)` VERIFIED) | **Yes** — determines the key of `student_placements`: key is `(student_id, program_id)`; one active placement per `(student, program)`. Do **not** use `production-handoff.md:155`’s `UNIQUE(student_id)` sketch: it predates the model and is superseded by this decision (marked NOT AUTHORITATIVE inline). Teacher exception access is a backend authorization concern (policy-level), not a placement/schema change — exact persistence model is a future decision, not part of O-01. |
-| `O-02` | Library resource level: string vocabulary vs relation to `LearningLevel` | **OPEN — narrowed to the storage question.** The separation of *Library Resource* (catalogue) from *Learning Content* (curriculum) is settled and verified in the shipped model: two types, two owners, different visibility/eligibility. Whether `LibraryItem.level` stays a display string or gains a `level_id` FK is **not** decided. | `NEW-LIB-01` PROVISIONAL (“Reversibility: provisional — level relation decision pending”); `PROP-LIB-01` OPEN (proposal: keep the string, add a nullable relation later); `06-library-gallery-spec.md` (two concepts, VERIFIED) | **Yes** — the library table’s level column shape (`level` string vs `level_id` FK). |
+| `O-02` | Library resource level: string vocabulary vs relation to `LearningLevel` | **DECIDED 2026-09-21 — DESCRIPTIVE STRING VOCABULARY.** Product-owner final decision: `library_items.level` is a descriptive catalogue string vocabulary. It is **NOT** an authorization field and has **NO** direct FK to `learning_levels`. Student learning eligibility remains strictly governed by O-01 and the Learning domain. Exact database column type/length remains an implementation detail for the Laravel migration phase (no SQL length/type such as `VARCHAR(100)` is a product or architecture requirement). No `library_item_levels` or bridge table for v1; no merging of Library and Learning domains. **Resolved before backend.** | Owner decision recorded 2026-09-21 (this document); `PROP-LIB-01`; `06-library-gallery-spec.md` (two concepts, VERIFIED); `GOVERNANCE_CHECKPOINT.md` | **Yes** — determines the library table’s level column: string vocabulary, no FK to `learning_levels`. |
 | `O-03` | Visibility field for Library / Gallery | **Library: DISCHARGED** — decided *and already implemented*: publication status uses the existing `active` + `visibility` (students/teachers) semantics, no new workflow. **Gallery: OPEN** — no visibility field exists; “public demo” is the current placeholder. | F1 publication-status disposition (`06-library-gallery-spec.md`, VERIFIED) + shipped `src/domains/library/types.ts` (`visibility?`, `active?`); gallery: `NEW-GAL-01` PROVISIONAL follow-up “visibility permission decision”, `06` “OPEN — for now public demo” | **Yes for the Library** — the client already models and filters `visibility`, so the server must persist `active` + `visibility` (and filter them in SQL) or its own contract is unimplementable. **Yes for Gallery** before a gallery visibility column/filter exists. |
 | `O-04` | Theme persistence: org vs device-local | **DISCHARGED for v1 — device-local.** Branding is org data; appearance/theme/accent/density/motion is device-local per browser. An *org default theme* is explicitly a **later, optional** change requiring a decision — not a v1 item. | Canonical `D2` (`DECISIONS.md` §19: branding is the source of truth for academy identity) + this register’s `D2` ACCEPTED (“organizations table + branding_settings, appearance stays localStorage”; “reversible — can add org theme optional later with decision”) | No — v1 carries no `default_theme`. (`PROP-THEME-01`’s viewer-vs-org accent *naming* clarification stays an open proposal and does not affect persistence.) |
 | `O-05` | Export formats | **DISCHARGED for v1 — the implemented set stands** (CSV/XLSX tabular; chat export stays single-conversation TXT per `D14`). PDF requires the Finance/Reports domain and stays **deferred** with `D6`/`I2`. Any *additional* format is a new decision, not an implementation choice. | Canonical `D6` (Finance/Reports deferred), `D14` (no new verb, chat TXT, metadata only), `08-export-architecture.md` (format table + “Future: PDF? Deferred C”), `O-15` (downloads raw/signed, never JSON-wrapped) | No — but large exports are async jobs and must not stream bytes through the Laravel request path (`PERF`). |
 | `O-06` | Permission for dashboard / analytical export | **DISCHARGED for v1 — the view’s own permission, no new permission.** Analytical/dashboard export requires the same permission as the view it exports (`students.read` today, as `viewPermissions` already maps). Introducing `reports.read` or a new `dashboard.export` would be a **new decision** and needs a proven gap. | `NEW-RBAC-01` ACCEPTED (“smallest permission model”, “new permissions without gap (expands)” rejected); `05-rbac-access-control.md` / `viewPermissions` mapping dashboard → `students.read` VERIFIED | No (no schema change) — but the permission must be enforced **server-side** on the export endpoint, not only in the client guard. |
 
-**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; **`O-02`,
-and the Gallery half of `O-03` stay genuinely open and are prerequisites** for the tables they touch
-(`O-01` was resolved to DECIDED per-program by the owner decision recorded 2026-09-21 — see
-§“O-01 closure — 2026-09-21” below). No product decision was invented in reaching any of these statuses.
+**Net effect:** `O-04`, `O-05`, `O-06` are closed for v1; the Library half of `O-03` is closed; `O-01` was
+resolved to DECIDED per-program; `O-02` was resolved to DECIDED descriptive string vocabulary (see
+§“O-02 closure — 2026-09-21” below); **the Gallery half of `O-03` stays genuinely open**; the remaining
+high-cost open decisions before backend schema are reduced to five (`O-08`, `O-09`, `O-10`, `O-13`,
+`O-14`). No product decision was invented in reaching any of these statuses.
 
 ### 3. O-12 — web transport: recorded pre-start integration requirement (decision unchanged)
 
@@ -688,8 +689,8 @@ by this decision (marked inline in that file). It was not deleted or rewritten.
 - It does **not** invent a schema for teacher exceptional access.
 - It does **not** authorize backend implementation (the implementation authorization gate in §5
   stands unchanged: Laravel is NOT STARTED and NOT AUTHORIZED).
-- It does **not** close `O-02` (library level string vs relation) or the Gallery half of `O-03`;
-  those remain genuinely open.
+- It does **not** close the Gallery half of `O-03` (which remains genuinely open); `O-02` was decided
+  on 2026-09-21 (see §“O-02 closure — 2026-09-21” below).
 
 ### Historical audit — 2026-09-21 (kept verbatim, records the state BEFORE the product decision)
 
@@ -779,3 +780,107 @@ untouched; do not read their `O-01` as this item.
 - **No** change to the student-keyed placement accessors to “make the backend fit” — that is a contract
   decision.
 - **No** freezing of the placement key by any other route (view, index, or convenience endpoint).
+
+---
+
+## O-02 closure — 2026-09-21 — outcome: DECIDED (descriptive catalogue string vocabulary, product-owner final)
+
+> **Why this section exists.** `O-02` (Library resource level: string vocabulary vs relation to
+> `LearningLevel`) governs the database schema for the library catalogue (`library_items`) and its
+> structural relationship to the curriculum domain (`learning_levels` / `learning_content`).
+> Following the 2026-09-21 closure audit and the product owner's final ruling on 2026-09-21, this section
+> records the canonical decision. The historical audit as conducted prior to closure is preserved
+> below. Nothing here authorizes implementation; no code, migration, or schema was written and no
+> historical record was rewritten.
+
+### Final decision — recorded 2026-09-21 (owner decision, documentation only)
+
+**Decision:** `library_items.level` is a **descriptive catalogue string vocabulary**.
+
+- **Not an authorization field:** `library_items.level` is a human-readable difficulty/category label
+  for catalogue browsing, searching, and filtering. It is **NOT** an authorization field and does
+  **NOT** control student learning eligibility.
+- **No foreign key:** `library_items.level` has **NO direct FK** to `learning_levels`.
+- **Implementation detail for Laravel:** Exact database column type and length (e.g. `VARCHAR` or
+  nullable string column) remains an implementation detail for the Laravel migration phase. No
+  specific SQL length/type (such as `VARCHAR(100)`) is a product or architecture requirement.
+- **No bridge table:** Do **not** create `library_item_levels` or any other bridge table for v1.
+- **No domain merge:** Do **not** merge the Library and Learning domains. They remain separate domains
+  with distinct owners (Library owns catalogue metadata; Learning owns pedagogical progression and
+  eligibility; Media owns file assets in object storage).
+- **Student learning eligibility:** Remains strictly governed by **`O-01`** and the Learning domain.
+  Student access to curriculum materials is governed exclusively by `resolveEligibleContent` over the
+  active `StudentPlacement` and `level_content_links` (`(student_id, program_id)` model).
+- **O-01, T-02, and O-03 statuses remain unchanged.**
+
+**What this decision does NOT do:**
+
+- It does **not** create any migration, model, controller, route, policy, or frontend change.
+- It does **not** authorize backend implementation (the implementation authorization gate in §5
+  stands unchanged: Laravel is NOT STARTED and NOT AUTHORIZED).
+- It does **not** close the Gallery half of `O-03` (which remains genuinely open), or the remaining
+  open decisions (`O-08`, `O-09`, `O-10`, `O-13`, `O-14`).
+
+---
+
+### Historical audit — 2026-09-21 (kept verbatim, records the state BEFORE the product decision)
+
+> The text below is the 2026-09-21 closure audit as written before the product decision was ruled on.
+> It is kept verbatim as historical record and is **superseded** by the “Final decision” subsection above.
+
+### 7.1 What the record says (compared across all sources)
+
+| Source | What it establishes about O-02 |
+|---|---|
+| [`06-library-gallery-spec.md`](06-library-gallery-spec.md) (:15–:26) | `LibraryItem` extends `Resource` (`id, title, composer, kind, instrument, level, size, duration, pages, added, uses, peaks, mediaId, createdAt, visibility, active`). Level is currently a string display label: *“level: string — currently string label, not relation — gap, needs decision: keep as vocabulary D (static) or link to LearningLevel? For now filter by level string — A NOW”*. Formally separates catalogue from curriculum: *“two concepts: LearningContent (curriculum resource linked to levels) vs Library Resource (catalogue)”*. |
+| [`12-decision-register.md`](12-decision-register.md) §2 (:563) | *“OPEN — narrowed to the storage question. The separation of Library Resource (catalogue) from Learning Content (curriculum) is settled and verified in the shipped model: two types, two owners, different visibility/eligibility. Whether LibraryItem.level stays a display string or gains a level_id FK is not decided.”* Marked as prerequisite for the library table's level column shape. |
+| [`12-decision-register.md`](12-decision-register.md) → `PROP-LIB-01` (:474–:492) | Agent proposal: *“Keep string as vocabulary D (static) for now, add levelId optional relation later if needed — string is display, levelId is eligibility link (but eligibility already via LearningContent not Library Resource). Why: Library is catalogue public, learning content is curriculum gated — different owners.”* |
+| [`13-open-decisions.md`](13-open-decisions.md) (:48–:60) — historical F0 snapshot | *“Question: Library Resource vs Learning Content — are they same or different? Library.level string vs relation to LearningLevel? Evidence: Resource is catalogue item with mediaId, LearningContent is curriculum resource linked to levels via LevelContentLink — two types — VERIFIED. Recommendation: Keep separate — different owners, different visibility — Library public if library.read, LearningContent gated via eligibility — proposal PROP-LIB-01.”* |
+| [`F1_INVENTORY.md`](../engineering/F1_INVENTORY.md):19 · [`F2_INVENTORY.md`](../engineering/F2_INVENTORY.md):179 · [`F10_INVENTORY.md`](../engineering/F10_INVENTORY.md):83 | *“Library.level string vs relation to LearningLevel — O-02 — keep string vocabulary D for now provisional per decision register — do NOT link to LearningLevel relation unless evidence requires documented change”*; F2: *“MUST NOT resolve … keep separate per PROP-LIB-01”*; F10: *“preserved”*. |
+| Ratified `O-01` decision (2026-09-21, PR #8) | Educational level is strictly **per-program** (`UNIQUE(program_id, order)`). Levels do not exist globally or by instrument alone; they are rungs of a specific `LearningProgram`. Consequence for resources: *“Resources must be categorizable by program/instrument and level so that they are offered only to students who meet the per-program level eligibility — enforcing the controlled learning path. Higher-level resources must not be offered without authorization. Teacher exceptional access: A teacher may manually authorize a specific resource/file for a specific student outside that student's normal per-program level access (resource-grant only, no level change; persistence model future decision).”* |
+| Shipped frontend source code | `src/domains/library/types.ts`: `Resource.level: string`, `CreateLibraryItemInput.level?: string`, `LibraryListParams.level?: string`. `src/views/Library.tsx`: level input is `<input placeholder="مثلاً متوسطه" />`, dynamic filter chips derived from live values (`set.add(r.level)`), search matches `r.level.includes(q)`. `src/domains/learning/types.ts`: `LearningContent` has no direct `levelId` — it uses `LevelContentLink` (M:N) to attach to `LearningLevel`, which belongs to `LearningProgram`. |
+| Seed implementation (`src/domains/demo/learningSeed.ts`:130–:195) | Derives `LearningContent` from library `resources` (`deriveLearningContent`) to avoid disconnected catalogues, and maps free-text Persian labels (`مقدماتی`, `سطح ۱`, `سطح ۲`, `متوسط`, `متوسط رو به بالا`, `پیشرفته`) to numeric level bands (`LEVEL_BAND`) clamped to each program's depth. |
+
+### 7.2 Architectural & Structural Analysis
+
+The audit establishes three fundamental structural findings:
+
+1. **Separation of Concerns is Already Settled (D5 Compliance):**
+   - **`library` domain (`LibraryItem`):** Owns the academy's broad educational media catalogue (sheet music, recordings, video masterclasses, handouts). Its primary audience is teachers and staff browsing and discovering materials (`library.read`). Catalogue metadata includes: `title`, `composer`, `kind` (`sheet`, `audio`, `video`, `doc`), `instrument`, `size`, `duration`, `pages`, `added`, `uses`, `peaks`, `visibility` (`students` \| `teachers`), and `active`.
+   - **`learning` domain (`LearningContent`):** Owns structured pedagogical curriculum pathways (programs, sequential levels 1..N, student progression, and access gating via `resolveEligibleContent`).
+   - **`media` domain (`MediaAsset`):** Owns binary assets in object storage and their metadata (`media_assets`). Both `LibraryItem` and `LearningContent` reference `mediaId`. A single binary (e.g. a sheet music PDF) can be indexed in the library catalogue and simultaneously linked into a curriculum level without duplicating bytes.
+
+2. **Structural Mismatch between `LibraryItem` and `LearningLevel` (Impact of O-01):**
+   - Under `O-01`, levels are strictly **per-program** (`UNIQUE(program_id, order)`). A level row cannot exist without a `program_id`.
+   - A `LibraryItem` belongs to an `instrument` (e.g. `violin`), NOT to a `program`. An instrument often has multiple programs (e.g. "ویولن کلاسیک" and "ویولن ایرانی").
+   - If `library_items` were to carry a direct `level_id FK REFERENCES learning_levels(id)`:
+     - Every catalogue item would be forced to bind to one specific program's level, preventing it from serving students in other programs of that instrument or across programs.
+     - General reference materials (e.g. "تئوری موسیقی بنیادی", "تمرین‌های سلفژ", "کنسرت پاییز") that apply across multiple levels or programs could not be cleanly represented.
+     - In the curriculum domain, `LearningContent` uses a many-to-many join table (`LevelContentLink`) so that one piece of content can be linked to multiple levels and programs. A single `level_id` column on `library_items` would be a rigid 1:N anti-pattern.
+
+3. **Student Access & Controlled Learning Path:**
+   - In the Student Portal (`15-student-portal-architecture.md`), student access to instructional materials is governed by **`resolveEligibleContent`** over their active `StudentPlacement` and `level_content_links`.
+   - If an academy resource is part of a student's formal progression ladder, it is attached to a `LearningLevel` via `LevelContentLink`.
+   - If students browse the general library, access is governed by `visibility = "students"` and the pedagogical difficulty label, preventing unauthorized access to advanced material while allowing open discovery of reference works.
+
+### 7.3 Options for O-02 Resolution
+
+| Option | Description | Schema / Persistence | Pros | Cons / Risks |
+|---|---|---|---|---|
+| **Option 1: Decoupled Catalogue with String Vocabulary (Recommended)** | Keep `LibraryItem` and `LearningContent` separate. `LibraryItem.level` remains a descriptive string/vocabulary (`VARCHAR(100) NULL` or enum) representing broad difficulty (e.g. "مقدماتی", "متوسط", "پیشرفته", "عمومی"). Controlled curriculum progression remains exclusively in `learning_content` + `level_content_links`. | `library_items`: `level VARCHAR(100) NULL` (no FK to `learning_levels`). `learning_content`: unchanged. | 1. 100% compliant with existing frozen frontend, tests, and API contracts.<br>2. Respects D5 (one owner per concept: Library owns catalogue, Learning owns curriculum).<br>3. Allows general reference items not tied to a single program rung.<br>4. Clean, uncoupled database schema. | A resource present in both catalogue and curriculum has two metadata records (sharing same `media_id` binary). |
+| **Option 2: Unified Resource Entity (Merged Model)** | Merge `LibraryItem` and `LearningContent` into a single unified table `resources` (or `educational_resources`). All level associations happen through a join table `resource_level_links`. Items with no level links are general catalogue items. | Single `resources` table. Join table `resource_level_links(resource_id, level_id, sort_order)`. Drop `learning_content` table. | Single source of truth for all educational assets.<br>No parallel metadata entities. | Breaks existing frozen frontend contracts (`Resource` vs `LearningContent`), requires extensive refactoring of repositories and API boundaries, contradicts settled separation in `12-decision-register.md`. |
+| **Option 3: Decoupled Catalogue with Optional Curriculum Link (Hybrid)** | `LibraryItem` retains its descriptive `level` string, but gains an optional join table `library_item_levels(library_item_id, program_id, level_id)` or an optional `learning_content_id` FK, allowing library items to be optionally linked to curriculum levels. | `library_items`: `level VARCHAR(100) NULL`. Optional link table: `library_level_links(library_item_id, level_id)`. | Provides both broad catalogue search and optional curriculum association without breaking existing code. | Premature schema complexity before production requirements prove the need. |
+
+### 7.4 Recommendation & Analysis
+
+**Recommendation: Adopt Option 1 (Decoupled Catalogue with String Vocabulary).**
+- **Authority & Precedent:** Both `PROP-LIB-01` and `12-decision-register.md` §2 explicitly record that the separation of *Library Resource* (catalogue) from *Learning Content* (curriculum) is settled and verified in the shipped model.
+- **Harmony with O-01:** Since O-01 established that levels are strictly per-program, binding a general library catalogue row to a single `level_id` FK is structurally mismatched. `LibraryItem.level` serves as a human-readable pedagogical difficulty label, while formal progression gating belongs to `learning_levels` and `level_content_links`.
+- **Zero frontend breaking changes:** Keeps the existing working implementations in `src/domains/library/` and `src/views/Library.tsx` intact without reopening the freeze.
+
+### 7.5 What must NOT be implemented while O-02 awaits final ruling
+
+- **No** `level_id` foreign key column added to the `library_items` table or migrations.
+- **No** merging of `LibraryItem` and `LearningContent` into a single entity.
+- **No** modification of `src/domains/library/types.ts` or `src/domains/learning/types.ts`.
+- **No** backend Laravel migrations or models written.

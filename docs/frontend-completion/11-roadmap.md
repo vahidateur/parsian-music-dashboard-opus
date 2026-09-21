@@ -54,7 +54,7 @@ Demo (academySeed + lifecycle + backup envelope)
 12. **Persistence** — `demoStore` single authority, IndexedDB `blobStore` for bytes, no `localStorage` for binary, org vs device-local schema (branding org single record travels backups demo both modes, appearance device-local `localStorage` honest).
 13. **Backend mapping** — B CONTRACT NOW BACKEND LATER, Laravel domain structure Sanctum cookie primary + bearer fallback `B1`, `org_id` scoping, transaction `SELECT FOR UPDATE`, signed expiring URLs, content-type sniffing, virus scanning, per-user read cursor.
 14. **Documentation** — capability matrix, domain map, learning access policy, RBAC testable contract, library/gallery spec, settings/theme architecture, export architecture, dashboard analytics, integration architecture, roadmap canonical F0..F10, decision register unique IDs, open decisions 20 items high-cost 7, handoff checkpoint, README index, `PROJECT_STATE.md` `PHASES.md` `OPEN_ITEMS.md` `SESSION_HANDOFF.md` updated same branch/SHA/spec PR #4.
-15. **Decision / open-decision disposition** — accepted `D1..D20` `B1` `NEW-LRN-01/LIB-01/GAL-01/SET-01/EXP-01/DASH-01/RBAC-01/PORTAL-01/CHAT-01/TG-01/BALE-01/MOB-01/CLASS-01` + 3 proposals `PROP-BRAND-01` draft preview `PROP-LIB-01` level string vs relation `PROP-THEME-01` viewer vs org accent naming, open `O-02..O-20` high-cost 6 `O-02,O-08,O-09,O-10,O-13,O-14` before backend (**O-01 DECIDED 2026-09-21 per-program**, no longer open), `T-02` OPEN EVIDENCE CONFLICTING REQUIRES EMPIRICAL RE-VERIFICATION, no fake decision.
+15. **Decision / open-decision disposition** — accepted `D1..D20` `B1` `NEW-LRN-01/LIB-01/GAL-01/SET-01/EXP-01/DASH-01/RBAC-01/PORTAL-01/CHAT-01/TG-01/BALE-01/MOB-01/CLASS-01` + 3 proposals `PROP-BRAND-01` draft preview `PROP-LIB-01` level string vs relation `PROP-THEME-01` viewer vs org accent naming, open `O-03(gallery), O-08..O-20` high-cost 5 `O-08,O-09,O-10,O-13,O-14` before backend (**O-01 DECIDED 2026-09-21 per-program**, **O-02 DECIDED 2026-09-21 descriptive string vocabulary**, neither open), `T-02` OPEN EVIDENCE CONFLICTING REQUIRES EMPIRICAL RE-VERIFICATION, no fake decision.
 
 > **Canonical 15 names exact — for validation:** Product behavior, Domain model, Source of truth, Repository contract, Demo behavior, API seam, Permissions, Ownership/scope, Loading/empty/error states, Test strategy, Accessibility, Persistence, Backend mapping, Documentation, Decision/open-decision disposition — 15 items exact match required per spec — no new terminology — wording preserved where found — spaced variants above map to exact names.
 
@@ -97,7 +97,7 @@ Demo (academySeed + lifecycle + backup envelope)
   - **Publication status disposition:** use existing `active`/`visibility` semantics, workflow gate deferred — no new workflow invented per F1 disposition
   - **Inactive/archived student disposition:** eligibility for inactive/archived OPEN — evidence insufficient — no fake decision per F1 disposition
 - **Tests:** eligibility.test pure 17 cases, LevelContentPanel.test 12 + contentAssignmentFlow.test 5 + attachContentIntent.test 15, library filter/sort/preview tests, gallery genuine tests + GalleryAlbumSwitch.test, classesRelations deep-link test, no fixture counts, relationsNoFixtures gate, noSuccessWithoutWrite, honestWriteCopy
-- **Risks:** Library.level string vs relation decision O-02 — resolve before backend schema, keep string vocabulary D for now provisional; Gallery seed albums existence needs verification; Scope O-01 DECIDED per-program (ratified)
+- **Risks:** Library.level string vs relation decision O-02 DECIDED 2026-09-21 (descriptive string vocabulary, no FK to learning_levels); Gallery seed albums existence needs verification; Scope O-01 DECIDED per-program (ratified)
 - **Backend impact:** none demo only for F1, but contracts documented for future — levelId vs string, visibility field, storage provider S3/MinIO signed URLs per-object auth scanning uses increment transaction — B contract now backend later but REQUIRED? Actually library/gallery storage REQUIRED but implementation deferred until backend/integration layer
 - **Independent shippable:** yes — demo data only, no API change, no backend
 - **Classification:** A FRONTEND-COMPLETABLE NOW — NEXT ACTION Implement F1
@@ -238,7 +238,7 @@ Absorb minor hardening items such as Classes deep-link get(id) authoritative, pa
 
 - One owner per rule/source per concept — D5
 - Vertical slices reversible — each slice demo-only or contract doc, no giant framework, no history rewrite
-- Resolve high-cost decisions before coding — library level relation O-02, file ownership O-08, Telegram backup semantics O-09, identity linking O-10, student portal auth O-13, org/user relation O-14 — 6 high-cost O-02,O-08,O-09,O-10,O-13,O-14 before backend schema/API (O-01 DECIDED 2026-09-21 per-program; removed from open list)
+- Resolve high-cost decisions before coding — file ownership O-08, Telegram backup semantics O-09, identity linking O-10, student portal auth O-13, org/user relation O-14 — 5 high-cost O-08,O-09,O-10,O-13,O-14 before backend schema/API (O-01 DECIDED 2026-09-21 per-program, O-02 DECIDED 2026-09-21 descriptive string vocabulary; both removed from open list)
 - No fake backend — demo behaves like real API seams mirror real contracts server security independent
 - Avoid premature abstraction/giant frameworks/deps — no new dependency
 - Preserve a11y RTL protections explicit no-data — VERIFIED
@@ -252,6 +252,6 @@ Absorb minor hardening items such as Classes deep-link get(id) authoritative, pa
 - I8 backup labels wrong environment always demo — F8 versioned format migration + REQUIRED backup capability
 - L1/L2/L4/L6/L7 — C deferred or recorded not fixed, but internal tests guard, L4 external QA for F10
 - Student portal identity linking — high-cost decision D1/O-10/O-13 before schema — F7 resolves contract, backend later
-- Library level string vs relation — decision O-02 needed before backend schema — F1 resolves
+- Library level string vs relation — decision O-02 DECIDED 2026-09-21 (descriptive string vocabulary, no FK to learning_levels)
 - Telegram backup retention/encryption — OPEN O-09, REQUIRED PRODUCT CAPABILITY but implementation deferred until backend/integration layer — not optional
 - RBAC testable — F2 expands to testable contract covering 11 sensitive cases — no new permission vocab casually

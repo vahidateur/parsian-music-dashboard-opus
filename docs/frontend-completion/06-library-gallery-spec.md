@@ -135,9 +135,10 @@ piano L3 must not automatically receive violin L3 resources (the per-instrument 
 or global L3 resources (the global option was rejected).
 
 - Resource classification by instrument is already present (`Resource.instrument: InstrumentId`).
-- Resource classification by program/level is served either through `LearningContent` links
-  (curriculum-gated via the eligibility rule in `learning/eligibility.ts`) or through a
-  yet-to-be-decided level association for catalogue `Resource` rows (see O-02 below).
+- Resource classification by program/level is served through `LearningContent` links
+  (curriculum-gated via the eligibility rule in `learning/eligibility.ts`), while catalogue
+  `Resource` rows carry a descriptive level string vocabulary (O-02 DECIDED 2026-09-21: descriptive
+  string vocabulary, not an authorization field, no direct FK to `learning_levels`).
 - Teacher exceptional access: a teacher may grant a specific student access to a specific resource
   outside normal per-program eligibility. This is a product-level exception (resource-grant only,
   does not change level or program placement). Backend must enforce this in authorization; exact
@@ -145,7 +146,7 @@ or global L3 resources (the global option was rejected).
 
 ## Open Decisions for Library/Gallery
 
-- Library.level string vs relation to LearningLevel — keep string vocabulary D or link? See 13-open-decisions (O-02 — remains open)
+- Library.level string vs relation to LearningLevel — **DECIDED 2026-09-21 (O-02)**: descriptive catalogue string vocabulary, not an authorization field, no direct FK to `learning_levels`.
 - Library visibility field — add or keep public? (O-03 — Library half discharged; Gallery half open)
 - Gallery visibility/permission — add reports.read? Actually library.read?
 - Gallery album cover fallback logic — spec as is (fallback first image) — keep
