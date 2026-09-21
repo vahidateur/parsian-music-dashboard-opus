@@ -2,19 +2,19 @@
 
 > Documentation continuation system: roadmap, architecture/spec, capability matrix, decision register, open items, phase state, session handoff checkpoint with branch/HEAD/base/purpose/audited/decided/open/must-not-touch/files changed/validation/known failures/next action/continuation prompt — corrected F0 COMPLETE F1 NEXT canonical F0..F10 — SHA semantics no longer ambiguous
 
-## Addendum — 2026-09-21 — O-01 FINAL DECISION (documentation only)
+## Addendum — 2026-09-21 — O-01 & O-02 FINAL DECISIONS (documentation only)
 
-> **Status of this addendum.** A documents-only addendum recording the owner's final decision on
-> `O-01` (student level scope). **No code, migration, model, controller, route, policy or frontend
-> change was created by this addendum.** The body of this file below is the historical F1-kickoff
-> record (2026-09-19) and is kept verbatim; references to `O-01 OPEN` in that body describe the state
-> **before** this addendum and are no longer current law. Current law lives in
-> [`12-decision-register.md`](12-decision-register.md) → “O-01 closure — 2026-09-21” and
-> [`04-learning-access-policy.md`](04-learning-access-policy.md) §“Per-Program / Instrument Scope —
-> DECIDED O-01”.
+> **Status of this addendum.** A documents-only addendum recording the owner's final decisions on
+> `O-01` (student level scope) and `O-02` (library resource level). **No code, migration, model, controller,
+> route, policy or frontend change was created by this addendum.** The body of this file below is the
+> historical F1-kickoff record (2026-09-19) and is kept verbatim; references to `O-01 OPEN` or `O-02 OPEN`
+> in that body describe the state **before** this addendum and are no longer current law. Current law lives in
+> [`12-decision-register.md`](12-decision-register.md) → “O-01 closure — 2026-09-21” & “O-02 closure — 2026-09-21”,
+> [`04-learning-access-policy.md`](04-learning-access-policy.md) §“Per-Program / Instrument Scope — DECIDED O-01”,
+> and [`GOVERNANCE_CHECKPOINT.md`](../engineering/GOVERNANCE_CHECKPOINT.md).
 
 - **O-01 status:** OPEN → **DECIDED (2026-09-21, owner decision, documentation only).**
-- **Decision:** Educational level is independent per instrument/program. One student may hold
+- **O-01 Decision:** Educational level is independent per instrument/program. One student may hold
   different levels in different programs/instruments simultaneously (e.g. piano L3, vocals L1,
   violin L2). The relation is **Student → Program/Instrument → Level** (per-program model).
   Global per-student and per-instrument scopes are formally excluded.
@@ -32,10 +32,17 @@
   to that one specific resource, and must be enforceable in backend authorization (policy-level) in
   the future. The persistence model for this exception is **not** decided here — only product
   behaviour is recorded; no schema is invented.
+- **O-02 status:** OPEN → **DECIDED (2026-09-21, owner decision, documentation only).**
+- **O-02 Decision:** `library_items.level` is a **descriptive catalogue string vocabulary**. It is
+  **NOT** an authorization field and has **NO** direct FK to `learning_levels`. Exact database
+  column type/length remains an implementation detail for the Laravel migration phase (no SQL
+  length/type such as `VARCHAR(100)` is a product or architecture requirement). No `library_item_levels`
+  or bridge table for v1. Do not merge Library and Learning domains. Student learning eligibility
+  remains strictly governed by O-01 and the Learning domain.
 - **Stale `UNIQUE(student_id)` sketch in `production-handoff.md:155`:** marked NOT AUTHORITATIVE and
   superseded by `UNIQUE(student_id, program_id)` (historical sketch kept, not deleted or rewritten).
-- **Remaining high-cost decisions before backend:** O-02, O-08, O-09, O-10, O-13, O-14 (six open;
-  O-01 is no longer on the open list).
+- **Remaining high-cost decisions before backend:** O-08, O-09, O-10, O-13, O-14 (five open;
+  O-01 and O-02 are no longer on the open list).
 - **This addendum changes Markdown documentation only.** No `src/`, no PHP, no migration, no model,
   no controller, no route, no package or deployment file was changed. No commit was made and no
   push was performed by this addendum.

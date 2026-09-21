@@ -17,6 +17,7 @@ Evidence was frozen frontend (PR #4 / local contracts) plus prior session audits
 |---|---|---|---|
 | T-02 | Teacher student-read scope | **ACCEPTED / ASSIGNED-ONLY** | Enforce in query/policy |
 | O-01 | Student level scope (per-program/instrument) | **DECIDED 2026-09-21 — PER-PROGRAM** | Placement key `(student_id, program_id)`; one active placement per (student, program); level independent per program/instrument; teacher may grant exceptional per-resource access (resource-grant only, no level change; persistence model future decision). See `docs/frontend-completion/12-decision-register.md` → “O-01 closure — 2026-09-21”. |
+| O-02 | Library resource level | **DECIDED 2026-09-21 — DESCRIPTIVE VOCABULARY** | `library_items.level` is descriptive catalogue string vocabulary; NOT an authorization field; NO direct FK to `learning_levels`; student learning eligibility remains governed by O-01 and the Learning domain; exact database column type/length is a Laravel migration implementation detail (no specific SQL type/length enforced as product requirement). See `docs/frontend-completion/12-decision-register.md` → “O-02 closure — 2026-09-21”. |
 | O-12 | Web vs mobile auth transport | **ACCEPTED / DUAL TRANSPORT** | Same `/api/v1`; cookie web, Bearer mobile |
 | O-13 | Student portal authentication | **ACCEPTED** | Same `users`; separate guard; credential factor **OPEN** |
 | O-10 / O-11 | Telegram / Bale identity | **ACCEPTED** | `chat_id` → `user_id` + `org_id`; uniqueness/UX **OPEN** |
@@ -39,6 +40,14 @@ Evidence was frozen frontend (PR #4 / local contracts) plus prior session audits
 ### T-02 — Teacher Scope — ACCEPTED / ASSIGNED-ONLY
 
 Teacher student-read = **active enrollment ∩ `class.teacherId`**. `Student.teacherId` is **not** authorization. Fail-closed. Do not revisit.
+
+### O-01 — Student Level Scope — DECIDED 2026-09-21 — PER-PROGRAM
+
+Placement key `(student_id, program_id)`; one active placement per (student, program); level independent per program/instrument; teacher exceptional per-resource access (resource-grant only, no level change). See `docs/frontend-completion/12-decision-register.md` → “O-01 closure — 2026-09-21”.
+
+### O-02 — Library Resource Level — DECIDED 2026-09-21 — DESCRIPTIVE VOCABULARY
+
+`library_items.level` is descriptive catalogue string vocabulary. It is **NOT** an authorization field and has **NO** direct FK to `learning_levels`. Student learning eligibility remains strictly governed by O-01 and the Learning domain. Do not create `library_item_levels` or bridge tables for v1. Do not merge Library and Learning domains. Exact column type/length is a Laravel migration implementation detail (no specific SQL type/length enforced as product requirement). See `docs/frontend-completion/12-decision-register.md` → “O-02 closure — 2026-09-21”.
 
 ### O-12 — Authentication Persistence — ACCEPTED / DUAL TRANSPORT
 
