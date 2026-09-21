@@ -44,7 +44,7 @@ export function DemoBackedNotice({ className }: { className?: string }) {
       )}
     >
       <PlugZap className="mt-0.5 size-3.5 shrink-0 text-gold-400" strokeWidth={1.8} />
-      <p className="text-[11.5px] leading-relaxed text-gold-100/90">
+      <p className="text-[11.5px] leading-relaxed text-gold-200/90">
         این بخش‌ها فعلاً با دادهٔ محلی ذخیره‌شده روی همین دستگاه نمایش داده می‌شوند، نه از سامانهٔ مرکزی:
         {" "}
         {names}.

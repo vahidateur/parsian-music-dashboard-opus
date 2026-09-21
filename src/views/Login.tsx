@@ -51,6 +51,9 @@ export function LoginView() {
   const [reveal, setReveal] = useState(false);
   const [touched, setTouched] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
+  // Short-viewport fallback: a failed submit inserts the alert above the button and
+  // can push the submit/error pair below the fold — scrolled back into view below.
+  const submitRef = useRef<HTMLButtonElement>(null);
   // Client-side backoff state. The enforcing limit is server-side; this makes
   // repeated failures visibly slow and tells the user the truth about why.
   const [throttle, setThrottle] = useState<ThrottleVerdict>(() => checkThrottle());
@@ -68,6 +71,12 @@ export function LoginView() {
   useEffect(() => {
     emailRef.current?.focus();
   }, []);
+
+  // Keep the submit/error pair reachable when the alert's insertion pushes it past
+  // the fold (short viewports). Optional-call: `scrollIntoView` is absent in jsdom.
+  useEffect(() => {
+    if (error) submitRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [error]);
 
   // Tick while a wait is active so the countdown stays truthful.
   useEffect(() => {
@@ -96,7 +105,7 @@ export function LoginView() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#0E1018] text-ink-50">
+    <main className="relative min-h-svh overflow-hidden bg-ink-950 text-ink-50">
       {/*
         The artwork. On small screens it stays as a heavily dimmed backdrop
         rather than being dropped, so the brand still reads on a phone.
@@ -112,16 +121,19 @@ export function LoginView() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to left, rgba(14,16,24,0) 30%, rgba(14,16,24,0.72) 72%, #0E1018 97%)",
+              "linear-gradient(to left, transparent 30%, color-mix(in srgb, var(--color-ink-950) 72%, transparent) 72%, var(--color-ink-950) 97%)",
           }}
         />
         <div
           className="absolute inset-0 lg:hidden"
-          style={{ background: "linear-gradient(to bottom, rgba(14,16,24,0.86), rgba(14,16,24,0.94))" }}
+          style={{
+            background:
+              "linear-gradient(to bottom, color-mix(in srgb, var(--color-ink-950) 86%, transparent), color-mix(in srgb, var(--color-ink-950) 94%, transparent))",
+          }}
         />
       </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col lg:flex-row-reverse">
+      <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
         {/* Brand side */}
         <section className="hidden flex-1 flex-col justify-between p-12 lg:flex xl:p-16">
           <div className="flex items-center gap-2.5">
@@ -147,7 +159,7 @@ export function LoginView() {
         </section>
 
         {/* Form side */}
-        <section className="flex w-full flex-1 items-center justify-center px-5 py-10 sm:px-8 lg:w-[32%] lg:max-w-[560px] lg:flex-none lg:px-10">
+        <section className="flex w-full flex-1 items-center justify-center px-5 py-10 [@media(max-height:700px)]:py-6 sm:px-8 lg:w-[32%] lg:max-w-[560px] lg:flex-none lg:px-10">
           <div className="w-full max-w-[430px] animate-[loginRise_620ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
             {/* Compact wordmark for small screens, where the brand panel is hidden. */}
             <div className="mb-7 flex items-center gap-2.5 lg:hidden">
@@ -156,7 +168,7 @@ export function LoginView() {
             </div>
 
             <div
-              className="rounded-[28px] border border-white/[0.07] p-7 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.85)] sm:p-10"
+              className="rounded-[28px] border border-white/[0.07] p-7 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.85)] sm:p-10 [@media(max-height:700px)]:p-6"
               style={{ background: "rgba(10,12,18,0.42)", backdropFilter: "blur(28px)" }}
             >
               <div className="mb-7">
@@ -265,20 +277,21 @@ export function LoginView() {
 
                 <button
                   type="submit"
+                  ref={submitRef}
                   disabled={!canSubmit}
                   className={cn(
-                    "group relative mt-6 flex h-[68px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-[18px]",
-                    "text-[14px] font-semibold text-[#1a1206] transition-all duration-300",
-                    "bg-gradient-to-l from-[#D5AF58] via-[#F4D28B] to-[#D5AF58] bg-[length:200%_100%] bg-right",
-                    "hover:bg-left hover:shadow-[0_14px_38px_-12px_rgba(213,175,88,0.55)]",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0E1018]",
+                    "group relative mt-6 flex h-[68px] [@media(max-height:700px)]:h-[56px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-[18px]",
+                    "text-[14px] font-semibold text-ink-950 transition-all duration-300",
+                    "bg-gradient-to-l from-gold-500 via-gold-300 to-gold-500 bg-[length:200%_100%] bg-right",
+                    "hover:bg-left hover:shadow-[0_14px_38px_-12px_color-mix(in_srgb,var(--accent-500)_55%,transparent)]",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950",
                     "disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none",
                   )}
                 >
                   {pending ? (
                     <>
                       <span
-                        className="size-4 animate-spin rounded-full border-2 border-[#1a1206]/25 border-t-[#1a1206]"
+                        className="size-4 animate-spin rounded-full border-2 border-ink-950/25 border-t-ink-950"
                         aria-hidden
                       />
                       در حال ورود…
@@ -313,7 +326,7 @@ export function LoginView() {
 }
 
 const fieldCls =
-  "h-[70px] w-full rounded-[18px] border border-white/[0.09] bg-white/[0.035] px-4 text-[14px] text-ink-50 " +
+  "h-[70px] [@media(max-height:700px)]:h-[56px] w-full rounded-[18px] border border-white/[0.09] bg-white/[0.035] px-4 text-[14px] text-ink-50 " +
   "placeholder:text-ink-500 transition-all duration-200 " +
   "hover:border-white/[0.14] " +
   "focus:border-gold-500/45 focus:bg-white/[0.055] focus:outline-none focus:ring-[3px] focus:ring-gold-500/12 " +

@@ -38,7 +38,7 @@ export function LifecycleRecoveryPanel({ controller }: { controller: LifecycleRe
               <Button
                 size="sm"
                 variant="ghost"
-                className="mt-3 text-warn-400 hover:text-warn-300"
+                className="mt-3 text-warn-400"
                 onClick={() => controller.request("uninitialize")}
               >
                 <RotateCcw className="size-3.5" aria-hidden />
@@ -47,7 +47,7 @@ export function LifecycleRecoveryPanel({ controller }: { controller: LifecycleRe
             </div>
           </div>
           {failure && (
-            <p role="alert" className="mt-3 rounded-xl border border-danger-500/25 bg-danger-500/[0.07] p-3 text-[11.5px] leading-relaxed text-danger-300">
+            <p role="alert" className="mt-3 rounded-xl border border-danger-500/25 bg-danger-500/[0.07] p-3 text-[11.5px] leading-relaxed text-danger-400">
               {failure}
             </p>
           )}
@@ -91,7 +91,7 @@ export function LifecycleRecoveryPanel({ controller }: { controller: LifecycleRe
             </div>
           </dl>
 
-          <div className="mt-3 flex items-start gap-2 rounded-xl border border-danger-500/25 bg-danger-500/[0.08] p-3 text-[11.5px] leading-relaxed text-danger-200">
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-danger-500/25 bg-danger-500/[0.08] p-3 text-[11.5px] leading-relaxed text-danger-400">
             <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden />
             <span>
               با تأیید، حساب‌های دسترسی حذف و ورود قفل می‌شود؛ داده، نشانگر محیط و باینری‌های ذخیره‌شده پاک
