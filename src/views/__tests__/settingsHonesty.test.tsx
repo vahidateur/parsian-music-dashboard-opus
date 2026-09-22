@@ -18,6 +18,7 @@ import { AppProvider } from "@/context/AppContext";
 import { SettingsView } from "@/views/Settings";
 import {
   getBrandingRepository,
+  getOrganizationRepository,
   resetRegistry,
   setBrandingRepository,
 } from "@/domains/registry";
@@ -138,31 +139,85 @@ describe("M-6 unimplemented settings do NOT report fake success", () => {
     }
   });
 
-  it("session rules panel discloses not connected and disables inputs", async () => {
+  /*
+    These three used to assert that the session rules and working hours were
+    DISABLED and disclosed as display-only. That was the honest state of a panel
+    that stored nothing — but a disabled input next to a real schedule is not a
+    neutral choice: it reads as "the academy has no say in its own rules". They are
+    functional now, so the honesty being tested is different and stricter: the
+    fields are enabled, they carry the values the repository holds, saving writes
+    through it, and each rule names what it actually governs.
+  */
+  it("session rules are editable, carry the stored values and name their consumers", async () => {
     const rendered = await renderSettingsWithAuth();
     await waitFor(() => expect(screen.queryByText(/در حال بارگذاری هویت آموزشگاه/)).toBeNull(), { timeout: 5000 });
     fireEvent.click(screen.getByRole("button", { name: /عملیات آموزشگاه/ }));
-    // RoomsPanel etc load, then session rules
-    const notice = await screen.findByText(/قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده/);
-    expect(notice.textContent).toContain("صرفاً نمایشی");
-    expect(notice.textContent).toContain("ذخیره نمی‌شود");
-    // Inputs in session rules should be disabled
-    const inputs = screen.getAllByDisplayValue(/۶۰|۱۰|۲۴|۲/) as HTMLInputElement[];
-    const disabledSessionInputs = inputs.filter((i) => i.disabled);
-    expect(disabledSessionInputs.length).toBeGreaterThanOrEqual(4);
+
+    // The notice that said "not connected / display-only" is gone.
+    expect(screen.queryByText(/قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده/)).toBeNull();
+
+    const duration = (await screen.findByLabelText(/مدت پیش‌فرض جلسه/)) as HTMLInputElement;
+    expect(duration.disabled).toBe(false);
+    // The value comes from the record, not from a hard-coded defaultValue.
+    const stored = await getOrganizationRepository().get();
+    expect(duration.value).toBe(String(stored.defaultSessionMinutes));
+
+    // Each rule states what reads it, so a value is never decorative.
+    expect(screen.getByText(/هشدار «فرصت کم برای جابجایی»/)).toBeTruthy();
+    expect(screen.getByText(/هنگام ثبت جبرانی اعمال می‌شود/)).toBeTruthy();
     rendered.unmount();
   });
 
-  it("working hours Friday toggle is disabled and disclosed as presentational", async () => {
+  it("saving a session rule writes it through the repository", async () => {
+    const rendered = await renderSettingsWithAuth();
+    await waitFor(() => expect(screen.queryByText(/در حال بارگذاری هویت آموزشگاه/)).toBeNull(), { timeout: 5000 });
+    fireEvent.click(screen.getByRole("button", { name: /عملیات آموزشگاه/ }));
+
+    const duration = (await screen.findByLabelText(/مدت پیش‌فرض جلسه/)) as HTMLInputElement;
+    fireEvent.change(duration, { target: { value: "۹۰" } }); // Persian digits, as typed
+    fireEvent.click(screen.getByRole("button", { name: /ذخیرهٔ قواعد/ }));
+
+    await waitFor(async () => {
+      expect((await getOrganizationRepository().get()).defaultSessionMinutes).toBe(90);
+    });
+    /*
+      Wait for the field to show the SAVED value before typing again: that is the
+      frame where the write has landed and the form is idle. Typing into a field
+      that is still disabled mid-save would be a test racing the UI it tests.
+    */
+    const saved = await screen.findByDisplayValue("90");
+
+    // And an out-of-range rule is refused rather than stored.
+    fireEvent.change(saved, { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: /ذخیرهٔ قواعد/ }));
+    expect(await screen.findByText(/باید بین/)).toBeTruthy();
+    expect((await getOrganizationRepository().get()).defaultSessionMinutes).toBe(90);
+    rendered.unmount();
+  });
+
+  it("working hours are editable and state what they govern", async () => {
     renderSettings();
     await waitFor(() => expect(screen.queryByText(/در حال بارگذاری هویت آموزشگاه/)).toBeNull(), { timeout: 5000 });
-    // Profile is default section, so working hours panel is visible
-    const notice = await screen.findByText(/ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده/);
-    expect(notice.textContent).toContain("صرفاً نمایشی");
-    expect(notice.textContent).toContain("بازنشانی می‌شود");
-    // Friday toggle should be disabled
-    const fridaySwitch = screen.getByLabelText(/تعطیلی جمعه/);
-    expect((fridaySwitch as HTMLButtonElement).disabled).toBe(true);
+    // Profile is the default section, so the working hours panel is visible.
+    expect(screen.queryByText(/ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده/)).toBeNull();
+
+    const stored = await getOrganizationRepository().get();
+    const start = (await screen.findByLabelText(/شروع روز کاری/)) as HTMLInputElement;
+    expect(start.disabled).toBe(false);
+    expect(start.value).toBe(stored.workingDayStart);
+
+    // Friday is closed by default, and the panel says what closing a day does.
+    const friday = screen.getByRole("button", { name: /جمعه/ });
+    expect(friday.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByText(/روزهای تعطیل جلسهٔ تازه نمی‌سازند/)).toBeTruthy();
+
+    // Opening Friday is one click, and it persists.
+    fireEvent.click(friday);
+    expect(friday.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: /ذخیرهٔ ساعات کاری/ }));
+    await waitFor(async () => {
+      expect((await getOrganizationRepository().get()).closedWeekdays).toEqual([]);
+    });
   });
 
   it("no unimplemented setting reports fake success like 'ذخیره شد' without repository write", async () => {
@@ -228,12 +283,20 @@ describe("M-6 API-mode unavailable disclosed", () => {
     // For operations, need auth wrapper
   });
 
-  it("operations session rules mention server requirement", async () => {
+  it("the rules panel says where its record lives, per environment", async () => {
     const rendered = await renderSettingsWithAuth();
     await waitFor(() => expect(screen.queryByText(/در حال بارگذاری هویت آموزشگاه/)).toBeNull(), { timeout: 5000 });
     fireEvent.click(screen.getByRole("button", { name: /عملیات آموزشگاه/ }));
-    await screen.findByText(/قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده/);
-    expect(screen.getAllByText(/به سرور نیاز دارد/).length).toBeGreaterThan(0);
+    await screen.findByLabelText(/مدت پیش‌فرض جلسه/);
+    /*
+      In the demo environment the rules ARE persisted — in the academy dataset —
+      so the panel says that, and stops claiming a server is required for a write
+      that already works. The API-mode sentence ("به سرور نیاز دارد") is the same
+      disclosure from the other side, and `ApiOrganizationRepository` is the
+      contract it refers to.
+    */
+    expect(screen.getAllByText(/در همین محیط ذخیره می‌شود/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده/)).toBeNull();
     rendered.unmount();
   });
 });

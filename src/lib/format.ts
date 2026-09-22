@@ -7,6 +7,25 @@ const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 export const toFa = (input: string | number): string =>
   String(input).replace(/\d/g, (d) => FA_DIGITS[Number(d)]);
 
+/**
+ * Convert Persian (and Arabic-Indic) digits back to Latin ones.
+ *
+ * The inverse of `toFa`, and the reason a numeric field in this product cannot
+ * just call `Number(...)`: an operator typing into a Persian interface types ۶۰,
+ * and `Number("۶۰")` is `NaN`. Without this, a rule field either rejects the
+ * digits the rest of the product displays or silently stores nothing.
+ */
+export const toEnDigits = (input: string): string =>
+  String(input)
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660));
+
+/** Parses a number typed in either digit set; `null` when it is not a number. */
+export const parseTypedNumber = (input: string): number | null => {
+  const value = Number(toEnDigits(input).trim());
+  return input.trim() === "" || !Number.isFinite(value) ? null : value;
+};
+
 /** Format a number with Persian digits and Persian separators (٬ and ٫). */
 export const faNum = (
   n: number,
@@ -75,7 +94,7 @@ export const parseTime = (hhmm: string) => {
  * GAP-010 fix: previously used `new Date()` directly, bypassing the academy's
  * single clock (`academyNow()`) and the canonical Jalali conversion
  * (`dateBridge.isoToJalaliDisplay`). Now derives from `academyIsoDate()` which
- * itself uses `academyNow()` (frozen 10:47 in demo, real clock in api), and
+ * itself uses `academyNow()` — the one wall clock, in every mode — and
  * converts via `isoToJalaliDisplay` — the canonical bridge.
  *
  * Accepts an optional ISO date (`YYYY-MM-DD`) so callers like Hero/TopBar can

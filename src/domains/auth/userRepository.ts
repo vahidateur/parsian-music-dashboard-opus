@@ -2,11 +2,14 @@ import { ApiError } from "@/api/errors";
 import type { Page, QueryParams } from "@/api/types";
 import type { ApiClient } from "@/api/client";
 import { demoStore, type DemoStore } from "@/services/demoStore";
+import { demoCredentialStore, isAcceptablePassphrase, type DemoCredentialStore } from "./demoCredentials";
 import { isRoleId } from "./permissions";
 import type { UserRepository } from "./repository";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Persian and Latin digits, spaces, `+`, `-` — a contact number, loosely. */
+const PHONE_RE = /^[0-9۰-۹+\-\s()]{6,20}$/;
 
 /** Shared, transport-independent input validation. */
 export function validateUserInput(input: Partial<CreateUserInput>, required: boolean): ApiError | null {
@@ -20,13 +23,19 @@ export function validateUserInput(input: Partial<CreateUserInput>, required: boo
   if (required || input.role !== undefined) {
     if (!input.role || !isRoleId(input.role)) fields.role = ["نقش انتخاب‌شده معتبر نیست."];
   }
+  if (input.phone !== undefined && input.phone !== "" && !PHONE_RE.test(input.phone.trim())) {
+    fields.phone = ["شمارهٔ تماس معتبر نیست."];
+  }
   if (Object.keys(fields).length === 0) return null;
   return new ApiError({ kind: "validation", code: "USER_INVALID", message: "اطلاعات کاربر معتبر نیست.", fields });
 }
 
 /** Demo implementation — delegates persistence to the single DemoStore. */
 export class DemoUserRepository implements UserRepository {
-  constructor(private readonly store: DemoStore = demoStore) {}
+  constructor(
+    private readonly store: DemoStore = demoStore,
+    private readonly credentials: DemoCredentialStore = demoCredentialStore(),
+  ) {}
 
   async list(): Promise<Page<AuthUser>> {
     const data = this.store.users.all();
@@ -47,6 +56,7 @@ export class DemoUserRepository implements UserRepository {
       name: input.name.trim(),
       email: input.email.trim().toLowerCase(),
       role: input.role,
+      ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
       status: input.status ?? "active",
     });
   }
@@ -59,13 +69,51 @@ export class DemoUserRepository implements UserRepository {
       ...input,
       ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
       ...(input.name ? { name: input.name.trim() } : {}),
+      ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
     });
     if (!updated) throw notFound(id);
+    this.syncTeacher(updated);
     return updated;
   }
 
   async delete(id: string): Promise<void> {
     if (!this.store.users.remove(id)) throw notFound(id);
+    // A credential must not outlive the account it belonged to.
+    this.credentials.clear(id);
+  }
+
+  async setPassword(id: string, passphrase: string): Promise<void> {
+    if (!this.store.users.find(id)) throw notFound(id);
+    if (passphrase === "") {
+      this.credentials.clear(id);
+      return;
+    }
+    if (!isAcceptablePassphrase(passphrase)) throw weakPassphrase();
+    this.credentials.set(id, passphrase.trim());
+  }
+
+  async hasOwnPassword(id: string): Promise<boolean> {
+    return this.credentials.has(id);
+  }
+
+  /**
+   * ONE PERSON, ONE NAME.
+   *
+   * An account linked to a teacher record (`teacherId`) is the same human the
+   * teachers view edits. Renaming one and not the other is what made the panel
+   * look unsynchronized — Settings showed the old name next to the new one — so
+   * the write propagates here, in the repository, where every caller passes
+   * through. The API implementation leaves this to the server, which owns both
+   * tables.
+   */
+  private syncTeacher(user: AuthUser): void {
+    if (!user.teacherId) return;
+    const teacher = this.store.teachers.find(user.teacherId);
+    if (!teacher) return;
+    const patch: { name?: string; phone?: string } = {};
+    if (user.name && teacher.name !== user.name) patch.name = user.name;
+    if (user.phone && teacher.phone !== user.phone) patch.phone = user.phone;
+    if (Object.keys(patch).length > 0) this.store.teachers.update(teacher.id, patch);
   }
 
   private emailTaken(email: string, exceptId?: string): boolean {
@@ -101,16 +149,42 @@ export class ApiUserRepository implements UserRepository {
   async delete(id: string): Promise<void> {
     await this.client.delete(`users/${encodeURIComponent(id)}`);
   }
+
+  /** BACKEND REQUIRED: `POST /users/{id}/password`, verified server-side. */
+  setPassword(id: string, passphrase: string): Promise<void> {
+    if (passphrase !== "" && !isAcceptablePassphrase(passphrase)) return Promise.reject(weakPassphrase());
+    return this.client
+      .post<void>(`users/${encodeURIComponent(id)}/password`, { password: passphrase })
+      .then(() => undefined);
+  }
+
+  /** BACKEND REQUIRED: the server answers whether a local passphrase exists. */
+  hasOwnPassword(id: string): Promise<boolean> {
+    return this.client
+      .get<{ has_password: boolean }>(`users/${encodeURIComponent(id)}/password`)
+      .then((body) => Boolean(body?.has_password))
+      .catch(() => false);
+  }
 }
 
 function toWire(input: UpdateUserInput | CreateUserInput): QueryParams {
   const wire: Record<string, string | undefined> = {
     name: input.name?.trim(),
     email: input.email?.trim().toLowerCase(),
+    phone: input.phone?.trim(),
     role: input.role,
     status: input.status,
   };
   return wire as QueryParams;
+}
+
+function weakPassphrase(): ApiError {
+  return new ApiError({
+    kind: "validation",
+    code: "USER_PASSWORD_WEAK",
+    message: "گذرواژه باید حداقل ۶ نویسه باشد.",
+    fields: { password: ["گذرواژه باید حداقل ۶ نویسه باشد."] },
+  });
 }
 
 function notFound(id: string): ApiError {

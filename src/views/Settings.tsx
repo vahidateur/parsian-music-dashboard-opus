@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { Building2, Check, FileSpreadsheet, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
-import { accentHex, accentLabels, type Accent, type Density } from "@/lib/theme";
+import {
+  THEMES,
+  accentHex,
+  accentLabels,
+  themeLabels,
+  themeNotes,
+  themeStage,
+  type Accent,
+  type Density,
+} from "@/lib/theme";
+import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Field, PageHeader, Panel, Segmented, Toggle, inputCls } from "@/components/ds/patterns";
@@ -13,6 +23,9 @@ import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
 import { ImportExportCenter } from "@/domains/import/ImportExportCenter";
 import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
 import { UsersPanel } from "@/components/settings/UsersPanel";
+import { ManualColorsPanel } from "@/components/settings/ManualColorsPanel";
+import { SessionRulesPanel } from "@/domains/organization/SessionRulesPanel";
+import { WorkingHoursPanel } from "@/domains/organization/WorkingHoursPanel";
 import { cn } from "@/utils/cn";
 
 
@@ -45,7 +58,10 @@ const sectionIcon: Record<SectionId, typeof Building2> = {
 };
 
 export function SettingsView() {
-  const { notify, theme, setTheme, accent, setAccent, density, setDensity, motion, setMotion } = useApp();
+  const { notify, theme, setTheme, accent, setAccent, density, setDensity, motion, setMotion, colors, clearColors } =
+    useApp();
+  /** How many colours this viewer has typed by hand — the preview line says so. */
+  const typedColorCount = Object.values(colors).filter(Boolean).length;
   const [section, setSection] = useState<SectionId>("profile");
   const [dirty, setDirty] = useState(false);
   const [toggles, setToggles] = useState<Record<string, boolean>>({
@@ -122,22 +138,7 @@ export function SettingsView() {
                 inputs are saved.
               */}
               <BrandingPanel />
-              <Panel title="ساعات کاری" kicker="مبنای بازه‌های قابل رزرو در تقویم">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="شروع روز کاری"><input defaultValue="۰۸:۰۰" disabled className={inputCls} /></Field>
-                  <Field label="پایان روز کاری"><input defaultValue="۲۱:۰۰" disabled className={inputCls} /></Field>
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
-                  <div>
-                    <div className="text-[13px] text-ink-50">تعطیلی جمعه‌ها</div>
-                    <div className="mt-0.5 text-[11px] text-ink-400">در تقویم به‌عنوان روز غیرفعال نمایش داده می‌شود</div>
-                  </div>
-                  <Toggle checked={toggles.friday ?? false} onChange={set("friday")} disabled label="تعطیلی جمعه — غیرفعال" />
-                </div>
-                <p className="mt-3 text-[11px] leading-relaxed text-warn-400">
-                  ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است و پس از بارگذاری مجدد بازنشانی می‌شود. اتصال به تقویم واقعی به سرور نیاز دارد.
-                </p>
-              </Panel>
+              <WorkingHoursPanel />
             </>
           )}
 
@@ -145,55 +146,79 @@ export function SettingsView() {
 
           {section === "appearance" && (
             <>
-              <Panel title="تم" kicker="تغییرات بلافاصله اعمال و برای این دستگاه ذخیره می‌شود">
+              <Panel
+                title="تم"
+                kicker="هر تم مجموعه‌ای از رنگ‌های صحنه است — کلیک روی هرکدام فوراً کل سامانه را بازآرایی می‌کند و برای این دستگاه ذخیره می‌شود"
+              >
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {/* Dark cinematic — primary */}
-                  <button
-                    type="button"
-                    onClick={() => setTheme("dark")}
-                    aria-pressed={theme === "dark"}
-                    className={cn(
-                      "relative overflow-hidden rounded-2xl border p-4 text-right transition-all duration-[var(--sixteenth)]",
-                      theme === "dark" ? "border-gold-500/45 bg-gold-500/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-ink-50">تیرهٔ کنسرواتوار</span>
-                      {theme === "dark" && <StatusBadge tone="gold" label="فعال" glyph={false} />}
-                    </div>
-                    <div className="mt-3 flex gap-1.5" aria-hidden>
-                      {["bg-ink-900", "bg-ink-800", "bg-ink-700"].map((b) => (
-                        <span key={b} className={cn("h-10 flex-1 rounded-lg border border-white/[0.07]", b)} />
-                      ))}
-                    </div>
-                    <div className="mt-2 h-8 rounded-lg border border-white/[0.08] bg-ink-950/80" aria-hidden />
-                    <p className="mt-3 text-[11px] leading-relaxed text-ink-400">سالن تاریک، نور صحنهٔ طلایی — تجربهٔ اصلی محصول.</p>
-                  </button>
+                  {THEMES.map((option) => {
+                    const active = theme === option;
+                    const stage = themeStage[option];
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setTheme(option)}
+                        aria-pressed={active}
+                        className={cn(
+                          "relative overflow-hidden rounded-2xl border p-4 text-right transition-all duration-[var(--sixteenth)]",
+                          active
+                            ? "border-gold-500/45 bg-gold-500/[0.06]"
+                            : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] font-medium text-ink-50">{themeLabels[option]}</span>
+                          {active && <StatusBadge tone="gold" label="فعال" glyph={false} />}
+                        </div>
 
-                  {/* Glass — secondary */}
-                  <button
-                    type="button"
-                    onClick={() => setTheme("glass")}
-                    aria-pressed={theme === "glass"}
-                    className={cn(
-                      "relative overflow-hidden rounded-2xl border p-4 text-right transition-all duration-[var(--sixteenth)]",
-                      theme === "glass" ? "border-gold-500/45 bg-gold-500/[0.06]" : "border-white/[0.08] bg-white/[0.02] hover:border-white/[0.16]",
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium text-ink-50">شیشه‌ای</span>
-                      {theme === "glass" && <StatusBadge tone="gold" label="فعال" glyph={false} />}
-                    </div>
-                    <div className="mt-3 flex gap-1.5" aria-hidden>
-                      {["bg-ink-900/50", "bg-ink-800/50", "bg-ink-700/50"].map((b) => (
-                        <span key={b} className={cn("h-10 flex-1 rounded-lg border border-white/[0.1] backdrop-blur-md", b)} />
-                      ))}
-                    </div>
-                    <div className="mt-2 h-8 rounded-lg border border-white/[0.1] bg-ink-950/35 backdrop-blur-md" aria-hidden />
-                    <p className="mt-3 text-[11px] leading-relaxed text-ink-400">سطوح شفاف با عمق کنترل‌شده — گزینهٔ ثانویهٔ محصول.</p>
-                  </button>
+                        {/*
+                          A real miniature, not an illustration: this element carries
+                          the preset's own `data-theme`, so the appearance layer in
+                          index.css rebuilds the whole ramp inside it. What you see is
+                          what the product becomes — and the viewer's typed colours are
+                          cancelled here (`initial`) so each preset previews itself.
+                        */}
+                        <span
+                          className="mt-3 block overflow-hidden rounded-xl border p-2"
+                          data-theme={option}
+                          style={
+                            {
+                              "--viewer-bg": "initial",
+                              "--viewer-surface": "initial",
+                              "--viewer-text": "initial",
+                              "--viewer-mix": "initial",
+                              background: stage.background,
+                              borderColor: "color-mix(in srgb, var(--surface-border))",
+                            } as React.CSSProperties
+                          }
+                          aria-hidden
+                        >
+                          <span className="surface flex items-center gap-2 p-2">
+                            <span
+                              className="size-6 shrink-0 rounded-lg"
+                              style={{ background: "var(--accent-500)" }}
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block h-2 w-3/4 rounded-full bg-ink-100" />
+                              <span className="mt-1.5 block h-2 w-1/2 rounded-full bg-ink-400" />
+                            </span>
+                          </span>
+                          <span className="mt-2 flex gap-1.5">
+                            {["bg-ink-900", "bg-ink-800", "bg-ink-700"].map((step) => (
+                              <span key={step} className={cn("h-6 flex-1 rounded-md border", step)} />
+                            ))}
+                          </span>
+                        </span>
+
+                        <p className="mt-3 text-[11px] leading-relaxed text-ink-400">{themeNotes[option]}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </Panel>
+
+              <ManualColorsPanel />
 
               <Panel title="لهجهٔ برند" kicker="فقط سه گزینهٔ کنترل‌شده — از توکن‌های معنایی، نه رنگ‌های پراکنده">
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -268,8 +293,8 @@ export function SettingsView() {
                     <LayoutGrid className="size-4" strokeWidth={1.8} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium text-ink-50">نمونهٔ سطح در {theme === "glass" ? "تم شیشه‌ای" : "تم تیره"}</div>
-                    <div className="mt-0.5 text-[11px] text-ink-400">لهجهٔ فعال: {accentLabels[accent]} · تراکم: {density === "compact" ? "فشرده" : "راحت"} · حرکت: {motion ? "فعال" : "خاموش"}</div>
+                    <div className="text-[13px] font-medium text-ink-50">نمونهٔ سطح در تم فعال</div>
+                    <div className="mt-0.5 text-[11px] text-ink-400">لهجهٔ فعال: {accentLabels[accent]} · رنگ دستی: {typedColorCount > 0 ? faNum(typedColorCount) + " مورد" : "بدون"} · تراکم: {density === "compact" ? "فشرده" : "راحت"} · حرکت: {motion ? "فعال" : "خاموش"}</div>
                   </div>
                   <StatusBadge tone="gold" label={accentLabels[accent]} glyph={false} />
                 </Surface>
@@ -282,7 +307,12 @@ export function SettingsView() {
                       setAccent("gold");
                       setDensity("comfortable");
                       setMotion(true);
-                      notify({ tone: "info", title: "ظاهر به پیش‌فرض بازگشت", detail: "تم تیره · لهجهٔ طلایی · تراکم راحت · حرکت فعال" });
+                      clearColors();
+                      notify({
+                        tone: "info",
+                        title: "ظاهر به پیش‌فرض بازگشت",
+                        detail: "تم تیره · لهجهٔ طلایی · تراکم راحت · حرکت فعال · رنگ‌های دستی پاک شد",
+                      });
                     }}
                   >
                     بازنشانی به پیش‌فرض
@@ -391,20 +421,7 @@ export function SettingsView() {
               <LearningPanel />
               <RepertoirePanel />
               <GalleryPanel />
-              <Panel title="قواعد جلسه" kicker="رفتار پیش‌فرض سامانه هنگام ثبت جلسات">
-                <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
-                  قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده و ذخیره نمی‌شود؛ این بخش صرفاً نمایشی است و پس از بارگذاری مجدد بازنشانی می‌شود. اتصال به دامنهٔ زمان‌بندی واقعی به سرور نیاز دارد.
-                </Surface>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="مدت پیش‌فرض جلسه" hint="دقیقه — غیرفعال"><input defaultValue="۶۰" disabled className={inputCls} /></Field>
-                  <Field label="فاصلهٔ بین جلسات" hint="دقیقه — غیرفعال"><input defaultValue="۱۰" disabled className={inputCls} /></Field>
-                  <Field label="مهلت لغو بدون جریمه" hint="ساعت — غیرفعال"><input defaultValue="۲۴" disabled className={inputCls} /></Field>
-                  <Field label="سقف جلسات جبرانی در دوره — غیرفعال"><input defaultValue="۲" disabled className={inputCls} /></Field>
-                </div>
-                <Surface className="mt-4 border-white/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-300">
-                  این مقادیر هنوز به هیچ فرم یا دامنه‌ای متصل نیستند و روی جلسات ثبت‌شدهٔ گذشته و آینده اثری ندارند — صرفاً نمایشی.
-                </Surface>
-              </Panel>
+              <SessionRulesPanel />
               <DemoDataPanel />
             </>
           )}

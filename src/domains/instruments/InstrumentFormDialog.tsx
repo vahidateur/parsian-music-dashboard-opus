@@ -5,11 +5,13 @@
  * existing students, classes and resources reference it. The dialog reflects
  * that by locking the field in edit mode rather than silently ignoring edits.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, Toggle, inputCls } from "@/components/ds/patterns";
-import { getInstrumentRepository } from "@/domains/registry";
+import { getInstrumentRepository, getLearningRepository } from "@/domains/registry";
+import { useApp } from "@/context/AppContext";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
+import { apiErrorFromThrown } from "@/api/errors";
 import { cn } from "@/utils/cn";
 import type { InstrumentRecord } from "./types";
 
@@ -55,6 +57,16 @@ export function InstrumentFormDialog({
 }) {
   const editing = instrument !== undefined;
   const repository = useMemo(() => getInstrumentRepository(), []);
+  const { notify } = useApp();
+  /*
+    Item 12, honoured at the moment of creation: an instrument the academy just
+    defined should be workable at once — a course to place students on, a first
+    level to hang resources from, and the library and class pickers that already
+    follow the catalogue. The starter program is OPT-IN (default on) rather than
+    silent, because a curriculum the academy did not ask for is still a
+    curriculum it now owns.
+  */
+  const [withStarter, setWithStarter] = useState(true);
 
   const form = useEntityForm<InstrumentDraft, InstrumentRecord>({
     initial: toDraft(instrument),
@@ -69,12 +81,41 @@ export function InstrumentFormDialog({
           active: draft.active,
         });
       }
-      return repository.create({
+      const saved = await repository.create({
         name: draft.name.trim(),
         slug: draft.slug.trim(),
         description: draft.description.trim(),
         active: draft.active,
       });
+      if (withStarter) {
+        try {
+          const program = await getLearningRepository().createProgram({
+            instrumentId: saved.id,
+            name: `دورهٔ ${saved.name}`,
+            description: "",
+            active: true,
+          });
+          await getLearningRepository().createLevel({
+            programId: program.id,
+            name: "سطح ۱",
+            description: "",
+            objectives: [],
+            active: true,
+          });
+          notify({
+            tone: "success",
+            title: `دورهٔ مقدماتی «دورهٔ ${saved.name}» با سطح ۱ ساخته شد`,
+            detail: "کلاس‌ها، هنرجویان و کتابخانه همین حالا این ساز را در فهرست‌های خود دارند.",
+          });
+        } catch (cause) {
+          notify({
+            tone: "danger",
+            title: "ساز ثبت شد، اما دورهٔ مقدماتی ساخته نشد",
+            detail: apiErrorFromThrown(cause).message,
+          });
+        }
+      }
+      return saved;
     },
     onSuccess: (saved) => {
       onSaved(saved, editing ? "edit" : "create");
@@ -161,6 +202,21 @@ export function InstrumentFormDialog({
             />
           )}
         </Field>
+
+        {!editing && (
+          <label className="sm:col-span-2 flex cursor-pointer items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-[12px] leading-relaxed text-ink-200">
+            <input
+              type="checkbox"
+              className="mt-0.5 accent-gold-500"
+              checked={withStarter}
+              onChange={(e) => setWithStarter(e.target.checked)}
+            />
+            <span>
+              هم‌زمان یک دورهٔ مقدماتی با نام «دورهٔ {form.draft.name.trim() || "…"}» و سطح نخست آن بساز تا این ساز
+              بلافاصله در دوره‌ها، کلاس‌ها و کتابخانه آمادهٔ کار باشد.
+            </span>
+          </label>
+        )}
 
         <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
           <div>

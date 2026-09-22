@@ -331,7 +331,7 @@ describe("quick actions M-1", () => {
     // #/messages and the sheet closes (no dialog remains).
     renderSheet("message");
     await waitFor(() => {
-      expect(window.location.hash).toContain("messages");
+      expect(window.location.pathname).toContain("messages");
     });
     // The sheet should have closed itself (returns null), so no dialog title
     // from the old fake form should be present.

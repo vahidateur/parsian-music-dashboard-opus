@@ -3,6 +3,8 @@ import { getRuntimeConfig } from "@/api/config";
 import { ApiAuthRepository } from "./auth/apiAuthRepository";
 import { DemoAuthRepository } from "./auth/demoAuthRepository";
 import { ApiUserRepository, DemoUserRepository } from "./auth/userRepository";
+import { ApiRoleRepository, DemoRoleRepository } from "./auth/roleRepository";
+import type { RoleRepository } from "./auth/roleRepository";
 import type { AuthRepository, UserRepository } from "./auth/repository";
 import { ApiStudentRepository } from "./students/apiRepository";
 import { DemoStudentRepository } from "./students/demoRepository";
@@ -31,6 +33,8 @@ import { DemoLibraryRepository } from "./library/demoRepository";
 import type { LibraryRepository } from "./library/repository";
 import { DemoBrandingRepository } from "./branding/demoRepository";
 import type { BrandingRepository } from "./branding/repository";
+import { DemoOrganizationRepository } from "./organization/demoRepository";
+import type { OrganizationRepository } from "./organization/repository";
 import { DemoGalleryRepository } from "./gallery/demoRepository";
 import type { GalleryRepository } from "./gallery/repository";
 import type { ProgressRepository } from "@/domains/progress/repository";
@@ -59,12 +63,14 @@ interface Overrides {
   enrollments?: EnrollmentRepository;
   auth?: AuthRepository;
   users?: UserRepository;
+  roles?: RoleRepository;
   instruments?: InstrumentRepository;
   learning?: LearningRepository;
   chat?: ChatRepository;
   media?: MediaRepository;
   library?: LibraryRepository;
   branding?: BrandingRepository;
+  organization?: OrganizationRepository;
   gallery?: GalleryRepository;
   progress?: ProgressRepository;
   scheduling?: SchedulingRepository;
@@ -131,6 +137,21 @@ export function getUserRepository(): UserRepository {
 }
 
 /**
+ * Role administration — the access matrix an academy edits in Settings.
+ *
+ * Unlike the other configuration domains this one resolves to the API
+ * implementation in API mode: the matrix IS authorization, so a deployment with
+ * a backend must read it from that backend rather than from a local dataset.
+ * Until `/roles` exists the read fails, and the policy cache keeps the shipped
+ * defaults — a missing endpoint degrades to "nobody has edited the matrix",
+ * never to "nobody may do anything".
+ */
+export function getRoleRepository(): RoleRepository {
+  if (overrides.roles) return overrides.roles;
+  return isApiMode() ? new ApiRoleRepository(getApiClient()) : new DemoRoleRepository();
+}
+
+/**
  * Domains added in the profiles/learning/media phase.
  *
  * These currently resolve to the demo implementation in BOTH modes: their REST
@@ -167,6 +188,21 @@ export function getLibraryRepository(): LibraryRepository {
 }
 export function getBrandingRepository(): BrandingRepository {
   return overrides.branding ?? new DemoBrandingRepository();
+}
+
+/**
+ * The academy's rules — session length, turnaround, the free-cancellation window,
+ * the make-up ceiling and the bookable hours.
+ *
+ * Demo-backed even in API mode, exactly like branding: `ApiOrganizationRepository`
+ * states the contract, but there is no `/organization` endpoint to call yet, and a
+ * panel that read the academy's own rules from a 404 would report the
+ * configuration as broken. The consumers of these values (the conflict engine, the
+ * make-up prefill, the class form) read them through the repository, so switching
+ * the source later changes this line and nothing else.
+ */
+export function getOrganizationRepository(): OrganizationRepository {
+  return overrides.organization ?? new DemoOrganizationRepository();
 }
 export function getGalleryRepository(): GalleryRepository {
   return overrides.gallery ?? new DemoGalleryRepository();
@@ -324,6 +360,9 @@ export function setLibraryRepository(repository: LibraryRepository | undefined):
 export function setBrandingRepository(repository: BrandingRepository | undefined): void {
   overrides.branding = repository;
 }
+export function setOrganizationRepository(repository: OrganizationRepository | undefined): void {
+  overrides.organization = repository;
+}
 export function setGalleryRepository(repository: GalleryRepository | undefined): void {
   overrides.gallery = repository;
 }
@@ -348,6 +387,9 @@ export function setAuthRepository(repository: AuthRepository | undefined): void 
 export function setUserRepository(repository: UserRepository | undefined): void {
   overrides.users = repository;
 }
+export function setRoleRepository(repository: RoleRepository | undefined): void {
+  overrides.roles = repository;
+}
 
 /** Drops memoized instances (used after `setRuntimeConfig`). */
 export function resetRegistry(): void {
@@ -360,6 +402,7 @@ export function resetRegistry(): void {
   overrides.enrollments = undefined;
   overrides.auth = undefined;
   overrides.users = undefined;
+  overrides.roles = undefined;
   overrides.instruments = undefined;
   overrides.progress = undefined;
   overrides.learning = undefined;
@@ -367,6 +410,7 @@ export function resetRegistry(): void {
   overrides.media = undefined;
   overrides.library = undefined;
   overrides.branding = undefined;
+  overrides.organization = undefined;
   overrides.gallery = undefined;
   overrides.scheduling = undefined;
   overrides.attendance = undefined;

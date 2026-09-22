@@ -42,6 +42,18 @@
   --color-ink-500: #4b423a;
   --color-ink-400: #847a6d;
 
+  /*
+    On-image ink — text that sits ON a photograph (gallery captions, lightbox
+    chrome). A theme preset rightly flips `white` and the ink ramp for page
+    surfaces, but a photograph does not flip with the stage: light text on a
+    dark image must stay light in every preset. These three tokens are that
+    constant, and they are tokens rather than solid `white` utilities so the
+    appearance gate's "no solid white in source" premise keeps holding.
+  */
+  --color-photo-fg: #f6f2ea;
+  --color-photo-muted: rgb(246 242 234 / 0.68);
+  --color-photo-faint: rgb(246 242 234 / 0.46);
+
   /* Extra breakpoint: wide laptops/desktops where the 3-panel row has room for inline actions */
   --breakpoint-wide: 1400px;
   --color-ink-300: #958b7f;
@@ -156,6 +168,149 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* ==========================================================================
+   THE APPEARANCE LAYER.
+
+   Four named themes and a manual colour override, all expressed through the
+   same handful of custom properties — so "pick a theme" and "type a hex code"
+   are two doors into one mechanism, and neither can silently lose to the other.
+
+   Precedence, strongest first:
+     1. `--viewer-*`  a colour this viewer typed in Settings, applied inline on
+        <html> — an inline custom property beats every selector in this file.
+     2. `--theme-*`   the chosen preset (`data-theme`), which is itself only a
+        named set of stage colours.
+     3. `--brand-*`   the academy's identity record (organisation data).
+     4. the fallbacks written here.
+
+   This block is deliberately *unlayered*: Tailwind puts `@theme` variables in
+   `@layer theme`, and an unlayered declaration wins over a layered one however
+   the file is ordered. That is what lets one viewer-level hex code move the
+   whole product instead of being overruled by a utility class.
+
+   The neutral and text ramps are DERIVED from two stage colours rather than
+   hard-coded, which is what makes a light theme possible at all: every panel,
+   border, muted label and divider in the product is a mix of the same pair, so
+   one change moves the entire surface language instead of leaving forty stale
+   greys behind it.
+
+   The same block is scoped to any `[data-theme]` element, not only `:root`.
+   That is what lets the Settings preview cards render a *real* miniature of
+   each preset: the card carries the preset's attribute and the ramp rebuilds
+   itself inside it, so the preview cannot drift from the thing it previews.
+   ========================================================================== */
+
+:root,
+[data-theme] {
+  /* The preset's stage. `dark` needs no overrides — these are its values. */
+  --theme-bg: #0a0908;
+  --theme-mix: #ffffff; /* the direction surfaces lift in: white on a dark stage */
+  --theme-surface: color-mix(in srgb, var(--theme-bg) 88%, var(--theme-mix));
+
+  /* Effective stage: what the viewer typed, else what the preset chose. */
+  --stage-bg: var(--viewer-bg, var(--theme-bg));
+  --stage-fg: var(--viewer-text, var(--theme-fg, var(--brand-text, #f5f0e8)));
+  --stage-mix: var(--viewer-mix, var(--theme-mix));
+  --stage-surface: var(--viewer-surface, var(--theme-surface));
+  --stage-elevated: color-mix(in srgb, var(--stage-bg) 80%, var(--stage-mix));
+
+  /* Surface treatment, consumed by `.surface` below. */
+  --surface-bg: color-mix(in srgb, var(--stage-surface) 90%, transparent);
+  --surface-border: color-mix(in srgb, var(--stage-fg) 8%, transparent);
+  --surface-sheen: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--stage-fg) 3%, transparent),
+    transparent 40%
+  );
+  --surface-shadow: 0 1px 0 color-mix(in srgb, var(--stage-fg) 4%, transparent) inset,
+    0 20px 40px -24px rgb(0 0 0 / 0.6);
+
+  /* The neutral ramp, now relative: higher numbers sit closer to the stage.
+     `--stage-mix` sets the direction, so the same percentages build a dark UI
+     on a dark stage and a light UI on a light one. */
+  --color-ink-950: var(--stage-bg);
+  --color-ink-900: color-mix(in srgb, var(--stage-bg) 94%, var(--stage-mix));
+  --color-ink-850: color-mix(in srgb, var(--stage-bg) 88%, var(--stage-mix));
+  --color-ink-800: color-mix(in srgb, var(--stage-bg) 84%, var(--stage-mix));
+  --color-ink-750: color-mix(in srgb, var(--stage-bg) 79%, var(--stage-mix));
+  --color-ink-700: color-mix(in srgb, var(--stage-bg) 73%, var(--stage-mix));
+  --color-ink-600: color-mix(in srgb, var(--stage-bg) 60%, var(--stage-mix));
+  --color-ink-500: color-mix(in srgb, var(--stage-bg) 42%, var(--stage-mix));
+
+  /* The text ramp: foreground blended toward the stage, so muted text keeps its
+     contrast on whatever background the academy or the viewer chose. */
+  --color-ink-50: var(--stage-fg);
+  --color-ink-100: color-mix(in srgb, var(--stage-fg) 92%, var(--stage-bg));
+  --color-ink-200: color-mix(in srgb, var(--stage-fg) 79%, var(--stage-bg));
+  --color-ink-300: color-mix(in srgb, var(--stage-fg) 62%, var(--stage-bg));
+  --color-ink-400: color-mix(in srgb, var(--stage-fg) 46%, var(--stage-bg));
+
+  /* Hairlines follow the foreground, not a fixed white. */
+  --color-hairline: color-mix(in srgb, var(--stage-fg) 7%, transparent);
+  --color-hairline-soft: color-mix(in srgb, var(--stage-fg) 4%, transparent);
+}
+
+/*
+  PRESETS. Each one is nothing but a set of stage colours plus whatever the
+  derived ramp cannot infer: the lift direction on a light stage, the form
+  control colour scheme, and the surface treatment the theme needs.
+*/
+
+/* شیشه‌ای — the same stage seen through frosted glass: panels let the room
+   behind them show, edges catch the light, depth comes from blur rather than
+   from a darker fill. */
+[data-theme="glass"] {
+  --theme-bg: #0b0a09;
+  --theme-surface: color-mix(in srgb, var(--theme-bg) 62%, transparent);
+  --surface-bg: color-mix(in srgb, var(--stage-surface) 72%, transparent);
+  --surface-border: color-mix(in srgb, var(--stage-fg) 12%, transparent);
+  --surface-shadow: 0 1px 0 color-mix(in srgb, var(--stage-fg) 8%, transparent) inset,
+    0 24px 64px -24px rgb(0 0 0 / 0.72);
+}
+[data-theme="glass"] .surface {
+  backdrop-filter: blur(22px) saturate(135%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+}
+
+/* روشن — a daytime reading surface. The lift direction flips: panels are
+   *darker* than the page here, or everything washes out into one flat sheet. */
+[data-theme="light"] {
+  --theme-bg: #f4f1ea;
+  --theme-fg: #191512;
+  --theme-mix: #000000;
+  --theme-surface: color-mix(in srgb, var(--theme-bg) 97%, var(--theme-mix));
+  --surface-bg: color-mix(in srgb, var(--stage-surface) 97%, transparent);
+  --surface-border: color-mix(in srgb, var(--stage-fg) 13%, transparent);
+  --surface-sheen: none;
+  --surface-shadow: 0 14px 34px -26px rgb(25 21 18 / 0.5);
+  color-scheme: light;
+  /*
+    The one line that makes a light theme actually look designed instead of
+    washed out. Nearly every hairline, tint and highlight in the product is
+    written as `white/[0.06]`, `bg-white/[0.02]` — an overlay of the page's
+    light. On a light stage that overlay has to be dark, so `white` itself
+    becomes the foreground colour and all of those utilities flip at once.
+    Nothing in the product uses solid white, so nothing is lost.
+  */
+  --color-white: var(--stage-fg);
+}
+
+/* کنتراست بالا — for a projector in a bright hall, or for anyone who simply
+   needs the separation. Pure stage, pure foreground, borders you can see. */
+[data-theme="contrast"] {
+  --theme-bg: #000000;
+  --theme-fg: #ffffff;
+  --theme-mix: #ffffff;
+  --theme-surface: #101010;
+  --surface-bg: var(--stage-surface);
+  --surface-border: color-mix(in srgb, var(--stage-fg) 30%, transparent);
+  --surface-sheen: none;
+  --surface-shadow: none;
+  --color-hairline: color-mix(in srgb, var(--stage-fg) 24%, transparent);
+  --color-hairline-soft: color-mix(in srgb, var(--stage-fg) 14%, transparent);
+  color-scheme: dark;
+}
+
 @keyframes phrase-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -213,23 +368,30 @@
   body {
     @apply bg-ink-950 antialiased;
     /*
-      The persisted text colour is the body default (D2 / M8). Component-level
-      text tokens (`text-ink-*`) still win wherever a surface states one.
+      The stage background and the persisted text colour are the body defaults
+      (D2 / M8) — both resolved through the appearance layer, so a theme preset
+      or a colour typed in Settings reaches the page itself and not merely the
+      panels on it. Component-level text tokens (`text-ink-*`) still win wherever
+      a surface states one, and those tokens are derived from the same stage.
     */
-    color: var(--brand-text, #f5f0e8);
+    background: var(--stage-bg);
+    color: var(--stage-fg);
     font-feature-settings: "ss01", "kern";
     text-rendering: optimizeLegibility;
   }
   ::selection {
-    background: color-mix(in srgb, var(--accent-500) 28%, transparent);
-    color: #f5f0e8;
+    background: color-mix(in srgb, var(--accent-500) 32%, transparent);
+    color: var(--stage-fg);
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #342d27 transparent;
+    scrollbar-color: color-mix(in srgb, var(--stage-fg) 22%, transparent) transparent;
   }
   *::-webkit-scrollbar { width: 6px; height: 6px; }
-  *::-webkit-scrollbar-thumb { background: #342d27; border-radius: 999px; }
+  *::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--stage-fg) 22%, transparent);
+    border-radius: 999px;
+  }
   *::-webkit-scrollbar-track { background: transparent; }
   button, [role="button"] { cursor: pointer; }
   :focus-visible {
@@ -257,29 +419,32 @@
 @layer components {
   /* A quiet, elevated surface. Not a "card". */
   .surface {
-    @apply relative rounded-2xl border border-white/[0.06] bg-ink-850/90;
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 40%);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 20px 40px -24px rgba(0, 0, 0, 0.6);
+    @apply relative rounded-2xl border;
+    /*
+      Every value comes from the appearance layer, so a preset or a typed hex
+      code changes the panels themselves — the old rule hard-coded a dark fill
+      and a white hairline, which is why switching themes appeared to do nothing
+      beyond a faint blur.
+    */
+    background-color: var(--surface-bg);
+    background-image: var(--surface-sheen);
+    border-color: var(--surface-border);
+    box-shadow: var(--surface-shadow);
   }
   .surface-glass {
-    @apply relative rounded-2xl border border-white/[0.08];
-    background: rgba(20, 18, 15, 0.72);
+    @apply relative rounded-2xl border;
+    border-color: var(--surface-border);
+    background: color-mix(in srgb, var(--stage-surface) 72%, transparent);
     backdrop-filter: blur(14px) saturate(120%);
     -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
-  /* Glass theme — the secondary surface language: the stage stays dark,
-     the planes become translucent and let the room breathe through. */
-  [data-theme="glass"] .surface {
-    border-color: rgba(255, 255, 255, 0.09);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 45%),
-      rgba(22, 19, 16, 0.58);
-    backdrop-filter: blur(18px) saturate(130%);
-    -webkit-backdrop-filter: blur(18px) saturate(130%);
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.55);
-  }
+  /*
+    Glass theme — the secondary surface language. The translucency, the brighter
+    edge and the deeper blur all live in the preset block above as token values;
+    what stays here is the one thing a token cannot express: keeping a nested
+    surface from blurring twice.
+  */
   [data-theme="glass"] .surface > * {
-    /* keep child surfaces from double-blurring */
     isolation: isolate;
   }
   .hairline-gold {
@@ -318,5 +483,24 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Gallery backdrop: a slow breathe for the header photograph. Decorative only —
+   the element also carries `motion-reduce` semantics via reduced-motion below. */
+@keyframes kenburns {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    transform: scale(1.12) translateY(-2%);
+  }
+}
+.kenburns {
+  animation: kenburns 26s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kenburns {
+    animation: none;
   }
 }

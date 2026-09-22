@@ -37,7 +37,10 @@ import type { Teacher } from "@/domains/teachers/types";
 import type { RescheduleInput, Session, SessionCandidate } from "@/domains/scheduling/types";
 import { useConflictCheck } from "@/domains/scheduling/useScheduling";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
-import { NO_DATA, faTime } from "@/lib/format";
+import { NO_DATA, faNum, faTime } from "@/lib/format";
+import { useAcademyClock } from "@/domains/shared/clock";
+import { useOrganization } from "@/domains/organization/useOrganization";
+import { cancellationWindow } from "@/domains/organization/rules";
 import { cn } from "@/utils/cn";
 // The Jalali input boundary and the field vocabulary are shared with the other
 // scheduling-shaped forms — see views/shared/jalaliInput (audit S-7).
@@ -444,6 +447,18 @@ export function CancelSessionDialog({
   onWritten: (cancelled: Session) => void;
   onClose: () => void;
 }) {
+  /*
+    The academy's free-cancellation window, read from its own rules (Settings →
+    قواعد جلسه) and measured against the academy's one clock. The dialog reports
+    it and nothing more: the system does not levy a penalty, does not bill anyone
+    and does not refuse a late cancellation — a session cancelled inside the
+    window and one cancelled outside it are both recorded the same way, and the
+    operator is simply told which side of the academy's own rule they are on.
+  */
+  const organization = useOrganization();
+  const now = useAcademyClock();
+  const graceWindow = cancellationWindow(organization.settings, session.date, session.startTime, now);
+
   const form = useEntityForm<CancelDraft, Session>({
     initial: { reason: "" },
     open,
@@ -520,6 +535,22 @@ export function CancelSessionDialog({
             />
           )}
         </Field>
+
+        {graceWindow && graceWindow.graceMinutes > 0 && (
+          <p
+            className={cn(
+              "rounded-xl border p-3 text-[11px] leading-relaxed",
+              graceWindow.inside
+                ? "border-ok-500/25 bg-ok-500/[0.06] text-ok-300"
+                : "border-warn-500/25 bg-warn-500/[0.06] text-warn-300",
+            )}
+          >
+            {graceWindow.inside
+              ? `لغو اکنون داخل مهلتِ بدون جریمه است — تا ${jalaliDayLabel(graceWindow.deadlineDate)} · ${faTime(graceWindow.deadlineTime)}.`
+              : `مهلت لغو بدون جریمه (${faNum(organization.settings.cancellationGraceHours)} ساعت پیش از جلسه) گذشته است؛ ${faNum(Math.max(0, graceWindow.minutesUntilStart))} دقیقه تا شروع جلسه مانده.`}{" "}
+            سامانه جریمه‌ای ثبت نمی‌کند؛ این فقط وضعیتِ قاعدهٔ خودِ آموزشگاه است.
+          </p>
+        )}
 
         <p className="text-[11px] leading-relaxed text-ink-500">
           جلسه لغو می‌شود و با دلیل شما در تقویم می‌ماند؛ حذف نمی‌شود و جلسهٔ جایگزینی ساخته

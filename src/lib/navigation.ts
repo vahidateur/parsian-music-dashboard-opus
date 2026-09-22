@@ -65,7 +65,10 @@ export const navGroups: NavGroup[] = [
   {
     id: "resources",
     label: "منابع",
-    items: [{ id: "library", label: "کتابخانه", hint: "نت، صدا و ویدیو" }],
+    items: [
+      { id: "library", label: "کتابخانه", hint: "نت، صدا و ویدیو" },
+      { id: "gallery", label: "گالری", hint: "روایت تصویری آموزشگاه" },
+    ],
   },
   {
     id: "system",
@@ -91,6 +94,7 @@ export const viewTitles: Record<ViewId, string> = {
   reports: "گزارش‌ها",
   messages: "پیام‌ها",
   library: "کتابخانه",
+  gallery: "گالری",
   settings: "تنظیمات",
   "design-system": "سیستم طراحی",
 };

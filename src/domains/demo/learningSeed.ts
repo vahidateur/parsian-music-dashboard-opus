@@ -23,7 +23,7 @@ import type {
   StudentPlacement,
 } from "@/domains/learning/types";
 import type { ChatConversation, ChatMessage } from "@/domains/chat/types";
-import type { GalleryAlbum, GalleryImage } from "@/domains/gallery/types";
+import type { GalleryAlbum } from "@/domains/gallery/types";
 import { DEFAULT_BRANDING, type BrandingSettings } from "@/domains/branding/types";
 
 /** Fixed clock for seeded timestamps, so the dataset is byte-stable. */
@@ -302,10 +302,6 @@ export function deriveGalleryAlbums(): GalleryAlbum[] {
       sortOrder: 2,
     },
   ];
-}
-
-export function deriveGalleryImages(): GalleryImage[] {
-  return [];
 }
 
 export function deriveBranding(): BrandingSettings {

@@ -58,6 +58,11 @@ export interface PlanContext {
   sessionIdsWithAttendance: ReadonlySet<string>;
   /** Today, ISO `YYYY-MM-DD`. Injected so this stays pure. */
   today: string;
+  /**
+   * Weekdays the academy does not open (Settings → ساعات کاری), in the product's
+   * Saturday-first convention. Absent or empty = every day is a working day.
+   */
+  closedWeekdays?: readonly number[];
   /** Optional extras for conflict evaluation across the whole academy. */
   conflict?: Omit<ConflictContext, "index" | "classInfo" | "weekday"> & {
     /** Sessions from OTHER classes, for cross-class conflict checks. */
@@ -214,11 +219,30 @@ export function planGeneration(
   /** Slot ids the current recurrence produces — used to find orphans. */
   const plannedIds = new Set<string>();
 
+  const closed = ctx.closedWeekdays ?? [];
+
   for (const date of datesInRange(input.from, input.to)) {
     const weekday = weekdayIndex(date);
     if (weekday === null || !klass.days.includes(weekday)) continue;
 
     const id = deterministicSessionId(klass.id, date, klass.time);
+
+    /*
+      A day the academy is closed produces no new session.
+
+      It does NOT orphan the ones already there: closing a weekday is a decision
+      about the future, while an existing session is a commitment students and a
+      teacher have arranged around. Those are cancelled deliberately, with a
+      reason, which is an auditable act — not swept away as a side effect of a
+      settings change. The slot is reported in `skips` so the operator can see
+      exactly which dates the rule touched.
+    */
+    if (closed.includes(weekday)) {
+      plannedIds.add(id);
+      skips.push({ id, date, reason: "SKIP_CLOSED_DAY" });
+      continue;
+    }
+
     plannedIds.add(id);
 
     const existing = byId.get(id);

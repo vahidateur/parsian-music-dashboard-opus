@@ -10,7 +10,7 @@
  * control; the server must enforce who may write what (§31).
  */
 import { useMemo, useState } from "react";
-import { Activity, ArrowLeft, BookOpen, MessageSquare, Music4, Plus, TrendingUp } from "lucide-react";
+import { Activity, ArrowLeft, BookOpen, MessageSquare, Music4, Pencil, Plus, TrendingUp } from "lucide-react";
 import { faNum, toFa } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
@@ -23,11 +23,15 @@ import { PROGRESS_STATUS_LABEL, analyzePiece, describeRange, type ProgressStatus
 import { RECOMMENDATION_LABEL, type Recommendation } from "./recommendations";
 import { RecordProgressDialog } from "./RecordProgressDialog";
 import { AssignPieceDialog } from "./AssignPieceDialog";
+import { PieceFormDialog } from "./PieceFormDialog";
+import { useLibraryList } from "@/domains/library/useLibrary";
+import { resourceKindLabel, studentCanAccess } from "@/domains/library/types";
 import { useProgressEvents, useStudentProgress } from "./useProgress";
 import {
   ACTIVE_ASSIGNMENT_STATUSES,
   ASSIGNMENT_STATUS_LABEL,
   PROGRESS_SOURCE_LABEL,
+  RANGE_UNIT_LABEL,
   type PieceAssignment,
   type Piece,
 } from "./types";
@@ -68,8 +72,10 @@ export function StudentProgressPanel({
 }) {
   const { notify, navigate } = useApp();
   const { overview, loading, error, reload } = useStudentProgress(studentId);
+  const { items: libraryItems } = useLibraryList({ per_page: 200 });
   const [recording, setRecording] = useState<{ assignment: PieceAssignment; piece?: Piece } | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [pieceEdit, setPieceEdit] = useState<Piece | undefined>(undefined);
 
   // The timeline is a bounded, paginated read — never the whole log.
   // `timelineLoading` is read, not ignored: its params carry `studentId`, so
@@ -94,6 +100,19 @@ export function StudentProgressPanel({
     return (
       <ErrorState className="py-20" title="بارگذاری پیشرفت ناموفق بود" description={error.message} onRetry={reload} />
     );
+
+  /*
+    What this student may actually open from the library, by the ONE access rule
+    (studentCanAccess) — the same sentence the library panel quotes and a future
+    student portal will enforce. Shown here because an access level nobody can
+    see being applied is a setting, not a decision.
+  */
+  const accessible = libraryItems
+    .filter((item) => item.active !== false && studentCanAccess(item, studentId))
+    .slice(0, 6);
+  const accessibleOverflow = libraryItems.filter(
+    (item) => item.active !== false && studentCanAccess(item, studentId),
+  ).length - accessible.length;
 
   return (
     <div className="space-y-4">
@@ -138,6 +157,7 @@ export function StudentProgressPanel({
                         <div className="mt-0.5 truncate text-[11px] text-ink-400">
                           {piece?.composer}
                           {piece ? ` · ${instrumentName(piece.instrumentId)}` : ""}
+                          {piece ? ` · واحد پیشرفت: ${RANGE_UNIT_LABEL[piece.rangeUnit]}` : ""}
                         </div>
                       </div>
                       <StatusBadge
@@ -151,6 +171,16 @@ export function StudentProgressPanel({
                           glyph={false}
                           label={PROGRESS_STATUS_LABEL[insight.status]}
                         />
+                      )}
+                      {role === "teacher" && piece && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          aria-label={`ویرایش قطعه و واحد پیشرفت: ${piece.title}`}
+                          onClick={() => setPieceEdit(piece)}
+                        >
+                          <Pencil className="size-3.5" /> واحد پیشرفت
+                        </Button>
                       )}
                     </div>
 
@@ -311,6 +341,53 @@ export function StudentProgressPanel({
           onRecorded={() =>
             notify({ tone: "success", title: "پیشرفت ثبت شد", detail: "به سابقهٔ هنرجو اضافه شد." })
           }
+        />
+      )}
+
+      <Panel
+        title="منابع در دسترس این هنرجو"
+        kicker="بر پایهٔ قاعدهٔ دسترسی کتابخانه"
+      >
+        {accessible.length === 0 && accessibleOverflow === 0 ? (
+          <EmptyState
+            title="منبعی در دسترس این هنرجو نیست"
+            description="دسترسی هر منبع در کتابخانه تنظیم می‌شود: همهٔ هنرجویان، یا فهرست منتخب."
+          />
+        ) : (
+          <>
+            <ul className="space-y-1.5">
+              {accessible.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] px-3 py-2 text-[12px] text-ink-200"
+                >
+                  <span className="truncate">{item.title}</span>
+                  <span className="shrink-0 text-[10px] text-ink-500">
+                    {resourceKindLabel[item.kind]}
+                    {(item.restrictedToStudentIds?.length ?? 0) > 0 ? " · دسترسی محدود" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {accessibleOverflow > 0 && (
+              <p className="mt-2 text-[10.5px] text-ink-400">
+                و {faNum(accessibleOverflow)} منبع دیگر — فهرست کامل در کتابخانه.
+              </p>
+            )}
+          </>
+        )}
+      </Panel>
+
+      {pieceEdit && (
+        <PieceFormDialog
+          open
+          piece={pieceEdit}
+          onClose={() => setPieceEdit(undefined)}
+          onSaved={(saved) => {
+            setPieceEdit(undefined);
+            notify({ tone: "success", title: `«${saved.title}» به‌روزرسانی شد` });
+            reload();
+          }}
         />
       )}
 

@@ -225,7 +225,15 @@ export type ConflictKind =
   /* warning */
   | "SESSION_STUDENT_OVERLAP"
   | "SESSION_RESOURCE_INACTIVE"
-  | "SESSION_OFF_SCHEDULE";
+  | "SESSION_OFF_SCHEDULE"
+  /**
+   * Advisory rules the academy configures itself (Settings → قواعد جلسه). Both
+   * are warnings: a concert that runs past closing time and a teacher with eight
+   * minutes between rooms are legitimate, and the point of the rule is that the
+   * operator is TOLD, not that the schedule is policed.
+   */
+  | "SESSION_OUTSIDE_WORKING_HOURS"
+  | "SESSION_TIGHT_TURNAROUND";
 
 export interface ConflictItem {
   kind: ConflictKind;
@@ -287,7 +295,9 @@ export type SkipReason =
   /** Attendance exists; the session is evidence and must not change. */
   | "SKIP_PROTECTED"
   /** A human edited this occurrence; an override outranks generation. */
-  | "SKIP_MANUAL";
+  | "SKIP_MANUAL"
+  /** The academy does not open that weekday (Settings → ساعات کاری). */
+  | "SKIP_CLOSED_DAY";
 
 export const SKIP_REASON_LABEL: Record<SkipReason, string> = {
   SKIP_UNCHANGED: "بدون تغییر",
@@ -295,6 +305,7 @@ export const SKIP_REASON_LABEL: Record<SkipReason, string> = {
   SKIP_CANCELLED: "لغو شده — بازگردانی نمی‌شود",
   SKIP_PROTECTED: "حضور و غیاب ثبت شده — محافظت‌شده",
   SKIP_MANUAL: "ویرایش دستی — محافظت‌شده",
+  SKIP_CLOSED_DAY: "روز تعطیل آموزشگاه — جلسهٔ تازه ساخته نشد",
 };
 
 /** A slot the plan would create. Not yet a `Session`: it has no timestamps. */

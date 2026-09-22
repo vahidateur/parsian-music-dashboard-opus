@@ -1,6 +1,8 @@
 import type { Page } from "@/api/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { withRuleDefaults } from "@/domains/organization/types";
+import { schedulingRules } from "@/domains/organization/rules";
 import { buildDateIndex, detectConflicts } from "./conflicts";
 import { compareIsoDate, isHhMm, isIsoDate, jalaliToIso, weekdayIndex } from "./dateBridge";
 import {
@@ -444,7 +446,30 @@ export class DemoSchedulingRepository implements SchedulingRepository {
       teacherActive: teacher ? teacher.status !== "inactive" : undefined,
       studentsByClassId: this.studentsByClassId(),
       weekday: weekdayIndex(candidate.date) ?? undefined,
+      rules: this.academyRules().rules,
     });
+  }
+
+  /**
+   * The academy's own scheduling rules (Settings → قواعد جلسه / ساعات کاری).
+   *
+   * Read here rather than passed in, so the pure engine stays pure: `conflicts.ts`
+   * and `generation.ts` never see the store, they see numbers. A value that cannot
+   * be read is simply absent, and an absent rule is not evaluated — the engine
+   * never invents a policy nobody configured.
+   */
+  private academyRules(): {
+    closedWeekdays: readonly number[];
+    rules: { gapMinutes?: number; workingHours?: { start: number; end: number } };
+  } {
+    const derived = schedulingRules(withRuleDefaults(this.store.organization.get()));
+    return {
+      closedWeekdays: derived.closedWeekdays,
+      rules: {
+        gapMinutes: derived.gapMinutes,
+        ...(derived.workingHours ? { workingHours: derived.workingHours } : {}),
+      },
+    };
   }
 
   /** Hard conflicts always refuse; warnings refuse only without consent. */
@@ -478,13 +503,16 @@ export class DemoSchedulingRepository implements SchedulingRepository {
 
     const all = this.store.scheduledSessions.all();
     const existing = all.filter((s) => s.classId === input.classId);
+    const academy = this.academyRules();
     const ctx: PlanContext = {
       existing,
       sessionIdsWithAttendance: this.protectedSessionIds(existing),
       today: this.today(),
+      closedWeekdays: academy.closedWeekdays,
       conflict: {
         otherSessions: all.filter((s) => s.classId !== input.classId),
         studentsByClassId: this.studentsByClassId(),
+        rules: academy.rules,
       },
     };
 
@@ -494,10 +522,9 @@ export class DemoSchedulingRepository implements SchedulingRepository {
   /**
    * Today's calendar date.
    *
-   * Uses the real date rather than the demo clock: `academyNow()` freezes the
-   * time of day but keeps the real date, so there is no frozen "today" to
-   * read. Generation only compares dates, and a session in the past must stay
-   * in the past regardless of the clock abstraction.
+   * Reads the academy's one clock. Generation only compares dates, and a session
+   * in the past must stay in the past: "today" is the operator's today, in every
+   * mode, which is the only answer that makes an immutable history coherent.
    */
   private today(): string {
     const now = new Date();

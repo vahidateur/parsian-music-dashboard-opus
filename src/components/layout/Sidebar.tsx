@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
-import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon , Images} from "lucide-react";
 import { navGroups } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { roleLabels } from "@/domains/auth/permissions";
+import { roleLabel } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
+import { faNum } from "@/lib/format";
 import { NavItem } from "@/components/ds/blocks";
 import { useConversations } from "@/domains/chat/useChat";
 import { cn } from "@/utils/cn";
@@ -22,6 +23,7 @@ export const navIcons: Record<ViewId, LucideIcon> = {
   reports: BarChart3,
   messages: MessageSquare,
   library: Library,
+  gallery: Images,
   settings: Settings,
   "design-system": Palette,
 };
@@ -36,33 +38,50 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-function Roles() {
-  const { notify } = useApp();
-  const roles = ["مدیریت", "مدرس", "هنرجو"];
+/**
+ * The signed-in operator's own role — and nothing else.
+ *
+ * This used to be three buttons («مدیریت / مدرس / هنرجو») with the first one
+ * permanently lit: a role switcher that switched nothing, naming two roles the
+ * person looking at it did not have, and a third («هنرجو») that is not even a
+ * role in the permission model. A sidebar is not a place to advertise roles; it
+ * is a place to say who you are signed in as.
+ *
+ * The scope line and the permission count are read from the session's own
+ * resolved permissions, so an administrator who edits a role's access in
+ * Settings sees the change here — the same source, not a second copy.
+ */
+function SessionRole() {
+  const { user, permissions } = useAuth();
+  const { navigate, view } = useApp();
+  const mayEditRoles = permissions.includes("roles.write");
+  if (!user) return null;
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2.5">
-      <div className="mb-2 flex items-center justify-between text-[10.5px] text-ink-400">
-        <span>سامانهٔ یکپارچه</span>
+      <div className="mb-1.5 flex items-center justify-between text-[10.5px] text-ink-400">
+        <span>نقش شما در سامانه</span>
         <span className="flex items-center gap-1">
-          <span className="size-1.5 rounded-full bg-ok-500" /> همگام
+          <span className="size-1.5 rounded-full bg-ok-500" /> فعال
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-1">
-        {roles.map((r, i) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => i > 0 && notify({ tone: "info", title: `پیش‌نمایش پنل ${r}`, detail: "این سطح از همین منبع داده تغذیه می‌شود." })}
-            className={cn(
-              "h-7 rounded-lg text-[11px] transition-colors",
-              i === 0 ? "bg-gold-500/15 font-medium text-gold-300" : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-100",
-            )}
-            aria-pressed={i === 0}
-          >
-            {r}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-2">
+        <span className="rounded-lg bg-gold-500/15 px-2 py-1 text-[11.5px] font-medium text-gold-300">
+          {roleLabel(user.role)}
+        </span>
+        <span className="nums text-[10.5px] text-ink-400">{faNum(permissions.length)} دسترسی</span>
       </div>
+      {mayEditRoles && (
+        <button
+          type="button"
+          onClick={() => navigate({ view: "settings" })}
+          className={cn(
+            "mt-2 w-full rounded-lg px-2 py-1 text-right text-[10.5px] transition-colors",
+            view === "settings" ? "text-gold-300" : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-100",
+          )}
+        >
+          مدیریت نقش‌ها و دسترسی‌ها ←
+        </button>
+      )}
     </div>
   );
 }
@@ -157,7 +176,10 @@ export function SidebarContent({
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-bold text-ink-50">{branding.academyName}</div>
-            <div className="truncate text-[11px] text-ink-400">{branding.tagline} · پنل مدیریت</div>
+            <div className="truncate text-[11px] text-ink-400">
+              {branding.tagline}
+              {user ? ` · ${roleLabel(user.role)}` : ""}
+            </div>
           </div>
         )}
         {onClose && (
@@ -197,7 +219,7 @@ export function SidebarContent({
       </nav>
 
       <div className={cn("space-y-3 p-3", collapsed && "p-2")}>
-        {!collapsed && <Roles />}
+        {!collapsed && <SessionRole />}
         <div className="relative">
           <button
             type="button"
@@ -217,7 +239,7 @@ export function SidebarContent({
               <>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-ink-50">{user?.name}</span>
-                  <span className="block truncate text-[11px] text-ink-400">{user ? roleLabels[user.role] : ""}</span>
+                  <span className="block truncate text-[11px] text-ink-400">{user ? roleLabel(user.role) : ""}</span>
                 </span>
                 <ChevronDown className={cn("size-4 text-ink-400 transition-transform", accountOpen && "rotate-180")} />
               </>

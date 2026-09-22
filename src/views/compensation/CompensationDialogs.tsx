@@ -37,6 +37,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, Toggle, inputCls } from "@/components/ds/patterns";
 import { compensationDefaultFor } from "@/domains/compensation/derive";
+import { useOrganization } from "@/domains/organization/useOrganization";
 import type { SessionCompensation } from "@/domains/compensation/types";
 import type { AcademyClass } from "@/domains/classes/types";
 import type { Room } from "@/domains/rooms/types";
@@ -441,13 +442,24 @@ export function ScheduleCompensationDialog({
   onWritten: (record: SessionCompensation) => void;
 }) {
   /*
+   * The academy's own rules, read through the organization repository. The
+   * proposed LENGTH of a make-up is one of them; the ceiling on how many make-ups
+   * one student may have is enforced by the compensation repository when this
+   * booking is registered. Neither number is a constant in this file.
+   */
+  const organization = useOrganization();
+
+  /*
    * The default is the domain's own `compensationDefaultFor` — the original's date,
-   * room and teacher, one hour long — a PREFILL, not a booking and not a search.
-   * `null` (the original is gone, or its time is unreadable) simply leaves the
-   * fields empty rather than inventing a slot.
+   * room and teacher, and a lesson as long as this academy's lessons are — a
+   * PREFILL, not a booking and not a search. `null` (the original is gone, or its
+   * time is unreadable) simply leaves the fields empty rather than inventing a
+   * slot.
    */
   const initial = useMemo<ScheduleDraft>(() => {
-    const fallback = compensationDefaultFor(original);
+    // The proposed length is the academy's own default session length, so a
+    // 90-minute academy is offered a 90-minute make-up rather than a constant.
+    const fallback = compensationDefaultFor(original, organization.settings.defaultSessionMinutes);
     return {
       date: fallback ? jalaliInputValue(fallback.date) : "",
       startTime: fallback?.startTime ?? "",
@@ -456,7 +468,7 @@ export function ScheduleCompensationDialog({
       teacherId: fallback?.teacherId ?? "",
       acknowledgeWarnings: false,
     };
-  }, [original]);
+  }, [original, organization.settings.defaultSessionMinutes]);
 
   const form = useEntityForm<ScheduleDraft, SessionCompensation>({
     open,

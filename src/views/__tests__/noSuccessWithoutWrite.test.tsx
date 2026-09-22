@@ -689,7 +689,7 @@ describe("attendance", () => {
 
     // Opening the student's real profile is the truthful action this row had.
     fireEvent.click(rows[0]);
-    await waitFor(() => expect(window.location.hash).toMatch(/^#\/students\/.+/));
+    await waitFor(() => expect(window.location.pathname).toMatch(/^\/students\/.+/));
     expectNoToast();
   });
 });
@@ -761,7 +761,7 @@ describe("class waitlist", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /بررسی در برنامه‌ریزی/ }));
     // The truthful effect: the schedule really opens, and nothing is announced.
-    await waitFor(() => expect(window.location.hash).toBe("#/schedule"));
+    await waitFor(() => expect(window.location.pathname).toBe("/schedule"));
     expectNoToast();
     for (const claim of RETRACTED_CLAIMS) {
       expect(document.body.textContent, claim).not.toContain(claim);

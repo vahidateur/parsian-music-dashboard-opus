@@ -2,7 +2,13 @@ import { viewTitles } from "@/lib/navigation";
 import type { Target, ViewId } from "@/lib/viewContracts";
 
 /**
- * Hash routing: `#/students`, `#/students?filter=at-risk`, `#/students/st1`.
+ * LEGACY fragment routing: `#/students`, `#/students?filter=at-risk`,
+ * `#/students/st1`.
+ *
+ * The app's address bar is a path now (`/students/st1`) — see `src/lib/route.ts`
+ * for why. This reader stays because a fragment link is still a link somebody
+ * holds: a bookmark saved before the change, a URL copied out of an old chat. It
+ * is never WRITTEN, and the shell migrates one to its path form on first paint.
  *
  * Kept deliberately tiny — the app has a flat view model, so a router library
  * would add weight without adding capability. All values are validated because
@@ -37,13 +43,6 @@ export function parseHash(hash: string): Target | null {
     if (filter && SAFE_SEGMENT.test(filter)) target.filter = filter;
   }
   return target;
-}
-
-export function formatHash(target: Target): string {
-  const parts = [`#/${target.view}`];
-  if (target.id && SAFE_SEGMENT.test(target.id)) parts.push(`/${encodeURIComponent(target.id)}`);
-  const suffix = target.filter && SAFE_SEGMENT.test(target.filter) ? `?filter=${encodeURIComponent(target.filter)}` : "";
-  return parts.join("") + suffix;
 }
 
 function decodeSafe(value: string): string {

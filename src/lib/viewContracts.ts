@@ -20,6 +20,7 @@ export type ViewId =
   | "reports"
   | "messages"
   | "library"
+  | "gallery"
   | "settings"
   | "design-system";
 

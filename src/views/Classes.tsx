@@ -22,6 +22,7 @@ import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, Segmented, StatStrip } from "@/components/ds/patterns";
 import { ErrorState } from "@/components/ds/states";
 import { useClass, useClasses } from "@/domains/classes/useClasses";
+import { useLevels, usePrograms } from "@/domains/learning/useLearning";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
 import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
 import { getClassRepository } from "@/domains/registry";
@@ -117,6 +118,7 @@ function ClassCard({
   waiting,
   teacherName,
   roomName,
+  ladder,
   onOpen,
 }: {
   c: AcademyClass;
@@ -125,6 +127,8 @@ function ClassCard({
   waiting: number | null;
   teacherName: string;
   roomName: string;
+  /** Course · level names resolved from the learning records; null when the class sits outside the ladder. */
+  ladder: string | null;
   onOpen: () => void;
 }) {
   const pct = seats === null ? null : fullness(seats, c.capacity);
@@ -138,6 +142,7 @@ function ClassCard({
           <div className="truncate text-[14px] font-semibold text-ink-50">{c.title}</div>
           <div className="mt-1 truncate text-[11.5px] text-ink-300">
             {c.level} · {c.kind === "group" ? "گروهی" : "خصوصی"}
+            {ladder ? ` · ${ladder}` : ""}
           </div>
         </div>
         {waiting !== null && waiting > 0 && <StatusBadge tone="violet" label={`${faNum(waiting)} در انتظار`} glyph={false} />}
@@ -198,6 +203,14 @@ function ClassDetail({
 }) {
   const { navigate, notify } = useApp();
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const { items: programs } = usePrograms({ per_page: 200 });
+  const { items: levels } = useLevels({ per_page: 200 });
+  const ladder = [
+    c.programId ? programs.find((p) => p.id === c.programId)?.name : undefined,
+    c.levelId ? levels.find((l) => l.id === c.levelId)?.name : undefined,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   /**
    * The academy's own day, and the week it anchors: شنبه → جمعه, the same
@@ -312,7 +325,7 @@ function ClassDetail({
         breadcrumb={[{ label: "کلاس‌ها", onClick: () => navigate({ view: "classes" }) }, { label: c.title }]}
         kicker={instrumentName(c.instrument)}
         title={c.title}
-        description={`${c.kind === "group" ? "کلاس گروهی" : "کلاس خصوصی"} · ${c.level} · ${faNum(c.duration)} دقیقه در هر جلسه`}
+        description={`${c.kind === "group" ? "کلاس گروهی" : "کلاس خصوصی"} · ${c.level} · ${faNum(c.duration)} دقیقه در هر جلسه${ladder ? ` · ${ladder}` : ""}`}
         meta={
           <>
             <span>{c.days.map((d) => WEEKDAYS[d]).join(" و ")} · {faTime(c.time)}</span>
@@ -485,6 +498,20 @@ function ClassesRoster({
   // Filter chips enumerate the live instrument catalogue, so an academy's own
   // instruments are filterable and a deactivated one stops offering itself.
   const instrumentFilters = useInstrumentCatalog().filter((i) => i.active);
+  const { items: programs } = usePrograms({ per_page: 200 });
+  const { items: levels } = useLevels({ per_page: 200 });
+
+  /*
+    The ladder a class teaches, by NAME resolved from the learning records —
+    the same records Settings edits, so a renamed level renames itself here
+    with nothing to synchronise and nothing to drift.
+  */
+  const ladderOf = (c: AcademyClass): string | null => {
+    const program = c.programId ? programs.find((p) => p.id === c.programId)?.name : undefined;
+    const level = c.levelId ? levels.find((l) => l.id === c.levelId)?.name : undefined;
+    const label = [program, level].filter(Boolean).join(" · ");
+    return label || null;
+  };
   const [kind, setKind] = useState<"all" | "group" | "private">("all");
   const [sort, setSort] = useState<"fullness" | "waitlist">("fullness");
 
@@ -628,6 +655,7 @@ function ClassesRoster({
                 waiting={waitingOf(c.id)}
                 teacherName={teacherIndex.get(c.teacherId)?.name ?? NO_DATA}
                 roomName={roomIndex.get(c.roomId)?.name ?? NO_DATA}
+                ladder={ladderOf(c)}
                 onOpen={() => navigate({ view: "classes", id: c.id })}
               />
             ))}

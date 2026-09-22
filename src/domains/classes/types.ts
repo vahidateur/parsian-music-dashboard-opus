@@ -31,6 +31,15 @@ export interface AcademyClass {
   roomId: string;
   kind: "private" | "group";
   level: string;
+  /**
+   * The curriculum rung this class teaches, when the academy ties it to one:
+   * `programId` names the course for the class's instrument and `levelId` the
+   * rung within it. Optional and advisory — a workshop class may legitimately
+   * sit outside the ladder — but where set, every surface resolves the NAME
+   * from these ids, so a level renamed in Settings is renamed here too.
+   */
+  programId?: string;
+  levelId?: string;
   days: number[];
   time: string;
   duration: number;

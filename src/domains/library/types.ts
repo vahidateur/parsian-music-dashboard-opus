@@ -74,6 +74,16 @@ export interface LibraryItem extends Resource {
   createdAt?: string;
   /** Visibility — students or teachers — per F1 disposition publication status */
   visibility?: LibraryVisibility;
+  /**
+   * Per-student access restriction, meaningful only while `visibility` is
+   * `students`: the item is then accessibly ONLY by the listed students (and by
+   * staff managing them). Absent or empty means every student may access it.
+   *
+   * The academy sets this here; `studentCanAccess` below is the ONE rule both
+   * the demo and — per the backend contract — the server evaluate, so a student
+   * portal and this panel can never disagree about what a student may see.
+   */
+  restrictedToStudentIds?: string[];
   /** Active flag — per F1 disposition publication status */
   active?: boolean;
 }
@@ -105,9 +115,29 @@ export interface CreateLibraryItemInput {
   peaks?: number[];
   visibility?: LibraryVisibility;
   active?: boolean;
+  /** See `LibraryItem.restrictedToStudentIds`. */
+  restrictedToStudentIds?: string[];
 }
 
 export type UpdateLibraryItemInput = Partial<CreateLibraryItemInput>;
+
+/**
+ * THE ACCESS RULE — pure, so the demo repository, the panel and the future
+ * student portal all evaluate the same sentence.
+ *
+ * A teachers-only item is not a student's to access at all; a students item is
+ * theirs unless the academy narrowed it to a list, in which case the list IS
+ * the access. An empty list means "not narrowed", never "nobody".
+ */
+export function studentCanAccess(
+  item: Pick<LibraryItem, "visibility" | "restrictedToStudentIds">,
+  studentId: string,
+): boolean {
+  if ((item.visibility ?? "students") !== "students") return false;
+  const restricted = item.restrictedToStudentIds;
+  if (!restricted || restricted.length === 0) return true;
+  return restricted.includes(studentId);
+}
 
 /* ------------------------------------------------------------------ */
 /* File availability                                                    */

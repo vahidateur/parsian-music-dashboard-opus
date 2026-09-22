@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { isoToJalaliDisplay, isIsoDate } from "../dateBridge";
 import { academyIsoDate } from "@/views/relations/academyDay";
-import { academyNow, academyNowMinutes, DEMO_NOW_MINUTES, isDeterministicClock } from "@/domains/shared/clock";
+import { academyNow, academyNowMinutes, DEMO_NOW_MINUTES } from "@/domains/shared/clock";
 import { faToday } from "@/lib/format";
-import { setRuntimeConfig, resetRuntimeConfig, getRuntimeConfig } from "@/api/config";
+import { setRuntimeConfig, resetRuntimeConfig } from "@/api/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,20 +15,38 @@ describe("GAP-010 date source coherence", () => {
     resetRuntimeConfig();
   });
 
-  it("academyIsoDate uses academyNow (deterministic in demo, real in api)", () => {
-    // Demo mode: frozen time but real calendar date
-    setRuntimeConfig({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
-    expect(isDeterministicClock()).toBe(true);
-    expect(academyNowMinutes()).toBe(DEMO_NOW_MINUTES);
-    const now = academyNow();
-    expect(now.getHours()).toBe(Math.floor(DEMO_NOW_MINUTES / 60));
-    expect(now.getMinutes()).toBe(DEMO_NOW_MINUTES % 60);
-    const iso = academyIsoDate(now);
-    expect(isIsoDate(iso)).toBe(true);
-    // Calendar date should be today real date (not frozen)
-    const realToday = new Date();
-    const expectedRealIso = `${realToday.getFullYear()}-${String(realToday.getMonth() + 1).padStart(2, "0")}-${String(realToday.getDate()).padStart(2, "0")}`;
-    expect(iso).toBe(expectedRealIso);
+  /**
+   * THE CLOCK IS THE WALL CLOCK IN EVERY MODE.
+   *
+   * Demo used to freeze the time of day at `DEMO_NOW_MINUTES` (10:47), which
+   * made the panel's clock a stuck prop. Determinism now lives where it belongs:
+   * in the SEED's fixed date and in tests that pin the instant they need. So the
+   * assertion is that both modes agree with the real time, to within the second
+   * it takes to read it.
+   */
+  it("academyIsoDate uses academyNow — the wall clock, in demo and in api alike", () => {
+    for (const mode of ["demo", "api"] as const) {
+      setRuntimeConfig({ mode, apiBaseUrl: "/api/v1", error: null });
+      const now = academyNow();
+      const real = new Date();
+      expect(Math.abs(now.getTime() - real.getTime()), `${mode}: clock is not the wall clock`).toBeLessThan(2000);
+      expect(academyNowMinutes(), `${mode}: minutes do not match the clock`).toBe(
+        real.getHours() * 60 + real.getMinutes(),
+      );
+      const iso = academyIsoDate(now);
+      expect(isIsoDate(iso)).toBe(true);
+      const expectedRealIso = `${real.getFullYear()}-${String(real.getMonth() + 1).padStart(2, "0")}-${String(real.getDate()).padStart(2, "0")}`;
+      expect(iso).toBe(expectedRealIso);
+    }
+  });
+
+  it("keeps DEMO_NOW_MINUTES as a named reference instant only — nothing reads it", () => {
+    // The constant survives so a test can pin 10:47 by name instead of writing
+    // the arithmetic inline. It must not be the clock's own answer.
+    expect(DEMO_NOW_MINUTES).toBe(10 * 60 + 47);
+    const clock = readFileSync(join(process.cwd(), "src/domains/shared/clock.ts"), "utf8");
+    const body = clock.slice(clock.indexOf("export function academyNowMinutes"));
+    expect(body).not.toContain("DEMO_NOW_MINUTES");
   });
 
   it("faToday uses canonical bridge isoToJalaliDisplay and academyIsoDate, not new Date directly", () => {
@@ -96,7 +114,6 @@ describe("GAP-010 date source coherence", () => {
 
   it("API/live mode uses real clock and minute tick preserved", () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "/api/v1", error: null });
-    expect(isDeterministicClock()).toBe(false);
     const minutes = academyNowMinutes();
     // Real minutes should be within 0-1439 and not necessarily DEMO_NOW_MINUTES
     expect(minutes).toBeGreaterThanOrEqual(0);

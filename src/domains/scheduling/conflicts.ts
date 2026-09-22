@@ -64,6 +64,13 @@ export function buildDateIndex(sessions: readonly Session[]): DateIndex {
   return index;
 }
 
+/** `95` → `01:35`, for the working-hours sentence above. */
+function pad(minutes: number): string {
+  const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+  const m = String(minutes % 60).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
 /** Half-open overlap: `[aStart, aEnd)` intersects `[bStart, bEnd)`. */
 export function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
   return aStart < bEnd && bStart < aEnd;
@@ -92,6 +99,18 @@ export interface ConflictContext {
   studentsByClassId?: ReadonlyMap<string, readonly string[]>;
   /** Weekday index of the candidate's date, for the off-schedule warning. */
   weekday?: number;
+  /**
+   * The academy's own rules, when the caller has read them (Settings → قواعد
+   * جلسه). Absent, as always in this context, means "not evaluated" — the engine
+   * never guesses a policy, and a rule nobody configured must not invent a
+   * warning of its own.
+   */
+  rules?: {
+    /** Minimum turnaround between two sessions of one teacher or one room. */
+    gapMinutes?: number;
+    /** The bookable window, in minutes since midnight. */
+    workingHours?: { start: number; end: number };
+  };
 }
 
 /**
@@ -206,6 +225,52 @@ export function detectConflicts(candidate: SessionCandidate, ctx: ConflictContex
       severity: "warning",
       message: `${which} انتخاب‌شده غیرفعال است.`,
     });
+  }
+
+  /*
+    The bookable window. A session outside it is a warning, never a refusal: an
+    academy that stays open late for a concert, or a make-up lesson at 21:30, is
+    a real thing that happens — the rule exists so the operator is told what they
+    are doing, not so the schedule is policed by a number in Settings.
+  */
+  const window = ctx.rules?.workingHours;
+  if (window && (start < window.start || end > window.end)) {
+    warnings.push({
+      kind: "SESSION_OUTSIDE_WORKING_HOURS",
+      severity: "warning",
+      message: `این جلسه بیرون از ساعات کاری آموزشگاه (${pad(window.start)}–${pad(window.end)}) است.`,
+    });
+  }
+
+  /*
+    Turnaround: two sessions of the same teacher or the same room with less than
+    the configured gap between them. Not a clash — the intervals do not overlap —
+    but a teacher who has ten minutes to cross the building, or a room that has
+    ten minutes to empty, is worth telling the operator about before they save.
+  */
+  const gap = ctx.rules?.gapMinutes;
+  if (gap && gap > 0) {
+    for (const other of sameDay) {
+      if (candidate.id !== undefined && other.id === candidate.id) continue;
+      const otherStart = toMinutes(other.startTime);
+      const otherEnd = toMinutes(other.endTime);
+      if (otherStart === null || otherEnd === null) continue;
+
+      const shared =
+        other.roomId === candidate.roomId ? "اتاق" : other.teacherId === candidate.teacherId ? "مدرس" : null;
+      if (!shared) continue;
+
+      const turnaround = Math.max(otherStart - end, start - otherEnd);
+      // Negative means the two overlap, which the hard rules already reported.
+      if (turnaround < 0 || turnaround >= gap) continue;
+
+      warnings.push({
+        kind: "SESSION_TIGHT_TURNAROUND",
+        severity: "warning",
+        message: `فقط ${turnaround} دقیقه فرصت هست تا همین ${shared} برای جلسهٔ ${other.startTime}–${other.endTime} آماده شود.`,
+        conflictingSessionId: other.id,
+      });
+    }
   }
 
   // A make-up or catch-up session outside the class's usual days is normal.

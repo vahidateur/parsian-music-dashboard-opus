@@ -20,10 +20,25 @@ afterEach(cleanup);
 /** Assets the canonical seed ships on its own (the library's demo file). */
 let seededMediaCount: number;
 
+/**
+ * The seed ships six showcase photographs with their media rows
+ * (`domains/demo/gallerySeed`). This file is about the panel's upload/remove
+ * MECHANICS against albums the tests themselves create, so it starts from the
+ * empty gallery an operator's deletes would leave; the showcase rows are
+ * asserted as real (not dangling) in the case below that re-seeds.
+ */
+function clearSeededShowcase(): void {
+  for (const row of demoStore.galleryImages.all()) demoStore.galleryImages.remove(row.id);
+  for (const asset of demoStore.media.all()) {
+    if (asset.id.startsWith("md_gal_")) demoStore.media.remove(asset.id);
+  }
+}
+
 beforeEach(() => {
   resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
+  clearSeededShowcase();
   seededMediaCount = demoStore.media.all().length;
 
   // jsdom implements neither of these.
@@ -82,21 +97,28 @@ describe("albums", () => {
     expect(await screen.findByText(title)).toBeDefined();
   });
 
-  it("seeds albums but no fake photos", async () => {
-    renderPanel();
-    await waitForPanel();
+  it("ships the showcase photographs as real rows, not dangling ids", async () => {
+    resetToDemoEnvironment(); // this case wants the canonical seed, not the cleared one
 
     /*
-      Albums give the demo structure; the seed ships zero IMAGES, so every album
-      starts genuinely empty rather than showing placeholder imagery that does
-      not exist. The one seeded media asset is the library's text file, not a
-      photo, and no gallery row points at it.
+      A gallery row whose mediaId resolves to nothing renders as a broken
+      thumbnail, so the seed's photographs are asserted to be REAL: every row's
+      media exists with kind `image`, every row belongs to a seeded album, and
+      every row carries the alternative text the accessibility rule requires.
+      The BYTES are provisioned by the gallery view at bootstrap, not here — in
+      the panel, an unprovisioned photograph is a framed note, honestly.
     */
-    const albums = await getGalleryRepository().listAlbums({ per_page: 100 });
-    expect(albums.data.length).toBeGreaterThan(0);
-    expect(demoStore.galleryImages.all()).toHaveLength(0);
-    expect(demoStore.media.all().filter((asset) => asset.kind === "image")).toHaveLength(0);
-    expect(await screen.findByText("تصویری نیست")).toBeDefined();
+    const images = demoStore.galleryImages.all();
+    expect(images.length).toBeGreaterThan(0);
+    for (const image of images) {
+      expect(demoStore.media.find(image.mediaId)?.kind).toBe("image");
+      expect(demoStore.galleryAlbums.find(image.albumId)).toBeDefined();
+      expect(image.alt.trim().length).toBeGreaterThan(0);
+    }
+
+    renderPanel();
+    await waitForPanel();
+    expect((await screen.findAllByText("فایل تصویر در این مرورگر موجود نیست")).length).toBeGreaterThan(0);
   });
 });
 

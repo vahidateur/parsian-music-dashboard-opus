@@ -104,7 +104,115 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
   ],
 };
 
+/* ------------------------------------------------------------------ */
+/* Live role policy — what an administrator edited in Settings          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One role as the academy currently defines it.
+ *
+ * `rolePermissions` and `roleLabels` above are the SHIPPED DEFAULTS: they are
+ * what a role means before anyone edits it, and they stay the answer whenever no
+ * policy record exists. A policy record is what an administrator saved — the
+ * same shape, persisted with the dataset (`DemoRole`), and read back through
+ * `RoleRepository`.
+ */
+export interface RolePolicyRecord {
+  id: RoleId;
+  label: string;
+  scope: string;
+  permissions: Permission[];
+  /** True when this record differs from the shipped default for the role. */
+  customized: boolean;
+  /** ISO-8601 of the last edit, when the record carries one. */
+  updatedAt?: string;
+}
+
+let policy = new Map<RoleId, RolePolicyRecord>();
+let policyVersion = 0;
+const policyListeners = new Set<() => void>();
+
+function emitPolicy(): void {
+  policyVersion += 1;
+  policyListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      /* one broken subscriber must not stop the rest */
+    }
+  });
+}
+
+/**
+ * Replaces the live policy with the records a repository answered.
+ *
+ * Called by `useRolePolicySync` (mounted once in the shell) after each read, the
+ * same read-through projection the instrument catalogue uses: the repository
+ * stays the only writer, and the cache holds nothing that cannot be rebuilt by
+ * reading it again. An empty list clears the policy, so a failed or empty read
+ * falls back to the shipped defaults instead of locking everybody out.
+ */
+export function setRolePolicies(records: readonly RolePolicyRecord[]): void {
+  const next = new Map<RoleId, RolePolicyRecord>();
+  for (const record of records) {
+    if (isRoleId(record.id)) next.set(record.id, record);
+  }
+  const same =
+    next.size === policy.size &&
+    [...next.entries()].every(([id, record]) => {
+      const previous = policy.get(id);
+      return (
+        previous !== undefined &&
+        previous.label === record.label &&
+        previous.scope === record.scope &&
+        previous.customized === record.customized &&
+        previous.updatedAt === record.updatedAt &&
+        previous.permissions.length === record.permissions.length &&
+        previous.permissions.every((p, i) => p === record.permissions[i])
+      );
+    });
+  if (same) return;
+  policy = next;
+  emitPolicy();
+}
+
+/** The edited record for a role, or undefined when it runs on defaults. */
+export function getRolePolicy(role: RoleId): RolePolicyRecord | undefined {
+  return policy.get(role);
+}
+
+/** Bumped on every policy change — the identity `useSyncExternalStore` watches. */
+export function getRolePolicyVersion(): number {
+  return policyVersion;
+}
+
+export function subscribeRolePolicy(listener: () => void): () => void {
+  policyListeners.add(listener);
+  return () => {
+    policyListeners.delete(listener);
+  };
+}
+
+/**
+ * The display name of a role: the academy's own if it renamed one, the shipped
+ * label otherwise. Read this instead of `roleLabels` wherever a role is shown to
+ * a person — `roleLabels` is the default table, not the current answer.
+ */
+export function roleLabel(role: RoleId): string {
+  return policy.get(role)?.label ?? roleLabels[role] ?? String(role);
+}
+
+/**
+ * Role → permissions, honouring an administrator's edits.
+ *
+ * This is the single resolution point: the demo session builder, the API session
+ * normalizer and the live session in `AuthContext` all ask here, so a permission
+ * added in Settings takes effect everywhere at once instead of in whichever
+ * surface happened to re-read the matrix.
+ */
 export function permissionsForRole(role: RoleId): Permission[] {
+  const edited = policy.get(role);
+  if (edited) return [...edited.permissions];
   return [...(rolePermissions[role] ?? [])];
 }
 
@@ -157,6 +265,8 @@ export const viewPermissions: Record<ViewId, Permission> = {
   reports: "reports.read",
   messages: "messages.read",
   library: "library.read",
+  // The gallery shows the library's media; managing it stays library.write in Settings.
+  gallery: "library.read",
   settings: "settings.read",
   "design-system": "settings.read",
 };

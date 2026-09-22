@@ -28,6 +28,7 @@ import { ApiError } from "@/api/errors";
 import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
 import { can, PERMISSIONS, permissionsForRole, type RoleId } from "@/domains/auth/permissions";
 import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { DemoOrganizationRepository } from "@/domains/organization/demoRepository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { DemoCompensationRepository } from "../demoRepository";
@@ -305,6 +306,14 @@ describe("the refusal is the first thing that happens", () => {
 
 describe("an authorized actor proceeds", () => {
   it("lets a secretary, a manager and an administrator register", async () => {
+    /*
+      The academy's make-up ceiling is another rule's business (`makeupCap.test`).
+      This case asks WHO may register, so the ceiling is lifted rather than left to
+      decide the outcome for one student three times over — a refusal here would
+      say nothing about authorization and everything about a number in Settings.
+    */
+    await new DemoOrganizationRepository(store).update({ maxMakeupsPerTerm: AUTHORIZED_ROLES.length });
+
     const registered_ids: string[] = [];
     for (const role of AUTHORIZED_ROLES) {
       // Each role compensates its own cancelled session: uniqueness is per pair.

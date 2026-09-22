@@ -21,7 +21,7 @@
  * No fabricated data, no new route, no new workflow — publication status uses existing active/visibility semantics.
  */
 import { useMemo, useRef, useState } from "react";
-import { Download, FileMusic, FileText, Music2, Plus, Video, Lock, Upload, X } from "lucide-react";
+import { Download, FileMusic, FileText, Music2, Pencil, Plus, Video, Lock, Upload, X } from "lucide-react";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
@@ -29,6 +29,8 @@ import { resourceKindLabel, type LibraryItem, type ResourceKind, type LibraryVis
 import { useLibraryFile, useLibraryList } from "@/domains/library/useLibrary";
 import { getLibraryRepository, getMediaRepository } from "@/domains/registry";
 import { apiErrorFromThrown } from "@/api/errors";
+import { useCan } from "@/domains/auth/AuthContext";
+import { useStudentList } from "@/domains/students/useStudents";
 
 /* ------------------------------------------------------------------ */
 /* Shelf layout — presentation config owned by this view (M10).       */
@@ -94,6 +96,9 @@ function ResourceCard({ r, onOpen }: { r: LibraryItem; onOpen: () => void }) {
           {instrumentName(r.instrument)} · {r.level}
           {r.pages && <span className="nums">· {faNum(r.pages)} صفحه</span>}
           {r.visibility && r.visibility === "teachers" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06]">مدرسین</span>}
+      {(r.restrictedToStudentIds?.length ?? 0) > 0 && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gold-500/15 text-gold-200">دسترسی محدود</span>
+      )}
         </div>
       )}
 
@@ -110,37 +115,56 @@ function partialNote(name: string, shown: number, total: number): string | null 
 }
 
 /* ------------------------------------------------------------------ */
-/* Create dialog — upload via media seam two writes                     */
+/* Item dialog — create AND edit, upload via the media seam             */
+/*                                                                      */
+/* One form for both directions, because an academy that can register a */
+/* resource but never correct it owns half a catalogue: the access      */
+/* level, the active flag, the metadata and even the file itself stay   */
+/* editable afterwards. The parent mounts it with a `key` per subject,  */
+/* so opening it for another row never inherits the previous draft.     */
 /* ------------------------------------------------------------------ */
-function LibraryCreateDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+function LibraryItemDialog({
+  editing,
+  onClose,
+  onSaved,
+}: {
+  editing?: LibraryItem;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const { notify } = useApp();
-  const [title, setTitle] = useState("");
-  const [composer, setComposer] = useState("");
-  const [kind, setKind] = useState<ResourceKind>("sheet");
-  const [instrument, setInstrument] = useState<InstrumentId>("piano");
-  const [level, setLevel] = useState("");
-  const [visibility, setVisibility] = useState<LibraryVisibility>("students");
+  const [title, setTitle] = useState(editing?.title ?? "");
+  const [composer, setComposer] = useState(editing?.composer ?? "");
+  const [kind, setKind] = useState<ResourceKind>(editing?.kind ?? "sheet");
+  const [instrument, setInstrument] = useState<InstrumentId>(editing?.instrument ?? "piano");
+  const [level, setLevel] = useState(editing?.level ?? "");
+  const [visibility, setVisibility] = useState<LibraryVisibility>(editing?.visibility ?? "students");
+  const [restricted, setRestricted] = useState((editing?.restrictedToStudentIds?.length ?? 0) > 0);
+  const [studentIds, setStudentIds] = useState<string[]>(editing?.restrictedToStudentIds ?? []);
+  const [active, setActive] = useState(editing ? editing.active !== false : true);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const instruments = useInstrumentCatalog().filter((i) => i.active);
-
-  if (!open) return null;
-
-  const reset = () => {
-    setTitle("");
-    setComposer("");
-    setKind("sheet");
-    setInstrument("piano");
-    setLevel("");
-    setVisibility("students");
-    setFile(null);
-    if (fileRef.current) fileRef.current.value = "";
-  };
+  const students = useStudentList({ per_page: 200 }).students;
 
   const submit = async () => {
     if (title.trim().length < 2) {
       notify({ tone: "danger", title: "عنوان الزامی است" });
+      return;
+    }
+    /*
+      "Limited to these students" with no student chosen is not a restriction,
+      it is a contradiction — the empty list means "everybody" in the access
+      rule, so saving it would quietly do the opposite of what the operator
+      picked. Refuse and say what the alternative is.
+    */
+    if (visibility === "students" && restricted && studentIds.length === 0) {
+      notify({
+        tone: "danger",
+        title: "دسترسی محدود بدون هنرجو معنا ندارد",
+        detail: "یا دست‌کم یک هنرجو را انتخاب کنید، یا دسترسی را «مدرسین» بگذارید.",
+      });
       return;
     }
     setBusy(true);
@@ -158,22 +182,47 @@ function LibraryCreateDialog({ open, onClose, onCreated }: { open: boolean; onCl
         });
         mediaId = asset.id;
       }
-      await getLibraryRepository().create({
-        title: title.trim(),
-        composer: composer.trim() || undefined,
-        kind,
-        instrument,
-        level: level.trim() || undefined,
-        mediaId,
-        visibility,
-        active: true,
-      });
-      notify({ tone: "success", title: `«${title.trim()}» به کتابخانه افزوده شد`, detail: file ? "فایل فقط در همین مرورگر ذخیره شد." : "بدون فایل — تنها فراداده ثبت شد." });
-      reset();
-      onCreated();
+      const access =
+        visibility === "students" && restricted ? [...studentIds] : [];
+      if (editing) {
+        await getLibraryRepository().update(editing.id, {
+          title: title.trim(),
+          composer: composer.trim() || undefined,
+          kind,
+          instrument,
+          level: level.trim() || undefined,
+          visibility,
+          active,
+          restrictedToStudentIds: access,
+          ...(mediaId ? { mediaId } : {}),
+        });
+        notify({
+          tone: "success",
+          title: `«${title.trim()}» به‌روزرسانی شد`,
+          detail: file ? "فایل جدید جایگزین شد؛ فایل پیشین اگر مرجع دیگری ندارد آزاد می‌شود." : undefined,
+        });
+      } else {
+        await getLibraryRepository().create({
+          title: title.trim(),
+          composer: composer.trim() || undefined,
+          kind,
+          instrument,
+          level: level.trim() || undefined,
+          mediaId,
+          visibility,
+          active: true,
+          restrictedToStudentIds: access,
+        });
+        notify({
+          tone: "success",
+          title: `«${title.trim()}» به کتابخانه افزوده شد`,
+          detail: file ? "فایل فقط در همین مرورگر ذخیره شد." : "بدون فایل — تنها فراداده ثبت شد.",
+        });
+      }
+      onSaved();
       onClose();
     } catch (cause) {
-      notify({ tone: "danger", title: "افزودن منبع انجام نشد", detail: apiErrorFromThrown(cause).message });
+      notify({ tone: "danger", title: editing ? "ذخیرهٔ تغییرات انجام نشد" : "افزودن منبع انجام نشد", detail: apiErrorFromThrown(cause).message });
     } finally {
       setBusy(false);
     }
@@ -181,10 +230,10 @@ function LibraryCreateDialog({ open, onClose, onCreated }: { open: boolean; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-zinc-900 p-5">
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/[0.08] bg-zinc-900 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-[14px] font-semibold text-ink-50">افزودن منبع جدید</h3>
-          <Button size="sm" variant="ghost" onClick={() => { reset(); onClose(); }}><X className="size-4" /></Button>
+          <h3 className="text-[14px] font-semibold text-ink-50">{editing ? `ویرایش ${editing.title}` : "افزودن منبع جدید"}</h3>
+          <Button size="sm" variant="ghost" onClick={onClose} disabled={busy}><X className="size-4" /></Button>
         </div>
 
         <div className="grid gap-3">
@@ -227,22 +276,72 @@ function LibraryCreateDialog({ open, onClose, onCreated }: { open: boolean; onCl
             </Field>
           </div>
 
-          <Field label="فایل (اختیاری) — از طریق media seam">
+          {visibility === "students" && (
+            <Field label="سطح دسترسی هنرجویان" hint="قاعدهٔ دسترسی: فهرست خالی یعنی همهٔ هنرجویان.">
+              {(c) => (
+                <select
+                  {...c}
+                  className={inputCls}
+                  value={restricted ? "some" : "all"}
+                  onChange={(e) => setRestricted(e.target.value === "some")}
+                >
+                  <option value="all">همهٔ هنرجویان</option>
+                  <option value="some">فقط هنرجویان انتخاب‌شده</option>
+                </select>
+              )}
+            </Field>
+          )}
+          {visibility === "students" && restricted && (
+            <fieldset className="rounded-xl border border-white/[0.07] p-3">
+              <legend className="px-1 text-[10.5px] text-ink-400">هنرجویان دارای دسترسی</legend>
+              <div className="max-h-40 space-y-1 overflow-y-auto pl-1">
+                {students.length === 0 && <p className="text-[11px] text-ink-500">هنرجویی ثبت نشده است.</p>}
+                {students.map((student) => (
+                  <label key={student.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-ink-200 hover:bg-white/[0.04]">
+                    <input
+                      type="checkbox"
+                      className="accent-gold-500"
+                      checked={studentIds.includes(student.id)}
+                      onChange={(e) =>
+                        setStudentIds((prev) => (e.target.checked ? [...prev, student.id] : prev.filter((id) => id !== student.id)))
+                      }
+                    />
+                    <span>{student.name}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+
+          {editing && (
+            <Field label="وضعیت انتشار">
+              {(c) => (
+                <select {...c} className={inputCls} value={active ? "active" : "inactive"} onChange={(e) => setActive(e.target.value === "active")}>
+                  <option value="active">فعال</option>
+                  <option value="inactive">غیرفعال</option>
+                </select>
+              )}
+            </Field>
+          )}
+
+          <Field label={editing ? "فایل جدید (اختیاری — جایگزین فایل فعلی)" : "فایل (اختیاری) — از طریق media seam"}>
             {() => (
               <div className="flex items-center gap-2">
                 <input ref={fileRef} type="file" className="sr-only" accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_AUDIO_TYPES, ...ALLOWED_DOCUMENT_TYPES].join(",")} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
                 <Button size="sm" variant="subtle" onClick={() => fileRef.current?.click()}><Upload className="size-3.5" /> انتخاب فایل</Button>
-                <span className="text-[11px] text-ink-400 truncate">{file ? file.name : "بدون فایل — تنها فراداده"}</span>
+                <span className="text-[11px] text-ink-400 truncate">{file ? file.name : editing ? "بدون تغییر فایل" : "بدون فایل — تنها فراداده"}</span>
                 {file && <Button size="sm" variant="ghost" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ""; }}><X className="size-3" /></Button>}
               </div>
             )}
           </Field>
-          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل از طریق media seam ذخیره می‌شود: ابتدا Media.create سپس Library.create با mediaId — bytes در حافظه باینری، metadata در DemoDataset — بدون URL ساختگی.</p>
+          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل از طریق media seam ذخیره می‌شود: ابتدا Media.create سپس Library.create با mediaId — bytes در حافظهٔ باینری، metadata در DemoDataset — بدون URL ساختگی.</p>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <Button size="sm" variant="ghost" onClick={() => { reset(); onClose(); }} disabled={busy}>لغو</Button>
-          <Button size="sm" variant="primary" onClick={() => void submit()} disabled={busy || title.trim().length < 2}>{busy ? "در حال افزودن…" : "افزودن"}</Button>
+          <Button size="sm" variant="ghost" onClick={onClose} disabled={busy}>لغو</Button>
+          <Button size="sm" variant="primary" onClick={() => void submit()} disabled={busy || title.trim().length < 2}>
+            {busy ? "در حال ذخیره…" : editing ? "ذخیرهٔ تغییرات" : "افزودن"}
+          </Button>
         </div>
       </div>
     </div>
@@ -261,6 +360,9 @@ export function LibraryView() {
   const [sort, setSort] = useState<"recent" | "popular" | "title">("recent");
   const [open, setOpen] = useState<LibraryItem | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<LibraryItem | null>(null);
+  const canWrite = useCan("library.write");
+  const students = useStudentList({ per_page: 200 }).students;
 
   const { items, total, loading, error, reload } = useLibraryList({ per_page: 200 });
 
@@ -469,6 +571,11 @@ export function LibraryView() {
             <Button size="sm" variant="primary" onClick={file.download} disabled={file.status !== "ready" || file.downloading}>
               <Download className="size-3.5" /> {file.downloading ? "در حال دریافت…" : "دریافت"}
             </Button>
+            {canWrite && open && (
+              <Button size="sm" variant="subtle" onClick={() => setEditTarget(open)}>
+                <Pencil className="size-3.5" /> ویرایش
+              </Button>
+            )}
           </>
         }
       >
@@ -503,7 +610,14 @@ export function LibraryView() {
                 ["حجم", open.size],
                 open.pages ? ["تعداد صفحه", faNum(open.pages)] : ["مدت", open.duration ?? "—"],
                 ["افزوده‌شده", open.added],
-                ["دسترسی", open.visibility === "teachers" ? "مدرسین" : "هنرجویان"],
+                [
+                  "دسترسی",
+                  open.visibility === "teachers"
+                    ? "مدرسین"
+                    : (open.restrictedToStudentIds?.length ?? 0) > 0
+                      ? `هنرجویان منتخب (${faNum(open.restrictedToStudentIds!.length)})`
+                      : "همهٔ هنرجویان",
+                ],
                 ["وضعیت", open.active === false ? "غیرفعال" : "فعال"],
               ].map(([k, v]) => (
                 <div key={k as string} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
@@ -512,6 +626,16 @@ export function LibraryView() {
                 </div>
               ))}
             </dl>
+            {(open.restrictedToStudentIds?.length ?? 0) > 0 && (
+              <div className="rounded-xl border border-gold-500/25 bg-gold-500/[0.06] p-3.5 text-[11.5px] leading-relaxed text-gold-100">
+                دسترسی این منبع محدود است به:{" "}
+                {open.restrictedToStudentIds!.map((id) => students.find((s) => s.id === id)?.name ?? id).join("، ")}
+                <span className="mt-1 block text-[10.5px] text-ink-400">
+                  قاعدهٔ دسترسی یک تابع خالص است (studentCanAccess) تا هر خوانندهٔ این فهرست — از جمله پرتال آیندهٔ
+                  هنرجویان — دقیقاً همین قاعده را اجرا کند.
+                </span>
+              </div>
+            )}
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 text-[11.5px] leading-relaxed text-ink-300">
               این منبع <span className="nums text-ink-100">{faNum(open.uses)}</span> بار در کلاس‌ها استفاده شده است. اشتراک‌گذاری آن، منبع را در اپلیکیشن هنرجویان همان کلاس نمایش می‌دهد.
             </div>
@@ -519,7 +643,19 @@ export function LibraryView() {
         )}
       </Drawer>
 
-      <LibraryCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} onCreated={reload} />
+      {createOpen && <LibraryItemDialog key="create" onClose={() => setCreateOpen(false)} onSaved={reload} />}
+      {editTarget && (
+        <LibraryItemDialog
+          key={editTarget.id}
+          editing={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            setOpen(null);
+            reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav, TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/overlays/CommandPalette";
 import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
+import { useRolePolicySync } from "@/domains/auth/useRoles";
 import { useDemoLibraryFile } from "@/domains/library/useLibrary";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
 import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
@@ -47,6 +48,7 @@ const FinanceView = lazy(() => operationsViews().then((m) => ({ default: m.Finan
 const ReportsView = lazy(() => operationsViews().then((m) => ({ default: m.ReportsView })));
 const MessagesView = lazy(() => operationsViews().then((m) => ({ default: m.MessagesView })));
 const LibraryView = lazy(() => operationsViews().then((m) => ({ default: m.LibraryView })));
+const GalleryView = lazy(() => operationsViews().then((m) => ({ default: m.GalleryView })));
 const SettingsView = lazy(() => operationsViews().then((m) => ({ default: m.SettingsView })));
 
 const VIEWS = {
@@ -61,6 +63,7 @@ const VIEWS = {
   reports: ReportsView,
   messages: MessagesView,
   library: LibraryView,
+  gallery: GalleryView,
   settings: SettingsView,
   "design-system": DesignSystemView,
 } as const;
@@ -96,6 +99,15 @@ function Shell() {
   // Persian label while rendering. This keeps that lookup in step with the
   // repository for the whole session. See domains/instruments/catalog.ts.
   useInstrumentCatalogSync();
+
+  /*
+    The role/access matrix is runtime data too, and every gated control in the
+    product asks for it synchronously while rendering. Same seam as the
+    instrument catalogue: the repository stays the writer, this keeps the
+    projection current for the whole session — including for the operator who
+    just edited it.
+  */
+  useRolePolicySync();
 
   /*
     Demo content provisioning — the bytes behind the seeded library file.
