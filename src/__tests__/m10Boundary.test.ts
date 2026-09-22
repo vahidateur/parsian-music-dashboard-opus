@@ -172,6 +172,14 @@ const RETIRED_SYMBOLS: readonly string[] = [
   "settingsSections",
   "accessRoles",
   "libraryShelves",
+  /*
+    The hero's waveform used to breathe a curated thirteen-slot demo envelope:
+    a picture of a busy academy day that looked the same in every environment,
+    labelled «فعالیت» and «رزونانس». The wave is now computed from the day's
+    own session rows (`components/hero/PulseWaveform.tsx`), so the fixture is
+    retired by name and cannot be reintroduced as decoration.
+  */
+  "pulseDemoSessions",
 ].sort();
 
 /** Retired names present in a source — the lamp test: this gate's own
@@ -201,7 +209,6 @@ const SINGLE_OWNERS: readonly { name: string; owner: string }[] = [
   { name: "subscriptionStatusLabel", owner: "src/lib/financeVocabulary.ts" },
   { name: "messageTemplates", owner: "src/views/messages/composerTemplates.ts" },
   { name: "IntelligenceCard", owner: "src/domains/shared/dashboardInsights.ts" },
-  { name: "pulseDemoSessions", owner: "src/components/hero/pulseEnvelope.ts" },
   { name: "sampleSignals", owner: "src/components/ds/samples.ts" },
   { name: "conflictPairs", owner: "src/domains/shared/dashboardInsights.ts" },
 ];

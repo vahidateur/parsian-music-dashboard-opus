@@ -3,6 +3,8 @@ import { getRuntimeConfig } from "@/api/config";
 import { ApiAuthRepository } from "./auth/apiAuthRepository";
 import { DemoAuthRepository } from "./auth/demoAuthRepository";
 import { ApiUserRepository, DemoUserRepository } from "./auth/userRepository";
+import { ApiRoleRepository, DemoRoleRepository } from "./auth/roleRepository";
+import type { RoleRepository } from "./auth/roleRepository";
 import type { AuthRepository, UserRepository } from "./auth/repository";
 import { ApiStudentRepository } from "./students/apiRepository";
 import { DemoStudentRepository } from "./students/demoRepository";
@@ -59,6 +61,7 @@ interface Overrides {
   enrollments?: EnrollmentRepository;
   auth?: AuthRepository;
   users?: UserRepository;
+  roles?: RoleRepository;
   instruments?: InstrumentRepository;
   learning?: LearningRepository;
   chat?: ChatRepository;
@@ -128,6 +131,21 @@ export function getAuthRepository(): AuthRepository {
 export function getUserRepository(): UserRepository {
   if (overrides.users) return overrides.users;
   return isApiMode() ? new ApiUserRepository(getApiClient()) : new DemoUserRepository();
+}
+
+/**
+ * Role administration — the access matrix an academy edits in Settings.
+ *
+ * Unlike the other configuration domains this one resolves to the API
+ * implementation in API mode: the matrix IS authorization, so a deployment with
+ * a backend must read it from that backend rather than from a local dataset.
+ * Until `/roles` exists the read fails, and the policy cache keeps the shipped
+ * defaults — a missing endpoint degrades to "nobody has edited the matrix",
+ * never to "nobody may do anything".
+ */
+export function getRoleRepository(): RoleRepository {
+  if (overrides.roles) return overrides.roles;
+  return isApiMode() ? new ApiRoleRepository(getApiClient()) : new DemoRoleRepository();
 }
 
 /**
@@ -348,6 +366,9 @@ export function setAuthRepository(repository: AuthRepository | undefined): void 
 export function setUserRepository(repository: UserRepository | undefined): void {
   overrides.users = repository;
 }
+export function setRoleRepository(repository: RoleRepository | undefined): void {
+  overrides.roles = repository;
+}
 
 /** Drops memoized instances (used after `setRuntimeConfig`). */
 export function resetRegistry(): void {
@@ -360,6 +381,7 @@ export function resetRegistry(): void {
   overrides.enrollments = undefined;
   overrides.auth = undefined;
   overrides.users = undefined;
+  overrides.roles = undefined;
   overrides.instruments = undefined;
   overrides.progress = undefined;
   overrides.learning = undefined;

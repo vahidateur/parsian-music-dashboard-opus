@@ -21,4 +21,15 @@ export interface UserRepository {
   create(input: CreateUserInput): Promise<AuthUser>;
   update(id: string, input: UpdateUserInput): Promise<AuthUser>;
   delete(id: string): Promise<void>;
+  /**
+   * Sets the passphrase this account signs in with.
+   *
+   * A credential is never part of the user record: it is written through this
+   * verb so the record can be exported, backed up and displayed without ever
+   * carrying a secret. Pass an empty string to clear a per-account passphrase
+   * and return the account to the environment's default.
+   */
+  setPassword(id: string, passphrase: string): Promise<void>;
+  /** True when this account has its own passphrase rather than the default. */
+  hasOwnPassword(id: string): Promise<boolean>;
 }

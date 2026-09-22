@@ -122,7 +122,7 @@ describe("the academy day comes from the clock, in the product's weekday convent
       expect(academyWeekdayIndex()).toBe(academyWeekdayIndex(academyNow()));
     });
 
-    it("derives the same day in demo and in production mode; only the time of day differs", () => {
+    it("derives the same day — and the same time — in demo and in production mode", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date(2026, 8, 1, 0, 0, 0));
 
@@ -137,8 +137,14 @@ describe("the academy day comes from the clock, in the product's weekday convent
       expect(demoDay).toBe("2026-09-01");
       expect(liveDay).toBe(demoDay);
       expect(academyWeekdayIndex()).toBe(3);
-      // The frozen demo instant is a time of day, never a date.
-      expect(demoMinutes).not.toBe(liveMinutes);
+      /*
+        There is no second clock. The demo used to freeze the instant at 10:47 so
+        that "today" inside the product was a different moment from the one the
+        operator was living in — a clock that does not move is decoration, and a
+        dashboard that cannot tell the time is not showing the day it claims to
+        show. Both modes read the same wall clock now, so the values agree.
+      */
+      expect(demoMinutes).toBe(liveMinutes);
     });
   });
 });

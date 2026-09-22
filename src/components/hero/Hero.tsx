@@ -2,20 +2,28 @@ import { ChevronLeft } from "lucide-react";
 import hall from "@/assets/images/hall.jpg";
 import type { HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useAcademyNow } from "@/domains/shared/clock";
-import { useDayPulse } from "@/domains/shared/useDayPulse";
+import type { DayPulse } from "@/domains/shared/useDayPulse";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { useBranding } from "@/domains/branding/useBranding";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { faNum, faTime, faToday, greetingFor, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
-import { PulseWaveform } from "./PulseWaveform";
+import { PulseWaveform, toPulseSessions } from "./PulseWaveform";
 import { cn } from "@/utils/cn";
 
 export function Hero({
   compact = false,
   stats: heroStats,
+  pulse,
 }: {
   compact?: boolean;
+  /**
+   * The day's own pulse — live count, conflicts and the session rows the wave is
+   * drawn from. Read ONCE by the view (`Dashboard`) and handed down, because the
+   * mobile pulse card renders the same wave: two reads of the same day could
+   * disagree mid-write, and the wave must not contradict the numbers beside it.
+   */
+  pulse: DayPulse;
   /**
    * The four figures, read once by the view.
    *
@@ -35,9 +43,10 @@ export function Hero({
   const { branding } = useBranding();
   const { user } = useAuth();
   const firstName = user?.name.trim().split(/\s+/)[0] ?? null;
-  // Live/attention (M10/F3): derived from the scheduling seam, not a fixture.
-  // GAP-010: todayIso is the single academy date source, same as Dashboard, used for pulse and faToday.
-  const pulse = useDayPulse(todayIso, now);
+  // The wave is a picture of THESE rows — the same read the live count and the
+  // conflict note come from, so the drawing can never disagree with the numbers.
+  const waveSessions = toPulseSessions(pulse.sessions, pulse.clashIds);
+  const scheduledToday = pulse.sessions.filter((s) => s.status !== "cancelled").length;
 
   return (
     <section
@@ -122,34 +131,45 @@ export function Hero({
               ))}
             </div>
 
-            {/* pulse */}
+            {/* pulse — one day of the calendar, drawn left (opening) to right (closing) */}
             <div className="mt-auto pt-8">
-              <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-ink-300">
-                <span className="flex items-center gap-2">
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-[11px] text-ink-300">
+                <span className="flex flex-wrap items-center gap-2">
                   <span className="text-ink-200">ریتم امروز</span>
                   <span className="text-ink-500">·</span>
                   <span>
-                    {pulse.live > 0 ? `${faNum(pulse.live)} کلاس در حال برگزاری` : "بدون کلاس فعال"}
+                    {pulse.loading
+                      ? "در حال خواندن تقویم…"
+                      : scheduledToday === 0
+                        ? "جلسه‌ای روی تقویم نیست"
+                        : `${faNum(scheduledToday)} جلسه — ${
+                            pulse.live > 0 ? `${faNum(pulse.live)} در حال برگزاری` : "اکنون کلاسی در جریان نیست"
+                          }`}
                   </span>
                   {pulse.conflicts > 0 && pulse.firstConflictStart && (
                     <>
                       <span className="text-ink-500">·</span>
                       <button type="button" onClick={() => navigate({ view: "schedule", filter: "conflict" })} className="text-warn-400 hover:underline">
-                        {faNum(pulse.conflicts)} نقطهٔ توجه در {faTime(pulse.firstConflictStart)}
+                        {faNum(pulse.conflicts)} تعارض اتاق از {faTime(pulse.firstConflictStart)}
                       </button>
                     </>
                   )}
                 </span>
-                <span className="hidden items-center gap-3 sm:flex">
-                  <span className="flex items-center gap-1.5">
-                    <i className="block h-px w-4 bg-gold-400" /> فعالیت
+                {/* The legend names what is drawn, so the picture is a statement
+                    about the calendar rather than decoration. */}
+                <span className="hidden items-center gap-3 sm:flex" dir="rtl">
+                  <span className="flex items-center gap-1.5" title="بلندی موج در هر لحظه برابر است با تعداد کلاس‌هایی که همزمان برگزار می‌شوند">
+                    <i className="block h-px w-4 bg-gold-400" /> کلاس همزمان
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <i className="block h-px w-4 bg-violet-400/70" /> رزونانس
+                  <span className="flex items-center gap-1.5" title="بازهٔ زمانی که دو کلاس یک اتاق را اشغال کرده‌اند">
+                    <i className="block h-2.5 w-4 rounded-[2px] bg-warn-500/25 ring-1 ring-warn-500/40" /> تعارض اتاق
+                  </span>
+                  <span className="flex items-center gap-1.5" title="خط عمودی، لحظهٔ اکنون روی روز کاری">
+                    <i className="block h-3 w-px bg-gold-400/70" /> اکنون
                   </span>
                 </span>
               </div>
-              <PulseWaveform height={92} accent={accent} />
+              <PulseWaveform height={92} accent={accent} sessions={waveSessions} now={now} loading={pulse.loading} />
             </div>
           </>
         )}

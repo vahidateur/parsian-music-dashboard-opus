@@ -1,6 +1,7 @@
 import { ApiError } from "@/api/errors";
 import { isDemoMode } from "@/api/config";
 import { demoStore, type DemoStore } from "@/services/demoStore";
+import { demoCredentialStore, type DemoCredentialStore } from "./demoCredentials";
 import { permissionsForRole } from "./permissions";
 import type { AuthRepository } from "./repository";
 import type { AuthUser, LoginInput, Session } from "./types";
@@ -107,6 +108,7 @@ export class DemoAuthRepository implements AuthRepository {
     private readonly store: DemoStore = demoStore,
     private readonly storage: SessionStorageLike = browserStorage() ?? memory(),
     private readonly now: () => number = () => Date.now(),
+    private readonly credentials: DemoCredentialStore = demoCredentialStore(),
   ) {}
 
   async login({ email, password }: LoginInput): Promise<Session> {
@@ -114,12 +116,19 @@ export class DemoAuthRepository implements AuthRepository {
     if (!target || !password) {
       throw new ApiError({ kind: "validation", code: "AUTH_MISSING_FIELDS", message: "ایمیل و گذرواژه الزامی است." });
     }
-    if (password !== DEMO_PASSPHRASE) {
+    const user = this.store.snapshot().users.find((u) => normalizeEmail(u.email) === target);
+    if (!user) throw invalidCredentials();
+    /*
+      An account whose passphrase was set in Settings is verified against it;
+      every other account still uses the shared, public demo passphrase. The
+      unknown-user and wrong-passphrase answers stay identical, so this does not
+      become an oracle for which accounts have their own passphrase.
+    */
+    const expected = this.credentials.get(user.id) ?? DEMO_PASSPHRASE;
+    if (password !== expected) {
       throw invalidCredentials();
     }
 
-    const user = this.store.snapshot().users.find((u) => normalizeEmail(u.email) === target);
-    if (!user) throw invalidCredentials();
     if (user.status !== "active") {
       throw new ApiError({ kind: "authorization", code: "AUTH_USER_DISABLED", message: "این حساب غیرفعال است." });
     }

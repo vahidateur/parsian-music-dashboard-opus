@@ -1,26 +1,31 @@
 /**
  * Clock — the single source of "now".
  *
- * The demo needs a *deterministic* clock: a showcase where "today's schedule"
- * shifts depending on when the demo is opened is not reproducible, and QA
- * screenshots would never match. Production needs the real wall clock.
+ * THE CLOCK IS THE WALL CLOCK, IN EVERY MODE.
  *
- * So "now" is an environment-dependent value, not a constant. Views must read
- * it through `useAcademyNow()` / `academyNowMinutes()` rather than importing a
- * hardcoded number, so the production path gets real time for free.
+ * It used to freeze at 10:47 whenever the data source was `demo`, on the
+ * argument that a showcase must be reproducible. That argument was wrong where
+ * it mattered: the person looking at the panel is not looking at a screenshot,
+ * and a clock that never moves reads as a broken product, not as a controlled
+ * experiment. Reproducibility belongs to the SEED (which is anchored to a fixed
+ * date — see `domains/demo/schedulingSeed.ts`) and to tests that pin the instant
+ * they need explicitly, not to the operator's wall clock.
+ *
+ * So `academyNow()` answers the real time in `demo` and in `api` alike, and a
+ * test that needs 10:47 passes 10:47 — every derivation in the product already
+ * takes `now` as a parameter for exactly that reason.
  *
  * BACKEND REQUIRED: in production, anything time-sensitive that matters
- * (attendance windows, invoice due dates, session status) must be decided by
- * the server. The browser clock is user-controlled and cannot be trusted for
+ * (attendance windows, invoice due dates, session status) must be decided by the
+ * server. The browser clock is user-controlled and cannot be trusted for
  * authorization or billing.
  */
 import { useEffect, useState } from "react";
-import { getRuntimeConfig } from "@/api/config";
 
 /**
- * The frozen demo instant: 10:47. Chosen so the seeded schedule shows a mix of
- * finished, in-progress and upcoming sessions — the state that best exercises
- * the UI.
+ * The instant the demo used to be frozen at (10:47), kept as a named reference
+ * for tests that want to pin a specific time of day instead of inventing the
+ * number inline. Nothing in the application reads it.
  */
 export const DEMO_NOW_MINUTES = 10 * 60 + 47;
 
@@ -29,41 +34,69 @@ export function minutesOfDay(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-/** True when "now" is a fixed demo instant rather than the real clock. */
-export function isDeterministicClock(): boolean {
-  return getRuntimeConfig().mode !== "api";
-}
-
 /**
- * Current academy time in minutes since midnight: frozen in demo, real in
- * production.
+ * Current academy time in minutes since midnight.
+ *
+ * Truncated to the minute on purpose: every status derived from it ("in
+ * progress", "done") is a minute-granular fact, and a value that changed every
+ * second would re-render the whole dashboard for no difference in meaning.
+ * Display surfaces that want seconds use `useAcademyClock()`.
  */
 export function academyNowMinutes(): number {
-  return isDeterministicClock() ? DEMO_NOW_MINUTES : minutesOfDay(new Date());
+  return minutesOfDay(new Date());
 }
 
-/** Current instant as a `Date`; real time outside demo mode. */
+/** Current instant as a `Date`. */
 export function academyNow(): Date {
-  if (!isDeterministicClock()) return new Date();
-  const frozen = new Date();
-  frozen.setHours(Math.floor(DEMO_NOW_MINUTES / 60), DEMO_NOW_MINUTES % 60, 0, 0);
-  return frozen;
+  return new Date();
 }
 
 /**
- * Reactive academy time.
+ * Reactive academy time in MINUTES.
  *
- * In demo mode the value is constant and no timer is created. In production it
- * ticks once a minute so "in progress" indicators stay honest — this is a real
- * clock, not a simulated loading delay.
+ * Ticks on the minute boundary (checked every 15s, so a tab that was throttled
+ * catches up within a quarter-minute) and only commits when the minute actually
+ * changed — a re-render of the dashboard costs more than the check.
  */
 export function useAcademyNow(): number {
   const [now, setNow] = useState(academyNowMinutes);
 
   useEffect(() => {
-    if (isDeterministicClock()) return;
-    const id = window.setInterval(() => setNow(academyNowMinutes()), 60_000);
+    const id = window.setInterval(() => {
+      setNow((previous) => {
+        const next = academyNowMinutes();
+        return next === previous ? previous : next;
+      });
+    }, 15_000);
     return () => window.clearInterval(id);
+  }, []);
+
+  return now;
+}
+
+/**
+ * Reactive wall clock with second precision, for surfaces that SHOW the time.
+ *
+ * Deliberately separate from `useAcademyNow()`: a seconds display must not drag
+ * the dashboard's derived state (filters, statuses, aggregates) through a
+ * re-render every second, so it lives in its own hook and is mounted only by the
+ * clock itself. Ticks are aligned to the next second boundary, which keeps the
+ * displayed seconds from drifting or repeating.
+ */
+export function useAcademyClock(): Date {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    let id = 0;
+    const schedule = () => {
+      const delay = 1000 - (Date.now() % 1000);
+      id = window.setTimeout(() => {
+        setNow(new Date());
+        schedule();
+      }, delay);
+    };
+    schedule();
+    return () => window.clearTimeout(id);
   }, []);
 
   return now;

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, MessageSquare, Pencil, Plus, UserCheck, UserX } from "lucide-react";
+import { CalendarDays, MessageSquare, Pencil, Plus, Trash2, UserCheck, UserX } from "lucide-react";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
@@ -20,6 +20,7 @@ import { meanOf } from "@/lib/stats";
 import { useApp } from "@/context/AppContext";
 import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, InstrumentGlyph, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
+import { ConfirmDialog } from "@/components/ds/confirm";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, FilterBar, ListRow, Meter, PageHeader, Panel, ProgressRing, SearchInput, StatStrip, Tabs } from "@/components/ds/patterns";
 import { ErrorState } from "@/components/ds/states";
@@ -234,8 +235,39 @@ function TeacherCard({
 function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => void }) {
   const { navigate, notify } = useApp();
   const demoEnvironment = useIsDemoEnvironment();
+  const mayWrite = useCan("teachers.write");
   const [tab, setTab] = useState<"today" | "week" | "students" | "load">("today");
   const [statusBusy, setStatusBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  /**
+   * Deleting a teacher is a real write, and the repository is the one that
+   * decides whether it is allowed: a teacher still attached to classes is
+   * refused (`TEACHER_HAS_CLASSES`) rather than orphaning them, and the refusal
+   * is shown in the dialog that asked for it. Their login account — if the
+   * academy gave them one — is closed by the same write, because a person who no
+   * longer teaches here cannot keep signing in.
+   */
+  const remove = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await getTeacherRepository().delete(teacher.id);
+      notify({
+        tone: "success",
+        title: `${teacher.name} حذف شد`,
+        detail: "پروندهٔ مدرس و حساب ورود او از سامانه برداشته شد؛ سوابق جلسات و حضور و غیاب باقی می‌مانند.",
+      });
+      setConfirmDelete(false);
+      navigate({ view: "teachers" });
+    } catch (cause) {
+      setDeleteError(apiErrorFromThrown(cause).message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   /**
    * Deactivation is reversible and non-destructive: the teacher keeps their
@@ -461,8 +493,40 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
               <UserX className="size-3.5" />
               {teacher.status === "inactive" ? "فعال‌سازی" : "غیرفعال‌سازی"}
             </Button>
+            {mayWrite && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-danger-400 hover:text-danger-400"
+                onClick={() => {
+                  setDeleteError(null);
+                  setConfirmDelete(true);
+                }}
+              >
+                <Trash2 className="size-3.5" /> حذف مدرس
+              </Button>
+            )}
           </>
         }
+      />
+
+      <ConfirmDialog
+        open={confirmDelete}
+        busy={deleting}
+        error={deleteError}
+        title={`حذف ${teacher.name}`}
+        description="حذف، پروندهٔ مدرس را برمی‌دارد. اگر فقط می‌خواهید دیگر کلاس جدید به او اختصاص نیابد، غیرفعال‌سازی همان کار را بدون از بین بردن سابقه انجام می‌دهد."
+        consequences={[
+          "پروندهٔ مدرس از فهرست مدرسین برداشته می‌شود.",
+          "حساب ورود او (در صورت وجود) بسته می‌شود.",
+          "کلاسی که هنوز به این مدرس اختصاص دارد، حذف را متوقف می‌کند — نخست کلاس را واگذار کنید.",
+          "جلسات، حضور و غیاب و سوابق مالی گذشته حذف نمی‌شوند.",
+        ]}
+        confirmLabel="حذف قطعی"
+        onConfirm={() => void remove()}
+        onClose={() => {
+          if (!deleting) setConfirmDelete(false);
+        }}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

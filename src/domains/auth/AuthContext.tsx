@@ -4,7 +4,8 @@ import { clearAttempts, recordFailure } from "@/security/loginThrottle";
 import { SESSION_TTL_MS } from "@/domains/auth/demoAuthRepository";
 import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
-import { can, canAccessView, canAll, canAny, type Permission } from "./permissions";
+import { can, canAccessView, canAll, canAny, getRolePolicy, type Permission } from "./permissions";
+import { useRolePolicyVersion } from "./useRoles";
 import type { AuthRepository } from "./repository";
 import type { AuthStatus, LoginInput, Session } from "./types";
 import type { ViewId } from "@/lib/viewContracts";
@@ -116,7 +117,28 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     }
   }, [repo]);
 
-  const permissions = useMemo(() => session?.permissions ?? [], [session]);
+  /*
+    THE MATRIX IS LIVE, NOT FROZEN AT LOGIN.
+
+    A session carries the permissions its role had when it was issued. When an
+    administrator edits that role in Settings, the edit must reach the people
+    already signed in — otherwise the panel keeps showing controls an academy
+    just revoked until everybody logs out. So the session's role is re-resolved
+    through the policy projection on every change, and the permissions the session
+    itself carries are the fallback for the frames before that projection has
+    been read (and for a backend that issues its own set).
+  */
+  const policyVersion = useRolePolicyVersion();
+  const permissions = useMemo(() => {
+    if (!session) return [];
+    // An administrator's edit wins over what the session was issued with; until
+    // the policy projection has been read (or in a deployment where nobody has
+    // edited anything) the session's own set is the answer — in API mode that set
+    // is the server's, and the client never second-guesses it.
+    const edited = getRolePolicy(session.user.role);
+    return edited ? [...edited.permissions] : session.permissions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, policyVersion]);
   const holder = useMemo(() => ({ permissions }), [permissions]);
 
   const value = useMemo<AuthState>(

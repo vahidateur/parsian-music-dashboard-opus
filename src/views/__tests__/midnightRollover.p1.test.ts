@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { setRuntimeConfig, resetRuntimeConfig } from "@/api/config";
-import { isDeterministicClock, academyNowMinutes, DEMO_NOW_MINUTES, academyNow } from "@/domains/shared/clock";
+import { academyNowMinutes, academyNow } from "@/domains/shared/clock";
 import { academyIsoDate } from "@/views/relations/academyDay";
 
 describe("Midnight rollover fix — Scheduling & Attendance", () => {
@@ -54,23 +54,25 @@ describe("Midnight rollover fix — Scheduling & Attendance", () => {
     expect(attendance).not.toContain("fa-IR-u-ca-persian");
   });
 
-  it("Demo deterministic behavior preserved", () => {
+  /**
+   * The demo environment no longer freezes the time of day: a panel whose clock
+   * never moves reads as broken, and reproducibility belongs to the seed's fixed
+   * date. Both modes now answer with the wall clock, so `todayIso` rolls over at
+   * midnight wherever the app runs.
+   */
+  it("demo follows the wall clock, so the day rolls over at midnight too", () => {
     setRuntimeConfig({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
-    expect(isDeterministicClock()).toBe(true);
-    expect(academyNowMinutes()).toBe(DEMO_NOW_MINUTES);
-    const frozen = academyNow();
-    expect(frozen.getHours()).toBe(Math.floor(DEMO_NOW_MINUTES / 60));
-    expect(frozen.getMinutes()).toBe(DEMO_NOW_MINUTES % 60);
-    const iso = academyIsoDate(frozen);
-    // Calendar date is real today, time frozen
+    const live = academyNow();
     const real = new Date();
+    expect(Math.abs(live.getTime() - real.getTime())).toBeLessThan(2000);
+    expect(academyNowMinutes()).toBe(real.getHours() * 60 + real.getMinutes());
+    const iso = academyIsoDate(live);
     const expectedIso = `${real.getFullYear()}-${String(real.getMonth() + 1).padStart(2, "0")}-${String(real.getDate()).padStart(2, "0")}`;
     expect(iso).toBe(expectedIso);
   });
 
   it("API/live mode rolls over within minute after midnight", () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "/api/v1", error: null });
-    expect(isDeterministicClock()).toBe(false);
     const now1 = academyNow();
     const iso1 = academyIsoDate(now1);
     // Simulate that useAcademyNow ticks every minute, so todayIso recomputed

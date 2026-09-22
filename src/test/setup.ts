@@ -1,4 +1,20 @@
 /**
+ * Every test starts at a clean address bar.
+ *
+ * The shell reads its route from the URL (`lib/route.ts`) and migrates a legacy
+ * `#/view` fragment into a `/view` path on first paint, so a route one test
+ * walked to would otherwise still be in `window.location.pathname` when the next
+ * test renders — a deep link nobody asked for. Resetting here is cheaper than
+ * resetting in nineteen suites, and it cannot mask a failure: a test that wants
+ * a route sets it.
+ */
+import { beforeEach } from "vitest";
+
+beforeEach(() => {
+  if (typeof window !== "undefined") window.history.replaceState(null, "", "/");
+});
+
+/**
  * jsdom environment shims for APIs the app legitimately uses but jsdom lacks.
  * These mirror real browser behaviour; they do not stub application code.
  */

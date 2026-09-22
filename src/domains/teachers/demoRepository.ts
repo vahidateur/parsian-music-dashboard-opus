@@ -45,6 +45,7 @@ export class DemoTeacherRepository implements TeacherRepository {
     if (input.phone !== undefined) this.assertPhoneFree(input.phone, id);
     const updated = this.store.teachers.update(id, input);
     if (!updated) throw teacherNotFound(id);
+    this.syncAccount(updated);
     return updated;
   }
 
@@ -52,6 +53,7 @@ export class DemoTeacherRepository implements TeacherRepository {
   async deactivate(id: string): Promise<Teacher> {
     const updated = this.store.teachers.update(id, { status: "inactive" });
     if (!updated) throw teacherNotFound(id);
+    this.syncAccount(updated);
     return updated;
   }
 
@@ -65,6 +67,38 @@ export class DemoTeacherRepository implements TeacherRepository {
       );
     }
     if (!this.store.teachers.remove(id)) throw teacherNotFound(id);
+    // The login account of a teacher who no longer exists cannot stay open.
+    for (const account of this.store.users.all().filter((u) => u.teacherId === id)) {
+      this.store.users.update(account.id, { status: "disabled" });
+    }
+  }
+
+  /**
+   * ONE PERSON, ONE RECORD SET.
+   *
+   * A teacher who can sign in has an `AuthUser` pointing at their record
+   * (`teacherId`). Editing the teacher used to leave that account with the old
+   * name, so Settings listed a person the teachers page had already renamed —
+   * two truths about one human. The mirror is written here, in the repository,
+   * so every caller (view, import, restore) gets it without knowing about it.
+   *
+   * The account's ROLE and EMAIL stay its own: they are login facts, not
+   * properties of a teaching contract, and a teacher record holds neither.
+   */
+  private syncAccount(teacher: Teacher): void {
+    for (const account of this.store.users.all().filter((u) => u.teacherId === teacher.id)) {
+      const patch: { name?: string; phone?: string; status?: "active" | "disabled" } = {};
+      if (account.name !== teacher.name) patch.name = teacher.name;
+      if (teacher.phone && account.phone !== teacher.phone) patch.phone = teacher.phone;
+      /*
+        One direction only: an inactive teacher cannot sign in, so the account
+        closes with the contract. Re-activating the teacher does NOT re-open it —
+        an administrator may have disabled that login for their own reasons, and
+        a teacher edit is not the place to overrule that decision.
+      */
+      if (teacher.status === "inactive" && account.status !== "disabled") patch.status = "disabled";
+      if (Object.keys(patch).length > 0) this.store.users.update(account.id, patch);
+    }
   }
 
   private assertPhoneFree(phone: string, exceptId?: string): void {

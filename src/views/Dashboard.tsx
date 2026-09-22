@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { useHeroStats, type HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useDashboardInsights } from "@/domains/shared/useDashboardInsights";
 import { useAcademyNow } from "@/domains/shared/clock";
+import { useDayPulse } from "@/domains/shared/useDayPulse";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { faNum, NO_DATA } from "@/lib/format";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import type { DayPulse } from "@/domains/shared/useDayPulse";
 import { useApp } from "@/context/AppContext";
 import { Hero } from "@/components/hero/Hero";
-import { PulseWaveform } from "@/components/hero/PulseWaveform";
+import { AcademyClockBar } from "@/components/hero/AcademyClockBar";
+import { PulseWaveform, toPulseSessions } from "@/components/hero/PulseWaveform";
 import { Signals } from "@/components/panels/Signals";
 import { Attention, QuickActions, TodayFlow } from "@/components/panels/AttentionAndFlow";
 import { Intelligence } from "@/components/panels/Intelligence";
@@ -35,6 +38,7 @@ function PulseCard({
   hasRecords,
   loading,
   stats: heroStats,
+  pulse,
 }: {
   /** `null` while the calendar read is unavailable; never a zero for it. */
   sessionsToday: number | null;
@@ -43,6 +47,8 @@ function PulseCard({
   loading: boolean;
   /** The same four figures the desktop hero renders, from the same one read. */
   stats: readonly HeroStat[];
+  /** The same day-pulse read the desktop hero draws, so the two cannot differ. */
+  pulse: DayPulse;
 }) {
   /*
    * No banner here and no read here: a failed read yields `null`, so these tiles
@@ -50,6 +56,7 @@ function PulseCard({
    * which is also why the figures arrive as a prop rather than as a second read.
    */
   const { navigate, accent } = useApp();
+  const pulseNow = useAcademyNow();
   const kicker = loading
     ? "فعالیت امروز · در حال خواندن رکوردها…"
     : !hasRecords
@@ -77,7 +84,13 @@ function PulseCard({
         ))}
       </div>
       <div className="mt-5">
-        <PulseWaveform height={72} accent={accent} />
+        <PulseWaveform
+          height={72}
+          accent={accent}
+          now={pulseNow}
+          sessions={toPulseSessions(pulse.sessions, pulse.clashIds)}
+          loading={pulse.loading}
+        />
       </div>
     </Surface>
   );
@@ -136,6 +149,13 @@ export function Dashboard() {
     }
   };
 
+  /*
+    The day's pulse — live count, room clashes and the session rows behind the
+    hero's wave. Read here, in the view, and handed to both the desktop hero and
+    the mobile pulse card so one calendar read owns every projection of it.
+  */
+  const pulse = useDayPulse(todayIso, now);
+
   const insights = useDashboardInsights({
     todayIso,
     nowMinutes: now,
@@ -152,8 +172,12 @@ export function Dashboard() {
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
       {/* 1 · Hero / academy context */}
-      <div className="order-1 lg:order-none lg:col-span-12">
-        <Hero compact={!isDesktop} stats={hero.stats} />
+      <div className="order-1 lg:order-none lg:col-span-12 flex flex-col gap-3">
+        <Hero compact={!isDesktop} stats={hero.stats} pulse={pulse} />
+        {/* The live clock sits under the hero: seconds-precision time is a
+            display concern, and keeping it out of the hero stops a once-a-second
+            tick from re-rendering the day's picture. */}
+        <AcademyClockBar />
       </div>
 
       {/* 2 · Today's key metrics — derived from the record set read above */}
@@ -278,6 +302,7 @@ export function Dashboard() {
               hasRecords={insights.hasRecords}
               loading={insights.loading}
               stats={hero.stats}
+              pulse={pulse}
             />
         </div>
       )}

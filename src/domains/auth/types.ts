@@ -15,6 +15,11 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  /**
+   * Contact number. Optional: the seeded staff accounts predate it, and an
+   * academy is not required to hold one for every operator.
+   */
+  phone?: string;
   role: RoleId;
   status: UserStatus;
   /** ISO timestamps. */
@@ -52,6 +57,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   role: RoleId;
+  phone?: string;
   status?: UserStatus;
 }
 

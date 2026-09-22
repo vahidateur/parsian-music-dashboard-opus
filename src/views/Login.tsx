@@ -8,7 +8,7 @@ import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
 import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryContext";
 import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecoveryPanel";
 import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
-import { roleLabels } from "@/domains/auth/permissions";
+import { roleLabel } from "@/domains/auth/permissions";
 import stageImage from "@/assets/login-stage.jpg";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
 import { cn } from "@/utils/cn";
@@ -375,7 +375,7 @@ function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPi
               <span dir="ltr" className="truncate text-ink-300">
                 {account.email}
               </span>
-              <span className="shrink-0 text-ink-400">{roleLabels[account.role]}</span>
+              <span className="shrink-0 text-ink-400">{roleLabel(account.role)}</span>
             </button>
           </li>
         ))}
