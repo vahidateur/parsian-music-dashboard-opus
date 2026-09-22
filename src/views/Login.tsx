@@ -37,9 +37,12 @@ import { cn } from "@/utils/cn";
  * without costing a second image request.
  *
  * SHORT VIEWPORTS (preserved fix): `min-h-svh` on both the page and the flex
- * row, a `max-height:700px` compaction of paddings/controls, and a failed
- * submit scrolls the submit/error pair back into view (`submitRef`) so the
- * alert can never push its own explanation below the fold.
+ * row, a height-tiered vertical rhythm (`--login-*` custom properties in
+ * `src/index.css`, re-declared at three `max-height` tiers for the >=lg
+ * composition) that keeps the plaque + credential + recovery stack above the
+ * fold from 1080p down to 640p-tall desktops, and a failed submit scrolls the
+ * submit/error pair back into view (`submitRef`) so the alert can never push
+ * its own explanation below the fold.
  *
  * TYPOGRAPHY: Persian is always Vazirmatn. The Latin wordmark
  * (PARSIAN / MUSIC ACADEMY) uses the system old-style serif stack
@@ -157,6 +160,7 @@ export function LoginView() {
           style={{
             background:
               "linear-gradient(to right, color-mix(in srgb, var(--color-ink-950) 90%, transparent) 0%, color-mix(in srgb, var(--color-ink-950) 64%, transparent) 20%, transparent 48%)," +
+              "linear-gradient(to left, color-mix(in srgb, var(--color-ink-950) 74%, transparent) 0%, color-mix(in srgb, var(--color-ink-950) 40%, transparent) 14%, transparent 34%)," +
               "linear-gradient(to top, color-mix(in srgb, var(--color-ink-950) 82%, transparent), transparent 32%)," +
               "linear-gradient(to bottom, color-mix(in srgb, var(--color-ink-950) 58%, transparent), transparent 20%)",
           }}
@@ -182,34 +186,36 @@ export function LoginView() {
 
       <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
         {/* Brand side — the academy's own plate, held over the hall. */}
-        <section className="hidden flex-1 flex-col items-start justify-center p-10 lg:flex lg:pb-[9vh] xl:p-14 xl:pb-[10vh] [@media(max-height:700px)]:p-7 [@media(max-height:700px)]:pb-7">
+        <section className="hidden flex-1 flex-col items-start justify-center p-[var(--login-brand-pad)] pb-[var(--login-brand-lift)] lg:flex xl:p-14 xl:pb-[10vh]">
           <div className="w-full max-w-[460px]">
             <div className="animate-[loginRise_680ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
               <Wordmark />
             </div>
 
-            <div className="mt-10 animate-[loginRise_720ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
-              <h2 className="text-[28px] font-semibold leading-[1.65] text-ink-50 xl:text-[32px]">
+            <div className="mt-[var(--login-brand-gap)] animate-[loginRise_720ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
+              <h2 className="login-brand-head font-semibold text-ink-50 wide:text-[32px]">
                 هر اجرای بزرگ،
                 <br />
                 از یک تمرین کوچک
                 <br />
                 آغاز می‌شود.
               </h2>
-              <p className="mt-5 text-[12.5px] leading-[2.1] text-ink-300">
-                سامانهٔ یکپارچهٔ مدیریت آموزشگاه موسیقی — هنرجویان، کلاس‌ها، پیشرفت و رپرتوار، در یک جا.
+              <p className="login-p leading-[2] mt-[calc(var(--login-brand-gap)/2)] text-ink-200">
+                سامانهٔ یکپارچهٔ مدیریت آموزشگاه موسیقی
+                <br />
+                هنرجویان، کلاس‌ها، پیشرفت و رپرتوار، در یک جا.
               </p>
             </div>
 
-            <p className="mt-10 text-[10.5px] text-ink-500">
+            <p className="mt-[var(--login-brand-gap)] text-[10.5px] text-ink-400">
               © {new Date().getFullYear()} {branding.academyName}
             </p>
           </div>
         </section>
 
         {/* Form side — inset from the left edge, floating over the aisle. */}
-        <section className="flex w-full flex-1 items-center justify-center px-5 py-10 [@media(max-height:700px)]:py-5 sm:px-8 lg:ml-[6%] lg:w-[30%] lg:max-w-[520px] lg:flex-none lg:px-0 xl:w-[27%]">
-          <div className="w-full max-w-[430px] animate-[loginRise_620ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none lg:max-w-none">
+        <section className="flex w-full flex-1 items-center justify-center px-5 py-[var(--login-stack-py)] sm:px-8 lg:ml-[6%] lg:w-[30%] lg:max-w-[520px] lg:flex-none lg:px-0 xl:w-[27%]">
+          <div className="login-stack w-full max-w-[430px] animate-[loginRise_620ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none lg:max-w-none">
             {/* Compact wordmark for small screens, where the brand panel is hidden. */}
             <div className="mb-7 flex justify-center lg:hidden">
               <Wordmark compact />
@@ -217,12 +223,12 @@ export function LoginView() {
 
             <div className="login-plaque login-chamfer relative">
               <Crest />
-              <div className="login-chamfer login-plaque-inner relative p-6 sm:p-8 [@media(max-height:700px)]:p-5">
-                <div className="relative mb-6 text-center [@media(max-height:700px)]:mb-4">
+              <div className="login-chamfer login-plaque-inner relative px-[var(--login-plaque-px)] py-[var(--login-plaque-py)]">
+                <div className="relative mb-[var(--login-head-mb)] text-center">
                   <div className="text-[11px] font-medium tracking-wide text-gold-400">{branding.tagline}</div>
-                  <h1 className="mt-2 text-[25px] font-semibold leading-tight text-ink-50">خوش آمدید</h1>
-                  <p className="mt-2 text-[12.5px] leading-relaxed text-ink-300">
-                    برای ورود به پنل مدیریت، اطلاعات حساب خود را وارد کنید.
+                  <h1 className="login-h1 mt-2 font-semibold leading-tight text-ink-50">خوش آمدید</h1>
+                  <p className="login-sub mt-2 leading-relaxed text-ink-300">
+                    برای ورود به پنل، اطلاعات حساب خود را وارد کنید.
                   </p>
                 </div>
 
@@ -231,7 +237,7 @@ export function LoginView() {
 
                 <form onSubmit={onSubmit} noValidate>
                   <label className="block">
-                    <span className="mb-2 block text-[12px] font-medium text-ink-200">ایمیل</span>
+                    <span className="mb-[var(--login-label-mb)] block text-[12px] font-medium text-ink-200">ایمیل</span>
                     <div className="relative">
                       <span className="pointer-events-none absolute inset-y-0 left-0 flex w-[42px] items-center justify-center text-ink-500">
                         <Mail className="size-[16px]" strokeWidth={1.6} aria-hidden />
@@ -261,8 +267,8 @@ export function LoginView() {
                     )}
                   </label>
 
-                  <label className="mt-4 block">
-                    <span className="mb-2 block text-[12px] font-medium text-ink-200">گذرواژه</span>
+                  <label className="mt-[var(--login-field-mt)] block">
+                    <span className="mb-[var(--login-label-mb)] block text-[12px] font-medium text-ink-200">گذرواژه</span>
                     <div className="relative">
                       <span className="pointer-events-none absolute inset-y-0 left-0 flex w-[42px] items-center justify-center text-ink-500">
                         <Lock className="size-[16px]" strokeWidth={1.6} aria-hidden />
@@ -335,7 +341,7 @@ export function LoginView() {
                     ref={submitRef}
                     disabled={!canSubmit}
                     className={cn(
-                      "group relative mt-6 flex h-[52px] [@media(max-height:700px)]:h-[46px] w-full items-center justify-center gap-2.5 overflow-hidden rounded-[9px]",
+                      "group relative mt-[var(--login-cta-mt)] flex h-[var(--login-cta-h)] w-full items-center justify-center gap-2.5 overflow-hidden rounded-[9px]",
                       "text-[14px] font-semibold text-ink-950 transition-all duration-300",
                       "bg-gradient-to-l from-gold-600 via-gold-300 to-gold-600 bg-[length:160%_100%] bg-center",
                       "shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_-8px_18px_rgba(0,0,0,0.2),0_14px_34px_-14px_color-mix(in_srgb,var(--accent-500)_60%,transparent)]",
@@ -389,7 +395,7 @@ export function LoginView() {
 }
 
 const fieldCls =
-  "h-[54px] [@media(max-height:700px)]:h-[46px] w-full rounded-[9px] border border-white/[0.09] bg-ink-950/55 pl-[42px] pr-3.5 text-[13.5px] text-ink-50 " +
+  "h-[var(--login-field-h)] w-full rounded-[9px] border border-white/[0.09] bg-ink-950/55 pl-[42px] pr-3.5 text-[13.5px] text-ink-50 " +
   "shadow-[inset_0_1px_0_rgba(255,255,255,0.03),inset_0_3px_12px_rgba(0,0,0,0.4)] " +
   "placeholder:text-ink-500 transition-all duration-200 " +
   "hover:border-white/[0.16] " +
@@ -411,12 +417,12 @@ const invalidCls = "border-danger-500/55 focus:border-danger-500/70 focus:ring-d
 function Wordmark({ compact }: { compact?: boolean }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <LyreEmblem className={compact ? "size-14" : "size-20"} />
+      <LyreEmblem className={compact ? "size-14" : "size-[var(--login-lyre)]"} />
       <span
         dir="ltr"
         className={cn(
           "mt-4 font-display text-gold-300",
-          compact ? "-mr-[0.3em] text-[18px] tracking-[0.3em]" : "-mr-[0.3em] text-[32px] tracking-[0.3em] xl:text-[38px]",
+          compact ? "-mr-[0.3em] text-[18px] tracking-[0.3em]" : "login-wm-size -mr-[0.3em] tracking-[0.3em] wide:text-[38px]",
         )}
       >
         PARSIAN
@@ -444,19 +450,21 @@ function LyreEmblem({ className }: { className?: string }) {
       stroke="currentColor"
       aria-hidden
       className={cn(
-        "text-gold-400 drop-shadow-[0_0_16px_color-mix(in_srgb,var(--accent-500)_40%,transparent)]",
+        // Heavier strokes + a tight dark separation shadow keep the lyre
+        // readable where the window light sits behind it.
+        "text-gold-300 drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] drop-shadow-[0_0_16px_color-mix(in_srgb,var(--accent-500)_45%,transparent)]",
         className,
       )}
     >
       <path
         d="M20 12 C 12 22, 10 34, 16 44 C 19 49, 25 52, 32 52 C 39 52, 45 49, 48 44 C 54 34, 52 22, 44 12"
-        strokeWidth="1.8"
+        strokeWidth="2.6"
         strokeLinecap="round"
       />
-      <path d="M20 12 C 17 8, 20 4, 24 5.5 M44 12 C 47 8, 44 4, 40 5.5" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M17.5 26 H 46.5" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M25 26 V 49.5 M28.5 26 V 51 M32 26 V 52 M35.5 26 V 51 M39 26 V 49.5" strokeWidth="0.9" opacity="0.9" />
-      <path d="M27 52 h10 l2 6 H25 z" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M20 12 C 17 8, 20 4, 24 5.5 M44 12 C 47 8, 44 4, 40 5.5" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M17.5 26 H 46.5" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M25 26 V 49.5 M28.5 26 V 51 M32 26 V 52 M35.5 26 V 51 M39 26 V 49.5" strokeWidth="1.4" opacity="0.95" />
+      <path d="M27 52 h10 l2 6 H25 z" strokeWidth="2" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -464,7 +472,10 @@ function LyreEmblem({ className }: { className?: string }) {
 /** The crest straddling the plaque's top edge — a diamond fleuron with scrolls. */
 function Crest() {
   return (
-    <span aria-hidden className="absolute -top-[13px] left-1/2 -translate-x-1/2 rounded-full bg-ink-950 px-2">
+    <span
+      aria-hidden
+      className="absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-ink-950 px-2 top-[var(--login-crest-top)]"
+    >
       <svg
         viewBox="0 0 48 26"
         fill="none"
@@ -543,12 +554,12 @@ function DustMotes() {
 function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPick: (email: string) => void }) {
   const accounts = listDemoAccounts();
   return (
-    <div className="mt-5 rounded-[14px] border border-gold-500/[0.16] bg-ink-950/70 p-4 backdrop-blur-md">
+    <div className="mt-[var(--login-gap)] rounded-[14px] border border-gold-500/[0.16] bg-ink-950/70 p-[var(--login-panel-pad)] backdrop-blur-md">
       <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-400">
         <TriangleAlert className="size-3.5" aria-hidden />{" "}
         {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
       </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-ink-300">
+      <p className="login-p mt-2 text-ink-300">
         {demoEnvironment
           ? "این ورود صرفاً نمایشی است و هیچ محافظت امنیتی ندارد. گذرواژهٔ همهٔ حساب‌های نمونه"
           : "این ورود روی دادهٔ ذخیره‌شده در همین مرورگر است و هیچ محافظت امنیتی ندارد. گذرواژهٔ حساب دسترسیِ این محیط"}{" "}
@@ -563,7 +574,7 @@ function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPi
             <button
               type="button"
               onClick={() => onPick(account.email)}
-              className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-2.5 text-right text-[11px] text-ink-200 transition-colors hover:bg-white/[0.055] focus-visible:bg-white/[0.055] focus-visible:outline-none"
+              className="flex w-full items-center justify-between gap-2 rounded-lg px-2 py-[var(--login-row-py)] text-right text-[11px] text-ink-200 transition-colors hover:bg-white/[0.055] focus-visible:bg-white/[0.055] focus-visible:outline-none"
             >
               <span dir="ltr" className="truncate text-ink-300">
                 {account.email}

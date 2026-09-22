@@ -325,6 +325,144 @@
 }
 
 /* ------------------------------------------------------------------
+   Login — vertical rhythm.
+
+   The login stack (plaque + credential panel + recovery panel) is the
+   tallest column on the page, so its vertical rhythm is driven by ONE set
+   of custom properties, re-declared per height tier. Width-gated to the
+   two-column composition (>=lg): phones keep the base rhythm and scroll
+   naturally. Tiers are plain `max-height` media queries — the same
+   responsive mechanism the short-viewport fix always used — tuned against
+   measured stack heights at 1920x1080 / 1366x768 / 1280x720 / 1366x640 /
+   1024x640 so the whole experience stays above the fold on each.
+------------------------------------------------------------------- */
+:root {
+  --login-stack-py: 40px;
+  --login-plaque-py: 28px;
+  --login-plaque-px: 24px;
+  --login-head-mb: 24px;
+  --login-h1: 25px;
+  --login-sub: 12.5px;
+  --login-label-mb: 8px;
+  --login-field-h: 54px;
+  --login-field-mt: 16px;
+  --login-cta-mt: 24px;
+  --login-cta-h: 52px;
+  --login-gap: 20px;
+  --login-panel-pad: 16px;
+  --login-row-py: 10px;
+  --login-rec-pad: 16px;
+  --login-btn-h: 32px;
+  --login-btn-mt: 12px;
+  --login-crest-top: -13px;
+  --login-p-size: 11px;
+  --login-p-lh: 1.7;
+  --login-brand-pad: 40px;
+  --login-brand-gap: 40px;
+  --login-brand-lift: 9vh;
+  --login-lyre: 80px;
+  --login-wm: 32px;
+  --login-head: 28px;
+  --login-head-lh: 1.65;
+}
+/* Tier B — laptops (1366x768 class). */
+@media (min-width: 1024px) and (max-height: 900px) {
+  :root {
+    --login-stack-py: 16px;
+    --login-plaque-py: 20px;
+    --login-plaque-px: 24px;
+    --login-head-mb: 14px;
+    --login-h1: 22px;
+    --login-sub: 12px;
+    --login-label-mb: 6px;
+    --login-field-h: 46px;
+    --login-field-mt: 12px;
+    --login-cta-mt: 14px;
+    --login-cta-h: 44px;
+    --login-gap: 14px;
+    --login-panel-pad: 12px;
+    --login-row-py: 5px;
+    --login-rec-pad: 12px;
+    --login-btn-h: 28px;
+    --login-btn-mt: 8px;
+    --login-crest-top: -11px;
+    --login-p-size: 11px;
+    --login-p-lh: 1.55;
+    --login-brand-pad: 28px;
+    --login-brand-gap: 24px;
+    --login-brand-lift: 5vh;
+    --login-lyre: 64px;
+    --login-wm: 26px;
+    --login-head: 24px;
+    --login-head-lh: 1.5;
+  }
+}
+/* Tier C — short laptops (1280x720 class). */
+@media (min-width: 1024px) and (max-height: 760px) {
+  :root {
+    --login-stack-py: 16px;
+    --login-plaque-py: 16px;
+    --login-plaque-px: 22px;
+    --login-head-mb: 10px;
+    --login-h1: 21px;
+    --login-sub: 11.5px;
+    --login-label-mb: 5px;
+    --login-field-h: 42px;
+    --login-field-mt: 10px;
+    --login-cta-mt: 12px;
+    --login-cta-h: 40px;
+    --login-gap: 12px;
+    --login-panel-pad: 10px;
+    --login-row-py: 5px;
+    --login-rec-pad: 10px;
+    --login-btn-h: 26px;
+    --login-btn-mt: 8px;
+    --login-crest-top: -9px;
+    --login-p-size: 10.5px;
+    --login-p-lh: 1.45;
+    --login-brand-pad: 24px;
+    --login-brand-gap: 18px;
+    --login-brand-lift: 3vh;
+    --login-lyre: 56px;
+    --login-wm: 23px;
+    --login-head: 22px;
+    --login-head-lh: 1.45;
+  }
+}
+/* Tier D — short desktops (1366x640 / 1024x640 class). */
+@media (min-width: 1024px) and (max-height: 670px) {
+  :root {
+    --login-stack-py: 8px;
+    --login-plaque-py: 12px;
+    --login-plaque-px: 18px;
+    --login-head-mb: 6px;
+    --login-h1: 20px;
+    --login-sub: 11.5px;
+    --login-label-mb: 4px;
+    --login-field-h: 36px;
+    --login-field-mt: 8px;
+    --login-cta-mt: 10px;
+    --login-cta-h: 34px;
+    --login-gap: 8px;
+    --login-panel-pad: 8px;
+    --login-row-py: 3px;
+    --login-rec-pad: 8px;
+    --login-btn-h: 26px;
+    --login-btn-mt: 4px;
+    --login-crest-top: -8px;
+    --login-p-size: 10.5px;
+    --login-p-lh: 1.4;
+    --login-brand-pad: 20px;
+    --login-brand-gap: 14px;
+    --login-brand-lift: 2vh;
+    --login-lyre: 48px;
+    --login-wm: 21px;
+    --login-head: 20px;
+    --login-head-lh: 1.4;
+  }
+}
+
+/* ------------------------------------------------------------------
    Login — "the academy entrance" atmosphere.
 
    The login screen is a staged room, not a dashboard surface: the hall
@@ -430,4 +568,33 @@
   .login-halo {
     animation: login-halo 9s var(--ease-legato) infinite;
   }
+
+  /* Type sizes that follow the vertical rhythm (one source of truth). */
+  .login-h1 { font-size: var(--login-h1); }
+  .login-sub { font-size: var(--login-sub); }
+  .login-p { font-size: var(--login-p-size); line-height: var(--login-p-lh); }
+  .login-brand-head { font-size: var(--login-head); line-height: var(--login-head-lh); }
+  .login-wm-size { font-size: var(--login-wm); }
+}
+
+/*
+  The recovery panel is the shared DS `Surface`, so the login compresses it
+  through the same rhythm vars. UNLAYERED on purpose: these selectors must
+  outrank the utility classes the shared component carries (`p-4`, `h-8`,
+  `mt-3`), and unlayered rules win over every cascade layer — without
+  touching a component the rest of the app uses.
+*/
+.login-stack section[aria-labelledby="lifecycle-recovery-title"] {
+  margin-top: var(--login-gap);
+}
+.login-stack .surface {
+  padding: var(--login-rec-pad);
+}
+.login-stack .surface p {
+  font-size: var(--login-p-size);
+  line-height: var(--login-p-lh);
+}
+.login-stack .surface button {
+  height: var(--login-btn-h);
+  margin-top: var(--login-btn-mt);
 }

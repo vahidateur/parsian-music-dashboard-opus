@@ -52,7 +52,7 @@ export type PersianFont = (typeof PERSIAN_FONTS)[number];
 
 export const DEFAULT_BRANDING: BrandingSettings = {
   academyName: "آموزشگاه موسیقی پارسیان",
-  tagline: "تالار هنر، جادو و موسیقی",
+  tagline: "تالار هنر و موسیقی",
   primaryColor: "#D5AF58",
   accentColor: "#F4D28B",
   textColor: "#FFFFFF",
