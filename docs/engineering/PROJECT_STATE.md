@@ -218,7 +218,7 @@
 
 | Field | Value |
 |---|---|
-| Working branch | `main` — **canonical since 2026-09-20 (PR #5 merged). Local tip `6ca25be654b56579054c88cd498a42f57ea63582` — the D1 documentation checkpoint, committed and *not yet pushed*; remote `main` is still the consolidation merge `f63ebaab37096fcb25063aca51c713e26d3b3da7` until the push happens** — carries the merged Arena Frontend Freeze line (M-1..M-6, D7, D9), M10 `e7a64b7` on `98af31b`, M11 `3ed0bfe→3eed4f1→24998d8→53794d5→f7eb867`, the **F0–F10 frontend product completion** (`docs/frontend-completion/` 01–17 + README) and the governance checkpoint. **Verify, do not trust:** `git ls-remote origin refs/heads/main` must return `f63ebaab…`. Historical branches preserved — not deleted and not renamed: `arena/01a0b6be-parsian-music-dashboard-opus` at `02b74996e6458d10a5d9e8d1023890239342c4e4` (the freeze ancestor, now an ancestor of `main`), `arena/01a0bf6d-parsian-music-dashboard-opus` at `112f1160104d375481b930517d08592bb67a0a72` (PR #5 head), `arena/frontend-completion-spec` at `f00f85e6f817369a32b8921ffb64f58e17ea154e` (PR #4 head — **PR #4 is CLOSED, never merged**), `arena/01a0aa83-parsian-music-dashboard-opus` at `d31cbe9d83ce327d4c1b14e352f2de1b0a6c16b8`, `arena/01a0b059-parsian-music-dashboard-opus` at `251af96f405df5935ee17ddc9ba6b490f7989c2d`, `handoff/arena-frontend-pre-backend` at `94d32de3220cee314606c0c4705e20e0fdcfb2af`. **Branch-name errata:** arena/01a0a9b6 does not exist, never touched. **Freeze policy:** the frozen frontend (M-1..M-6, D7, D9 at `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb`) is preserved, and all future frontend fixes require an explicit decision to reopen the freeze. **Governance law:** [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md), reached via [DECISIONS.md](DECISIONS.md) §20. |
+| Canonical branch | `main` — **canonical since 2026-09-20 (PR #5 merged). Local tip `6ca25be654b56579054c88cd498a42f57ea63582` — the D1 documentation checkpoint, committed and *not yet pushed*; remote `main` is still the consolidation merge `f63ebaab37096fcb25063aca51c713e26d3b3da7` until the push happens** — carries the merged Arena Frontend Freeze line (M-1..M-6, D7, D9), M10 `e7a64b7` on `98af31b`, M11 `3ed0bfe→3eed4f1→24998d8→53794d5→f7eb867`, the **F0–F10 frontend product completion** (`docs/frontend-completion/` 01–17 + README) and the governance checkpoint. **Verify, do not trust:** `git ls-remote origin refs/heads/main` must return `f63ebaab…`. Historical branches preserved — not deleted and not renamed: `arena/01a0b6be-parsian-music-dashboard-opus` at `02b74996e6458d10a5d9e8d1023890239342c4e4` (the freeze ancestor, now an ancestor of `main`), `arena/01a0bf6d-parsian-music-dashboard-opus` at `112f1160104d375481b930517d08592bb67a0a72` (PR #5 head), `arena/frontend-completion-spec` at `f00f85e6f817369a32b8921ffb64f58e17ea154e` (PR #4 head — **PR #4 is CLOSED, never merged**), `arena/01a0aa83-parsian-music-dashboard-opus` at `d31cbe9d83ce327d4c1b14e352f2de1b0a6c16b8`, `arena/01a0b059-parsian-music-dashboard-opus` at `251af96f405df5935ee17ddc9ba6b490f7989c2d`, `handoff/arena-frontend-pre-backend` at `94d32de3220cee314606c0c4705e20e0fdcfb2af`. **Branch-name errata:** arena/01a0a9b6 does not exist, never touched. **Freeze policy:** the frozen frontend (M-1..M-6, D7, D9 at `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb`) is preserved, and all future frontend fixes require an explicit decision to reopen the freeze. **Governance law:** [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md), reached via [DECISIONS.md](DECISIONS.md) §20. |
 | **Phase checkpoint (application)** | `33b10311f0d3a38745b4d0c00f22e4f63665888d` — Phase 2, approved and pushed. **Not advanced to M0/M1/M2/M2.1/M3/M4/M5/M6/M7, and the reason is a rule, not an oversight:** `src/__tests__/projectState.test.ts` requires the recorded documentation checkpoint to *descend from* the recorded phase checkpoint, so this row can only move to a milestone once a documentation checkpoint has been pushed after it. The milestones themselves are registered in [PHASES.md](PHASES.md) — M1 is `689a7c15951d690b1ce650a5938e6b1216ca30ed`, M2 is `c42f274ac10d4087f9280e3bf7b47141d0672e32` and M2.1 is `73b40d970816f174b56d37addc21f106a472359b`, M3 was implemented at `e5b0a57d8f33dc04838670a2cd4158a88dd34022` and completed at `3bec8811adaa65dd3c1b50c1125cc8c24dd9adad`, two **pre-M4 remediation** commits that are *not* milestones sit after them — `fba826f` (I13 Checkpoint 3B) and `7e72887` (C2, which is also M4's effective safe rollback boundary) — **M4** sits after those, implemented across three checkpoints, `0f875a78c99077e25b67b9cc9cffe34c823ee511` (CP1, the reads), `f8c3472895978054c8dc81574bb8a945ef3c326d` (CP2, the two writes) and `6f54caf46dc13baca78e376c606a4aa9667cdb48` (CP3, generation), with its acceptance-coverage checkpoint at `df701488362cb90cf32ccefad277879477571cf7` and its final documentation reconciliation at `24caf3a00e4bb0f936cffa790cc3bc81ee9a7c5b` — and **M5**, the attendance *view* wiring, sits after that at `9505ade4011b37a34e3488fd51206512829205ec` with its own documentation reconciliation at `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — and **M6**, the contracts-without-UI milestone, sits after that, implemented across four checkpoints, CP1 `43e7882f051b46abfa9f0530137cedfb3a541ce0` (the chat contract), CP2 `42c54f41ed3099cf65ac4ca035146958a1a51f76` (conversation management and composer state safety), CP3 `563b8d85ee48614963cb3c182ac9b84239645c3d` (attachments) and CP4 `4e03b8762bebcb87e46cf7044af5da99d709b4d2` (conversation export) — and **M7**, the relation de-fixturing milestone, sits after M6's documentation reconciliation (`8131c5cd49c35a7163543082475a9635914aba40`), implemented across four checkpoints, CP1 `0d9fc01079039548cf0ffe3c80c5bf2e88056a9c` (relation plumbing), CP2 `5726435506bd74748f6165819f3c80e30f359b80` (student relations), CP3 `ede3ad6a5e26b1cdfc514962b57ac1302309968c` (teacher relations) and CP4 `f1ec0ddde783aec14d6429ac2457f085f851ad9a` (class relations and navigation counts), all pushed; §3 carries the current phase. The **non-milestone** Class Compensation P1 workstream (`a21311d7e32c82e3a46b1581c94f6b3478bf646c`) sits after M7's reconciliation (`e7a6d72`) and does **not** advance this row: a workstream is not a phase |
 | Previous phase checkpoint | `aca40c5d6dd74ccf71513c825a3e5c6af45feb3d` — Phase 1, approved and pushed |
 | **Documentation checkpoint (pushed)** | `6ca25be654b56579054c88cd498a42f57ea63582` — **the D1 pass** (*docs: D1 — record the post-consolidation canonical state*): the post-consolidation canonical state recorded on top of the PR #5 merge — `main` @ `f63ebaab…` as the **consolidation base**, PR #5 merged and **PR #4 closed, never merged**, the four preserved branch SHAs, `GOVERNANCE_CHECKPOINT.md` named as the live register for `T-02` / `O-*` (reached from [DECISIONS.md](DECISIONS.md) §20), `T-02` recorded as **ACCEPTED / ASSIGNED-ONLY** rather than unresolved, the F0 / 2026-09-19 snapshot and the pre-M1 archive marked historical, and **Laravel/backend still NOT STARTED and NOT AUTHORIZED**. Documents only — eight authorized Markdown files; no product source, no test, no dependency, no gate. **The first documentation checkpoint after the consolidation merge** — it could not name itself, because no entry may carry its own SHA — and **this D2 pass names it**. *Push state: committed locally, **not yet pushed**; the remote `main` is still `f63ebaab…`, so the word "(pushed)" in this row's label is the row's name, not a claim about this commit.* |
@@ -236,6 +236,35 @@
 | Superseded documentation-checkpoint row (kept as written; M5's reconciliation, named in [PHASES.md](PHASES.md)) | `9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9` — **M5's documentation reconciliation** (*docs(m5): correct checkpoint push record*): M5 registered ✅ COMPLETE, the M5 chain's own accounting corrected to what happened (a locally committed checkpoint whose first push failed on a stale token, then pushed unchanged as a fast-forward — no amend, no force-push, no reset, no rebase), and the M5 documentation checkpoint that was **lost unpushed** recorded as **L5** happening twice rather than papered over. It is the commit M6 was built on. Documents only |
 | Baseline commit | `292b8b86ce7dd328b3a1510047f994e39c443a4e` (the graft boundary **of a shallow checkout** — measure whether your clone is shallow rather than inheriting that; see the note at the end of this section) |
 | Remote state | **Deliberately not recorded as a value — verify it instead:** `git ls-remote origin refs/heads/<branch>` must return local `HEAD`, or an ancestor of it. Anything else means someone else pushed, or this clone is stale |
+
+### Session branch contract
+
+The **Canonical branch** table field is durable project metadata, not the identity of every
+checkout. It remains `main`. A caller running the state gate on an explicitly assigned session
+branch supplies `PROJECT_STATE_WORKING_BRANCH` as that **exact, literal branch name**. If the
+input is absent, the expected checkout is the documented canonical branch. An empty, malformed
+or mismatched input fails; detached HEAD fails too. There is no wildcard allowance for Arena
+branches. The input declares an assignment from the owner/session; it does not authorize choosing
+another branch and must never be derived automatically from the checkout being checked.
+
+The gate reads the exact metadata table field, not an earlier prose mention of "Canonical branch".
+This execution input changes only the branch-name expectation: all active checkpoint and ancestry
+requirements remain in force. No session branch is substituted for the canonical value.
+
+### Historical branch-tip references
+
+Only the following two preserved branch tips have **existence-only** classification. They are
+historical references, not active/canonical checkpoints and not promises of ancestry from today's
+HEAD. Each must still identify a real commit; the classification exempts **only** current-HEAD
+ancestry. The original records elsewhere in this document remain unchanged. The gate validates
+these **exact branch/SHA pairs**: a well-formed replacement SHA or swapped pairing is not an
+exemption. Duplicate or malformed classifications, and any overlap with the four active checkpoint
+fields, fail the state gate. Every unclassified SHA retains its ancestry requirement.
+
+| Historical branch | Commit | Ancestry policy |
+|---|---|---|
+| `arena/01a0b059-parsian-music-dashboard-opus` | `251af96f405df5935ee17ddc9ba6b490f7989c2d` | existence-only |
+| `handoff/arena-frontend-pre-backend` | `94d32de3220cee314606c0c4705e20e0fdcfb2af` | existence-only |
 
 ### Two kinds of checkpoint
 
@@ -296,8 +325,33 @@
 that SHA does not exist until the commit is made. So the documentation checkpoint above is always
 the *previous* pushed docs commit, and `git log -- docs/engineering` is the authority for anything
 newer. `src/__tests__/projectState.test.ts` enforces the testable form of the rule: every full SHA
-quoted in these documents must already exist as a commit and be reachable from `HEAD`, so a pasted
-future SHA or an invented one fails the suite instead of misleading the next reader.
+quoted in these documents must already exist as a commit. Active checkpoints and all unclassified
+references must also be ancestors of `HEAD` (or HEAD itself). Only the explicitly classified
+historical branch tips above are exempt from current ancestry, never from existence/type checks.
+Wrong object types and proven incorrect required ancestry still fail. Git batch object lookups
+reject `error:`, `fatal:` and `BUG:` diagnostic lines even when Git exits zero and prints `missing`:
+storage/configuration errors are failures, not unavailable history. Non-error warnings and hints
+are not automatically failures. Missing objects or truncated ancestry from otherwise clean probes
+in a demonstrably shallow/partial checkout are **SKIP / UNVERIFIABLE**, not a pass;
+a missing object (including a fabricated SHA) in a complete checkout is a failure. Availability is
+judged for the **specific assertion**, not by demanding all older history or all descendant trees:
+a locally established parent/ancestor path needs no history before its endpoint. An UNVERIFIABLE
+older endpoint does not suppress a negative proof: complete available newer ancestry excluding it
+still fails the check. Truncated newer history, or reaching only the unavailable endpoint, cannot
+establish PASS and remains UNVERIFIABLE absent another decisive failure. For the original
+combined merge diff, matching an available parent's root tree already proves rejection, even if
+another parent is unavailable. Before skipping on missing evidence, the documentation gate can
+also prove rejection from identical `docs` or `docs/engineering` tree identities, reading only the
+necessary local path entries, not unrelated descendants. These are **failure-only** proofs:
+unavailable entries are not treated as absent, and differing or unavailable identities never
+establish a PASS. Without a decisive proof, genuinely required missing evidence remains
+UNVERIFIABLE. The gate retains the original `git show --name-only --format= <checkpoint>` semantics,
+including merge and rename behavior, not a union of separate parent diffs. Its read-only inspection
+uses the real parents rather than a shallow graft's apparent root; it does not alter checkout
+metadata or Git history.
+Checks remain offline and never fetch missing evidence implicitly. Complete validation requires
+the historical reference objects too, not just the canonical branch's history; the suite cannot
+prove that an absent local object never existed elsewhere.
 
 ⚠️ **Whether this clone is shallow is a fact to measure, not a property to assume.** The
 provisioned checkout has been observed shallow — `292b8b8` grafted, its fetch refspec limited to
@@ -2602,7 +2656,9 @@ These come from the product owner and survive every session.
 - Do **not** force-push. Do **not** amend an existing commit.
 - Do **not** commit or push without explicit authorization; one logical commit per instruction.
 - Do **not** delete or discard uncommitted work. Verify before and after any Git operation.
-- Work only on the recorded working branch.
+- Work only on the explicitly assigned session branch (declared to the gate through
+  `PROJECT_STATE_WORKING_BRANCH`), or the documented canonical branch when no session branch is
+  assigned (§2). Canonical metadata is not permission to switch an assigned branch.
 
 **Engineering**
 - Do **not** start a new phase while the current one is unfinished or unreviewed.
@@ -2663,9 +2719,11 @@ verify every claim against Git and the test suite.**
    `git ls-remote origin refs/heads/<branch>` (the local remote-tracking ref may not exist —
    see §2). If HEAD and the record disagree, **stop and report the discrepancy**; do not
    "fix" it by resetting. If the recorded SHA is not present locally at all
-   (`git cat-file -e <sha>^{commit}` → `fatal: bad object`), the workspace has most likely been
-   **re-cloned** (§2): the commit object is gone but the files usually are not — stop, report,
-   and recover only with explicit authorization, hashing every changed and untracked file first.
+   (`git cat-file -e <sha>^{commit}` → `fatal: bad object`), check shallow/partial-clone metadata
+   first (§2), rather than inferring a re-clone or an invalid checkpoint. Incomplete evidence is
+   **UNVERIFIABLE**; a complete checkout missing a required object fails validation. Stop and report
+   the distinction. Fetch or recover only with explicit authorization, hashing every changed and
+   untracked file first; a skipped history check is never evidence of checkpoint integrity.
 5. **Inspect recent commits**: `git show --stat HEAD` and `git log --stat -3` to see what the
    last phase actually touched. Measure whether the clone is shallow
    (`git rev-parse --is-shallow-repository`) rather than assuming it (§2).
