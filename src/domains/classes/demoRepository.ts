@@ -108,6 +108,23 @@ export class DemoClassRepository implements ClassRepository {
         fields.capacity = [`ظرفیت کلاس از ظرفیت اتاق (${room.capacity}) بیشتر است.`];
       }
     }
+    /*
+      A class may sit outside the ladder, but it may not point at a rung that
+      does not exist — and a level from another program's ladder would make the
+      class claim two curricula at once.
+    */
+    const programId = input.programId || undefined;
+    const levelId = input.levelId || undefined;
+    if (programId && !this.store.programs.find(programId)) {
+      fields.programId = ["دوره یافت نشد."];
+    }
+    if (levelId) {
+      const level = this.store.levels.find(levelId);
+      if (!level) fields.levelId = ["سطح یافت نشد."];
+      else if (programId && level.programId !== programId) {
+        fields.levelId = ["این سطح به دورهٔ انتخاب‌شده تعلق ندارد."];
+      }
+    }
     if (Object.keys(fields).length > 0) throw validationError("CLASS_INVALID", "اطلاعات کلاس معتبر نیست.", fields);
   }
 }

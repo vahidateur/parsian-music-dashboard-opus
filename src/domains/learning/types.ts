@@ -85,6 +85,12 @@ export interface LearningLevel {
   description: string;
   /** Learning outcomes for this level, shown on the student's page. */
   objectives: string[];
+  /**
+   * Free-text teacher notes for the level — what a structured description is
+   * too tight for: recommendations, cautions, suggested resources. Optional and
+   * display-only; eligibility and progression never read it.
+   */
+  notes?: string;
   /** Inactive levels keep their history but cannot be newly assigned. */
   active: boolean;
   /**

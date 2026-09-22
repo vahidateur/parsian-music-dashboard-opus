@@ -11,7 +11,9 @@
  */
 import { useMemo } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
+import { faNum } from "@/lib/format";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { useLevels, usePrograms } from "@/domains/learning/useLearning";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
 import { isHhMm } from "@/domains/scheduling/dateBridge";
 import type { AcademyClass } from "@/domains/classes/types";
@@ -31,6 +33,8 @@ interface ClassDraft {
   roomId: string;
   kind: AcademyClass["kind"];
   level: string;
+  programId: string;
+  levelId: string;
   days: number[];
   time: string;
   duration: string;
@@ -48,6 +52,8 @@ function toDraft(cls?: AcademyClass): ClassDraft {
     roomId: cls?.roomId ?? "",
     kind: cls?.kind ?? "group",
     level: cls?.level ?? "سطح ۱",
+    programId: cls?.programId ?? "",
+    levelId: cls?.levelId ?? "",
     days: cls?.days ?? [],
     time: cls?.time ?? "17:00",
     duration: cls ? String(cls.duration) : "60",
@@ -107,6 +113,8 @@ export function ClassFormDialog({
   const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
   const { items: rooms, loading: roomsLoading, error: roomsError, reload: reloadRooms } = useRooms({ assignableOnly: true, per_page: 200 });
 
+  const { items: programs } = usePrograms({ per_page: 200 });
+  const { items: allLevels } = useLevels({ per_page: 200 });
   const form = useEntityForm<ClassDraft, AcademyClass>({
     initial: toDraft(academyClass),
     open, // H6: rebuild the draft from this record whenever the dialog opens
@@ -119,6 +127,8 @@ export function ClassFormDialog({
         roomId: draft.roomId,
         kind: draft.kind,
         level: draft.level.trim(),
+        programId: draft.programId || undefined,
+        levelId: draft.levelId || undefined,
         days: [...draft.days].sort((a, b) => a - b),
         time: draft.time,
         duration: Number(draft.duration),
@@ -326,6 +336,57 @@ export function ClassFormDialog({
         <Field label="سطح">
           {(control) => (
             <input {...control} className={inputCls} value={form.draft.level} disabled={busy} onChange={(e) => form.set("level", e.target.value)} />
+          )}
+        </Field>
+
+        {/*
+          The ladder link (item 13): a class may name the course and the rung it
+          teaches. Both are optional — a workshop sits outside the ladder — and
+          both resolve their NAME from the learning records, so renaming a level
+          in Settings renames it here on the next render, with no copy to drift.
+        */}
+        <Field label="دوره" hint="اختیاری — پیوند این کلاس به یک دوره.">
+          {(control) => (
+            <select
+              {...control}
+              className={inputCls}
+              value={form.draft.programId}
+              disabled={busy}
+              onChange={(e) => {
+                form.set("programId", e.target.value);
+                form.set("levelId", "");
+              }}
+            >
+              <option value="">— بدون دوره —</option>
+              {programs
+                .filter((program) => program.instrumentId === form.draft.instrument)
+                .map((program) => (
+                  <option key={program.id} value={program.id}>
+                    {program.name}
+                  </option>
+                ))}
+            </select>
+          )}
+        </Field>
+
+        <Field label="سطح دوره" hint="اختیاری — پلهٔ این کلاس در دوره.">
+          {(control) => (
+            <select
+              {...control}
+              className={inputCls}
+              value={form.draft.levelId}
+              disabled={busy || !form.draft.programId}
+              onChange={(e) => form.set("levelId", e.target.value)}
+            >
+              <option value="">— بدون سطح —</option>
+              {allLevels
+                .filter((level) => level.programId === form.draft.programId)
+                .map((level) => (
+                  <option key={level.id} value={level.id}>
+                    {faNum(level.order)}. {level.name}
+                  </option>
+                ))}
+            </select>
           )}
         </Field>
 

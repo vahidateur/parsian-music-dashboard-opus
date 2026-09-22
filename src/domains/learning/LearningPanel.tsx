@@ -11,7 +11,7 @@
  * students or content).
  */
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, GraduationCap } from "lucide-react";
+import { ChevronDown, ChevronUp, GraduationCap, Pencil } from "lucide-react";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
@@ -20,7 +20,9 @@ import { Field, ListRow, Panel, inputCls } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getLearningRepository } from "@/domains/registry";
 import { useInstruments } from "@/domains/instruments/useInstruments";
+import { useClasses } from "@/domains/classes/useClasses";
 import { LevelContentPanel } from "./LevelContentPanel";
+import { LevelFormDialog, ProgramFormDialog } from "./LearningFormDialogs";
 import { useLevels, usePrograms } from "./useLearning";
 import type { LearningLevel, LearningProgram } from "./types";
 import { cn } from "@/utils/cn";
@@ -118,6 +120,15 @@ export function LearningPanel() {
    * rendered only from that derived value.
    */
   const [contentLevelId, setContentLevelId] = useState<string | null>(null);
+  const [levelEdit, setLevelEdit] = useState<LearningLevel | null>(null);
+  const [programEdit, setProgramEdit] = useState<LearningProgram | null>(null);
+  const [programInstrumentId, setProgramInstrumentId] = useState<string>("");
+  /*
+    How many classes teach each rung, live: the ladder and the timetable are
+    two reads of one academy, and a level nobody has a class for should say so
+    quietly rather than look interchangeable with a level in session.
+  */
+  const { items: classes } = useClasses({ per_page: 200, includeArchived: true });
   const contentLevel = useMemo(
     () => levels.find((level) => level.id === contentLevelId),
     [levels, contentLevelId],
@@ -166,7 +177,10 @@ export function LearningPanel() {
   };
 
   const addProgram = async (name: string) => {
-    const instrument = instruments.find((i) => i.active) ?? instruments[0];
+    const instrument =
+      instruments.find((i) => i.id === programInstrumentId) ??
+      instruments.find((i) => i.active) ??
+      instruments[0];
     if (!instrument) {
       notify({
         tone: "danger",
@@ -292,6 +306,21 @@ export function LearningPanel() {
           {programsTotal > programs.length && (
             <p className="mt-2 text-[11px] text-ink-400">{partialNote("دوره‌ها", programs.length, programsTotal)}</p>
           )}
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[10.5px] text-ink-400">ساز دورهٔ جدید</span>
+            <select
+              className={inputCls}
+              value={programInstrumentId || instruments.find((i) => i.active)?.id || ""}
+              onChange={(e) => setProgramInstrumentId(e.target.value)}
+            >
+              {instruments.map((instrument) => (
+                <option key={instrument.id} value={instrument.id}>
+                  {instrument.name}
+                  {instrument.active ? "" : " (غیرفعال)"}
+                </option>
+              ))}
+            </select>
+          </label>
           <QuickAdd
             label="دورهٔ جدید"
             placeholder="مثلاً دورهٔ مقدماتی سنتور"
@@ -316,6 +345,14 @@ export function LearningPanel() {
                   */}
                   سطوح «{selected.name}»{levelsLoading ? "" : ` — ${faNum(levels.length)} سطح`}
                 </h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={`ویرایش دورهٔ ${selected.name}`}
+                  onClick={() => setProgramEdit(selected)}
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
               </div>
 
               {levelsError ? (
@@ -339,9 +376,13 @@ export function LearningPanel() {
                         active={contentLevelId === level.id}
                         title={`${faNum(level.order)}. ${level.name}`}
                         meta={
-                          level.objectives.length > 0
+                          (level.objectives.length > 0
                             ? `${faNum(level.objectives.length)} هدف یادگیری`
-                            : level.description || "بدون توضیح"
+                            : level.description || "بدون توضیح") +
+                          (level.notes ? " · یادداشت" : "") +
+                          (classes.some((c) => c.levelId === level.id)
+                            ? ` · ${faNum(classes.filter((c) => c.levelId === level.id).length)} کلاس`
+                            : "")
                         }
                         end={
                           <span className="flex items-center gap-1.5">
@@ -356,6 +397,15 @@ export function LearningPanel() {
                               tone={level.active ? "ok" : "neutral"}
                               label={level.active ? "فعال" : "غیرفعال"}
                             />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`ویرایش سطح ${level.name}`}
+                              disabled={busy}
+                              onClick={() => setLevelEdit(level)}
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -438,6 +488,27 @@ export function LearningPanel() {
         two are independent, which is the only reason `attachContent`'s intent
         check can mean anything (I13 Checkpoint 2).
       */}
+      {levelEdit && (
+        <LevelFormDialog
+          level={levelEdit}
+          onClose={() => setLevelEdit(null)}
+          onSaved={(saved) => {
+            setLevelEdit(null);
+            notify({ tone: "success", title: `سطح «${saved.name}» به‌روزرسانی شد` });
+          }}
+        />
+      )}
+      {programEdit && (
+        <ProgramFormDialog
+          program={programEdit}
+          onClose={() => setProgramEdit(null)}
+          onSaved={(saved) => {
+            setProgramEdit(null);
+            notify({ tone: "success", title: `دورهٔ «${saved.name}» به‌روزرسانی شد` });
+          }}
+        />
+      )}
+
       {selected && contentLevel && (
         <LevelContentPanel
           levelId={contentLevel.id}
