@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon } from "lucide-react";
+import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon , Images} from "lucide-react";
 import { navGroups } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
@@ -23,6 +23,7 @@ export const navIcons: Record<ViewId, LucideIcon> = {
   reports: BarChart3,
   messages: MessageSquare,
   library: Library,
+  gallery: Images,
   settings: Settings,
   "design-system": Palette,
 };

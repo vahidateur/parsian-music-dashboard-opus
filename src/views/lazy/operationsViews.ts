@@ -8,4 +8,5 @@ export { FinanceView } from "../Finance";
 export { ReportsView } from "../Reports";
 export { MessagesView } from "../Messages";
 export { LibraryView } from "../Library";
+export { GalleryView } from "../Gallery";
 export { SettingsView } from "../Settings";

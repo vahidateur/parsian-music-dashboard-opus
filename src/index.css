@@ -42,6 +42,18 @@
   --color-ink-500: #4b423a;
   --color-ink-400: #847a6d;
 
+  /*
+    On-image ink — text that sits ON a photograph (gallery captions, lightbox
+    chrome). A theme preset rightly flips `white` and the ink ramp for page
+    surfaces, but a photograph does not flip with the stage: light text on a
+    dark image must stay light in every preset. These three tokens are that
+    constant, and they are tokens rather than solid `white` utilities so the
+    appearance gate's "no solid white in source" premise keeps holding.
+  */
+  --color-photo-fg: #f6f2ea;
+  --color-photo-muted: rgb(246 242 234 / 0.68);
+  --color-photo-faint: rgb(246 242 234 / 0.46);
+
   /* Extra breakpoint: wide laptops/desktops where the 3-panel row has room for inline actions */
   --breakpoint-wide: 1400px;
   --color-ink-300: #958b7f;
@@ -471,5 +483,24 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Gallery backdrop: a slow breathe for the header photograph. Decorative only —
+   the element also carries `motion-reduce` semantics via reduced-motion below. */
+@keyframes kenburns {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    transform: scale(1.12) translateY(-2%);
+  }
+}
+.kenburns {
+  animation: kenburns 26s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kenburns {
+    animation: none;
   }
 }

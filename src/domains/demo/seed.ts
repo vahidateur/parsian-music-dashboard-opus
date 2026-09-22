@@ -8,6 +8,8 @@
  * deterministically from that data, so `createSeedDataset()` always yields the
  * same logical dataset for a given `SEED_VERSION`.
  */
+import { deriveGalleryImages, DEMO_GALLERY_MEDIA } from "./gallerySeed";
+import { DEFAULT_ORGANIZATION_SETTINGS } from "@/domains/organization/types";
 import { academy } from "./academySeed";
 import {
   classes,
@@ -29,7 +31,6 @@ import {
   deriveBranding,
   deriveChat,
   deriveGalleryAlbums,
-  deriveGalleryImages,
   deriveInstruments,
   deriveLearningContent,
   deriveLevelContent,
@@ -143,15 +144,16 @@ export function deriveRoles(): DemoRole[] {
  * uninitialized, so it must stay cheap.
  */
 export function createOrganizationSettings(): DemoDataset["organization"] {
+  /*
+    The defaults come from the organization domain, not from a second copy written
+    here: the seed states the academy's NAME, the domain states its RULES. A rule
+    duplicated in a seed and in a type is a rule that eventually disagrees with
+    itself.
+  */
   return {
+    ...DEFAULT_ORGANIZATION_SETTINGS,
     name: academy.name,
     tagline: academy.tagline,
-    locale: "fa-IR",
-    direction: "rtl",
-    calendar: "jalali",
-    currency: "toman",
-    firstWeekday: 0,
-    defaultSessionMinutes: 60,
   };
 }
 
@@ -183,7 +185,7 @@ export function createSeedDataset(): DemoDataset {
       since backups carry metadata only — and the Library UI reports it as
       unavailable instead of offering a download that yields nothing.
     */
-    media: [{ ...DEMO_LIBRARY_ASSET }],
+    media: [{ ...DEMO_LIBRARY_ASSET }, ...DEMO_GALLERY_MEDIA],
     instruments: deriveInstruments(),
     programs: derivePrograms(),
     levels: deriveLevels(),

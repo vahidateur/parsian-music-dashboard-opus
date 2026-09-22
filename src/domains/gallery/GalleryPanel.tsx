@@ -12,7 +12,10 @@
  * - alt required enforced in repo
  * - upload via media seam two writes Media.create + Gallery.addImage
  * - no fabricated counts — counts from live data
- * - seed VERIFIED 2 albums 0 images via learningSeed.ts:258-278 — do NOT alter to look fuller
+ * - seed ships two albums with SIX bundled photographs (domains/demo/gallerySeed);
+ *   their bytes are provisioned into the blob store at bootstrap like any upload,
+ *   so an album is never "full of ids that resolve to nothing" and an operator who
+ *   deletes them stays deleted — provisioning creates no rows
  * - honest pagination/truncation disclosure N ردیف از M
  * - no new route, same surface
  */

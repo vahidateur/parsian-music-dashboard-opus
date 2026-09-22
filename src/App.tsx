@@ -48,6 +48,7 @@ const FinanceView = lazy(() => operationsViews().then((m) => ({ default: m.Finan
 const ReportsView = lazy(() => operationsViews().then((m) => ({ default: m.ReportsView })));
 const MessagesView = lazy(() => operationsViews().then((m) => ({ default: m.MessagesView })));
 const LibraryView = lazy(() => operationsViews().then((m) => ({ default: m.LibraryView })));
+const GalleryView = lazy(() => operationsViews().then((m) => ({ default: m.GalleryView })));
 const SettingsView = lazy(() => operationsViews().then((m) => ({ default: m.SettingsView })));
 
 const VIEWS = {
@@ -62,6 +63,7 @@ const VIEWS = {
   reports: ReportsView,
   messages: MessagesView,
   library: LibraryView,
+  gallery: GalleryView,
   settings: SettingsView,
   "design-system": DesignSystemView,
 } as const;

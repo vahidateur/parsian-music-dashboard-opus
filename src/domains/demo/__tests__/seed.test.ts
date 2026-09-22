@@ -41,7 +41,6 @@ describe("canonical seed", () => {
    * explicitly below rather than left implicit.
    */
   const INTENTIONALLY_EMPTY = new Set([
-    "galleryImages",
     "attendanceRecords",
     "attendanceCorrections",
     "sessionCompensations",
@@ -66,16 +65,30 @@ describe("canonical seed", () => {
   });
 
   /**
-   * The single binary the demo ships: one text document behind one catalogue
-   * row. Asserted as a whole so a second seeded file — or a row pointing at an
-   * asset that does not exist — cannot slip in unnoticed.
+   * The binaries the demo ships: one text document behind one catalogue row,
+   * plus the gallery's showcase photographs as metadata-only image rows whose
+   * bytes are provisioned at bootstrap. Asserted as a whole so a seeded file
+   * without a row — or a row pointing at an asset that does not exist — cannot
+   * slip in unnoticed.
    */
-  it("seeds exactly one media asset and links it to its library row", () => {
+  it("seeds the library document and the showcase photographs, each linked to real rows", () => {
     const seed = createSeedDataset();
-    expect(seed.media).toHaveLength(1);
     expect(seed.media[0]).toEqual(DEMO_LIBRARY_ASSET);
     expect(seed.media[0].mimeType).toBe("text/plain");
     expect(seed.media[0].sizeBytes).toBeGreaterThan(0);
+
+    const photographs = seed.media.slice(1);
+    expect(photographs.length).toBe(seed.galleryImages.length);
+    expect(photographs.length).toBeGreaterThan(0);
+    for (const asset of photographs) {
+      expect(asset.kind).toBe("image");
+      expect(asset.mimeType).toBe("image/jpeg");
+    }
+    for (const image of seed.galleryImages) {
+      expect(seed.media.some((asset) => asset.id === image.mediaId)).toBe(true);
+      expect(seed.galleryAlbums.some((album) => album.id === image.albumId)).toBe(true);
+      expect(image.alt.trim().length).toBeGreaterThan(0);
+    }
 
     const linked = seed.resources.filter((row) => row.mediaId !== undefined);
     expect(linked.map((row) => row.id)).toEqual([DEMO_LIBRARY_RESOURCE_ID]);

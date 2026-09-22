@@ -31,6 +31,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { GalleryPanel } from "../GalleryPanel";
 import { getGalleryRepository, getMediaRepository, resetRegistry, setGalleryRepository } from "@/domains/registry";
+import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { Page } from "@/api/types";
 import type { GalleryImage } from "../types";
@@ -39,6 +40,9 @@ afterEach(cleanup);
 beforeEach(() => {
   resetToDemoEnvironment();
   resetRegistry();
+  // The seed's showcase photographs belong to the seeded albums; this case is
+  // about two albums the test creates, so the showcase rows step aside.
+  for (const row of demoStore.galleryImages.all()) demoStore.galleryImages.remove(row.id);
 });
 
 function deferred<T>() {

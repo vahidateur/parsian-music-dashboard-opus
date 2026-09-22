@@ -265,6 +265,8 @@ export const viewPermissions: Record<ViewId, Permission> = {
   reports: "reports.read",
   messages: "messages.read",
   library: "library.read",
+  // The gallery shows the library's media; managing it stays library.write in Settings.
+  gallery: "library.read",
   settings: "settings.read",
   "design-system": "settings.read",
 };
