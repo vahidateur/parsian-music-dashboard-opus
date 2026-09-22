@@ -28,6 +28,7 @@ import {
 import type { Student } from "@/domains/students/types";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "@/domains/auth/types";
 import type { BrandingSettings } from "@/domains/branding/types";
+import { withRuleDefaults, type OrganizationSettings } from "@/domains/organization/types";
 
 export const DEMO_STORAGE_KEY = "ava:demo:dataset";
 /**
@@ -143,9 +144,18 @@ export function migrateDataset(dataset: DemoDataset): {
 } {
   const added = DEMO_COLLECTIONS.filter((name) => !Array.isArray(dataset[name]));
   const needsOrganization = typeof dataset.organization !== "object" || dataset.organization === null;
+  /*
+    A dataset written before session rules existed has an `organization` object
+    with no rules in it. Absent means "the shipped default", never "no rule": a
+    missing value that quietly disabled the gap check or the bookable window
+    would be worse than the field not existing at all, so the record is completed
+    on read-in and written back.
+  */
+  const needsRules =
+    !needsOrganization && !hasOrganizationRules(dataset.organization as Partial<OrganizationSettings>);
   const needsBranding = typeof dataset.branding !== "object" || dataset.branding === null;
 
-  if (added.length === 0 && !needsOrganization && !needsBranding) {
+  if (added.length === 0 && !needsOrganization && !needsRules && !needsBranding) {
     return { dataset, migrated: false, added: [] };
   }
 
@@ -157,9 +167,23 @@ export function migrateDataset(dataset: DemoDataset): {
     (migrated as unknown as Record<string, unknown>)[name] = canonical[name];
   }
   if (needsOrganization) migrated.organization = canonical.organization;
+  else if (needsRules) migrated.organization = withRuleDefaults(dataset.organization);
   if (needsBranding) migrated.branding = canonical.branding;
 
   return { dataset: migrated, migrated: true, added };
+}
+
+/** True when every rule field the product relies on is present and well-formed. */
+function hasOrganizationRules(organization: Partial<OrganizationSettings>): boolean {
+  return (
+    typeof organization.defaultSessionMinutes === "number" &&
+    typeof organization.sessionGapMinutes === "number" &&
+    typeof organization.cancellationGraceHours === "number" &&
+    typeof organization.maxMakeupsPerTerm === "number" &&
+    typeof organization.workingDayStart === "string" &&
+    typeof organization.workingDayEnd === "string" &&
+    Array.isArray(organization.closedWeekdays)
+  );
 }
 
 export class DemoStoreImpl {
@@ -460,7 +484,34 @@ export class DemoStoreImpl {
       }),
   };
 
-  /* ---------------- users (auth domain) ---------------- */
+  /**
+   * The academy's own rules — a singleton record, like branding, so it gets a
+   * read/patch pair instead of the generic CRUD surface. Every value here is
+   * validated by the organization repository before it is written; the store
+   * itself stays a dumb, honest container.
+   */
+  readonly organization = {
+    get: (): OrganizationSettings => clone(this.snapshot().organization),
+    update: (patch: Partial<Omit<OrganizationSettings, "updatedAt">>): OrganizationSettings =>
+      this.mutate((dataset) => {
+        dataset.organization = {
+          ...dataset.organization,
+          ...clone(patch),
+          updatedAt: new Date().toISOString(),
+        };
+        return clone(dataset.organization);
+      }),
+  };
+
+  /* ---------------- users and roles (auth domain) ---------------- */
+
+  /**
+   * Roles are configuration rows with FIXED ids (`administrator`, `teacher`, …),
+   * not generated records: the id is the role. `create` accepts a supplied id, so
+   * a role row is written under the role it describes, and a missing row simply
+   * means "this role still runs on the shipped default matrix".
+   */
+  readonly roles = this.collection("roles", "role_");
 
   readonly users = {
     all: (): AuthUser[] => clone(this.snapshot().users),
@@ -504,6 +555,7 @@ type ArrayCollection =
   | "classes"
   | "enrollments"
   | "users"
+  | "roles"
   | "media"
   | "instruments"
   | "pieces"

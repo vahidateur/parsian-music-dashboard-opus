@@ -33,6 +33,8 @@ import { DemoLibraryRepository } from "./library/demoRepository";
 import type { LibraryRepository } from "./library/repository";
 import { DemoBrandingRepository } from "./branding/demoRepository";
 import type { BrandingRepository } from "./branding/repository";
+import { DemoOrganizationRepository } from "./organization/demoRepository";
+import type { OrganizationRepository } from "./organization/repository";
 import { DemoGalleryRepository } from "./gallery/demoRepository";
 import type { GalleryRepository } from "./gallery/repository";
 import type { ProgressRepository } from "@/domains/progress/repository";
@@ -68,6 +70,7 @@ interface Overrides {
   media?: MediaRepository;
   library?: LibraryRepository;
   branding?: BrandingRepository;
+  organization?: OrganizationRepository;
   gallery?: GalleryRepository;
   progress?: ProgressRepository;
   scheduling?: SchedulingRepository;
@@ -185,6 +188,21 @@ export function getLibraryRepository(): LibraryRepository {
 }
 export function getBrandingRepository(): BrandingRepository {
   return overrides.branding ?? new DemoBrandingRepository();
+}
+
+/**
+ * The academy's rules — session length, turnaround, the free-cancellation window,
+ * the make-up ceiling and the bookable hours.
+ *
+ * Demo-backed even in API mode, exactly like branding: `ApiOrganizationRepository`
+ * states the contract, but there is no `/organization` endpoint to call yet, and a
+ * panel that read the academy's own rules from a 404 would report the
+ * configuration as broken. The consumers of these values (the conflict engine, the
+ * make-up prefill, the class form) read them through the repository, so switching
+ * the source later changes this line and nothing else.
+ */
+export function getOrganizationRepository(): OrganizationRepository {
+  return overrides.organization ?? new DemoOrganizationRepository();
 }
 export function getGalleryRepository(): GalleryRepository {
   return overrides.gallery ?? new DemoGalleryRepository();
@@ -342,6 +360,9 @@ export function setLibraryRepository(repository: LibraryRepository | undefined):
 export function setBrandingRepository(repository: BrandingRepository | undefined): void {
   overrides.branding = repository;
 }
+export function setOrganizationRepository(repository: OrganizationRepository | undefined): void {
+  overrides.organization = repository;
+}
 export function setGalleryRepository(repository: GalleryRepository | undefined): void {
   overrides.gallery = repository;
 }
@@ -389,6 +410,7 @@ export function resetRegistry(): void {
   overrides.media = undefined;
   overrides.library = undefined;
   overrides.branding = undefined;
+  overrides.organization = undefined;
   overrides.gallery = undefined;
   overrides.scheduling = undefined;
   overrides.attendance = undefined;

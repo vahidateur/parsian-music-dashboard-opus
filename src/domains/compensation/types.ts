@@ -418,6 +418,14 @@ export const COMPENSATION_ERRORS = {
   ROSTER_AMBIGUOUS: "COMPENSATION_ROSTER_AMBIGUOUS",
   STUDENT_MISMATCH: "COMPENSATION_STUDENT_MISMATCH",
   REASON_REQUIRED: "COMPENSATION_REASON_REQUIRED",
+  /**
+   * The academy's own make-up ceiling (Settings → قواعد جلسه) is full for this
+   * student. A CONFIGURED rule, not a domain constant: an academy that offers no
+   * make-ups sets it to zero and gets this refusal, and one that is generous sets
+   * a higher number. The refusal is a conflict, not a validation error — the
+   * request is well-formed, the policy says no.
+   */
+  MAKEUP_CAP_REACHED: "COMPENSATION_MAKEUP_CAP_REACHED",
   ORIGINAL_ATTENDANCE_UNACKNOWLEDGED: "COMPENSATION_ORIGINAL_ATTENDANCE_UNACKNOWLEDGED",
   ALREADY_OPEN: "COMPENSATION_ALREADY_OPEN",
   ALREADY_SETTLED: "COMPENSATION_ALREADY_SETTLED",

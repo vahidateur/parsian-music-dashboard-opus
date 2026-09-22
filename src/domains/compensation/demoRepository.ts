@@ -7,6 +7,7 @@ import type { AttendanceRepository } from "@/domains/attendance/repository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
+import { withRuleDefaults } from "@/domains/organization/types";
 import {
   attemptIsLive,
   attemptLineageOf,
@@ -272,6 +273,14 @@ export class DemoCompensationRepository implements CompensationRepository {
     this.assertPairFree(input.originalSessionId, input.studentId);
 
     /*
+     * The academy's ceiling, read from its own rules rather than from a constant
+     * in this file: the number an operator typed in Settings is the number that
+     * decides. Counted over the student's obligations, settled or not — a make-up
+     * that was completed is still a make-up the academy gave.
+     */
+    this.assertWithinMakeupCap(input.studentId);
+
+    /*
      * The affected student, from the scheduling domain's derived roster scoped to
      * the original's date. Exactly one student, and it must be the named one:
      * zero means nobody was expected, more than one means this is not a
@@ -313,6 +322,14 @@ export class DemoCompensationRepository implements CompensationRepository {
      * browsers do not share this event loop. See `repository.ts`.
      */
     this.assertPairFree(input.originalSessionId, input.studentId);
+
+    /*
+     * The academy's ceiling, read from its own rules rather than from a constant
+     * in this file: the number an operator typed in Settings is the number that
+     * decides. Counted over the student's obligations, settled or not — a make-up
+     * that was completed is still a make-up the academy gave.
+     */
+    this.assertWithinMakeupCap(input.studentId);
 
     const stamp = new Date().toISOString();
     const created = this.store.sessionCompensations.create({
@@ -602,6 +619,28 @@ export class DemoCompensationRepository implements CompensationRepository {
    * once immediately before the write, because those reads are suspension points.
    * Both calls throw the same two codes, so callers see one behaviour.
    */
+  /**
+   * The academy's make-up ceiling (Settings → قواعد جلسه), enforced where a
+   * make-up is created.
+   *
+   * Enforced HERE rather than in the dialog: a ceiling that only a form knows
+   * about is a ceiling any other caller — an import, a future API path, a test —
+   * walks straight through. The rule is read from the organization record, so the
+   * number an operator typed is the number that decides, and zero means the
+   * academy does not offer make-ups at all.
+   */
+  private assertWithinMakeupCap(studentId: string): void {
+    const cap = withRuleDefaults(this.store.organization.get()).maxMakeupsPerTerm;
+    const used = this.store.sessionCompensations.all().filter((record) => record.studentId === studentId).length;
+    if (used < cap) return;
+    throw conflict(
+      COMPENSATION_ERRORS.MAKEUP_CAP_REACHED,
+      cap <= 0
+        ? "این آموزشگاه جلسهٔ جبرانی ثبت نمی‌کند؛ سقف در «قواعد جلسه» صفر است."
+        : `سقف جلسات جبرانی این هنرجو (${cap}) پر شده است. برای تغییر آن، قواعد جلسه را ویرایش کنید.`,
+    );
+  }
+
   private assertPairFree(originalSessionId: string, studentId: string): void {
     const existing = this.store.sessionCompensations
       .all()

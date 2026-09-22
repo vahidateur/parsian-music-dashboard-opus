@@ -27,7 +27,8 @@ import type { Session } from "@/domains/scheduling/types";
 import type { AttendanceCorrection, AttendanceRecord } from "@/domains/attendance/types";
 import type { SessionCompensationRecord } from "@/domains/compensation/types";
 import type { BrandingSettings } from "@/domains/branding/types";
-import type { RoleId } from "@/domains/auth/permissions";
+import type { OrganizationSettings } from "@/domains/organization/types";
+import type { Permission, RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
 
 export interface DemoRoom {
@@ -123,18 +124,28 @@ export interface DemoRole {
   label: string;
   /** Human description of the role's scope, shown in Settings. */
   scope: string;
+  /**
+   * The access this role carries, when an administrator has edited it.
+   *
+   * Absent means "the shipped default" (`rolePermissions`), so a dataset written
+   * before role editing existed still resolves, and a role that is reset to its
+   * default stops carrying a copy of the matrix it agrees with.
+   */
+  permissions?: Permission[];
+  /** ISO-8601 of the last edit; absent on rows that were never edited. */
+  updatedAt?: string;
 }
 
-export interface DemoOrganizationSettings {
-  name: string;
-  tagline: string;
-  locale: string;
-  direction: "rtl" | "ltr";
-  calendar: "jalali" | "gregorian";
-  currency: "toman" | "rial";
-  firstWeekday: number;
-  defaultSessionMinutes: number;
-}
+/**
+ * The academy's own configuration and rules.
+ *
+ * The type moved to the organization domain, which is where a *rule* belongs: a
+ * value that changes behaviour needs an owner, a repository, validation and named
+ * consumers. Buried in the demo dataset it had none of those — the panel that
+ * displayed it was disabled and the value was read by nothing, which is how
+ * "session rules are not editable" became true.
+ */
+export type DemoOrganizationSettings = OrganizationSettings;
 
 /** Every collection that makes up the demo environment. */
 export interface DemoDataset {

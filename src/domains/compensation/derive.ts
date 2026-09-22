@@ -265,9 +265,18 @@ export function currentAttemptOf(
  */
 export function compensationDefaultFor(
   original: CompensationOriginalSlot | undefined,
+  minutes: number = DEFAULT_COMPENSATION_MINUTES,
 ): CompensationDefault | null {
   if (!original) return null;
-  const endTime = addMinutes(original.startTime, DEFAULT_COMPENSATION_MINUTES);
+  /*
+    The length is the academy's own rule (Settings → قواعد جلسه → مدت پیش‌فرض
+    جلسه) when the caller has read it, and the shipped constant when it has not.
+    A make-up is a lesson, so it lasts as long as a lesson lasts — an academy that
+    teaches 90-minute sessions should not be handed a 60-minute proposal every
+    time, and then have to notice and correct it.
+  */
+  const length = Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : DEFAULT_COMPENSATION_MINUTES;
+  const endTime = addMinutes(original.startTime, length);
   if (endTime === null) return null;
   return {
     date: original.date,
