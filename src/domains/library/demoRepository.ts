@@ -74,6 +74,9 @@ export class DemoLibraryRepository implements LibraryRepository {
       size: asset ? sizeLabel(asset.sizeBytes) : UNKNOWN_SIZE,
       visibility: input.visibility ?? "students",
       active: input.active ?? true,
+      ...(input.restrictedToStudentIds !== undefined
+        ? { restrictedToStudentIds: [...input.restrictedToStudentIds] }
+        : {}),
       ...(input.pages !== undefined ? { pages: input.pages } : {}),
       ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
       ...(input.peaks ? { peaks: input.peaks } : {}),
@@ -98,6 +101,9 @@ export class DemoLibraryRepository implements LibraryRepository {
       ...(input.peaks !== undefined ? { peaks: input.peaks } : {}),
       ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
+      ...(input.restrictedToStudentIds !== undefined
+        ? { restrictedToStudentIds: [...input.restrictedToStudentIds] }
+        : {}),
       ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
     };
 
@@ -161,6 +167,16 @@ export class DemoLibraryRepository implements LibraryRepository {
     }
     if (input.durationSeconds !== undefined && (!Number.isFinite(input.durationSeconds) || input.durationSeconds < 0)) {
       fields.durationSeconds = ["مدت زمان معتبر نیست."];
+    }
+    /*
+      A restriction naming students the academy does not hold would be an access
+      rule about nobody — worse than no rule, because it reads as a decision.
+    */
+    if (input.restrictedToStudentIds !== undefined) {
+      const unknown = input.restrictedToStudentIds.filter((id) => !this.store.students.find(id));
+      if (unknown.length > 0) {
+        fields.restrictedToStudentIds = ["هر شناسهٔ هنرجو در فهرست محدودیت باید هنرجوی ثبت‌شده باشد."];
+      }
     }
 
     return fields;

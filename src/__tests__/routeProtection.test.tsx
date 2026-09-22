@@ -20,7 +20,7 @@ function useIsolatedAuth() {
 }
 
 beforeEach(() => {
-  window.location.hash = "";
+  window.history.replaceState(null, "", "/");
   resetToDemoEnvironment();
   demoDataManager.initialize();
 });
@@ -28,7 +28,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetRegistry();
-  window.location.hash = "";
+  window.history.replaceState(null, "", "/");
 });
 
 describe("route protection", () => {
@@ -61,7 +61,13 @@ describe("route protection", () => {
     await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
     render(<App />);
     await waitFor(() => expect(screen.getByRole("navigation", { name: "ناوبری اصلی" })).toBeTruthy());
-    expect(window.location.hash).toBe("#/finance");
+    /*
+      The fragment route is honoured AND migrated: the address bar the panel
+      writes is a path, so an old-style link arrives as one on first paint. The
+      migration is an effect that settles after the shell paints, so the address
+      bar is awaited rather than sampled on the same tick as the navigation.
+    */
+    await waitFor(() => expect(window.location.pathname).toBe("/finance"), { timeout: 8000 });
   });
 
   it("blocks an unauthorized view even via a deep link", async () => {
@@ -94,8 +100,14 @@ describe("route protection", () => {
     await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "جبرانی" })).toBeTruthy());
-    expect(window.location.hash).toBe("#/compensation");
+    /*
+      The routed views are lazy chunks; under a loaded machine the dynamic
+      import can outlive waitFor's one-second default, which is a scheduling
+      fact, not a routing defect — so the deep-link assertions give the chunk a
+      real budget instead of sampling mid-flight.
+    */
+    await waitFor(() => expect(screen.getByRole("heading", { name: "جبرانی" })).toBeTruthy(), { timeout: 8000 });
+    expect(window.location.pathname).toBe("/compensation");
     // The dashboard's own headline is the tell that the hash was ignored.
     expect(screen.queryByText("نبض آموزشگاه")).toBeNull();
   });

@@ -7,12 +7,16 @@
  * old unit and their numbers will not mean the same thing.
  */
 import { useMemo } from "react";
+import { Library } from "lucide-react";
 import { Button } from "@/components/ds/primitives";
+import { useApp } from "@/context/AppContext";
 import { Dialog, Field, Toggle, inputCls } from "@/components/ds/patterns";
 import { getProgressRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { usePrograms } from "@/domains/learning/useLearning";
+import { useLibraryList } from "@/domains/library/useLibrary";
+import { resourceKindLabel } from "@/domains/library/types";
 import { MAX_RANGE_VALUE, RANGE_UNIT_LABEL, type Piece, type ProgressRangeUnit } from "./types";
 import { cn } from "@/utils/cn";
 
@@ -25,6 +29,8 @@ interface PieceDraft {
   rangeUnit: ProgressRangeUnit;
   totalRange: string;
   active: boolean;
+  /** Library rows attached to the piece — the repertoire ↔ library seam. */
+  contentIds: string[];
 }
 
 const RANGE_UNITS = Object.keys(RANGE_UNIT_LABEL) as ProgressRangeUnit[];
@@ -39,6 +45,7 @@ function toDraft(piece: Piece | undefined, fallbackInstrument: string): PieceDra
     rangeUnit: piece?.rangeUnit ?? "measure",
     totalRange: piece?.totalRange !== undefined ? String(piece.totalRange) : "",
     active: piece ? piece.active : true,
+    contentIds: piece?.contentIds ?? [],
   };
 }
 
@@ -71,7 +78,9 @@ export function PieceFormDialog({
   onSaved: (piece: Piece, mode: "create" | "edit") => void;
 }) {
   const editing = piece !== undefined;
+  const { navigate } = useApp();
   const catalog = useInstrumentCatalog();
+  const { items: libraryItems, loading: libraryLoading } = useLibraryList({ per_page: 200 });
   const { items: programs, loading: programsLoading, error: programsError, reload: reloadPrograms } = usePrograms({ per_page: 200 });
   const repository = useMemo(() => getProgressRepository(), []);
   const activeInstruments = catalog.filter((i) => i.active || i.id === piece?.instrumentId);
@@ -93,6 +102,7 @@ export function PieceFormDialog({
             ? undefined
             : Number(draft.totalRange),
         active: draft.active,
+        contentIds: draft.contentIds,
       };
       if (editing) return repository.updatePiece(piece.id, payload);
       return repository.createPiece(payload);
@@ -271,6 +281,55 @@ export function PieceFormDialog({
             />
           )}
         </Field>
+
+        <fieldset className="sm:col-span-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
+          <legend className="px-1 text-[10.5px] text-ink-400">محتوای آموزشی پیوست (از کتابخانه)</legend>
+          {libraryLoading ? (
+            <p className="text-[11px] text-ink-500">در حال بارگذاری کتابخانه…</p>
+          ) : libraryItems.length === 0 ? (
+            <p className="text-[11px] text-ink-500">کتابخانه خالی است؛ نخست فایل را آنجا بارگذاری کنید.</p>
+          ) : (
+            <div className="max-h-36 space-y-1 overflow-y-auto pl-1">
+              {libraryItems.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-ink-200 hover:bg-white/[0.04]"
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-gold-500"
+                    checked={form.draft.contentIds.includes(item.id)}
+                    disabled={busy}
+                    onChange={(e) =>
+                      form.set(
+                        "contentIds",
+                        e.target.checked
+                          ? [...form.draft.contentIds, item.id]
+                          : form.draft.contentIds.filter((id) => id !== item.id),
+                      )
+                    }
+                  />
+                  <span className="truncate">{item.title}</span>
+                  <span className="shrink-0 text-[10px] text-ink-500">{resourceKindLabel[item.kind]}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-[10.5px] leading-relaxed text-ink-500">
+            آپلود فایل جدید در کتابخانه انجام می‌شود؛ پس از آن، همین‌جا به قطعه پیوست می‌شود.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              onClose();
+              navigate({ view: "library" });
+            }}
+          >
+            <Library className="size-3.5" /> رفتن به کتابخانه
+          </Button>
+        </fieldset>
 
         <div className="sm:col-span-2 flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
           <div>

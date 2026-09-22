@@ -146,7 +146,9 @@ describe("the seeded demo file", () => {
     expect(second.metadataWritten).toBe(false);
     expect(second.linked).toBe(false);
     // Still exactly one asset: no duplicates, no orphans.
-    expect(demoStore.media.all()).toHaveLength(1);
+    // The gallery's image rows are seeded, not provisioned here; the library's
+    // document must still be the ONLY document asset: no duplicates, no orphans.
+    expect(demoStore.media.all().filter((asset) => asset.kind === "document")).toHaveLength(1);
   });
 
   it("re-links the demo row when a persisted dataset predates the link", async () => {

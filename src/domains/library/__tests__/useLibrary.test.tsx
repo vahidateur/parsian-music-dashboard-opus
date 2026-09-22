@@ -299,7 +299,9 @@ describe("useDemoLibraryFile — provisioning", () => {
       expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
     });
 
-    expect(demoStore.media.all()).toHaveLength(1);
+    // The gallery's image rows are seeded, not provisioned here; the library's
+    // document must still be the ONLY document asset: no duplicates, no orphans.
+    expect(demoStore.media.all().filter((asset) => asset.kind === "document")).toHaveLength(1);
     expect((await getLibraryRepository().list({ per_page: 200 })).meta.total).toBeGreaterThan(0);
   });
 
