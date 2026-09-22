@@ -486,6 +486,165 @@
   }
 }
 
+/* ------------------------------------------------------------------
+   Login — the ancient sanctuary doorway.
+
+   Stone tokens: the sanctuary masonry is a cool charcoal granite (the
+   artwork's stone), deliberately a step cooler than the warm `ink` ramp —
+   it is the architecture of the mountain, not a page surface.
+------------------------------------------------------------------ */
+
+/*
+  THE SHARED COORDINATE SYSTEM.
+
+  The backdrop is painted with object-cover + a 1.05 seat zoom, so the
+  artwork's on-screen box is a pure function of the viewport:
+
+    stage = max(viewport edge, other edge × artwork ratio) × 1.05
+
+  (1600×893 → ratio 1.791713, inverse 0.558125.) `.login-stage` below draws
+  exactly that box, and `--stage-w/--stage-h/--stage-top` expose it as
+  lengths — one coordinate system shared by the painting and the DOM.
+
+  Measured pixel census of the artwork (fractions of the 1600×893 stage):
+
+    tunnel opening   x 690..910   = 0.1375 w   crown y ≈ 227 = 0.2542 h
+    rune band outer  x 655..945   = 0.181  w
+    structure outer  x 520..1015  = 0.309  w   cornice y ≈ 102 = 0.114 h
+    waterline        y ≈ 670      = 0.7503 h
+
+  THE FORM IS A FIXED-PROPORTION OBJECT; THE ARCH IS ITS SAFE REGION.
+
+  The login panel keeps its own compact premium proportions (a 400-px design
+  grid, ≈450 px tall at full size) — it never grows to fill the arch. The
+  architecture only BOUNDS it, through ONE shared unit:
+
+    --form-cap-w : the widest the stone silhouette allows (0.264 w ≈ 88% of
+                   the structure span), capped at the 400-px design width;
+    --form-u     : one design pixel = min(width ratio, opening ratio) — the
+                   available arch height (crown → waterline) over 480 design
+                   px of column. Whichever constraint binds, both shrink
+                   together;
+    --form-w     : u × 400 (floored at 300) — the width FOLLOWS the same
+                   unit, so the panel keeps its design aspect as it scales
+                   and can never go squat (too wide, crushed rhythm) or tall
+                   (stretched) relative to its own proportions.
+
+  Every spacing/type/control length is a design-px × u with a usability
+  floor (38 px fields, 40 px button, ≥11.5 px body), so the panel steps
+  down as a whole on short viewports while staying operable.
+
+  Anchoring: the column starts at --arch-open-top-y (just under the tunnel
+  crown, a pure stage fraction), so the rune apex stays visible above the
+  panel and the panel ends above the waterline. No transform scaling, no
+  per-height breakpoints — everything derives from the same cover math the
+  painter uses.
+*/
+:root {
+  --stage-ar: 1.791713;
+  --stage-ar-inv: 0.558125;
+  --stage-zoom: 1.05;
+  --arch-open-top-f: 0.26; /* a hair under the measured crown (0.2542) */
+  --arch-waterline-f: 0.7503;
+  --arch-safe-h-f: 0.4903; /* waterline − open top */
+}
+
+.login-root {
+  --stage-w: calc(max(100vw, 100vh * var(--stage-ar)) * var(--stage-zoom));
+  --stage-h: calc(max(100vh, 100vw * var(--stage-ar-inv)) * var(--stage-zoom));
+  /* Where the stage sits in the viewport (negative when the artwork is
+     cropped), and therefore where the tunnel crown BEGINS on screen —
+     the panel column's vertical anchor. */
+  --stage-top: calc((100vh - var(--stage-h)) / 2);
+  --arch-open-top-y: calc(var(--stage-top) + var(--stage-h) * var(--arch-open-top-f));
+  --arch-safe-h: calc(var(--stage-h) * var(--arch-safe-h-f));
+
+  /* The compact premium panel, bounded by the architecture. */
+  --form-cap-w: min(400px, calc(var(--stage-w) * 0.264));
+  --form-u-raw: min(calc(var(--form-cap-w) / 400), calc(var(--arch-safe-h) / 480));
+  --form-u: var(--form-u-raw);
+  --form-w: max(300px, min(var(--form-cap-w), calc(var(--form-u) * 400)));
+
+  /*
+    Second-stage fit: when even the floored panel cannot stand inside the
+    opening (very short arch), the big control floors give a little. Each
+    floor is a length `clamp()` driven by the opening height — at openings
+    ≥ ~372 px they sit at their full value, below they ease toward a still
+    operable minimum. Full-size viewports are untouched. (A unitless factor
+    would need length÷length division, which CSS cannot compute — hence
+    per-property length clamps rather than one scalar.)
+  */
+  --ctl-floor: clamp(32px, calc(var(--arch-safe-h) * 0.102), 38px); /* 32–38 control height floor */
+
+  /* Panel rhythm (design-px × unit → floor for usability). */
+  --p-pad-x: max(20px, calc(var(--form-u) * 24));
+  --p-pad-top: max(clamp(13px, calc(var(--arch-safe-h) * 0.0403), 15px), calc(var(--form-u) * 22));
+  --p-pad-bot: max(clamp(11px, calc(var(--arch-safe-h) * 0.0349), 13px), calc(var(--form-u) * 18));
+  --p-sec-gap: max(clamp(9.5px, calc(var(--arch-safe-h) * 0.0296), 11px), calc(var(--form-u) * 16));
+  --p-field-gap: max(7px, calc(var(--form-u) * 9)); /* the two fields sit close */
+  --p-rec-gap: max(9px, calc(var(--form-u) * 13));
+  /* Controls. */
+  --p-input-h: max(var(--ctl-floor), calc(var(--form-u) * 48));
+  --p-btn-h: max(clamp(34px, calc(var(--arch-safe-h) * 0.107), 40px), calc(var(--form-u) * 50));
+  --p-icon-w: max(var(--ctl-floor), calc(var(--form-u) * 44));
+  --p-text: max(11.5px, calc(var(--form-u) * 13.5));
+  --p-text-sm: max(10px, calc(var(--form-u) * 11.5));
+  --p-text-xs: max(9.5px, calc(var(--form-u) * 11));
+  /* Brand block. */
+  --p-word-f: max(16px, calc(var(--form-u) * 24));
+  --p-sub-f: max(7.5px, calc(var(--form-u) * 10.5));
+  --p-tag-f: max(10px, calc(var(--form-u) * 13));
+  --p-lyre: max(19px, calc(var(--form-u) * 30));
+  --p-star: max(6px, calc(var(--form-u) * 10));
+}
+
+/*
+  Below `lg` the panel scrolls over the artwork instead of sitting framed by
+  the opening, so the height-bound unit would shrink it for nothing — relax
+  the unit back toward the design size; the viewport caps the width anyway.
+*/
+@media (max-width: 63.99em) {
+  .login-root {
+    --form-u: max(var(--form-u-raw), 0.92px);
+  }
+}
+
+/* Small-viewport bars: re-anchor the stage to the stable small viewport. */
+@supports (height: 100svh) {
+  .login-root {
+    --stage-w: calc(max(100vw, 100svh * var(--stage-ar)) * var(--stage-zoom));
+    --stage-h: calc(max(100svh, 100vw * var(--stage-ar-inv)) * var(--stage-zoom));
+    --stage-top: calc((100svh - var(--stage-h)) / 2);
+    --arch-open-top-y: calc(var(--stage-top) + var(--stage-h) * var(--arch-open-top-f));
+    --arch-safe-h: calc(var(--stage-h) * var(--arch-safe-h-f));
+  }
+}
+
+/* The artwork's own box — the exact rectangle object-cover would paint,
+   expressed as a laid-out element so DOM can share its coordinate system. */
+.login-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  translate: -50% -50%;
+}
+
+/* Portal ambience — sun-ray shimmer, drifting motes.
+   All decorative; the global reduced-motion / [data-motion=off] contract
+   freezes them (motes animate to opacity 0 at their final keyframe). */
+@keyframes rayShift {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+@keyframes moteFloat {
+  0%   { transform: translateY(0);     opacity: 0; }
+  12%  {                               opacity: 0.55; }
+  80%  {                               opacity: 0.3; }
+  100% { transform: translateY(-96px); opacity: 0; }
+}
+
 /* Gallery backdrop: a slow breathe for the header photograph. Decorative only —
    the element also carries `motion-reduce` semantics via reduced-motion below. */
 @keyframes kenburns {
