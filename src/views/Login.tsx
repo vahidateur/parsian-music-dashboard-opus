@@ -10,6 +10,7 @@ import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecovery
 import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
 import { roleLabel } from "@/domains/auth/permissions";
 import stageImage from "@/assets/login-stage.jpg";
+import { BrandMark } from "@/components/layout/Sidebar";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
 import { cn } from "@/utils/cn";
 
@@ -136,9 +137,14 @@ export function LoginView() {
       <div className="relative z-10 flex min-h-svh flex-col lg:flex-row">
         {/* Brand side */}
         <section className="hidden flex-1 flex-col justify-between p-12 lg:flex xl:p-16">
-          <div className="flex items-center gap-2.5">
-            <StageMark />
-            <span className="font-display text-[15px] tracking-[0.14em] text-gold-300">AVA</span>
+          {/* The academy's own mark and name — the same identity the rail and
+              the top bar carry, so the first screen and the shell are one brand. */}
+          <div className="flex items-center gap-3">
+            <BrandMark />
+            <span className="min-w-0">
+              <span className="block truncate text-[14px] font-bold tracking-tight text-ink-50">{branding.academyName}</span>
+              <span className="mt-0.5 block truncate text-[10.5px] tracking-[0.06em] text-gold-500/90">پنل مدیریت آموزشگاه</span>
+            </span>
           </div>
 
           <div className="max-w-[30ch] animate-[loginRise_720ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
@@ -162,14 +168,24 @@ export function LoginView() {
         <section className="flex w-full flex-1 items-center justify-center px-5 py-10 [@media(max-height:700px)]:py-6 sm:px-8 lg:w-[32%] lg:max-w-[560px] lg:flex-none lg:px-10">
           <div className="w-full max-w-[430px] animate-[loginRise_620ms_cubic-bezier(0.16,1,0.3,1)_both] motion-reduce:animate-none">
             {/* Compact wordmark for small screens, where the brand panel is hidden. */}
-            <div className="mb-7 flex items-center gap-2.5 lg:hidden">
-              <StageMark />
-              <span className="font-display text-[14px] tracking-[0.14em] text-gold-300">AVA</span>
+            <div className="mb-7 flex items-center gap-3 lg:hidden">
+              <BrandMark />
+              <span className="min-w-0">
+                <span className="block truncate text-[13px] font-bold tracking-tight text-ink-50">{branding.academyName}</span>
+                <span className="mt-0.5 block truncate text-[10px] tracking-[0.06em] text-gold-500/90">پنل مدیریت آموزشگاه</span>
+              </span>
             </div>
 
+            {/*
+              The form plate. It carries the SAME focal treatment as the rail and
+              the hero (`.surface-ornate`: gilt edge, wide falloff, 28px corners)
+              plus a heavier blur, so the entrance of the product speaks the same
+              language as its inside — and a theme or a typed colour moves it too,
+              which the hardcoded rgba fill it used to carry could not do.
+            */}
             <div
-              className="rounded-[28px] border border-white/[0.07] p-7 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.85)] sm:p-10 [@media(max-height:700px)]:p-6"
-              style={{ background: "rgba(10,12,18,0.42)", backdropFilter: "blur(28px)" }}
+              className="surface-ornate p-7 backdrop-blur-2xl sm:p-10 [@media(max-height:700px)]:p-6"
+              style={{ backgroundColor: "color-mix(in srgb, var(--stage-bg) 55%, transparent)" }}
             >
               <div className="mb-7">
                 <div className="text-[11px] font-medium tracking-wide text-gold-400">{branding.tagline}</div>
@@ -333,20 +349,6 @@ const fieldCls =
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 const invalidCls = "border-danger-500/55 focus:border-danger-500/70 focus:ring-danger-500/15";
-
-/** Minimal stage-light wordmark. Decorative, so hidden from assistive tech. */
-function StageMark() {
-  return (
-    <span
-      aria-hidden
-      className="flex size-9 items-center justify-center rounded-xl border border-gold-500/25 bg-gradient-to-b from-gold-500/[0.16] to-transparent"
-    >
-      <span className="block h-3.5 w-px bg-gradient-to-b from-gold-300 to-transparent" />
-      <span className="block h-2.5 w-px bg-gradient-to-b from-gold-400/70 to-transparent" />
-      <span className="block h-4 w-px bg-gradient-to-b from-gold-300/85 to-transparent" />
-    </span>
-  );
-}
 
 /**
  * Local credentials.

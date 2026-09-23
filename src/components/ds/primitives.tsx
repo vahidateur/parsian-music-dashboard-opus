@@ -6,9 +6,16 @@ import { faDelta, NO_DATA } from "@/lib/format";
 /* ------------------------------------------------------------------ */
 /* Surface — a quiet elevated plane                                    */
 /* ------------------------------------------------------------------ */
-export const Surface = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> & { glass?: boolean }>(
-  ({ className, glass, ...rest }, ref) => (
-    <div ref={ref} className={cn(glass ? "surface-glass" : "surface", className)} {...rest} />
+/**
+ * `ornate` selects the focal plate: the gilt edge and the wider, softer shadow
+ * the reference design gives to the chrome that FRAMES the product (the rail,
+ * the hero, a dialog) rather than to every card in a grid. Both variants take
+ * their fill, edge, sheen and shadow from the appearance layer, so a preset or
+ * a hand-typed colour moves them together — see `src/index.css`.
+ */
+export const Surface = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement> & { glass?: boolean; ornate?: boolean }>(
+  ({ className, glass, ornate, ...rest }, ref) => (
+    <div ref={ref} className={cn(glass ? "surface-glass" : ornate ? "surface-ornate" : "surface", className)} {...rest} />
   ),
 );
 Surface.displayName = "Surface";
@@ -35,16 +42,16 @@ export function SectionHeader({
     <div className={cn("flex items-start justify-between gap-4", className)}>
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
-          <h2 className="text-[15px] font-semibold text-ink-50 leading-none">{title}</h2>
+          <h2 className="text-[15.5px] font-semibold leading-none tracking-tight text-ink-50">{title}</h2>
           {aside}
         </div>
-        {kicker && <p className="mt-1.5 text-xs text-ink-300 leading-relaxed">{kicker}</p>}
+        {kicker && <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{kicker}</p>}
       </div>
       {action && (
         <button
           type="button"
           onClick={onAction}
-          className="group inline-flex shrink-0 items-center gap-1 text-xs text-ink-300 transition-colors duration-[var(--sixteenth)] hover:text-gold-400"
+          className="group inline-flex shrink-0 items-center gap-1 text-xs font-medium text-gold-400 transition-colors duration-[var(--sixteenth)] hover:text-gold-300"
         >
           {action}
           <ChevronLeft className="size-3.5 transition-transform duration-[var(--eighth)] ease-[var(--ease-resonance)] group-hover:-translate-x-0.5" />
@@ -60,12 +67,12 @@ export function SectionHeader({
 export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "gold" | "violet";
 
 const toneClass: Record<Tone, string> = {
-  ok: "text-ok-400 bg-ok-500/10 border-ok-500/20",
-  warn: "text-warn-400 bg-warn-500/10 border-warn-500/20",
-  danger: "text-danger-400 bg-danger-500/10 border-danger-500/25",
-  info: "text-info-400 bg-info-400/10 border-info-400/20",
-  neutral: "text-ink-300 bg-white/[0.04] border-white/[0.07]",
-  gold: "text-gold-400 bg-gold-500/10 border-gold-500/25",
+  ok: "text-ok-400 bg-ok-500/12 border-ok-500/25",
+  warn: "text-warn-400 bg-warn-500/12 border-warn-500/25",
+  danger: "text-danger-400 bg-danger-500/12 border-danger-500/28",
+  info: "text-info-400 bg-info-400/10 border-info-400/22",
+  neutral: "text-ink-300 bg-white/[0.04] border-white/[0.08]",
+  gold: "text-gold-300 bg-gold-500/12 border-gold-500/30",
   violet: "text-violet-300 bg-violet-500/12 border-violet-500/25",
 };
 
@@ -336,9 +343,14 @@ export function Button({ variant = "subtle", size = "md", className, ...rest }: 
       className={cn(
         "inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)] active:scale-[0.985] disabled:opacity-50",
         size === "sm" ? "h-8 px-3 text-xs" : "h-10 px-4 text-sm",
+        /*
+          The primary action is struck metal, not painted yellow: a gilt
+          gradient with a lit top edge, so it reads as the one lit control on a
+          dark slab the way the reference's active states do.
+        */
         variant === "primary" &&
-          "bg-gold-500 text-ink-950 hover:bg-gold-400 shadow-[var(--shadow-accent)]",
-        variant === "subtle" && "border border-white/[0.08] bg-white/[0.03] text-ink-100 hover:bg-white/[0.06] hover:border-white/[0.14]",
+          "border border-gold-400/35 bg-gradient-to-b from-gold-300 to-gold-500 text-ink-950 shadow-[var(--shadow-accent)] hover:from-gold-200 hover:to-gold-400",
+        variant === "subtle" && "border border-white/[0.08] bg-white/[0.03] text-ink-100 hover:border-white/[0.16] hover:bg-white/[0.06]",
         variant === "ghost" && "text-ink-200 hover:bg-white/[0.05] hover:text-ink-50",
         className,
       )}

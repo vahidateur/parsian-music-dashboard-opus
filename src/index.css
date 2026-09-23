@@ -11,8 +11,16 @@
 @import "@fontsource/vazirmatn/700.css";
 
 /* ------------------------------------------------------------------
-   Design tokens — "Ava Music Academy OS"
-   Foundation: warm charcoal · wood · restrained gold · quiet violet
+   Design tokens — "Parsian Stage"
+
+   Foundation: warm charcoal · candlelit gold · quiet violet.
+
+   The reference language these tokens encode: a near-black warm stage, panels
+   that float on it as translucent slabs with a gilt edge, one amber accent used
+   sparingly (active nav, arcs, the pulse), tabular Persian numerals set large
+   and calm, and generous corner radii. Nothing here is decoration for its own
+   sake — every value is consumed by a component through a semantic name, so a
+   theme, an accent or a hand-typed colour moves the whole product at once.
 ------------------------------------------------------------------- */
 @theme {
   /*
@@ -27,11 +35,23 @@
     Latin display face for the wordmark only — never Persian body copy.
     Deliberately NOT a webfont: bundling @fontsource/playfair-display added
     ~200 kB of Cyrillic and Vietnamese subsets to serve a three-letter mark.
-    System serifs render "AVA" identically at this size and cost nothing.
+    System serifs render the wordmark identically at this size and cost nothing.
   */
   --font-display: Georgia, "Times New Roman", serif;
 
-  /* Ink — warm charcoal foundation */
+  /*
+    Radii — the stage language in one lever. The reference's slabs are soft: a
+    control is a soft lozenge, a panel is a 20px slab, the focal chrome (hero,
+    rail) is a 28px plate. Redefining the scale here is what lets the same
+    `rounded-2xl` in forty components render the new shape at once, instead of a
+    sweep that misses places.
+  */
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  /* Ink — warm charcoal foundation (fallbacks; the appearance layer derives them) */
   --color-ink-950: #0a0908;
   --color-ink-900: #0f0e0c;
   --color-ink-850: #14120f;
@@ -41,14 +61,18 @@
   --color-ink-600: #342d27;
   --color-ink-500: #4b423a;
   --color-ink-400: #847a6d;
+  --color-ink-300: #958b7f;
+  --color-ink-200: #b9b0a4;
+  --color-ink-100: #e2dbd1;
+  --color-ink-50: #f5f0e8;
 
   /*
     On-image ink — text that sits ON a photograph (gallery captions, lightbox
-    chrome). A theme preset rightly flips `white` and the ink ramp for page
-    surfaces, but a photograph does not flip with the stage: light text on a
-    dark image must stay light in every preset. These three tokens are that
-    constant, and they are tokens rather than solid `white` utilities so the
-    appearance gate's "no solid white in source" premise keeps holding.
+    chrome). A theme preset rightly flips the ink ramp for page surfaces, but a
+    photograph does not flip with the stage: light text on a dark image must stay
+    light in every preset. These three tokens are that constant, and they are
+    tokens rather than solid `white` utilities so the appearance gate's "no solid
+    white in source" premise keeps holding.
   */
   --color-photo-fg: #f6f2ea;
   --color-photo-muted: rgb(246 242 234 / 0.68);
@@ -56,12 +80,9 @@
 
   /* Extra breakpoint: wide laptops/desktops where the 3-panel row has room for inline actions */
   --breakpoint-wide: 1400px;
-  --color-ink-300: #958b7f;
-  --color-ink-200: #b9b0a4;
-  --color-ink-100: #e2dbd1;
-  --color-ink-50: #f5f0e8;
 
-  /* Gold — stage light, used sparingly */
+  /* Gold — stage light, used sparingly. Warmer and a touch deeper than v1, so a
+     gilt edge reads as metal rather than as yellow paint. */
   --color-gold-200: #f6e6b8;
   --color-gold-300: #efd89a;
   --color-gold-400: #e4c57a;
@@ -70,7 +91,7 @@
   --color-gold-700: #8f6a2c;
 
   /* Wood — acoustic walls */
-  --color-wood-400: #a8733f;
+  --color-wood-400: #b07a44;
   --color-wood-500: #8a5a34;
   --color-wood-700: #5a3a22;
 
@@ -80,14 +101,15 @@
   --color-violet-500: #8b75dc;
   --color-violet-600: #6e5bb8;
 
-  /* Semantic */
-  --color-ok-400: #86c99a;
-  --color-ok-500: #5fb57a;
-  --color-warn-400: #ecb95e;
-  --color-warn-500: #e0a030;
-  --color-danger-400: #ed837a;
-  --color-danger-500: #e0645a;
-  --color-info-400: #85b6e4;
+  /* Semantic — the reference's legend palette: mint for money received, amber
+     for outstanding, brick for what went wrong. */
+  --color-ok-400: #7fd0a8;
+  --color-ok-500: #4aa07c;
+  --color-warn-400: #eec06a;
+  --color-warn-500: #dc9a2c;
+  --color-danger-400: #e8857a;
+  --color-danger-500: #d0564a;
+  --color-info-400: #8ab7e6;
 
   /* Motion — tempo based (♩ = 120 bpm → 500ms) */
   --ease-resonance: cubic-bezier(0.22, 1, 0.36, 1);
@@ -161,8 +183,14 @@
   --beat: 500ms;
   --eighth: 250ms;
   --sixteenth: 125ms;
-  --sidebar-w: 264px;
-  --rail-w: 76px;
+  /*
+    Chrome geometry. The rail FLOATS over the stage in the reference language
+    rather than sitting flush against the viewport edge, so the app shell is
+    offset by these plus the gutter written next to them in `Shell`.
+  */
+  --sidebar-w: 272px;
+  --rail-w: 84px;
+  --rail-gutter: 14px;
   --shadow-accent: 0 8px 24px -12px color-mix(in srgb, var(--accent-500) 60%, transparent);
   color-scheme: dark;
 }
@@ -215,15 +243,34 @@
   --stage-elevated: color-mix(in srgb, var(--stage-bg) 80%, var(--stage-mix));
 
   /* Surface treatment, consumed by `.surface` below. */
-  --surface-bg: color-mix(in srgb, var(--stage-surface) 90%, transparent);
-  --surface-border: color-mix(in srgb, var(--stage-fg) 8%, transparent);
+  --surface-bg: color-mix(in srgb, var(--stage-surface) 92%, transparent);
+  --surface-border: color-mix(
+    in srgb,
+    var(--accent-500) 12%,
+    color-mix(in srgb, var(--stage-fg) 7%, transparent)
+  );
   --surface-sheen: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--stage-fg) 3%, transparent),
-    transparent 40%
+    color-mix(in srgb, var(--stage-fg) 5%, transparent),
+    transparent 46%
   );
   --surface-shadow: 0 1px 0 color-mix(in srgb, var(--stage-fg) 4%, transparent) inset,
-    0 20px 40px -24px rgb(0 0 0 / 0.6);
+    0 24px 48px -32px rgb(0 0 0 / 0.75),
+    0 0 34px -24px color-mix(in srgb, var(--accent-500) 70%, transparent);
+
+  /*
+    The focal treatment — used by the chrome that frames the product (the
+    floating rail, the hero plate, a dialog) rather than by every card. A gilt
+    edge and a wider, softer shadow: the slab reads as metal-lit from behind.
+  */
+  --surface-border-strong: color-mix(
+    in srgb,
+    var(--accent-500) 24%,
+    color-mix(in srgb, var(--stage-fg) 9%, transparent)
+  );
+  --surface-ornament: 0 1px 0 color-mix(in srgb, var(--stage-fg) 6%, transparent) inset,
+    0 30px 70px -44px rgb(0 0 0 / 0.92),
+    0 0 52px -22px color-mix(in srgb, var(--accent-500) 50%, transparent);
 
   /* The neutral ramp, now relative: higher numbers sit closer to the stage.
      `--stage-mix` sets the direction, so the same percentages build a dark UI
@@ -263,7 +310,11 @@
   --theme-bg: #0b0a09;
   --theme-surface: color-mix(in srgb, var(--theme-bg) 62%, transparent);
   --surface-bg: color-mix(in srgb, var(--stage-surface) 72%, transparent);
-  --surface-border: color-mix(in srgb, var(--stage-fg) 12%, transparent);
+  --surface-border: color-mix(
+    in srgb,
+    var(--accent-500) 18%,
+    color-mix(in srgb, var(--stage-fg) 12%, transparent)
+  );
   --surface-shadow: 0 1px 0 color-mix(in srgb, var(--stage-fg) 8%, transparent) inset,
     0 24px 64px -24px rgb(0 0 0 / 0.72);
 }
@@ -280,7 +331,11 @@
   --theme-mix: #000000;
   --theme-surface: color-mix(in srgb, var(--theme-bg) 97%, var(--theme-mix));
   --surface-bg: color-mix(in srgb, var(--stage-surface) 97%, transparent);
-  --surface-border: color-mix(in srgb, var(--stage-fg) 13%, transparent);
+  --surface-border: color-mix(
+    in srgb,
+    var(--accent-600) 22%,
+    color-mix(in srgb, var(--stage-fg) 13%, transparent)
+  );
   --surface-sheen: none;
   --surface-shadow: 0 14px 34px -26px rgb(25 21 18 / 0.5);
   color-scheme: light;
@@ -324,9 +379,9 @@
   50%      { transform: scaleY(1);    opacity: 1; }
 }
 @keyframes live {
-  0%   { box-shadow: 0 0 0 0 rgba(95, 181, 122, 0.45); }
-  70%  { box-shadow: 0 0 0 7px rgba(95, 181, 122, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(95, 181, 122, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(74, 160, 124, 0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(74, 160, 124, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 160, 124, 0); }
 }
 @keyframes resonance {
   0%   { transform: scale(0.7); opacity: 0.7; }
@@ -439,6 +494,46 @@
     -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
   /*
+    The focal plate — the rail, the hero, a dialog. Same mechanism as
+    `.surface`, a heavier cut: a gilt edge, a wider falloff, a 28px corner. It
+    exists as a class rather than as a pile of utilities so the chrome that
+    frames the product stays one decision in one place.
+  */
+  .surface-ornate {
+    @apply relative rounded-3xl border;
+    background-color: var(--surface-bg);
+    background-image: var(--surface-sheen);
+    border-color: var(--surface-border-strong);
+    box-shadow: var(--surface-ornament);
+  }
+  /*
+    The stage itself: three candle-glow pools behind everything — amber from the
+    top-right (the hall's stage light), a cold violet from the bottom-left (the
+    practice rooms), and a wide warm centre wash. Painted from the accent, so it
+    follows the academy's identity instead of a fixed rgba triple.
+  */
+  .stage-backdrop {
+    background:
+      radial-gradient(1100px 560px at 88% -12%, color-mix(in srgb, var(--accent-600) 26%, transparent), transparent 62%),
+      radial-gradient(880px 540px at 4% 106%, color-mix(in srgb, var(--color-violet-600) 16%, transparent), transparent 60%),
+      radial-gradient(1400px 760px at 50% 34%, color-mix(in srgb, var(--accent-700) 9%, transparent), transparent 72%);
+  }
+  /*
+    The active navigation row: a gilt lozenge lit from within. It is a class
+    because the rail and the mobile drawer must render the SAME lit row; two
+    utility piles would drift the moment one of them was tuned.
+  */
+  .nav-pill-active {
+    border-color: color-mix(in srgb, var(--accent-400) 42%, transparent);
+    background-image: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent-500) 26%, transparent),
+      color-mix(in srgb, var(--accent-500) 8%, transparent)
+    );
+    box-shadow: 0 0 26px -12px color-mix(in srgb, var(--accent-500) 85%, transparent),
+      0 1px 0 color-mix(in srgb, var(--stage-fg) 7%, transparent) inset;
+  }
+  /*
     Glass theme — the secondary surface language. The translucency, the brighter
     edge and the deeper blur all live in the preset block above as token values;
     what stays here is the one thing a token cannot express: keeping a nested
@@ -447,11 +542,25 @@
   [data-theme="glass"] .surface > * {
     isolation: isolate;
   }
+  [data-theme="glass"] .surface-ornate {
+    backdrop-filter: blur(22px) saturate(135%);
+    -webkit-backdrop-filter: blur(22px) saturate(135%);
+  }
   .hairline-gold {
     background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent-500) 55%, transparent), transparent);
   }
   .nums {
     font-variant-numeric: tabular-nums;
+  }
+  /*
+    The display numeral: the four figures across the hero, the clock, a KPI.
+    Tabular, tightly tracked, with the digits sitting on their own baseline so a
+    row of numbers reads as one instrument rather than four labels.
+  */
+  .numeral {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    font-feature-settings: "ss01";
   }
   .ring-live {
     animation: live 2s var(--ease-legato) infinite;

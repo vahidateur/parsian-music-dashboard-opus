@@ -41,7 +41,7 @@ export function Intelligence({
 
   return (
     <section
-      className={cn("relative flex flex-col overflow-hidden rounded-2xl border border-violet-500/15 bg-ink-900", className)}
+      className={cn("surface-ornate relative flex flex-col overflow-hidden", className)}
       aria-labelledby="intel-title"
     >
       {/* resonance texture — piano strings, kept far in the background */}
@@ -52,11 +52,11 @@ export function Intelligence({
       <div className="relative flex flex-1 flex-col p-5">
         <header className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/10 text-violet-300" aria-hidden>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-violet-400/30 bg-violet-500/10 text-violet-300" aria-hidden>
               <Activity className="size-4" strokeWidth={1.8} />
             </span>
             <div>
-              <h2 id="intel-title" className="text-[15px] font-semibold leading-none text-ink-50">
+              <h2 id="intel-title" className="text-[16px] font-semibold leading-none tracking-tight text-ink-50">
                 هوش آموزشگاه
               </h2>
               <p className="mt-1.5 text-xs text-ink-300">

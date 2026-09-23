@@ -173,7 +173,9 @@ export function Dashboard() {
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
       {/* 1 · Hero / academy context */}
       <div className="order-1 lg:order-none lg:col-span-12 flex flex-col gap-3">
-        <Hero compact={!isDesktop} stats={hero.stats} pulse={pulse} />
+        {/* The hero's period control and the filter panel below are ONE state:
+            switching «هفته» on the plate moves the same range the panel shows. */}
+        <Hero compact={!isDesktop} stats={hero.stats} pulse={pulse} period={rangePreset} onPeriod={applyPreset} />
         {/* The live clock sits under the hero: seconds-precision time is a
             display concern, and keeping it out of the hero stops a once-a-second
             tick from re-rendering the day's picture. */}

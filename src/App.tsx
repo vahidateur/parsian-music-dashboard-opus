@@ -136,19 +136,24 @@ function Shell() {
 
   return (
     <div className="min-h-screen bg-ink-950 text-ink-50">
-      {/* stage light — a single, quiet warm glow from the top-right like a spotlight over the hall */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(900px 480px at 88% -10%, rgba(138,90,52,0.16), transparent 60%), radial-gradient(700px 400px at 10% 110%, rgba(110,91,184,0.08), transparent 60%)",
-        }}
-      />
+      {/*
+        Stage light — one warm pool from the top-right like a spotlight over the
+        hall, a cold violet from the practice rooms, and a wide centre wash.
+        It is `.stage-backdrop` rather than an inline gradient so the glow is
+        painted from the active accent: the academy's own identity lights its own
+        room, and a preset or a typed colour moves the light with the panels.
+      */}
+      <div className="stage-backdrop pointer-events-none fixed inset-0 z-0" aria-hidden />
 
       <Sidebar mobileOpen={menuOpen} onClose={() => setMenuOpen(false)} />
 
-      <div className={cn("relative z-10 lg:mr-[var(--rail-w)]", !railCollapsed && "xl:mr-[var(--sidebar-w)]")}>
+      {/* The rail floats, so the content clears its width PLUS its gutter. */}
+      <div
+        className={cn(
+          "relative z-10 lg:mr-[calc(var(--rail-w)+var(--rail-gutter))]",
+          !railCollapsed && "xl:mr-[calc(var(--sidebar-w)+var(--rail-gutter))]",
+        )}
+      >
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
           {/* D8: in api mode the demo-backed domains are declared, always. */}
