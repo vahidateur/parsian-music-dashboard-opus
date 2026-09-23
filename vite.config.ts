@@ -110,7 +110,17 @@ export default defineConfig({
       "Content-Security-Policy-Report-Only": PRODUCTION_CSP,
       "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
       "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
+      /*
+        X-Frame-Options is deliberately NOT sent in development.
+
+        Production still sends `DENY` — from deploy/nginx.conf and
+        deploy/Caddyfile, which are the real edge configs and are untouched
+        by this block. This block is Vite's dev server only, and a dev server
+        that refuses to be framed cannot be opened inside a hosted preview
+        (or Storybook-like) iframe, so the clickjacking backstop is restored
+        where it actually defends something and dropped where it only blocks
+        the developer looking at their own work.
+      */
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     },

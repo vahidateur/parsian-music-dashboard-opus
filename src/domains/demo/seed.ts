@@ -159,6 +159,11 @@ export function createOrganizationSettings(): DemoDataset["organization"] {
 
 /** Builds the canonical dataset. Pure and deterministic. */
 export function createSeedDataset(): DemoDataset {
+  // The catalogue projection and curriculum projection share the same logical
+  // resource ids. `withDemoLibraryFile` is still the only place that adds the
+  // demo file link; no bytes are copied into Learning Content.
+  const libraryResources = withDemoLibraryFile(resources);
+
   return clone<DemoDataset>({
     organization: createOrganizationSettings(),
     rooms,
@@ -170,7 +175,7 @@ export function createSeedDataset(): DemoDataset {
     invoices,
     payments: payments as DemoPayment[],
     conversations,
-    resources: withDemoLibraryFile(resources),
+    resources: libraryResources,
     users: deriveUsers(),
     roles: deriveRoles(),
 
@@ -189,7 +194,7 @@ export function createSeedDataset(): DemoDataset {
     instruments: deriveInstruments(),
     programs: derivePrograms(),
     levels: deriveLevels(),
-    learningContent: deriveLearningContent(),
+    learningContent: deriveLearningContent(libraryResources),
     levelContent: deriveLevelContent(),
     placements: derivePlacements(),
     ...(() => {

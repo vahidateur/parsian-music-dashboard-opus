@@ -19,6 +19,7 @@
 import type { ListParams } from "@/api/types";
 import type { InstrumentId } from "@/domains/instruments/types";
 import type { MediaAsset } from "@/domains/media/types";
+import { evaluateResourceAccess, type ResourceId } from "@/domains/resources/types";
 
 /* ------------------------------------------------------------------ */
 /* Catalogue vocabulary — canonical owner (M10)                          */
@@ -34,7 +35,8 @@ export const resourceKindLabel: Record<ResourceKind, string> = { sheet: "نت", 
  * (`DemoDataset.resources`) — the persisted entity this domain manages.
  */
 export interface Resource {
-  id: string;
+  /** Canonical logical resource id; never a MediaAsset id. */
+  id: ResourceId;
   title: string;
   composer: string;
   kind: ResourceKind;
@@ -130,13 +132,18 @@ export type UpdateLibraryItemInput = Partial<CreateLibraryItemInput>;
  * the access. An empty list means "not narrowed", never "nobody".
  */
 export function studentCanAccess(
-  item: Pick<LibraryItem, "visibility" | "restrictedToStudentIds">,
+  item: Pick<LibraryItem, "visibility" | "restrictedToStudentIds" | "active">,
   studentId: string,
 ): boolean {
-  if ((item.visibility ?? "students") !== "students") return false;
-  const restricted = item.restrictedToStudentIds;
-  if (!restricted || restricted.length === 0) return true;
-  return restricted.includes(studentId);
+  return evaluateResourceAccess({
+    actor: { role: "student", id: studentId },
+    hasReadPermission: true,
+    subject: {
+      active: item.active,
+      visibility: item.visibility,
+      restrictedToStudentIds: item.restrictedToStudentIds,
+    },
+  }).allowed;
 }
 
 /* ------------------------------------------------------------------ */

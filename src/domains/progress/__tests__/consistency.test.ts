@@ -183,6 +183,7 @@ describe("content", () => {
     const current = levels.data.find((l) => l.id === placement.levelId)!;
 
     const secret = demoStore.learningContent.create({
+      resourceId: "res_teacher-only-test",
       title: "کلید تصحیح آزمون",
       description: "",
       type: "document",

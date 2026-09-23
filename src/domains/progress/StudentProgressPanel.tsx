@@ -107,12 +107,8 @@ export function StudentProgressPanel({
     student portal will enforce. Shown here because an access level nobody can
     see being applied is a setting, not a decision.
   */
-  const accessible = libraryItems
-    .filter((item) => item.active !== false && studentCanAccess(item, studentId))
-    .slice(0, 6);
-  const accessibleOverflow = libraryItems.filter(
-    (item) => item.active !== false && studentCanAccess(item, studentId),
-  ).length - accessible.length;
+  const accessible = libraryItems.filter((item) => studentCanAccess(item, studentId)).slice(0, 6);
+  const accessibleOverflow = libraryItems.filter((item) => studentCanAccess(item, studentId)).length - accessible.length;
 
   return (
     <div className="space-y-4">

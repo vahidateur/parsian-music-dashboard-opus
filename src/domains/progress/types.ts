@@ -30,6 +30,7 @@
  */
 import type { ListParams } from "@/api/types";
 import type { InstrumentId } from "@/domains/instruments/types";
+import type { ResourceId } from "@/domains/resources/types";
 
 /* ------------------------------------------------------------------ */
 /* Piece / repertoire                                                  */
@@ -64,8 +65,15 @@ export interface Piece {
    * denominator and completion percentage is not derived.
    */
   totalRange?: number;
-  /** Supporting resources: scores, recordings. Never the source of progress. */
-  contentIds: string[];
+  /**
+   * Supporting logical resources: scores, recordings, backing tracks.
+   *
+   * The field name is retained for compatibility with the existing repertoire
+   * contract, but its values are canonical Resource IDs, never Media IDs or
+   * LearningContent projection IDs. A future backend may rename it to
+   * `resourceIds` during an explicit migration.
+   */
+  contentIds: ResourceId[];
   active: boolean;
   /** ISO-8601. */
   createdAt: string;

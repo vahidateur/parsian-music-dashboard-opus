@@ -180,7 +180,10 @@ export class DemoLearningRepository implements LearningRepository {
   /* ----------------------------------------------------------- content */
 
   async listContent(params: LearningContentListParams = {}): Promise<Page<LearningContent>> {
-    let rows = this.store.learningContent.all();
+    // Older demo snapshots predate the canonical bridge. Normalize at the
+    // repository boundary so every consumer receives the new contract without
+    // pretending a backend migration has already happened.
+    let rows = this.store.learningContent.all().map((row) => this.normalizeContent(row));
 
     // Level filtering resolves through the link table so content is never copied.
     if (params.levelId) {
@@ -200,7 +203,7 @@ export class DemoLearningRepository implements LearningRepository {
   async getContent(id: string): Promise<LearningContent> {
     const found = this.store.learningContent.find(id);
     if (!found) throw notFound("CONTENT_NOT_FOUND", `محتوا با شناسهٔ ${id} یافت نشد.`);
-    return found;
+    return this.normalizeContent(found);
   }
 
   async createContent(input: CreateContentInput): Promise<LearningContent> {
@@ -210,17 +213,28 @@ export class DemoLearningRepository implements LearningRepository {
     if (input.mediaId && !this.store.media.find(input.mediaId)) {
       throw validationError("CONTENT_INVALID", "فایل انتخاب‌شده یافت نشد.", { mediaId: ["نامعتبر است"] });
     }
-    return this.store.learningContent.create({ ...input, createdAt: input.createdAt ?? new Date().toISOString() });
+    const resourceId = input.resourceId ?? this.nextResourceId();
+    if (this.learningResourceIsUsed(resourceId)) {
+      throw validationError("CONTENT_INVALID", "شناسهٔ منبع قبلاً به محتوای آموزشی دیگری متصل شده است.", {
+        resourceId: ["شناسهٔ منبع تکراری است"],
+      });
+    }
+    return this.store.learningContent.create({ ...input, resourceId, createdAt: input.createdAt ?? new Date().toISOString() });
   }
 
   async updateContent(id: string, input: UpdateContentInput): Promise<LearningContent> {
-    await this.getContent(id);
+    const existing = await this.getContent(id);
     if (input.mediaId && !this.store.media.find(input.mediaId)) {
       throw validationError("CONTENT_INVALID", "فایل انتخاب‌شده یافت نشد.", { mediaId: ["نامعتبر است"] });
     }
+    if (input.resourceId !== undefined && input.resourceId !== existing.resourceId && this.learningResourceIsUsed(input.resourceId, id)) {
+      throw validationError("CONTENT_INVALID", "شناسهٔ منبع قبلاً به محتوای آموزشی دیگری متصل شده است.", {
+        resourceId: ["شناسهٔ منبع تکراری است"],
+      });
+    }
     const updated = this.store.learningContent.update(id, input);
     if (!updated) throw notFound("CONTENT_NOT_FOUND", `محتوا با شناسهٔ ${id} یافت نشد.`);
-    return updated;
+    return this.normalizeContent(updated);
   }
 
   async deleteContent(id: string): Promise<void> {
@@ -231,6 +245,27 @@ export class DemoLearningRepository implements LearningRepository {
       if (link.contentId === id) this.store.levelContent.remove(link.id);
     }
     this.store.learningContent.remove(id);
+  }
+
+  private normalizeContent(row: LearningContent): LearningContent {
+    return row.resourceId ? row : { ...row, resourceId: row.id };
+  }
+
+  /** A standalone curriculum row receives a logical resource id, not a media id. */
+  private nextResourceId(): string {
+    let suffix = this.store.learningContent.all().length + 1;
+    let candidate = `res_learning_${suffix}`;
+    while (this.learningResourceIsUsed(candidate) || this.store.resources.find(candidate)) {
+      suffix += 1;
+      candidate = `res_learning_${suffix}`;
+    }
+    return candidate;
+  }
+
+  private learningResourceIsUsed(resourceId: string, exceptContentId?: string): boolean {
+    return this.store.learningContent.all().some(
+      (row) => (row.resourceId ?? row.id) === resourceId && row.id !== exceptContentId,
+    );
   }
 
   /* ------------------------------------------------------------- links */
@@ -357,7 +392,7 @@ export class DemoLearningRepository implements LearningRepository {
       placement: await this.getStudentPlacement(studentId),
       levels: this.store.levels.all(),
       links: this.store.levelContent.all(),
-      content: this.store.learningContent.all(),
+      content: this.store.learningContent.all().map((row) => this.normalizeContent(row)),
     });
   }
 
@@ -366,16 +401,18 @@ export class DemoLearningRepository implements LearningRepository {
       placement: await this.getStudentPlacement(studentId),
       levels: this.store.levels.all(),
       links: this.store.levelContent.all(),
-      content: this.store.learningContent.all(),
+      content: this.store.learningContent.all().map((row) => this.normalizeContent(row)),
     });
   }
 
   async eligibleStudentIds(contentId: string): Promise<string[]> {
+    const content = this.store.learningContent.find(contentId);
     return resolveEligibleStudentIds(
       contentId,
       this.store.levels.all(),
       this.store.levelContent.all(),
       this.store.placements.all(),
+      content ? this.normalizeContent(content) : undefined,
     );
   }
 }

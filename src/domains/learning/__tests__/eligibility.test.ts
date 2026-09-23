@@ -25,6 +25,7 @@ function level(order: number, over: Partial<LearningLevel> = {}): LearningLevel 
 function content(id: string, over: Partial<LearningContent> = {}): LearningContent {
   return {
     id,
+    resourceId: id,
     title: `محتوا ${id}`,
     description: "",
     type: "pdf",

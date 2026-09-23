@@ -29,9 +29,16 @@ import type { ListParams } from "@/api/types";
 /** What a stored binary is used for; drives validation limits and UI. */
 export type MediaKind = "image" | "audio" | "document";
 
+/** Availability reported by a production object-storage pipeline. */
+export type MediaAvailability = "pending" | "available" | "missing" | "failed" | "deleted";
+
 /**
  * Metadata for one stored binary. Small enough to live in the dataset and to
  * appear in a backup; the bytes themselves are addressed by `id`.
+ *
+ * `storageKey`, `checksum`, and `availability` are optional in the demo
+ * adapter. A production API should return them after upload completion; the
+ * frontend must not invent them when the backend has not supplied them.
  */
 export interface MediaAsset {
   id: string;
@@ -44,8 +51,16 @@ export interface MediaAsset {
   /** Validated MIME type from the allow-list, not the browser's raw claim. */
   mimeType: string;
   sizeBytes: number;
+  /** Backend storage address; never treated as a browser path. */
+  storageKey?: string;
+  /** Content hash used for integrity and deduplication when supplied by storage. */
+  checksum?: string;
+  /** Explicit lifecycle state; absent means the legacy/demo row is usable if bytes exist. */
+  availability?: MediaAvailability;
   /** ISO-8601 creation timestamp. */
   createdAt: string;
+  /** ISO-8601 last metadata/storage update. */
+  updatedAt?: string;
   /** Image pixel dimensions when known; absent for audio/documents. */
   width?: number;
   height?: number;

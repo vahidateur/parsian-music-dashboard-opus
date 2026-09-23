@@ -25,6 +25,7 @@
  * - canonical owner this file
  * - O-01 remains OPEN (locked semantics preserved)
  */
+import { evaluateResourceAccess } from "@/domains/resources/types";
 import type {
   EligibleContent,
   LearningContent,
@@ -96,11 +97,17 @@ export function resolveEligibleContent(input: EligibilityInput): EligibleContent
     const level = reachable.get(link.levelId);
     if (!level) continue;
     const item = byId.get(link.contentId);
-    if (!item || !item.active) continue;
-    // Teacher-only material is never eligible for a student, regardless of
-    // level. This is a UX filter; the server must enforce the same rule (§31).
-    // F1: not_visible hidden
-    if (audience === "students" && item.visibility === "teachers") continue;
+    if (!item) continue;
+    // Level reachability is resolved here; lifecycle and audience decisions go
+    // through the shared resource policy so Learning and Library cannot drift.
+    const access = evaluateResourceAccess({
+      actor: audience === "students" ? { role: "student", id: placement.studentId } : { role: "teacher" },
+      hasReadPermission: true,
+      subject: { active: item.active, visibility: item.visibility },
+      curriculumEligible: true,
+      requireCurriculumEligibility: true,
+    });
+    if (!access.allowed) continue;
 
     const existing = chosen.get(item.id);
     if (existing && existing.levelOrder <= level.order) continue;
@@ -165,8 +172,13 @@ export function resolveLockedContent(input: EligibilityInput): LockedContent[] {
     if (!level) continue;
     if (eligibleIds.has(link.contentId)) continue; // already unlocked via lower level
     const item = byId.get(link.contentId);
-    if (!item || !item.active) continue;
-    if (audience === "students" && item.visibility === "teachers") continue; // not_visible hidden
+    if (!item) continue;
+    const access = evaluateResourceAccess({
+      actor: audience === "students" ? { role: "student", id: placement.studentId } : { role: "teacher" },
+      hasReadPermission: true,
+      subject: { active: item.active, visibility: item.visibility },
+    });
+    if (!access.allowed) continue; // inactive and teacher-only remain not_visible
 
     const existing = chosen.get(item.id);
     if (existing && existing.levelOrder <= level.order) continue; // keep lowest locked level
@@ -189,14 +201,26 @@ export function resolveLockedContent(input: EligibilityInput): LockedContent[] {
  * Inverse rule: which students can currently open a given content item.
  * Used by the content editor to answer "who does this reach?" honestly.
  *
- * O(L + K + P) via the same indexing approach.
+ * O(L + K + P) via the same indexing approach. When the content subject is
+ * supplied, lifecycle and audience are checked through the shared resource
+ * policy before relationship results are returned.
  */
 export function resolveEligibleStudentIds(
   contentId: string,
   levels: readonly LearningLevel[],
   links: readonly LevelContentLink[],
   placements: readonly StudentPlacement[],
+  content?: Pick<LearningContent, "active" | "visibility">,
 ): string[] {
+  if (content) {
+    const access = evaluateResourceAccess({
+      actor: { role: "student", id: "eligibility-check" },
+      hasReadPermission: true,
+      subject: content,
+    });
+    if (!access.allowed) return [];
+  }
+
   // Levels this content is attached to.
   const attached = new Set<string>();
   for (const link of links) {

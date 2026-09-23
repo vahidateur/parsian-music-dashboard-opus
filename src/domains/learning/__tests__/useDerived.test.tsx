@@ -73,6 +73,7 @@ function placementFor(studentId: string): StudentPlacement {
 function contentRow(id: string): LearningContent {
   return {
     id,
+    resourceId: id,
     title: `محتوای ${id}`,
     description: "",
     type: "pdf",

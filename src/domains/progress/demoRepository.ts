@@ -421,7 +421,9 @@ export class DemoProgressRepository implements ProgressRepository {
       placement,
       levels: this.store.levels.all(),
       links: this.store.levelContent.all(),
-      content: this.store.learningContent.all(),
+      // Normalize pre-contract snapshots at the domain boundary; no media id
+      // is ever substituted for the logical resource id.
+      content: this.store.learningContent.all().map((row) => (row.resourceId ? row : { ...row, resourceId: row.id })),
     });
   }
 }

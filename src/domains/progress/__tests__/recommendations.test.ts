@@ -57,6 +57,7 @@ function eligible(id: string, title = "تمرین", levelOrder = 3): EligibleCon
   return {
     content: {
       id,
+      resourceId: id,
       title,
       description: "",
       type: "pdf",

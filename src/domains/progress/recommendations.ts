@@ -12,6 +12,7 @@
  *
  * Pure: no storage, no React, no clock beyond what is passed in.
  */
+import { resourceIdFromLearningContent, resourceIdsFromPiece, type ResourceId } from "@/domains/resources/types";
 import type { EligibleContent } from "@/domains/learning/types";
 import type { ProgressInsight } from "./analytics";
 import type { Piece, PieceAssignment } from "./types";
@@ -58,11 +59,11 @@ export interface Recommendation {
   /** The insight that triggered this rule, for traceability. */
   evidence: ProgressInsight["evidence"];
   /**
-   * Eligible library content supporting the advice. Always resolved through
-   * the eligibility rules — a recommendation must never surface material the
-   * student is not permitted to open (§21).
+   * Canonical Resource IDs supporting the advice. They are resolved through
+   * Learning eligibility and can be looked up by Library without translating
+   * between `lc_*` curriculum-row ids and catalogue ids.
    */
-  suggestedContentIds: string[];
+  suggestedContentIds: ResourceId[];
 }
 
 /** Inputs the rules need, passed explicitly to keep the function pure. */
@@ -96,8 +97,10 @@ function relatedContent(
 ): string[] {
   if (eligible.length === 0) return [];
 
-  const attached = new Set(piece?.contentIds ?? []);
-  const preferred = eligible.filter((e) => attached.has(e.content.id)).map((e) => e.content.id);
+  const attached = new Set(resourceIdsFromPiece(piece ?? {}));
+  const preferred = eligible
+    .filter((e) => attached.has(resourceIdFromLearningContent(e.content)))
+    .map((e) => resourceIdFromLearningContent(e.content));
   if (preferred.length >= limit) return preferred.slice(0, limit);
 
   const needles = [piece?.title, piece?.composer]
@@ -105,11 +108,11 @@ function relatedContent(
     .map((value) => value.toLowerCase());
 
   const scored = eligible
-    .filter((e) => !attached.has(e.content.id))
+    .filter((e) => !attached.has(resourceIdFromLearningContent(e.content)))
     .map((e) => {
       const haystack = `${e.content.title} ${e.content.description}`.toLowerCase();
       const score = needles.reduce((sum, needle) => (haystack.includes(needle) ? sum + 1 : sum), 0);
-      return { id: e.content.id, score, order: e.levelOrder };
+      return { id: resourceIdFromLearningContent(e.content), score, order: e.levelOrder };
     })
     // Highest textual overlap first, then the most advanced level the student
     // has unlocked — closest to where they are actually working.

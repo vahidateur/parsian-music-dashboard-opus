@@ -41,6 +41,7 @@
 import type { ListParams } from "@/api/types";
 import type { InstrumentId } from "@/domains/instruments/types";
 import type { MediaKind } from "@/domains/media/types";
+import type { ResourceId } from "@/domains/resources/types";
 
 /* ------------------------------------------------------------------ */
 /* Program                                                             */
@@ -142,6 +143,8 @@ export const CONTENT_MEDIA_KIND: Record<LearningContentType, MediaKind> = {
  */
 export interface LearningContent {
   id: string;
+  /** Canonical logical resource id; distinct from this curriculum-row id. */
+  resourceId: ResourceId;
   title: string;
   description: string;
   type: LearningContentType;
@@ -181,8 +184,10 @@ export interface LearningContentListParams extends ListParams {
   levelId?: string;
 }
 
-export type CreateContentInput = Omit<LearningContent, "id" | "createdAt"> & Partial<Pick<LearningContent, "createdAt">>;
-export type UpdateContentInput = Partial<Omit<LearningContent, "id" | "createdAt">>;
+export type CreateContentInput = Omit<LearningContent, "id" | "resourceId" | "createdAt"> &
+  Partial<Pick<LearningContent, "resourceId" | "createdAt">>;
+export type UpdateContentInput = Partial<Omit<LearningContent, "id" | "resourceId" | "createdAt">> &
+  Partial<Pick<LearningContent, "resourceId">>;
 
 /* ------------------------------------------------------------------ */
 /* Level ↔ Content link                                                */

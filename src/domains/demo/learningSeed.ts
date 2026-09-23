@@ -14,6 +14,7 @@
 import { SEEDED_INSTRUMENTS } from "@/domains/instruments/catalog";
 import { conversations, resources, students } from "./academySeed";
 import type { InstrumentRecord } from "@/domains/instruments/types";
+import type { LibraryItem } from "@/domains/library/types";
 import type {
   LearningContent,
   LearningContentType,
@@ -134,12 +135,16 @@ const KIND_TO_TYPE: Record<string, LearningContentType> = {
  * library and the learning domain describe the SAME material rather than two
  * disconnected catalogues.
  */
-export function deriveLearningContent(): LearningContent[] {
-  return resources.map((resource) => ({
+export function deriveLearningContent(source: readonly LibraryItem[] = resources): LearningContent[] {
+  return source.map((resource) => ({
     id: `lc_${resource.id}`,
+    // Library `id` is the canonical logical resource id; `lc_*` remains the
+    // curriculum projection id because Learning owns its level links.
+    resourceId: resource.id,
     title: resource.title,
     description: `${resource.composer} · ${resource.level}`,
     type: KIND_TO_TYPE[resource.kind] ?? "document",
+    mediaId: resource.mediaId,
     author: resource.composer,
     instrumentId: resource.instrument,
     // Seeded library material is student-facing.
