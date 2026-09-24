@@ -75,6 +75,7 @@ import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
 import { getChatRepository, getMediaRepository } from "@/domains/registry";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
 import type { ChatMessage, ChatParticipantRole } from "@/domains/chat/types";
@@ -258,11 +259,17 @@ export function MessagesView() {
    * attachment alone is not sendable, and the composer says so rather than
    * silently dropping the file.
    *
-   * IF THE MESSAGE WRITE FAILS after the asset was stored, the asset is removed
-   * again (best effort, exactly as `ProfilePhotoField` frees a replaced photo):
-   * leaving it would strand a file nothing can reach, and the retry would store a
-   * second copy of the same bytes. The failure is reported with the repository's
-   * own reason, and the draft and pending file stay put so the send can be retried.
+ * IF THE MESSAGE WRITE FAILS after the asset was stored, the asset is released
+ * again through the media domain's ownership transition (`releaseStagedMedia`):
+ * leaving it would strand a file nothing can reach, and the retry would store a
+ * second copy of the same bytes. The release is staged, not a reference check,
+ * because a rejected `sendMessage` provably wrote no row — the repository
+ * validates the reference BEFORE writing, and the store persists the dataset in
+ * one write, so there is no message that could be pointing at the asset. A
+ * cleanup that fails is handed to the media-release reporter (an operator-visible
+ * warning) instead of being swallowed, and the failure is reported with the
+ * repository's own reason, with the draft and pending file left in place so the
+ * send can be retried.
    *
    * `sending` is the duplicate guard: it is set before the first await and checked
    * on entry, so a double Enter or a second click cannot start a second upload.
@@ -320,13 +327,13 @@ export function MessagesView() {
         });
       }
     } catch (cause) {
-      if (storedMediaId) {
-        await getMediaRepository()
-          .delete(storedMediaId)
-          .catch(() => {
-            /* an orphaned blob must not replace the real failure message */
-          });
-      }
+      /*
+        The staged upload is released through the media domain, so metadata and
+        bytes leave together and a cleanup that fails reaches the release
+        reporter instead of vanishing into an empty catch. The operator still
+        sees the real failure below; the cleanup outcome never replaces it.
+      */
+      await releaseStagedMedia(storedMediaId, getMediaRepository());
       notify({
         tone: "danger",
         title: file ? "ارسال پیام و پیوست ناموفق بود" : "ارسال پیام ناموفق بود",

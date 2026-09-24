@@ -28,6 +28,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Field, Panel, inputCls, SearchInput } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getGalleryRepository, getMediaRepository } from "@/domains/registry";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
 import { useAlbums, useGalleryImages } from "./useGallery";
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
@@ -111,6 +112,15 @@ export function GalleryPanel() {
     if (!selected) return;
     const alt = caption.trim() || file.name;
     setBusy(true);
+    /*
+      Two awaited writes: the bytes are stored first, then the image row that
+      references them. If the row write fails, the stored asset is unreachable —
+      so the upload this attempt created is released through the media domain's
+      staged path, which frees metadata and bytes together and reports a cleanup
+      failure instead of swallowing it. A successful write keeps the asset, and
+      the album's own cleanup handles nothing here: this asset is the new one.
+    */
+    let stagedMediaId: string | undefined;
     try {
       const asset = await getMediaRepository().create({
         kind: "image",
@@ -118,6 +128,7 @@ export function GalleryPanel() {
         mimeType: file.type,
         bytes: await file.arrayBuffer(),
       });
+      stagedMediaId = asset.id;
       await getGalleryRepository().addImage({
         albumId: selected.id,
         mediaId: asset.id,
@@ -127,6 +138,8 @@ export function GalleryPanel() {
       setCaption("");
       notify({ tone: "success", title: "تصویر افزوده شد", detail: "فایل فقط در همین مرورگر ذخیره شده است." });
     } catch (cause) {
+      // The image row was never written, so the staged upload must not linger.
+      await releaseStagedMedia(stagedMediaId, getMediaRepository());
       notify({ tone: "danger", title: "افزودن تصویر انجام نشد", detail: apiErrorFromThrown(cause).message });
     } finally {
       setBusy(false);

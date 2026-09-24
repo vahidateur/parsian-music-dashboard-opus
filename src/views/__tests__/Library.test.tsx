@@ -26,9 +26,13 @@ import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { getLibraryRepository, resetRegistry, setLibraryRepository } from "@/domains/registry";
+import { getLibraryRepository, getMediaRepository, resetRegistry, setLibraryRepository, setMediaRepository } from "@/domains/registry";
+import { DemoLibraryRepository } from "@/domains/library/demoRepository";
 import { ensureDemoLibraryFile } from "@/domains/library/demoContent";
 import type { LibraryRepository } from "@/domains/library/repository";
+import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { setMediaReleaseFailureReporter } from "@/domains/media/release";
+import { withStubs } from "@/test/repositoryStubs";
 import { createEmptyDataset } from "@/domains/demo/seed";
 import {
   DEMO_LIBRARY_ASSET_ID,
@@ -89,6 +93,65 @@ function statTile(label: string): HTMLElement {
   const tile = screen.getByText(label).closest("div");
   if (!tile) throw new Error(`no stat tile for "${label}"`);
   return tile as HTMLElement;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+/**
+ * The real media repository with its `delete` calls tallied — and optionally
+ * forced to fail, so the cleanup-failure hand-off can be observed.
+ */
+function spyingMedia(onDelete?: (id: string) => Promise<void>) {
+  const real = new DemoMediaRepository();
+  const deleted: string[] = [];
+  setMediaRepository(
+    withStubs(real, {
+      delete: async (id: string) => {
+        deleted.push(id);
+        if (onDelete) return onDelete(id);
+        return real.delete(id);
+      },
+    }),
+  );
+  return deleted;
+}
+
+/** Opens the "add a resource" dialog. */
+function openCreateDialog() {
+  fireEvent.click(screen.getByRole("button", { name: "افزودن منبع" }));
+  return screen.getByRole("dialog");
+}
+
+/** The dialog's hidden file picker. */
+function dialogFileInput(): HTMLInputElement {
+  const input = document.querySelector('input[type="file"]');
+  if (!input) throw new Error("dialog file input not found");
+  return input as HTMLInputElement;
+}
+
+/** Fills the dialog with a title and a real file, then submits it. */
+function fillAndSubmit(title: string, file: File) {
+  fireEvent.change(screen.getByLabelText("عنوان"), { target: { value: title } });
+  fireEvent.change(dialogFileInput(), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole("button", { name: "افزودن" }));
+}
+
+/** A plain-text file: the dialog's default kind maps to the document allow-list. */
+function textFile(name = "notes.txt"): File {
+  const bytes = new TextEncoder().encode("اتود شماره ۱");
+  const file = new File([bytes], name, { type: "text/plain" });
+  if (!file.arrayBuffer) {
+    Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.buffer });
+  }
+  return file;
 }
 
 beforeEach(() => {
@@ -348,5 +411,104 @@ describe("Library.tsx source boundaries", () => {
 
   it("states its page size explicitly", () => {
     expect(source).toMatch(/useLibraryList\(\{\s*per_page:\s*\d+/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* the staged upload leaves through the media domain                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Adding a resource with a file is two writes: store the bytes, then write the
+ * catalogue row. When that row write fails the stored asset is unreachable, so
+ * the dialog releases the upload THIS attempt created (`releaseStagedMedia`).
+ * The cases below pin the order (nothing freed while the row write is pending),
+ * the release itself (metadata AND bytes), the no-over-reach rule (a successful
+ * write keeps the asset) and the honest failure hand-off (a cleanup that fails
+ * reaches the media-release reporter instead of being swallowed).
+ */
+describe("a failed catalogue write releases the staged upload", () => {
+  it("frees nothing while the row write is pending, then releases the staged upload", async () => {
+    const gate = deferred<never>();
+    setLibraryRepository(
+      withStubs(new DemoLibraryRepository(), {
+        create: () => gate.promise,
+      }),
+    );
+    const deleted = spyingMedia();
+    const before = demoStore.media.all().length;
+
+    renderLibrary();
+    await waitForCatalogue();
+    openCreateDialog();
+    fillAndSubmit("منبع با فایل گم‌شده", textFile("staged.txt"));
+
+    // The bytes are stored — one asset more than before…
+    await waitFor(() => expect(demoStore.media.all()).toHaveLength(before + 1));
+    // …and nothing has been freed: the row write could still reference it.
+    expect(deleted).toEqual([]);
+
+    // Only after the row write is known to have failed is the asset released.
+    gate.reject(new ApiError({ kind: "server", status: 500, message: "کتابخانه پاسخ نداد." }));
+    await waitFor(() => expect(deleted).toHaveLength(1));
+
+    expect(demoStore.media.find(deleted[0])).toBeUndefined();
+    expect(await getMediaRepository().getBlob(deleted[0])).toBeUndefined();
+    // No catalogue row pretends the file was attached.
+    const rows = (await getLibraryRepository().list({ per_page: 200 })).data;
+    expect(rows.some((row) => row.title === "منبع با فایل گم‌شده")).toBe(false);
+  });
+
+  it("reports a cleanup failure exactly once and never throws it at the dialog", async () => {
+    const deletion = new ApiError({
+      kind: "server",
+      status: 500,
+      code: "MEDIA_STORAGE_FAILED",
+      message: "ذخیره‌سازی پاسخ نداد.",
+    });
+    spyingMedia(() => Promise.reject(deletion));
+    setLibraryRepository(
+      withStubs(new DemoLibraryRepository(), {
+        create: () => Promise.reject(new ApiError({ kind: "server", status: 500, message: "کتابخانه پاسخ نداد." })),
+      }),
+    );
+    const before = demoStore.media.all().length;
+
+    renderLibrary();
+    await waitForCatalogue();
+    // Installed after the render: `AppProvider` installs the app's own reporter
+    // in an effect, and this case observes the hand-off to it.
+    const reported: string[] = [];
+    setMediaReleaseFailureReporter(({ error }) => reported.push(error.code ?? ""));
+
+    openCreateDialog();
+    fillAndSubmit("منبع ناموفق", textFile("stuck.txt"));
+
+    await waitFor(() => expect(reported).toEqual(["MEDIA_STORAGE_FAILED"]));
+    // The cleanup failed, so the asset is still there — and the dialog stayed
+    // usable: it is still open, with the title the operator typed.
+    expect(demoStore.media.all()).toHaveLength(before + 1);
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect((screen.getByLabelText("عنوان") as HTMLInputElement).value).toBe("منبع ناموفق");
+  });
+
+  it("keeps the asset when the row write succeeds", async () => {
+    const deleted = spyingMedia();
+
+    renderLibrary();
+    await waitForCatalogue();
+    openCreateDialog();
+    fillAndSubmit("منبع با فایل", textFile("kept.txt"));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("منبع با فایل").length).toBeGreaterThan(0);
+    });
+
+    const row = (await getLibraryRepository().list({ per_page: 200 })).data.find(
+      (item) => item.title === "منبع با فایل",
+    );
+    expect(row?.mediaId).toBeTruthy();
+    expect(deleted).toEqual([]);
+    expect(await getMediaRepository().getBlob(row!.mediaId!)).toBeInstanceOf(Blob);
   });
 });

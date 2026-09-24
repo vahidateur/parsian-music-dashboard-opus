@@ -28,6 +28,7 @@ import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/cata
 import { resourceKindLabel, type LibraryItem, type ResourceKind, type LibraryVisibility } from "@/domains/library/types";
 import { useLibraryFile, useLibraryList } from "@/domains/library/useLibrary";
 import { getLibraryRepository, getMediaRepository } from "@/domains/registry";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { apiErrorFromThrown } from "@/api/errors";
 import { useCan } from "@/domains/auth/AuthContext";
 import { useStudentList } from "@/domains/students/useStudents";
@@ -168,6 +169,17 @@ function LibraryItemDialog({
       return;
     }
     setBusy(true);
+    /*
+      The upload this attempt created, remembered so a FAILED catalogue write can
+      release it. Two awaited writes: the asset is stored first (the catalogue row
+      must be able to reference it), then the row is written. If that second write
+      fails, the asset would be a file nothing can reach and the retry would store
+      a second copy — so it is released through the media domain's staged path,
+      which frees metadata and bytes together and reports a cleanup failure rather
+      than swallowing it. A successful write keeps it, and the catalogue's own
+      replacement release (inside the repository) handles the PREVIOUS file.
+    */
+    let stagedMediaId: string | undefined;
     try {
       let mediaId: string | undefined;
       if (file) {
@@ -181,6 +193,7 @@ function LibraryItemDialog({
           bytes,
         });
         mediaId = asset.id;
+        stagedMediaId = asset.id;
       }
       const access =
         visibility === "students" && restricted ? [...studentIds] : [];
@@ -222,6 +235,8 @@ function LibraryItemDialog({
       onSaved();
       onClose();
     } catch (cause) {
+      // The catalogue write did not happen, so the staged upload must not linger.
+      await releaseStagedMedia(stagedMediaId, getMediaRepository());
       notify({ tone: "danger", title: editing ? "ذخیرهٔ تغییرات انجام نشد" : "افزودن منبع انجام نشد", detail: apiErrorFromThrown(cause).message });
     } finally {
       setBusy(false);
