@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon , Images} from "lucide-react";
 import { navGroups, type NavGroup } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
@@ -361,6 +361,23 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   /* Read ONCE per shell, not once per rendered instance: the desktop rail and
      the wide sidebar are two mounts of the same data. */
   const badges = useNavBadges();
+
+  /*
+    Escape dismisses the mobile drawer — the same keydown contract every other
+    overlay in this product already owns (`Drawer` and `Dialog` in
+    ds/patterns.tsx add exactly this listener). The drawer declares
+    `role="dialog" aria-modal="true"`, so a keyboard user must be able to leave
+    it the way they leave every other modal. Nothing else about the drawer
+    moves: entry focus, tab order and the routing on a nav click are unchanged.
+  */
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen, onClose]);
   return (
     <>
       {/*

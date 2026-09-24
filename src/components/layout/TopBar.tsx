@@ -100,12 +100,21 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
           </div>
         </div>
 
-        <div className="mx-auto hidden w-full max-w-xl md:block">
+        {/*
+          The wide command field is the DESKTOP row's element, so it appears at
+          the shell's own desktop threshold (`lg`), not at `md`. Below `lg` the
+          rail is hidden and the bottom bar carries navigation — the compact
+          shell — and this row has to fit the same width: the field's own
+          min-content is ~481px and the operator card is `shrink-0` at ~206px,
+          which together overflowed the 720px content box at 768px and pushed
+          the whole row (and the page) sideways. At `lg` and up nothing changes.
+        */}
+        <div className="mx-auto hidden w-full max-w-xl lg:block">
           <CommandSearchTrigger />
         </div>
 
-        <div className="mr-auto flex shrink-0 items-center gap-2 md:mr-0">
-          <CommandSearchTrigger compact className="md:hidden" />
+        <div className="mr-auto flex shrink-0 items-center gap-2 lg:mr-0">
+          <CommandSearchTrigger compact className="lg:hidden" />
           {live > 0 && (
             <span className="hidden h-10 items-center gap-2 rounded-xl border border-ok-500/20 bg-ok-500/[0.07] px-3 text-xs text-ok-400 xl:flex">
               <span className="relative flex size-1.5">

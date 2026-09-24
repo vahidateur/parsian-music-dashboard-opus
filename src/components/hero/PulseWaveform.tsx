@@ -230,6 +230,14 @@ export function PulseWaveform({
     };
 
     const draw = (t: number) => {
+      /*
+        Nothing to draw at zero width — and `xNow / width` would be `0/0 = NaN`
+        there, which the `Math.min/Math.max` clamps preserve, so the playhead
+        gradient's `addColorStop(NaN)` throws and takes the frame down. The
+        wrapper measures 0 for the first paint before layout settles; the
+        ResizeObserver (or the next animation frame) draws once it has a width.
+      */
+      if (width <= 0) return;
       ctx.clearRect(0, 0, width, height);
 
       // baseline
