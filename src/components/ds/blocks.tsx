@@ -219,6 +219,7 @@ export function TimelineEvent({
   onOpen,
   onResolve,
   now = academyNowMinutes(),
+  footer,
 }: {
   session: ClassSession;
   status: ClassSessionStatus;
@@ -226,6 +227,12 @@ export function TimelineEvent({
   onOpen?: () => void;
   onResolve?: () => void;
   now?: number;
+  /**
+   * One extra line under the row, for state the row itself does not carry — the
+   * teaching desk puts the session's register sentence and its action here. The
+   * management flow passes nothing, so its rows are byte-for-byte what they were.
+   */
+  footer?: ReactNode;
 }) {
   const badge = statusBadge[status];
   const muted = status === "done" || status === "cancelled";
@@ -274,6 +281,7 @@ export function TimelineEvent({
             <ChevronLeft className="size-3.5" />
           </button>
         )}
+        {footer && <div className="mt-2">{footer}</div>}
       </div>
     </li>
   );

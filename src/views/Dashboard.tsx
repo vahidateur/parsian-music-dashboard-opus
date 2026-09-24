@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useHeroStats, type HeroStat } from "@/domains/shared/useAcademyMetrics";
 import { useDashboardInsights } from "@/domains/shared/useDashboardInsights";
 import { useAcademyNow } from "@/domains/shared/clock";
@@ -16,7 +16,8 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
 import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
-import { DemoNote, ErrorState } from "@/components/ds/states";
+import { DemoNote, ErrorState, LoadingState } from "@/components/ds/states";
+import { useAuthSafe } from "@/domains/auth/AuthContext";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import { Button } from "@/components/ds/primitives";
 import { Panel, Field, inputCls } from "@/components/ds/patterns";
@@ -96,7 +97,31 @@ function PulseCard({
   );
 }
 
+/**
+ * The teaching desk, pulled from the academic-workspace group.
+ *
+ * `Dashboard` is the landing view, so it is part of the entry chunk; the whole
+ * teacher rendition therefore arrives through the lazy group the academic
+ * surfaces already share, and the entry bundle carries none of it. Only a
+ * teacher ever triggers the fetch — the management body below is untouched.
+ */
+const TeacherDesk = lazy(() =>
+  import("@/views/lazy/academicViews").then((module) => ({ default: module.TeacherDashboard })),
+);
+
 export function Dashboard() {
+  const { user } = useAuthSafe();
+  if (user?.role === "teacher") {
+    return (
+      <Suspense fallback={<LoadingState label="در حال آماده‌سازی میز کار…" className="py-16" />}>
+        <TeacherDesk />
+      </Suspense>
+    );
+  }
+  return <ManagementDashboard />;
+}
+
+function ManagementDashboard() {
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   /*
     The academy clock is read ONCE, in the view: `academyIsoDate()` is the

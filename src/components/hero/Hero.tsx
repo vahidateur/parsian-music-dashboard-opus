@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ChevronLeft } from "lucide-react";
 import stage from "@/assets/images/stage-hall.jpg";
 import type { HeroStat } from "@/domains/shared/useAcademyMetrics";
@@ -39,6 +40,8 @@ export function Hero({
   pulse,
   period,
   onPeriod,
+  headline,
+  subline,
 }: {
   compact?: boolean;
   /**
@@ -62,6 +65,14 @@ export function Hero({
   period?: HeroPeriod;
   /** Switches the dashboard's range profile. Owned by the view, never mirrored here. */
   onPeriod?: (next: HeroPeriod) => void;
+  /**
+   * The plate's headline. Omitted means the signed-in operator's greeting —
+   * the teacher desk passes its own («کلاس بعدی شما»), because for a teacher
+   * the day's question is not who is at the desk but what is taught next.
+   */
+  headline?: string;
+  /** Replaces the academy tagline under the headline. Inline content only. */
+  subline?: ReactNode;
 }) {
   const { navigate, accent } = useApp();
   const now = useAcademyNow();
@@ -141,14 +152,18 @@ export function Hero({
             id="hero-title"
             className={cn("font-bold tracking-tight text-ink-50", compact ? "text-2xl" : "text-3xl sm:text-[34px]")}
           >
-            <span className="inline-block origin-bottom-right" aria-hidden>
-              👋
-            </span>{" "}
-            {greetingFor(now)}
-            {firstName ? `، ${firstName}` : ""}
+            {headline ?? (
+              <>
+                <span className="inline-block origin-bottom-right" aria-hidden>
+                  👋
+                </span>{" "}
+                {greetingFor(now)}
+                {firstName ? `، ${firstName}` : ""}
+              </>
+            )}
           </h1>
-          <p className={cn("flex flex-wrap items-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
-            {branding.tagline}
+          <p className={cn("flex flex-wrap items-center justify-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
+            {subline ?? branding.tagline}
           </p>
         </div>
 

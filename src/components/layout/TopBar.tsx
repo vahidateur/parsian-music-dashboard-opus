@@ -149,9 +149,12 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
 /* ------------------------------------------------------------------ */
 export function BottomNav() {
   const { view, navigate, openPalette } = useApp();
-  const { canAccess } = useAuth();
+  const { canAccess, user } = useAuth();
+  /* The same presentation policy the rail applies: for a teacher the landing
+     section is their own day, and it is named that way here too. Authorization
+     is unchanged — `canAccess` still decides what the bar may show. */
   const items = [
-    { id: "dashboard" as const, label: "داشبورد", icon: LayoutGrid },
+    { id: "dashboard" as const, label: user?.role === "teacher" ? "امروز من" : "داشبورد", icon: LayoutGrid },
     { id: "schedule" as const, label: "برنامه", icon: CalendarDays },
     { id: "students" as const, label: "هنرجویان", icon: Users },
     { id: "finance" as const, label: "مالی", icon: Wallet },

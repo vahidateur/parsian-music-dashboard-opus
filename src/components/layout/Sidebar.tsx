@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon , Images} from "lucide-react";
-import { navGroups } from "@/lib/navigation";
+import { navGroups, type NavGroup } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
@@ -116,6 +116,50 @@ function SessionRole() {
 const NAV_BADGE_PER_PAGE = 200;
 
 /**
+ * The teacher's navigation POLICY — presentation only.
+ *
+ * A teacher's day runs «my today → my schedule → my registers → my students → my
+ * library → my messages», so the sections that do not belong to that day are
+ * left out of the rail for the teacher role, and the three whose names differ
+ * from a teacher's own words («داشبورد» is *my* today, «برنامهریزی» is *my*
+ * schedule, «هنرجویان» are *my* students) are relabelled for them.
+ *
+ * This is deliberately NOT an authorization change: `viewPermissions`,
+ * `canAccess` and the route gate are untouched, so a deep link to a hidden
+ * section still opens, and nothing here decides what a teacher may read or
+ * write. Cross-role product decisions about whether a teacher *should* see the
+ * staff list or the compensation ledger stay where they were — in the RBAC
+ * matrix — and this file only declines to surface them in the rail.
+ */
+const TEACHER_HIDDEN_VIEWS: readonly ViewId[] = ["teachers", "compensation", "gallery"];
+const TEACHER_ITEM_LABEL: Partial<Record<ViewId, string>> = {
+  dashboard: "امروز من",
+  schedule: "برنامه",
+  students: "هنرجویان من",
+};
+/** The order those sections appear in for a teacher, by the groups' own ids. */
+const TEACHER_GROUP_ORDER: readonly string[] = ["overview", "operations", "people", "resources", "communication"];
+
+function teacherAwareGroups(
+  groups: NavGroup[],
+  isTeacher: boolean,
+  canAccess: (view: ViewId) => boolean,
+): NavGroup[] {
+  const visible = groups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => canAccess(item.id) && !(isTeacher && TEACHER_HIDDEN_VIEWS.includes(item.id)))
+        .map((item) => (isTeacher ? { ...item, label: TEACHER_ITEM_LABEL[item.id] ?? item.label } : item)),
+    }))
+    .filter((group) => group.items.length > 0);
+  if (!isTeacher) return visible;
+  return [...visible].sort(
+    (a, b) => TEACHER_GROUP_ORDER.indexOf(a.id) - TEACHER_GROUP_ORDER.indexOf(b.id),
+  );
+}
+
+/**
  * Where a navigation badge comes from, and when it is allowed to exist.
  *
  * `navGroups` is static product identity: which sections exist and what they
@@ -183,10 +227,16 @@ export function SidebarContent({
   */
   const { branding } = useBranding();
   const [accountOpen, setAccountOpen] = useState(false);
-  /* Navigation only shows what the session may actually open. */
+  /*
+    Navigation shows what the session may actually open — and, for a teacher,
+    the same sections under the teacher's own names and order (see
+    `TEACHER_HIDDEN_VIEWS`). Hiding is presentation; `canAccess` remains the one
+    gate, and it is asked first.
+  */
+  const isTeacher = user?.role === "teacher";
   const visibleGroups = useMemo(
-    () => navGroups.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(n.id)) })).filter((g) => g.items.length > 0),
-    [canAccess],
+    () => teacherAwareGroups(navGroups, isTeacher, canAccess),
+    [canAccess, isTeacher],
   );
   const { view, navigate } = useApp();
 
