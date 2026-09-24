@@ -31,7 +31,7 @@ import { ApiError } from "@/api/errors";
 import { DemoMediaRepository } from "../demoRepository";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { releaseUnreferencedMedia, setMediaReleaseFailureReporter } from "../release";
-import { profilePhotoStillReferenced } from "../demoReferences";
+import { mediaStillReferenced } from "../demoReferences";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { DemoStudentRepository } from "@/domains/students/demoRepository";
 import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
@@ -145,7 +145,7 @@ describe("the transition helper itself", () => {
     demoStore.students.update(student.id, { photoMediaId: asset.id });
     const { repo, deleted } = spyingMedia();
 
-    const outcome = await releaseUnreferencedMedia(asset.id, (id) => profilePhotoStillReferenced(demoStore, id), repo);
+    const outcome = await releaseUnreferencedMedia(asset.id, (id) => mediaStillReferenced(demoStore, id), repo);
 
     expect(outcome).toEqual({ status: "retained" });
     expect(deleted).toEqual([]);

@@ -2,7 +2,7 @@ import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import { conflict, validationError } from "@/domains/shared/demoCollection";
 import { DemoMediaRepository } from "@/domains/media/demoRepository";
-import { profilePhotoStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import { NATIONAL_ID_MESSAGES, normalizeNationalId, validateNationalId } from "@/lib/nationalId";
@@ -110,13 +110,17 @@ export class DemoStudentRepository implements StudentRepository {
   }
 
   /**
-   * Frees a photo no remaining student or teacher references — through the media
-   * abstraction, so metadata and bytes leave together. This repository path is
-   * the only student-delete path (there is deliberately no UI for it), which is
-   * why the transition lives here rather than at a call site.
+   * Frees a photo no persisted record references any more — through the media
+   * abstraction, so metadata and bytes leave together. The check is the global
+   * parent predicate (X1), not a list of owners this repository happens to know:
+   * a chat attachment or a learning material holding the same id keeps the bytes.
+   *
+   * This repository path is the only student-delete path (there is deliberately
+   * no UI for it), which is why the transition lives here rather than at a call
+   * site.
    */
   private async releasePhoto(mediaId: string | undefined): Promise<void> {
-    await releaseUnreferencedMedia(mediaId, (id) => profilePhotoStillReferenced(this.store, id), this.media);
+    await releaseUnreferencedMedia(mediaId, (id) => mediaStillReferenced(this.store, id), this.media);
   }
 }
 

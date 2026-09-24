@@ -1,7 +1,7 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
 import { DemoMediaRepository } from "@/domains/media/demoRepository";
-import { profilePhotoStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import type { Page } from "@/api/types";
@@ -103,9 +103,9 @@ export class DemoTeacherRepository implements TeacherRepository {
     await this.releasePhoto(existing?.photoMediaId);
   }
 
-  /** Frees a photo no remaining teacher or student references. */
+  /** Frees a photo no persisted record references any more (global check, X1). */
   private async releasePhoto(mediaId: string | undefined): Promise<void> {
-    await releaseUnreferencedMedia(mediaId, (id) => profilePhotoStillReferenced(this.store, id), this.media);
+    await releaseUnreferencedMedia(mediaId, (id) => mediaStillReferenced(this.store, id), this.media);
   }
 
   /**

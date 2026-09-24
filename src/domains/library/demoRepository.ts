@@ -19,7 +19,7 @@ import type { Page } from "@/api/types";
 import { faNum } from "@/lib/format";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { DemoMediaRepository } from "@/domains/media/demoRepository";
-import { libraryFileStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
@@ -143,16 +143,18 @@ export class DemoLibraryRepository implements LibraryRepository {
   }
 
   /**
-   * Frees a file no catalogue row references any more, through the media
+   * Frees a file no persisted record references any more, through the media
    * abstraction (metadata AND bytes). The removal order is enforced by the
    * caller: every call site reaches here only after the write that stopped
-   * referencing the asset succeeded. A cleanup failure is reported by the media
-   * domain rather than swallowed, and never resurrects the catalogue row.
+   * referencing the asset succeeded. The check itself is the global parent
+   * predicate (X1) — a chat attachment or a learning material pointing at the
+   * same id keeps the bytes. A cleanup failure is reported by the media domain
+   * rather than swallowed, and never resurrects the catalogue row.
    */
   private async releaseFile(mediaId: string | undefined): Promise<void> {
     await releaseUnreferencedMedia(
       mediaId,
-      (id) => libraryFileStillReferenced(this.store, id),
+      (id) => mediaStillReferenced(this.store, id),
       this.media,
     );
   }

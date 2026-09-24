@@ -8,8 +8,9 @@
  * used to remove the bytes and the metadata row itself, which meant the gallery
  * had its own private idea of deletion — and the check for "does anything else
  * reference this asset?" only ever looked at gallery rows. Cleanup now goes
- * through `MediaRepository.delete` via the ownership transition, so metadata and
- * bytes always leave together and the reference check is asked explicitly.
+ * through `MediaRepository.delete` via the ownership transition, and the check it
+ * asks is the global parent predicate (X1), so metadata and bytes always leave
+ * together and no other domain's reference is missed.
  *
  * ORDER: the image row is detached BEFORE its media is freed. The row is what
  * makes the asset reachable; freeing first and relying on a count of remaining
@@ -23,7 +24,7 @@ import type { Page } from "@/api/types";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { DemoMediaRepository } from "@/domains/media/demoRepository";
-import { galleryImageStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import type { GalleryRepository } from "./repository";
@@ -201,14 +202,16 @@ export class DemoGalleryRepository implements GalleryRepository {
 
   /**
    * Frees the media a detached image row no longer reaches — through
-   * `MediaRepository`, so metadata and bytes leave together — and keeps it when
-   * another image row still references the same asset. The caller has already
-   * removed the row, so this can never be asked before the relation is gone.
+   * `MediaRepository`, so metadata and bytes leave together — and keeps it while
+   * ANY persisted record still references it: another image, an album cover, or
+   * a parent in a different domain entirely (the global check, X1). The caller
+   * has already removed the row, so this can never be asked before the relation
+   * is gone.
    */
   private async releaseImage(mediaId: string): Promise<void> {
     await releaseUnreferencedMedia(
       mediaId,
-      (id) => galleryImageStillReferenced(this.store, id),
+      (id) => mediaStillReferenced(this.store, id),
       this.media,
     );
   }

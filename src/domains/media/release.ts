@@ -16,12 +16,12 @@
  *
  * WHAT THIS IS NOT
  *
- *   It is NOT the global media-parent gate. `isStillReferenced` is supplied by
- *   the owner and covers exactly the records that owner can name (see
- *   `demoReferences.ts`, which also states what is deliberately outside the
- *   slice). A general parent index would change the media contract for every
- *   caller; this helper is the seam it would replace, so call sites would not
- *   move on that day.
+ *   It is NOT the reference check itself. Whether a remaining record still points
+ *   at the asset is answered by the global parent predicate
+ *   (`demoReferences.ts` → `mediaStillReferenced`), which the owners pass in. This
+ *   module owns the ORDER and the OUTCOME: no release before the owner write, and
+ *   a failure that is returned and reported rather than thrown at a caller whose
+ *   write already committed.
  *
  * WHY IT RETURNS INSTEAD OF THROWING
  *
