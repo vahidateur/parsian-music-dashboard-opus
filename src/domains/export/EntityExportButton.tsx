@@ -38,18 +38,19 @@ export function EntityExportButton({
   label?: string;
 }) {
   const { notify } = useApp();
-  let user: any = null;
+  let auth: ReturnType<typeof useAuth> | null = null;
   try {
-    user = useAuth().user;
+    auth = useAuth();
   } catch {
-    user = null;
+    auth = null;
   }
+  const user = auth?.user ?? null;
   /** The format currently being prepared, or `null` when the control is idle. */
   const [pending, setPending] = useState<ExportFormat | null>(null);
 
   const required = EXPORT_PERMISSIONS[entity];
   // In tests without AuthProvider, hide export button rather than throw — real product always has AuthProvider
-  if (user && required && !can(user as any, required)) return null;
+  if (user && required && !can(auth, required)) return null;
   if (!user) {
     // No auth context (tests) — still allow export for functional verification, permission guard is UX-only
     // but we hide if we cannot determine permissions to avoid breaking tests that expect no export button?
@@ -129,9 +130,9 @@ export function EntityExportButton({
           "Excel"
         )}
       </Button>
-      <span aria-live="polite" className="sr-only">
-        {pending !== null ? "در حال تهیهٔ خروجی" : ""}
-      </span>
+      {pending !== null && (
+        <span aria-live="polite" className="sr-only">در حال تهیهٔ خروجی</span>
+      )}
     </div>
   );
 }
