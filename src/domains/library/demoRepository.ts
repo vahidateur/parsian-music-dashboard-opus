@@ -19,6 +19,8 @@ import type { Page } from "@/api/types";
 import { faNum } from "@/lib/format";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { libraryFileStillReferenced } from "@/domains/media/demoReferences";
+import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { LibraryRepository } from "./repository";
@@ -109,7 +111,8 @@ export class DemoLibraryRepository implements LibraryRepository {
 
     // Re-pointing the file changes the measured size, so the label follows the
     // asset rather than keeping the previous file's number.
-    if (input.mediaId !== undefined && input.mediaId !== existing.mediaId) {
+    const repointed = input.mediaId !== undefined && input.mediaId !== existing.mediaId;
+    if (repointed) {
       patch.mediaId = input.mediaId;
       const asset = input.mediaId ? this.store.media.find(input.mediaId) : undefined;
       patch.size = asset ? sizeLabel(asset.sizeBytes) : UNKNOWN_SIZE;
@@ -117,6 +120,16 @@ export class DemoLibraryRepository implements LibraryRepository {
 
     const updated = this.store.resources.update(id, patch);
     if (!updated) throw notFound("LIBRARY_ITEM_NOT_FOUND", `منبع با شناسهٔ ${id} یافت نشد.`);
+
+    /*
+      OWNERSHIP TRANSITION — the row has been re-pointed, so the file it used to
+      carry is now superseded. The order is the point: the new reference is
+      persisted first (and the new asset validated before that), so a refused or
+      failed write can never strand the catalogue on freed bytes. The previous
+      file is only a candidate for cleanup once the write has been accepted —
+      and is kept outright if another catalogue row still references it.
+    */
+    if (repointed) await this.releaseFile(existing.mediaId);
     return updated;
   }
 
@@ -125,22 +138,23 @@ export class DemoLibraryRepository implements LibraryRepository {
     if (!this.store.resources.remove(id)) {
       throw notFound("LIBRARY_ITEM_NOT_FOUND", `منبع با شناسهٔ ${id} یافت نشد.`);
     }
-    if (existing.mediaId) await this.freeMedia(existing.mediaId);
+    // Row removed first: freeing the file can never resurrect the catalogue row.
+    await this.releaseFile(existing.mediaId);
   }
 
   /**
    * Frees a file no catalogue row references any more, through the media
-   * abstraction (metadata AND bytes). A blob failure must not resurrect the
-   * deleted row, so it is reported by the media layer and not rethrown here.
+   * abstraction (metadata AND bytes). The removal order is enforced by the
+   * caller: every call site reaches here only after the write that stopped
+   * referencing the asset succeeded. A cleanup failure is reported by the media
+   * domain rather than swallowed, and never resurrects the catalogue row.
    */
-  private async freeMedia(mediaId: string): Promise<void> {
-    const stillUsed = this.store.resources.all().some((row) => row.mediaId === mediaId);
-    if (stillUsed) return;
-    try {
-      await this.media.delete(mediaId);
-    } catch {
-      /* the asset is already gone; the catalogue row deletion stands */
-    }
+  private async releaseFile(mediaId: string | undefined): Promise<void> {
+    await releaseUnreferencedMedia(
+      mediaId,
+      (id) => libraryFileStillReferenced(this.store, id),
+      this.media,
+    );
   }
 
   /**

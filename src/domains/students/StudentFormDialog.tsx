@@ -9,7 +9,7 @@
  * into the same error map, so a rule the UI cannot check locally still lands
  * on the right input.
  */
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { studentStatusLabel, type Student, type StudentStatus } from "./types";
@@ -17,9 +17,10 @@ import type { PaymentStatus } from "@/lib/financeVocabulary";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
-import { getStudentRepository } from "@/domains/registry";
+import { getMediaRepository, getStudentRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { ProfilePhotoField } from "@/domains/media/ProfilePhotoField";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { cn } from "@/utils/cn";
 import type { CreateStudentInput } from "./types";
@@ -109,6 +110,42 @@ export function StudentFormDialog({
   // Only active teachers can be assigned to a new student.
   const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
 
+  /*
+    UPLOADS THIS DIALOG CREATED AND NEVER PERSISTED.
+
+    The photo field no longer deletes anything (see its header), so the two
+    transitions are split by who can know about them: an upload that never
+    reached a record — cancelled, or replaced before saving — is freed here,
+    while the previously PERSISTED photo is freed by the repository once its
+    write has stopped referencing it. This set is what makes the difference
+    knowable: an id is in it only because this session's upload produced it.
+  */
+  const stagedPhotos = useRef<Set<string>>(new Set());
+
+  const releaseStagedPhotos = useCallback((keep?: string) => {
+    const abandoned = [...stagedPhotos.current].filter((id) => id !== keep);
+    stagedPhotos.current.clear();
+    for (const id of abandoned) {
+      // No record has ever referenced these. A failure is returned and reported
+      // by the media domain, not swallowed here (media/release.ts).
+      void releaseStagedMedia(id, getMediaRepository());
+    }
+  }, []);
+
+  /*
+    Session boundary. Opening starts with nothing staged — the previous
+    session's leftovers are settled as it closes — and closing abandons whatever
+    never reached the record, whichever way it was closed: cancel, Escape, the
+    backdrop, or the successful save below.
+  */
+  useEffect(() => {
+    if (open) {
+      stagedPhotos.current.clear();
+      return;
+    }
+    releaseStagedPhotos();
+  }, [open, releaseStagedPhotos]);
+
   const form = useEntityForm<StudentDraft, Student>({
     initial: toDraft(student),
     open, // H6: rebuild the draft from this record whenever the dialog opens
@@ -144,10 +181,32 @@ export function StudentFormDialog({
       return repository.create(created);
     },
     onSuccess: (saved) => {
+      /*
+        The record now references the photo it was saved with, so that id is no
+        longer a staged upload and must survive this dialog's closing cleanup.
+        The photo it replaced was released by the repository — after this write,
+        never before it.
+      */
+      if (saved.photoMediaId) stagedPhotos.current.delete(saved.photoMediaId);
       onSaved(saved, editing ? "edit" : "create");
       onClose();
     },
   });
+
+  /**
+   * The photo field hands over both ids: what the draft now points at, and the
+   * asset it stopped pointing at. Only a staged one can be freed immediately —
+   * it was never referenced by a record — and the rest is the repository's call
+   * after a successful write.
+   */
+  const changePhoto = (next: string | undefined, released: string | undefined) => {
+    if (next) stagedPhotos.current.add(next);
+    if (released && stagedPhotos.current.has(released)) {
+      stagedPhotos.current.delete(released);
+      void releaseStagedMedia(released, getMediaRepository());
+    }
+    form.set("photoMediaId", next);
+  };
 
   if (!open) return null;
 
@@ -202,7 +261,7 @@ export function StudentFormDialog({
             mediaId={form.draft.photoMediaId}
             personName={form.draft.name || "هنرجو"}
             disabled={busy}
-            onChange={(next) => form.set("photoMediaId", next)}
+            onChange={changePhoto}
           />
         </div>
 

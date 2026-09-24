@@ -1,5 +1,9 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
+import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { profilePhotoStillReferenced } from "@/domains/media/demoReferences";
+import { releaseUnreferencedMedia } from "@/domains/media/release";
+import type { MediaRepository } from "@/domains/media/repository";
 import type { Page } from "@/api/types";
 import type { TeacherRepository } from "./repository";
 import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput } from "./types";
@@ -8,9 +12,16 @@ import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput
  * Implementation #1 — adapts the DemoStore to the Teacher contract.
  * Filtering/paging only: the store owns persistence, so demo and API present
  * identical semantics to the views.
+ *
+ * The record→photo ownership transition is the exception, and it is owned here:
+ * the photo is part of the record this repository writes, and the shared-photo
+ * check needs the dataset (`media/demoReferences.ts`).
  */
 export class DemoTeacherRepository implements TeacherRepository {
-  constructor(private readonly store: DemoStore = demoStore) {}
+  constructor(
+    private readonly store: DemoStore = demoStore,
+    private readonly media: MediaRepository = new DemoMediaRepository(),
+  ) {}
 
   async list(params: TeacherListParams = {}): Promise<Page<Teacher>> {
     const filtered = this.store.teachers.all().filter((t) => {
@@ -43,9 +54,19 @@ export class DemoTeacherRepository implements TeacherRepository {
   async update(id: string, input: UpdateTeacherInput): Promise<Teacher> {
     validate(input, true);
     if (input.phone !== undefined) this.assertPhoneFree(input.phone, id);
+    const existing = this.store.teachers.find(id);
     const updated = this.store.teachers.update(id, input);
     if (!updated) throw teacherNotFound(id);
     this.syncAccount(updated);
+
+    /*
+      OWNERSHIP TRANSITION — after the write, never before it. A replaced or
+      cleared photo is freed only once the record has stopped referencing it, and
+      only if no student or teacher still shows it.
+    */
+    if ("photoMediaId" in input && existing?.photoMediaId !== updated.photoMediaId) {
+      await this.releasePhoto(existing?.photoMediaId);
+    }
     return updated;
   }
 
@@ -66,11 +87,25 @@ export class DemoTeacherRepository implements TeacherRepository {
         `این مدرس به ${assigned.length} کلاس اختصاص دارد. ابتدا کلاس‌ها را واگذار کنید یا مدرس را غیرفعال کنید.`,
       );
     }
+    // Read before removing: `remove` reports only whether a row went.
+    const existing = this.store.teachers.find(id);
     if (!this.store.teachers.remove(id)) throw teacherNotFound(id);
     // The login account of a teacher who no longer exists cannot stay open.
     for (const account of this.store.users.all().filter((u) => u.teacherId === id)) {
       this.store.users.update(account.id, { status: "disabled" });
     }
+    /*
+      Ownership transition LAST, after the record is gone: the teacher's
+      photograph is freed only if no remaining student or teacher still shows it
+      — a photo shared with a student outlives the teacher record. A cleanup that
+      fails is reported through the media domain and never undoes the removal.
+    */
+    await this.releasePhoto(existing?.photoMediaId);
+  }
+
+  /** Frees a photo no remaining teacher or student references. */
+  private async releasePhoto(mediaId: string | undefined): Promise<void> {
+    await releaseUnreferencedMedia(mediaId, (id) => profilePhotoStillReferenced(this.store, id), this.media);
   }
 
   /**
