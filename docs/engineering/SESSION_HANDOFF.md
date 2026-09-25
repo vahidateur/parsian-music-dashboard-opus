@@ -25,6 +25,7 @@ Git-history change is authorized by this file.
 | Consolidation | ✅ **COMPLETE** — PR #5 *Consolidate frontend F0–F10 + governance into main* **MERGED** 2026-09-20T21:11:18Z |
 | Laravel / backend | ❌ **NOT STARTED and NOT AUTHORIZED** |
 | Current gate | **Completion and verification of the documentation pass (D1/D2)** — **D1 committed (`6ca25be…`), D2 being recorded now**; the evidence for D1 is that this handoff's live state rows name it, and no entry may carry its own SHA |
+| Working branch — D9 A-lite / B (row added 2026-09-25) | ✅ `arena/01a0cef8-parsian-music-dashboard-opus` @ `046771d` — A2 (`tailwind-merge` → in-repo `mergeClassNames`, `cn()` call sites unchanged) and the D9 re-baseline (**baseline 343 947 B → cap 361 144 B**), committed and pushed fast-forward (`bcacdcb..046771d`); `main` (`ece060d`) untouched. Records: [DECISIONS.md](DECISIONS.md) §22. |
 
 ### 1.1 Live vs historical — do not conflate these
 

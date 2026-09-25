@@ -1850,10 +1850,12 @@ sits inside a dated record of the checkpoint it measured — §D9 above now carr
 **Enforced by.** `src/__tests__/bundleBudget.test.ts` — the baseline and cap constants and the
 comment block that documents both anchors. [PROJECT_STATE.md](PROJECT_STATE.md) §6 links this entry.
 
-**Status.** ✅ In force 2026-09-25 in the working tree. A governance-document decision: it authorizes
-no product, dependency, architecture, test-weakening or further-optimization change, it does not
-re-open D9-A-lite, and **no commit or push is authorized for this pass** — the branch work of
-Slice 1, A-1, A2 and B remains uncommitted.
+**Status.** ✅ In force 2026-09-25. A governance-document decision: it authorizes no product,
+dependency, architecture, test-weakening or further-optimization change, and it does not re-open
+D9-A-lite. The A-lite and B work was finalized as `046771d` (*chore: finalize A-lite and bundle
+budget baseline*) on `arena/01a0cef8-parsian-music-dashboard-opus` and pushed fast-forward
+(`bcacdcb..046771d`); Slice 1 (`7c8dd87`) and A-1 (`bcacdcb`) were already on the remote, and
+`main` (`ece060d`) is untouched.
 
 ### Adding a decision
 
