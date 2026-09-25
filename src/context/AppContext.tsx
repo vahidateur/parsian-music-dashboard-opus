@@ -14,6 +14,7 @@ import {
 } from "@/lib/theme";
 import { formatPath, hasLegacyHash, readTarget } from "@/lib/route";
 import { accessBasePath } from "@/security/accessPath";
+import { setMediaReleaseFailureReporter } from "@/domains/media/release";
 
 export interface Toast {
   id: number;
@@ -188,6 +189,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [dismissToast],
   );
+
+  /*
+    MEDIA CLEANUP FAILURES ARE REPORTED, NOT SWALLOWED.
+
+    Freeing an asset that a write has stopped referencing happens AFTER that
+    write committed, so it has no throw path: failing the operation would report
+    a write that happened as one that did not, and the store cannot roll it back.
+    The media domain therefore returns the failure instead of hiding it, and this
+    is where it becomes something the operator can read — the one place that owns
+    operator-facing messages. The warning says exactly what is true: the record
+    was saved, an unused file is still sitting in this browser.
+  */
+  useEffect(() => {
+    setMediaReleaseFailureReporter((failure) => {
+      notify({
+        tone: "warning",
+        title: "فایل بی‌استفاده آزاد نشد",
+        detail: `${failure.error.message} رکورد ذخیره شد، اما فایل بی‌استفاده در همین مرورگر باقی ماند.`,
+      });
+    });
+    return () => setMediaReleaseFailureReporter(undefined);
+  }, [notify]);
 
   /* ------------------------------------------------------------------ */
   /* Overlay ownership — one place owns body scroll lock and focus transfer */

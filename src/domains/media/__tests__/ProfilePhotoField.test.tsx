@@ -3,8 +3,15 @@
  * Profile photo upload, replace and remove.
  *
  * The important properties: the record stores only a media id (never bytes),
- * a replaced photo does not leak its predecessor's blob, and object URLs are
- * revoked so a long admin session does not accumulate them.
+ * the field HANDS OVER the asset it stops pointing at instead of deleting it,
+ * and object URLs are revoked so a long admin session does not accumulate them.
+ *
+ * WHY "hands over" AND NOT "frees": the record being edited still references the
+ * previous photo until the owning form saves, and another record may reference
+ * it too. Freeing at the field is what let a cancelled replacement leave a saved
+ * record pointing at deleted bytes. The owner-side transition — freed after the
+ * write, kept while anything still references the asset, staged uploads freed on
+ * cancel — is pinned in `../__tests__/mediaOwnershipTransition.test.tsx`.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -110,7 +117,7 @@ describe("uploading", () => {
 });
 
 describe("replacing", () => {
-  it("frees the previous photo's bytes", async () => {
+  it("reports the previous photo upward and does not free it", async () => {
     const first = await getMediaRepository().create({
       kind: "image",
       filename: "old.png",
@@ -132,13 +139,18 @@ describe("replacing", () => {
     fireEvent.change(fileInput(), { target: { files: [pngFile("new.png")] } });
 
     await waitFor(() => expect(onChange).toHaveBeenCalled());
-    // The old asset is gone: no orphaned blob accumulating in IndexedDB.
-    expect(await getMediaRepository().getBlob(first.id)).toBeUndefined();
+    const [next, released] = onChange.mock.calls[0] as [string, string];
+    expect(next).not.toBe(first.id);
+    // The replaced asset travels upward with the write the form has not done yet.
+    expect(released).toBe(first.id);
+    // Still stored: only the owner may free it, and only after its own write.
+    expect(demoStore.media.find(first.id)).toBeDefined();
+    expect(await getMediaRepository().getBlob(first.id)).toBeInstanceOf(Blob);
   });
 });
 
 describe("removing", () => {
-  it("deletes the asset and clears the field", async () => {
+  it("clears the field and reports the removed photo without freeing it", async () => {
     const asset = await getMediaRepository().create({
       kind: "image",
       filename: "a.png",
@@ -159,8 +171,11 @@ describe("removing", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: /حذف/ }));
 
-    await waitFor(() => expect(onChange).toHaveBeenCalledWith(undefined));
-    expect(await getMediaRepository().getBlob(asset.id)).toBeUndefined();
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith(undefined, asset.id));
+    // The asset outlives the click: the record still references it until the
+    // form saves, and the owner frees it then (see the file header).
+    expect(demoStore.media.find(asset.id)).toBeDefined();
+    expect(await getMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
   });
 });
 

@@ -1207,6 +1207,16 @@ measurement writes into a test after the split lands, replacing any that the rea
 **Status.** ✅ **Recorded — decided before M11 (2026-09-16, by the owner's decision-record pass); landed with M11.** The owner authorized the exact scope on 2026-09-17; the split landed at `3eed4f190b6538ad62bf35d7b0c9fa5afc310acc` and the gate at `24998d8330a95510cd969c872edb28ddcc59ef16`.
 **Measured after M11's landing** (CLI `gzip -6 -n`, same method as the recorded baseline) — the encoder then verified the gate is satisfiable by exactly these values: entry JS gzip **108 207** B (baseline 273 791 B), vendor gzip **60 108** B, total JS+CSS+HTML gzip **298 249** B (within the +5% cap 305 805 B), largest single chunk gzip **108 207** B (below the 400 000 B ceiling), `dist/` raw **1 964 789** B. The >500 kB raw warning is silent, `chunkSizeWarningLimit` was never raised, and Vazirmatn **300/800** are gone from `dist/` — shape **A** held: nothing outside the predicted ceiling, so no recorded decision point fired.
 
+### D9 — the B re-baseline supersedes the c16890f *total* anchor (recorded 2026-09-25, documents only; D9 itself is unchanged)
+
+The *total* gzip baseline and the +5 % cap derived from it were re-measured after the D9-A-lite
+reduction — baseline **343 947 B**, cap **361 144 B** — with the measurement, the A1 revert and the
+accepted A2 evidence recorded in **§22**. The figures in this section are the historical record of
+the M11 landing: the entry anchor 273 791 B, the c16890f total 291 243 B, and the 305 805 B cap
+derived from that total. D9's shape is unchanged — the entry chunk still has to decrease from its
+anchor, the 400 000 B single-chunk ceiling still stands, and the 5 % margin is still pre-declared
+rather than negotiated.
+
 ### D10. A write target taken from a rendered row is paired with a parent resolved independently
 
 **Decision.** When a surface writes through a rendered row *and* needs that row's parent context —
@@ -1747,6 +1757,105 @@ resolution pass — 2026-09-21”. This pointer adds no D-number, amends no D1�
 **Status.** ✅ Recorded as documentation. It is **not** implementation authorization: Laravel/backend
 remains ❌ not started and not authorized, and no `src/`, test, package, deployment or backend file is
 part of the pass.
+
+## 21. The state-document gate: a bounded preserved-branch SHA exception and the durable working-branch invariant
+
+**Decision.** Two clauses of `src/__tests__/projectState.test.ts` were aligned with the recorded
+policy on 2026-09-25, by explicit owner decision (the conflict and the options were registered as
+**L8** in [OPEN_ITEMS.md](OPEN_ITEMS.md)).
+
+*The reachability clause keeps its force for every full SHA in the four state documents.* Exactly
+two SHAs are exempt: the preserved, unmerged branch tips registered by full SHA in
+[PROJECT_STATE.md](PROJECT_STATE.md) §2 (`251af96f…` and `94d32de3…`). History deliberately never
+merged those branches, and the preservation rule requires their full SHAs to stay recorded, so
+"reachable from `HEAD`" can never hold for them. The exception is closed to those two SHAs and is
+self-guarding: each must still exist as a commit and still be registered by full SHA in §2, so it
+covers no other SHA and cannot outlive its evidence. The rule text in
+[PROJECT_STATE.md](PROJECT_STATE.md) §3 records the exception; the gate cites this entry.
+
+*The working-branch clause stops comparing a durable fact with a per-session fact.* The old
+assertion — "the recorded working branch is the branch actually checked out" — failed by
+construction in every session sandbox, where the checkout is a per-session branch
+([PROJECT_STATE.md](PROJECT_STATE.md) §7 item 16). The replacement asserts the durable facts
+instead: the recorded branch exists on the remote as a fetched remote-tracking ref, and the local
+branch of the same name, when it exists, is level with it.
+
+**Why.** Both clauses as written contradicted recorded rules of their own: the reachability clause
+against the preservation of the two branch tips, and the checkout clause against the fact that a
+sandbox branch is not durable (item 16 measured the failure as environmental — "recorded, not
+fixed, silenced or accommodated"). The three alternatives were rejected by name: weakening the
+reachability rule for every SHA, shortening or deleting the recorded evidence, and merging or
+rewriting the preserved history. This entry is the recorded owner decision the earlier state
+demanded; it changes the *testable form* of two checks and no product behaviour.
+
+**Enforced by.** `src/__tests__/projectState.test.ts` — "no document quotes a commit that does not
+already exist" (the closed, self-guarding exception) and "the recorded working branch is a durable
+branch, in step with its remote". [OPEN_ITEMS.md](OPEN_ITEMS.md) item **L8** records the conflict
+and its resolution; [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 16 remains the record of the
+period in which the old assertion failed.
+
+**Status.** ✅ In force 2026-09-25. A governance-document decision: it authorizes no product,
+dependency, threshold, backend or history change, and it is the only reason either gate clause
+reads differently today.
+
+## 22. The performance budget is re-baselined on the measurement taken after the D9-A-lite reduction
+
+**Decision.** The **total** gzip baseline asserted by `src/__tests__/bundleBudget.test.ts` moves from
+the c16890f anchor **291 243 B** to the measurement taken **after** D9-A-lite: **343 947 B**, so the
++5 % allowance becomes a hard cap of **361 144 B**
+(`Math.floor(343947 * 1.05) = 361144`). The owner selected this direction explicitly on 2026-09-25 —
+*A-lite first; then a recorded re-baseline whose baseline is the number measured after the reduction,
+with the cap at baseline × 1.05* — after the D9 measurement showed the previously anchored total was
+exceeded by the F1–F10 product landing. **This is a re-baseline: it changes the anchor, not the
+method, and it is not an unrelated threshold relaxation.** Nothing else about the gate moves — the
+entry chunk must still strictly decrease from its 273 791 B anchor, the 400 000 B single-chunk
+ceiling stands, the removed vazirmatn 300/800 weights must not return, and raising
+`chunkSizeWarningLimit` remains a failure condition.
+
+**What A-lite was, and what became of it.** A-lite was authorized as library/CSS reduction only, in
+slices, with nothing committed:
+
+1. **A1 — a store-only ZIP writer replacing fflate's deflate path.** It was attempted and measured
+   (exportService 11 284 → 8 484 B gzip; total 348 605 → 345 819 B), then **completely reverted
+   byte-for-byte by owner decision**: the store-only container inflated a 1 000-row workbook from
+   ~32 958 B to 509 889 B, a trade the owner rejected. The revert is verifiable —
+   `src/domains/import/spreadsheet.ts` is byte-identical to its pre-A1 content (sha256
+   `47ff2f4e…`, verified against a pre-A1 snapshot) and the temporary
+   `storeZip.ts` module does not exist.
+2. **A2 — the `tailwind-merge` replacement, accepted by the owner.** `cn()` no longer calls
+   `twMerge`: it resolves conflicts through an in-repo rule table (`src/utils/mergeClassNames.ts`),
+   the package was removed from `package.json` and `package-lock.json` (the removal is
+   byte-neutral — the build is byte-identical with the package present or absent, because nothing
+   imported it any more), and two `@source not` lines keep the rule table and test files out of the
+   stylesheet's candidate scan. **POST-A2 measured total: 343 947 B** (CSS 19 331 B, entry chunk
+   126 979 B) against the 348 605 B pre-A2 measurement — an improvement of **4 658 B**.
+
+**A2 evidence (the basis of the acceptance).** 0 mismatches across **128 848** differential
+comparisons against `tailwind-merge` 3.4.0, including 0 on the codebase's real class literals;
+**47/47** permanent cases in `src/utils/__tests__/mergeClassNames.test.ts`; `tsc` at the known
+24-error baseline with no new error; and the full suite at the recorded failure set — one
+pre-existing budget assertion plus the recorded environmental failures, **0 new or unknown**. The
+temporary differential harness that produced the comparison figure was deleted at the end of the
+slice. Each part of the CSS-scan exclusion was checked against the built stylesheet: of the 28
+selectors it drops, none names a class the rendered product applies (the one occurrence outside test
+files is a word inside a source comment, and the codebase composes no class-name strings at runtime).
+
+**Why the number may move, and why it is still measured.** D9's rule is *measure before you set*, and
+the measurement here is the same build, the same `gzip -6 -n` method (the GNU CLI, one invocation per
+file) and the same pre-declared 5 % headroom — the figure is measured after the reduction, not chosen
+to fit it. The superseded anchor stays legible as history: 291 243 B and 305 805 B remain correct
+statements about the `c16890f` baseline and the cap derived from it, and every remaining occurrence
+sits inside a dated record of the checkpoint it measured — §D9 above now carries a pointer here.
+
+**Enforced by.** `src/__tests__/bundleBudget.test.ts` — the baseline and cap constants and the
+comment block that documents both anchors. [PROJECT_STATE.md](PROJECT_STATE.md) §6 links this entry.
+
+**Status.** ✅ In force 2026-09-25. A governance-document decision: it authorizes no product,
+dependency, architecture, test-weakening or further-optimization change, and it does not re-open
+D9-A-lite. The A-lite and B work was finalized as `046771d` (*chore: finalize A-lite and bundle
+budget baseline*) on `arena/01a0cef8-parsian-music-dashboard-opus` and pushed fast-forward
+(`bcacdcb..046771d`); Slice 1 (`7c8dd87`) and A-1 (`bcacdcb`) were already on the remote, and
+`main` (`ece060d`) is untouched.
 
 ### Adding a decision
 

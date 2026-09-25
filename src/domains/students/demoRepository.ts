@@ -1,6 +1,10 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import { conflict, validationError } from "@/domains/shared/demoCollection";
+import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
+import { releaseUnreferencedMedia } from "@/domains/media/release";
+import type { MediaRepository } from "@/domains/media/repository";
 import { NATIONAL_ID_MESSAGES, normalizeNationalId, validateNationalId } from "@/lib/nationalId";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { StudentRepository } from "./repository";
@@ -12,9 +16,17 @@ const DEFAULT_PER_PAGE = 25;
  * Implementation #1 — adapts the DemoStore to the domain contract.
  * It owns *no* persistence: filtering/paging only, so that demo and API modes
  * present identical semantics to the views.
+ *
+ * It DOES own the record→photo ownership transition: the photo is part of the
+ * record it persists, so the moment a write stops referencing one is only
+ * knowable here (`media/release.ts`). The media repository is injected so tests
+ * can watch the transition without the store being reachable from a view.
  */
 export class DemoStudentRepository implements StudentRepository {
-  constructor(private readonly store: DemoStore = demoStore) {}
+  constructor(
+    private readonly store: DemoStore = demoStore,
+    private readonly media: MediaRepository = new DemoMediaRepository(),
+  ) {}
 
   async list(params: StudentListParams = {}): Promise<Page<Student>> {
     const filtered = this.store.students.all().filter((s) => matches(s, params));
@@ -44,8 +56,22 @@ export class DemoStudentRepository implements StudentRepository {
       // Update collisions must be caught too, excluding the row being edited.
       patch.nationalId = this.assertNationalId(input.nationalId, id);
     }
+    const existing = this.store.students.find(id);
     const updated = this.store.students.update(id, patch);
     if (!updated) throw notFound(id);
+
+    /*
+      OWNERSHIP TRANSITION — after the write, never before it.
+
+      The row has been re-pointed (or the photo cleared), so the photo it used to
+      reference is superseded. `updated` is read rather than `input` on purpose:
+      the released asset is the one the STORE stopped referencing, whatever the
+      caller asked for. A failed write never reaches this line, which is what
+      keeps a saved record from pointing at freed bytes.
+    */
+    if ("photoMediaId" in input && existing?.photoMediaId !== updated.photoMediaId) {
+      await this.releasePhoto(existing?.photoMediaId);
+    }
     return updated;
   }
 
@@ -75,7 +101,26 @@ export class DemoStudentRepository implements StudentRepository {
   }
 
   async delete(id: string): Promise<void> {
+    // The photo is read from the row that is about to go, so the reference is
+    // captured before the record that carries it stops existing.
+    const existing = this.store.students.find(id);
     if (!this.store.students.remove(id)) throw notFound(id);
+    // Removed first: a cleanup that fails must never resurrect the record.
+    await this.releasePhoto(existing?.photoMediaId);
+  }
+
+  /**
+   * Frees a photo no persisted record references any more — through the media
+   * abstraction, so metadata and bytes leave together. The check is the global
+   * parent predicate (X1), not a list of owners this repository happens to know:
+   * a chat attachment or a learning material holding the same id keeps the bytes.
+   *
+   * This repository path is the only student-delete path (there is deliberately
+   * no UI for it), which is why the transition lives here rather than at a call
+   * site.
+   */
+  private async releasePhoto(mediaId: string | undefined): Promise<void> {
+    await releaseUnreferencedMedia(mediaId, (id) => mediaStillReferenced(this.store, id), this.media);
   }
 }
 

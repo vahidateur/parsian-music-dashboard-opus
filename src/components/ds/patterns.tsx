@@ -48,9 +48,9 @@ export function PageHeader({
       )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          {kicker && <div className="mb-1.5 text-[11px] font-medium text-gold-400">{kicker}</div>}
-          <h1 className="text-[22px] font-bold leading-tight tracking-tight text-ink-50 sm:text-2xl">{title}</h1>
-          {description && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-ink-300">{description}</p>}
+          {kicker && <div className="mb-2 text-[11px] font-medium tracking-wide text-gold-400">{kicker}</div>}
+          <h1 className="text-[24px] font-bold leading-tight tracking-tight text-ink-50 sm:text-[27px]">{title}</h1>
+          {description && <p className="mt-2.5 max-w-2xl text-[13px] leading-relaxed text-ink-300">{description}</p>}
           {meta && <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-400">{meta}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -94,15 +94,15 @@ export function StatStrip({ stats, className, columns }: { stats: StatDef[]; cla
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <span className="flex w-full items-center justify-between gap-2">
-                <span className="text-[11.5px] font-medium text-ink-300">{s.label}</span>
+                <span className="text-[11.5px] font-medium tracking-wide text-ink-300">{s.label}</span>
                 {s.onClick && <ChevronLeft className="size-3.5 text-ink-500 opacity-0 transition-all group-hover:-translate-x-0.5 group-hover:opacity-100" />}
               </span>
               <span className="flex w-full items-end justify-between gap-3">
-                <span className="nums flex items-baseline gap-1 text-[22px] font-semibold leading-none tracking-tight text-ink-50">
+                <span className="numeral flex items-baseline gap-1 text-[26px] font-semibold leading-none text-ink-50">
                   {s.value}
                   {s.unit && <span className="text-xs font-medium text-ink-300">{s.unit}</span>}
                 </span>
-                {s.series && <Sparkline data={s.series} width={64} height={24} tone={s.tone === "warn" ? "warn" : s.tone === "violet" ? "violet" : "gold"} className="shrink-0 opacity-80" />}
+                {s.series && <Sparkline data={s.series} width={72} height={28} tone={s.tone === "warn" ? "warn" : s.tone === "violet" ? "violet" : "gold"} className="shrink-0 opacity-85" />}
               </span>
               <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1">
                 {s.delta !== undefined && <Delta value={s.delta} />}
@@ -195,7 +195,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="tablist" className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.07] bg-ink-900/60 p-0.5", className)}>
+    <div role="tablist" className={cn("inline-flex shrink-0 items-center gap-0.5 rounded-xl border border-white/[0.07] bg-ink-950/50 p-0.5", className)}>
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -207,9 +207,14 @@ export function Segmented<T extends string>({
             title={o.hint}
             onClick={() => onChange(o.value)}
             className={cn(
-              "inline-flex items-center justify-center gap-1.5 rounded-[10px] px-3 font-medium transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)]",
+              /*
+                The selected option is the same lit lozenge the rail uses, one
+                size down: one accent language across the product rather than a
+                different "active" per component.
+              */
+              "inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 font-medium transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)]",
               size === "sm" ? "h-7 text-[11.5px]" : "h-8 text-xs",
-              active ? "bg-white/[0.07] text-ink-50 shadow-[0_1px_0_rgba(255,255,255,0.05)_inset]" : "text-ink-400 hover:text-ink-100",
+              active ? "nav-pill-active text-gold-200" : "border-transparent text-ink-400 hover:text-ink-100",
             )}
           >
             {o.label}
@@ -432,7 +437,7 @@ export function ProgressRing({
   return (
     <div className={cn("relative shrink-0", toneText, className)} style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-hairline-soft)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -663,7 +668,7 @@ export function Drawer({
         ref={panelRef}
         tabIndex={-1}
         className={cn(
-          "absolute flex flex-col border-white/[0.08] bg-ink-900 shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.7)]",
+          "absolute flex flex-col border-gold-500/15 bg-ink-900 shadow-[0_-20px_60px_-20px_rgba(0,0,0,0.8)]",
           "inset-x-0 bottom-0 max-h-[90vh] animate-sheet-up rounded-t-3xl border-t",
           "sm:inset-y-0 sm:left-0 sm:right-auto sm:max-h-none sm:animate-sheet-in sm:rounded-none sm:border-e sm:border-t-0",
           w,
@@ -727,7 +732,7 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-[75] flex items-end justify-center px-4 pb-4 sm:items-center sm:pb-0" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
-      <div ref={panelRef} tabIndex={-1} className="relative w-full max-w-md animate-sheet-up overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)]">
+      <div ref={panelRef} tabIndex={-1} className="surface-ornate relative w-full max-w-md animate-sheet-up overflow-hidden">
         <div className="absolute inset-x-0 top-0 h-px hairline-gold" />
         <div className="p-5">
           <h2 id={titleId} className="text-base font-semibold text-ink-50">{title}</h2>
@@ -900,7 +905,7 @@ export function Panel({
             {kicker && <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-300">{kicker}</p>}
           </div>
           {action && (
-            <button type="button" onClick={onAction} className="group inline-flex shrink-0 items-center gap-1 text-[11.5px] text-ink-300 transition-colors hover:text-gold-400">
+            <button type="button" onClick={onAction} className="group inline-flex shrink-0 items-center gap-1 text-[11.5px] font-medium text-gold-400 transition-colors hover:text-gold-300">
               {action}
               <ChevronLeft className="size-3.5 transition-transform duration-[var(--eighth)] group-hover:-translate-x-0.5" />
             </button>

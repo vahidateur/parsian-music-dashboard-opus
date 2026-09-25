@@ -19,8 +19,8 @@
  * - honest pagination/truncation disclosure N ردیف از M
  * - no new route, same surface
  */
-import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Search, Trash2 } from "lucide-react";
+import { useMemo, useRef, useState, type RefObject } from "react";
+import { ImagePlus, Trash2 } from "lucide-react";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Surface } from "@/components/ds/primitives";
@@ -28,6 +28,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Field, Panel, inputCls, SearchInput } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getGalleryRepository, getMediaRepository } from "@/domains/registry";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
 import { useAlbums, useGalleryImages } from "./useGallery";
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
@@ -69,6 +70,71 @@ function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; 
   );
 }
 
+/**
+ * The selected album's images — and the ONLY caller of `useGalleryImages` here.
+ *
+ * The read lives behind this mount on purpose. `paginate` reads `per_page: 0` as
+ * "one row" (`src/domains/shared/demoCollection.ts:22`), so a panel that asked
+ * for images before any album was selected was answered with a row belonging to
+ * some other album: an answer to a question nobody had asked (OPEN_ITEMS I14 —
+ * whose contract decision belongs to the shared hook, not here). With no album
+ * there is nothing to read, and this component is not mounted.
+ */
+function AlbumImages({
+  album,
+  busy,
+  caption,
+  onCaption,
+  onUpload,
+  onRemove,
+  fileInput,
+}: {
+  album: GalleryAlbum;
+  busy: boolean;
+  caption: string;
+  onCaption: (value: string) => void;
+  onUpload: (file: File) => void;
+  onRemove: (image: GalleryImage) => void;
+  fileInput: RefObject<HTMLInputElement | null>;
+}) {
+  const { items: images, total: imagesTotal, loading: imagesLoading, error: imagesError, reload: reloadImages } =
+    useGalleryImages({ albumId: album.id, per_page: 200 });
+  const imagesNote = partialNote("تصاویر", images.length, imagesTotal);
+
+  return (
+    <>
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <Field label="توضیح تصویر (متن جایگزین — alt الزامی)" className="min-w-[200px] flex-1">
+          {(control) => <input {...control} className={inputCls} placeholder="برای دسترس‌پذیری الزامی است" value={caption} disabled={busy} onChange={(e) => onCaption(e.target.value)} />}
+        </Field>
+        <input ref={fileInput} type="file" className="sr-only" accept={ALLOWED_IMAGE_TYPES.join(",")} onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }} />
+        <Button size="sm" variant="primary" className="mb-[2px]" disabled={busy} onClick={() => fileInput.current?.click()}>
+          <ImagePlus className="size-3.5" /> {busy ? "در حال افزودن…" : "افزودن تصویر"}
+        </Button>
+        {imagesNote && <span className="text-[11px] text-ink-400">{imagesNote}</span>}
+      </div>
+
+      {imagesError ? (
+        <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" description={imagesError.message} onRetry={reloadImages} />
+      ) : imagesLoading ? (
+        <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
+      ) : images.length === 0 ? (
+        <EmptyState title="تصویری نیست" description="این آلبوم خالی است — اولین تصویر را اضافه کنید." />
+      ) : (
+        <>
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {images.map((image) => <Thumb key={image.id} image={image} busy={busy} onRemove={() => onRemove(image)} />)}
+          </ul>
+
+          <Surface className="mt-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
+            تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد.
+          </Surface>
+        </>
+      )}
+    </>
+  );
+}
+
 export function GalleryPanel() {
   const { notify } = useApp();
   const [albumSearch, setAlbumSearch] = useState("");
@@ -84,12 +150,7 @@ export function GalleryPanel() {
     [albums, selectedId],
   );
 
-  const { items: images, total: imagesTotal, loading: imagesLoading, error: imagesError, reload: reloadImages } = useGalleryImages(
-    selected ? { albumId: selected.id, per_page: 200 } : { per_page: 0 },
-  );
-
   const albumsNote = partialNote("آلبوم‌ها", albums.length, albumsTotal);
-  const imagesNote = partialNote("تصاویر", images.length, imagesTotal);
 
   const createAlbum = async () => {
     const title = albumTitle.trim();
@@ -111,6 +172,15 @@ export function GalleryPanel() {
     if (!selected) return;
     const alt = caption.trim() || file.name;
     setBusy(true);
+    /*
+      Two awaited writes: the bytes are stored first, then the image row that
+      references them. If the row write fails, the stored asset is unreachable —
+      so the upload this attempt created is released through the media domain's
+      staged path, which frees metadata and bytes together and reports a cleanup
+      failure instead of swallowing it. A successful write keeps the asset, and
+      the album's own cleanup handles nothing here: this asset is the new one.
+    */
+    let stagedMediaId: string | undefined;
     try {
       const asset = await getMediaRepository().create({
         kind: "image",
@@ -118,6 +188,7 @@ export function GalleryPanel() {
         mimeType: file.type,
         bytes: await file.arrayBuffer(),
       });
+      stagedMediaId = asset.id;
       await getGalleryRepository().addImage({
         albumId: selected.id,
         mediaId: asset.id,
@@ -127,6 +198,8 @@ export function GalleryPanel() {
       setCaption("");
       notify({ tone: "success", title: "تصویر افزوده شد", detail: "فایل فقط در همین مرورگر ذخیره شده است." });
     } catch (cause) {
+      // The image row was never written, so the staged upload must not linger.
+      await releaseStagedMedia(stagedMediaId, getMediaRepository());
       notify({ tone: "danger", title: "افزودن تصویر انجام نشد", detail: apiErrorFromThrown(cause).message });
     } finally {
       setBusy(false);
@@ -150,7 +223,7 @@ export function GalleryPanel() {
   if (error) return <ErrorState className="py-16" title="بارگذاری گالری ناموفق بود" description={error.message} onRetry={reload} />;
 
   return (
-    <Panel title="گالری تصاویر" kicker="تصاویر آموزشگاه، اجراها و کلاس‌ها — seed VERIFIED 2 albums 0 images">
+    <Panel title="گالری تصاویر" kicker="تصاویر آموزشگاه، اجراها و کلاس‌ها">
       <div className="mb-3 flex items-center gap-2">
         <SearchInput value={albumSearch} onChange={setAlbumSearch} placeholder="جستجوی آلبوم…" />
         {albumsNote && <span className="text-[11px] text-ink-400">{albumsNote}</span>}
@@ -158,9 +231,9 @@ export function GalleryPanel() {
 
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
         <div>
-          <h3 className="mb-2 text-[11px] font-medium text-ink-400">آلبوم‌ها — {faNum(albumsTotal)} — sortOrder ASC then createdAt</h3>
+          <h3 className="mb-2 text-[11px] font-medium text-ink-400">آلبوم‌ها — {faNum(albumsTotal)}</h3>
           {albums.length === 0 ? (
-            <EmptyState title="آلبومی وجود ندارد" description="برای دسته‌بندی تصاویر یک آلبوم بسازید. seed: ۲ آلبوم ۰ تصویر VERIFIED" />
+            <EmptyState title="آلبومی وجود ندارد" description="برای دسته‌بندی تصاویر یک آلبوم بسازید." />
           ) : (
             <ul className="space-y-1.5">
               {albums.map((album) => (
@@ -194,37 +267,15 @@ export function GalleryPanel() {
 
         <div>
           {selected ? (
-            <>
-              <div className="mb-3 flex flex-wrap items-end gap-2">
-                <Field label="توضیح تصویر (متن جایگزین — alt الزامی)" className="min-w-[200px] flex-1">
-                  {(control) => <input {...control} className={inputCls} placeholder="برای دسترس‌پذیری الزامی است" value={caption} disabled={busy} onChange={(e) => setCaption(e.target.value)} />}
-                </Field>
-                <input ref={fileInput} type="file" className="sr-only" accept={ALLOWED_IMAGE_TYPES.join(",")} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }} />
-                <Button size="sm" variant="primary" className="mb-[2px]" disabled={busy} onClick={() => fileInput.current?.click()}>
-                  <ImagePlus className="size-3.5" /> {busy ? "در حال افزودن…" : "افزودن تصویر"}
-                </Button>
-                {imagesNote && <span className="text-[11px] text-ink-400">{imagesNote}</span>}
-              </div>
-
-              {imagesError ? (
-                <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" description={imagesError.message} onRetry={reloadImages} />
-              ) : imagesLoading ? (
-                <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
-              ) : images.length === 0 ? (
-                <EmptyState title="تصویری نیست" description="این آلبوم خالی است — اولین تصویر را اضافه کنید. seed VERIFIED ۲ آلبوم ۰ تصویر — خالی بودن legitimate است." />
-              ) : (
-                <>
-                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {images.map((image) => <Thumb key={image.id} image={image} busy={busy} onRemove={() => void removeImage(image)} />)}
-                  </ul>
-                  {imagesNote && <p className="mt-2 text-[11px] text-ink-400">{imagesNote} — sortOrder ASC then createdAt</p>}
-                </>
-              )}
-
-              <Surface className="mt-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
-                تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد. seed: ۲ آلبوم «کنسرت پایان ترم» و «فضای آموزشگاه» ۰ تصویر VERIFIED via learningSeed.ts:258-278
-              </Surface>
-            </>
+            <AlbumImages
+              album={selected}
+              busy={busy}
+              caption={caption}
+              onCaption={setCaption}
+              onUpload={upload}
+              onRemove={removeImage}
+              fileInput={fileInput}
+            />
           ) : (
             <EmptyState title="آلبومی انتخاب نشده" description="ابتدا یک آلبوم بسازید یا انتخاب کنید." />
           )}

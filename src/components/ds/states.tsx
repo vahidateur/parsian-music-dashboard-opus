@@ -60,11 +60,11 @@ export function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.08] px-6 py-12 text-center", className)}>
-      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border border-white/[0.07] bg-white/[0.03] text-ink-300">
+    <div className={cn("flex flex-col items-center justify-center rounded-2xl border border-dashed border-gold-500/20 bg-white/[0.015] px-6 py-12 text-center", className)}>
+      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl border border-gold-500/25 bg-gradient-to-b from-gold-500/10 to-transparent text-gold-300/80">
         {icon ?? <Inbox className="size-5" strokeWidth={1.6} />}
       </div>
-      <h3 className="text-sm font-semibold text-ink-100">{title}</h3>
+      <h3 className="text-[14px] font-semibold tracking-tight text-ink-100">{title}</h3>
       {description && <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-ink-300">{description}</p>}
       {action && (
         <Button variant="subtle" size="sm" className="mt-5" onClick={onAction}>

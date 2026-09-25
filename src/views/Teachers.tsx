@@ -984,9 +984,6 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
 /* ------------------------------------------------------------------ */
 export function TeachersView() {
   const { detailId, navigate, notify } = useApp();
-  let user: any = null;
-  try { user = useAuth().user; } catch { user = null; }
-  const canWriteTeachers = useCan("teachers.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
   // Repository-backed: loading reflects a real read, not a timer.
   // I16: list view keeps per_page 200 ceiling; detail/deep-link uses authoritative get(id)

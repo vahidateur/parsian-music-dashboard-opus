@@ -40,6 +40,7 @@ import { DemoMediaRepository } from "@/domains/media/demoRepository";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { MAX_IMAGE_BYTES, type CreateMediaInput, type MediaAsset } from "@/domains/media/types";
 import { getChatRepository, getMediaRepository, resetRegistry, setChatRepository, setMediaRepository } from "@/domains/registry";
+import { setMediaReleaseFailureReporter } from "@/domains/media/release";
 import { createEmptyDataset } from "@/domains/demo/seed";
 import { demoStore } from "@/services/demoStore";
 import { KIND_LABEL, formatBytes } from "@/views/messages/attachmentRules";
@@ -50,6 +51,7 @@ const THREAD_A = "محمد رضایی";
 const THREAD_B = "سارا احمدی";
 
 afterEach(cleanup);
+afterEach(() => setMediaReleaseFailureReporter(undefined));
 beforeEach(() => {
   resetToDemoEnvironment();
   setBlobStore(createMemoryBlobStore());
@@ -518,6 +520,108 @@ describe("failures", () => {
     // Still the same conversation, with its messages, and no empty-thread claim.
     expect(screen.queryByText("هنوز پیامی رد و بدل نشده")).toBeNull();
     expect(await screen.findByText(/سلام\. متأسفانه فرد/)).toBeTruthy();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* F · the staged upload leaves through the media domain               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A rejected `sendMessage` leaves a stored-but-unreferenced asset behind, so the
+ * send path releases it through `releaseStagedMedia`. These cases pin the three
+ * properties that make that cleanup trustworthy:
+ *
+ *   - ORDER: nothing is freed until the message write has settled, because
+ *     before that it could still be the attachment of a written message;
+ *   - HONESTY: a cleanup that fails reaches the release reporter (the operator
+ *     sees a warning) and never replaces or hides the real failure;
+ *   - NO OVER-REACH: a successful send keeps the asset it references.
+ */
+describe("the staged upload is released through the media domain", () => {
+  it("frees nothing until the message write has settled, then releases the asset", async () => {
+    const gate = deferred<ChatMessage>();
+    const media = stubMedia();
+    const chat = stubChat(() => gate.promise);
+    await openThread();
+
+    pickFile(pngFile("ordered.png"));
+    await screen.findByText("ordered.png");
+    type("پیام و پیوست");
+    fireEvent.click(sendButton());
+
+    // The upload landed and the message write is in flight…
+    await waitFor(() => expect(chat.send).toBe(1));
+    // …and the asset is untouched: the write could still reference it.
+    expect(media.create).toBe(1);
+    expect(media.delete).toBe(0);
+    expect(await getMediaRepository().getBlob(media.created[0])).toBeInstanceOf(Blob);
+
+    // Only once the write is known to have failed is the asset freed.
+    gate.reject(new ApiError({ kind: "server", status: 500, message: "سرور گفتگوها پاسخ نداد." }));
+    await waitFor(() => expect(media.delete).toBe(1));
+    const orphan = media.created[0];
+    await expect(getMediaRepository().get(orphan)).rejects.toBeTruthy();
+    expect(await getMediaRepository().getBlob(orphan)).toBeUndefined();
+  });
+
+  it("reports a cleanup failure exactly once and keeps the send failure as the message", async () => {
+    const deletion = new ApiError({
+      kind: "server",
+      status: 500,
+      code: "MEDIA_STORAGE_FAILED",
+      message: "ذخیره‌سازی پاسخ نداد.",
+    });
+    const real = new DemoMediaRepository();
+    setMediaRepository(
+      withStubs(real, {
+        delete: async () => {
+          throw deletion;
+        },
+      }),
+    );
+    const chat = stubChat(() =>
+      Promise.reject(new ApiError({ kind: "server", status: 500, message: "سرور گفتگوها پاسخ نداد." })),
+    );
+    await openThread();
+    /*
+      Installed AFTER the render on purpose: `AppProvider` installs the app's own
+      reporter in an effect (the warning toast), and this case observes the
+      hand-off to the reporter rather than rendering it.
+    */
+    const reported: string[] = [];
+    setMediaReleaseFailureReporter(({ error }) => reported.push(error.code ?? ""));
+
+    pickFile(pngFile("stuck.png"));
+    await screen.findByText("stuck.png");
+    type("پیام و پیوست");
+    fireEvent.click(sendButton());
+
+    // The real failure is what the operator reads…
+    await waitFor(() => expect(toastText()).toContain("سرور گفتگوها پاسخ نداد."));
+    // …the cleanup failure is reported once, through the media domain, and the
+    // send path itself never threw (the composer is still usable for a retry).
+    expect(reported).toEqual(["MEDIA_STORAGE_FAILED"]);
+    expect(chat.send).toBe(1);
+    expect(composer().value).toBe("پیام و پیوست");
+    expect(screen.getByText("stuck.png")).toBeTruthy();
+  });
+
+  it("keeps the asset when the message write succeeds", async () => {
+    const media = stubMedia();
+    const chat = stubChat();
+    await openThread();
+
+    pickFile(pngFile("kept.png"));
+    await screen.findByText("kept.png");
+    type("پیام با پیوست");
+    fireEvent.click(sendButton());
+
+    await waitFor(() => expect(toastText()).toContain("پیام و پیوست ثبت شد"));
+    expect(chat.send).toBe(1);
+    // Nothing was released: the message references these bytes.
+    expect(media.delete).toBe(0);
+    expect(await getMediaRepository().getBlob(media.created[0])).toBeInstanceOf(Blob);
   });
 });
 

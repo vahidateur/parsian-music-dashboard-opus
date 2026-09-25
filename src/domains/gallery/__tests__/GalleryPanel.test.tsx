@@ -9,13 +9,20 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
+import { ApiError } from "@/api/errors";
 import { GalleryPanel } from "../GalleryPanel";
-import { getGalleryRepository, getMediaRepository, resetRegistry } from "@/domains/registry";
+import { DemoGalleryRepository } from "../demoRepository";
+import type { GalleryImage } from "../types";
+import { getGalleryRepository, getMediaRepository, resetRegistry, setGalleryRepository, setMediaRepository } from "@/domains/registry";
+import { DemoMediaRepository } from "@/domains/media/demoRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
+import { setMediaReleaseFailureReporter } from "@/domains/media/release";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { withStubs } from "@/test/repositoryStubs";
 
 afterEach(cleanup);
+afterEach(() => setMediaReleaseFailureReporter(undefined));
 
 /** Assets the canonical seed ships on its own (the library's demo file). */
 let seededMediaCount: number;
@@ -87,6 +94,35 @@ function fileInput(): HTMLInputElement {
   const input = document.querySelector('input[type="file"]');
   if (!input) throw new Error("file input not found");
   return input as HTMLInputElement;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+/**
+ * The real media repository with its `delete` calls tallied — and optionally
+ * forced to fail, so the cleanup-failure hand-off can be observed.
+ */
+function spyingMedia(onDelete?: (id: string) => Promise<void>) {
+  const real = new DemoMediaRepository();
+  const deleted: string[] = [];
+  setMediaRepository(
+    withStubs(real, {
+      delete: async (id: string) => {
+        deleted.push(id);
+        if (onDelete) return onDelete(id);
+        return real.delete(id);
+      },
+    }),
+  );
+  return deleted;
 }
 
 describe("albums", () => {
@@ -218,5 +254,103 @@ describe("removing", () => {
       expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(0);
     });
     expect(await getMediaRepository().getBlob(mediaId)).toBeUndefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* the staged upload leaves through the media domain                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * An upload is two writes: store the bytes, then write the image row. When the
+ * row write fails, the stored asset is unreachable — so the panel releases the
+ * upload THIS attempt created through `releaseStagedMedia`. The three properties
+ * that make the cleanup trustworthy are pinned here:
+ *
+ *   - ORDER: the asset is untouched while the row write is still in flight;
+ *   - RELEASE: a failed row write frees the newly created asset (metadata AND
+ *     bytes), leaving no album row behind;
+ *   - NO OVER-REACH: a successful write keeps the asset, and a cleanup that
+ *     fails is reported through the media domain instead of being swallowed.
+ */
+describe("a failed album write releases the staged upload", () => {
+  it("frees nothing while the row write is pending, then releases the asset", async () => {
+    const gate = deferred<GalleryImage>();
+    const deleted = spyingMedia();
+    setGalleryRepository(
+      withStubs(new DemoGalleryRepository(), {
+        addImage: () => gate.promise,
+      }),
+    );
+
+    renderPanel();
+    await waitForPanel();
+    await createAlbum();
+
+    fireEvent.change(fileInput(), { target: { files: [pngFile("staged.png")] } });
+
+    // The bytes are stored — one asset more than the seed ships…
+    await waitFor(() => expect(demoStore.media.all()).toHaveLength(seededMediaCount + 1));
+    // …and nothing has been freed: the row write could still reference it.
+    expect(deleted).toEqual([]);
+    expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(0);
+
+    // Only after the row write is known to have failed is the asset released.
+    gate.reject(new ApiError({ kind: "server", status: 500, message: "آلبوم پاسخ نداد." }));
+    await waitFor(() => expect(deleted).toHaveLength(1));
+
+    expect(demoStore.media.find(deleted[0])).toBeUndefined();
+    expect(await getMediaRepository().getBlob(deleted[0])).toBeUndefined();
+    expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(0);
+  });
+
+  it("reports a cleanup failure exactly once and never throws it at the panel", async () => {
+    const deletion = new ApiError({
+      kind: "server",
+      status: 500,
+      code: "MEDIA_STORAGE_FAILED",
+      message: "ذخیره‌سازی پاسخ نداد.",
+    });
+    spyingMedia(() => Promise.reject(deletion));
+    setGalleryRepository(
+      withStubs(new DemoGalleryRepository(), {
+        addImage: () => Promise.reject(new ApiError({ kind: "server", status: 500, message: "آلبوم پاسخ نداد." })),
+      }),
+    );
+
+    renderPanel();
+    await waitForPanel();
+    // Installed after the render: `AppProvider` installs the app's own reporter
+    // in an effect, and this case observes the hand-off to it.
+    const reported: string[] = [];
+    setMediaReleaseFailureReporter(({ error }) => reported.push(error.code ?? ""));
+    await createAlbum();
+
+    fireEvent.change(fileInput(), { target: { files: [pngFile("stuck.png")] } });
+
+    await waitFor(() => expect(reported).toEqual(["MEDIA_STORAGE_FAILED"]));
+    // The cleanup failed, so the asset is still there — and no row pretends it
+    // was attached. The panel stayed responsive: the album is still listed.
+    expect(demoStore.media.all()).toHaveLength(seededMediaCount + 1);
+    expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(0);
+    expect(screen.getByText("کنسرت بهار")).toBeTruthy();
+  });
+
+  it("keeps the asset when the row write succeeds", async () => {
+    const deleted = spyingMedia();
+
+    renderPanel();
+    await waitForPanel();
+    await createAlbum();
+
+    fireEvent.change(fileInput(), { target: { files: [pngFile("kept.png")] } });
+
+    await waitFor(async () => {
+      expect((await getGalleryRepository().listImages({ per_page: 100 })).data).toHaveLength(1);
+    });
+    const mediaId = (await getGalleryRepository().listImages({ per_page: 100 })).data[0].mediaId;
+
+    expect(deleted).toEqual([]);
+    expect(await getMediaRepository().getBlob(mediaId)).toBeInstanceOf(Blob);
   });
 });

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, DoorOpen, GraduationCap, LayoutGrid, Library, LogOut, MessageSquare, PanelLeftClose, PanelLeftOpen, Palette, Settings, Users, Wallet, X, type LucideIcon , Images} from "lucide-react";
-import { navGroups } from "@/lib/navigation";
+import { navGroups, type NavGroup } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
@@ -28,11 +28,33 @@ export const navIcons: Record<ViewId, LucideIcon> = {
   "design-system": Palette,
 };
 
+/**
+ * The academy mark — a lyre, struck in gold.
+ *
+ * The reference's identity is an instrument, not a waveform: two curved arms,
+ * a sounding box and five strings. It keeps the same gilt-edged plate the old
+ * mark sat on, so every place that already placed `BrandMark` (rail, mobile
+ * drawer, login) inherits the new emblem without a layout change.
+ */
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <span className={cn("relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/30 bg-gradient-to-br from-gold-500/15 to-transparent", className)} aria-hidden>
-      <svg viewBox="0 0 32 32" className="size-6 text-gold-500" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 16h3l2-6 3 12 3-14 3 16 3-10 2 4h3" />
+    <span
+      className={cn(
+        "relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-gold-500/35 bg-gradient-to-br from-gold-500/20 to-transparent shadow-[0_0_22px_-10px_color-mix(in_srgb,var(--accent-500)_85%,transparent)]",
+        className,
+      )}
+      aria-hidden
+    >
+      <svg viewBox="0 0 32 32" className="size-6 text-gold-400" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+        {/* the two arms of the lyre */}
+        <path d="M9 25c-2.6-3.2-4-7.4-4-13 0-1.7 1.3-3 3-3s3 1.3 3 3" />
+        <path d="M23 25c2.6-3.2 4-7.4 4-13 0-1.7-1.3-3-3-3s-3 1.3-3 3" />
+        {/* the crossbar the strings run from */}
+        <path d="M8 12h16" opacity={0.75} />
+        {/* the strings */}
+        <path d="M11.5 13.5V24M14.5 13.5V24M17.5 13.5V24M20.5 13.5V24" opacity={0.6} strokeWidth={1.1} />
+        {/* the sounding box */}
+        <path d="M8 25c2 1.6 4.7 2.4 8 2.4s6-0.8 8-2.4" />
       </svg>
     </span>
   );
@@ -92,6 +114,50 @@ function SessionRole() {
 
 /** Rows per badge read. Stated, never inherited from the API default. */
 const NAV_BADGE_PER_PAGE = 200;
+
+/**
+ * The teacher's navigation POLICY — presentation only.
+ *
+ * A teacher's day runs «my today → my schedule → my registers → my students → my
+ * library → my messages», so the sections that do not belong to that day are
+ * left out of the rail for the teacher role, and the three whose names differ
+ * from a teacher's own words («داشبورد» is *my* today, «برنامهریزی» is *my*
+ * schedule, «هنرجویان» are *my* students) are relabelled for them.
+ *
+ * This is deliberately NOT an authorization change: `viewPermissions`,
+ * `canAccess` and the route gate are untouched, so a deep link to a hidden
+ * section still opens, and nothing here decides what a teacher may read or
+ * write. Cross-role product decisions about whether a teacher *should* see the
+ * staff list or the compensation ledger stay where they were — in the RBAC
+ * matrix — and this file only declines to surface them in the rail.
+ */
+const TEACHER_HIDDEN_VIEWS: readonly ViewId[] = ["teachers", "compensation", "gallery"];
+const TEACHER_ITEM_LABEL: Partial<Record<ViewId, string>> = {
+  dashboard: "امروز من",
+  schedule: "برنامه",
+  students: "هنرجویان من",
+};
+/** The order those sections appear in for a teacher, by the groups' own ids. */
+const TEACHER_GROUP_ORDER: readonly string[] = ["overview", "operations", "people", "resources", "communication"];
+
+function teacherAwareGroups(
+  groups: NavGroup[],
+  isTeacher: boolean,
+  canAccess: (view: ViewId) => boolean,
+): NavGroup[] {
+  const visible = groups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => canAccess(item.id) && !(isTeacher && TEACHER_HIDDEN_VIEWS.includes(item.id)))
+        .map((item) => (isTeacher ? { ...item, label: TEACHER_ITEM_LABEL[item.id] ?? item.label } : item)),
+    }))
+    .filter((group) => group.items.length > 0);
+  if (!isTeacher) return visible;
+  return [...visible].sort(
+    (a, b) => TEACHER_GROUP_ORDER.indexOf(a.id) - TEACHER_GROUP_ORDER.indexOf(b.id),
+  );
+}
 
 /**
  * Where a navigation badge comes from, and when it is allowed to exist.
@@ -161,25 +227,28 @@ export function SidebarContent({
   */
   const { branding } = useBranding();
   const [accountOpen, setAccountOpen] = useState(false);
-  /* Navigation only shows what the session may actually open. */
+  /*
+    Navigation shows what the session may actually open — and, for a teacher,
+    the same sections under the teacher's own names and order (see
+    `TEACHER_HIDDEN_VIEWS`). Hiding is presentation; `canAccess` remains the one
+    gate, and it is asked first.
+  */
+  const isTeacher = user?.role === "teacher";
   const visibleGroups = useMemo(
-    () => navGroups.map((g) => ({ ...g, items: g.items.filter((n) => canAccess(n.id)) })).filter((g) => g.items.length > 0),
-    [canAccess],
+    () => teacherAwareGroups(navGroups, isTeacher, canAccess),
+    [canAccess, isTeacher],
   );
   const { view, navigate } = useApp();
 
   return (
     <div className="flex h-full flex-col">
-      {/* brand */}
-      <div className={cn("flex items-center gap-3 px-4 pt-5 pb-4", collapsed && "justify-center px-0")}>
+      {/* brand — the academy's own identity, struck in gold */}
+      <div className={cn("flex items-center gap-3 px-4 pb-4 pt-5", collapsed && "justify-center px-0")}>
         <BrandMark />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-ink-50">{branding.academyName}</div>
-            <div className="truncate text-[11px] text-ink-400">
-              {branding.tagline}
-              {user ? ` · ${roleLabel(user.role)}` : ""}
-            </div>
+            <div className="truncate text-[13.5px] font-bold tracking-tight text-ink-50">{branding.academyName}</div>
+            <div className="mt-0.5 truncate text-[10.5px] tracking-wide text-gold-500/90">{branding.tagline}</div>
           </div>
         )}
         {onClose && (
@@ -188,15 +257,16 @@ export function SidebarContent({
           </button>
         )}
       </div>
+      <div className="mx-4 h-px hairline-gold opacity-70" aria-hidden />
 
-      <nav className={cn("flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label={navLabel}>
+      <nav className={cn("mt-3 flex-1 overflow-y-auto px-3", collapsed && "px-2")} aria-label={navLabel}>
         {visibleGroups.map((group, gi) => (
           <div key={group.id} className={cn(gi > 0 && (collapsed ? "mt-2" : "mt-4"))}>
             {group.label &&
               (collapsed ? (
                 <div className="mx-2 mb-2 h-px bg-white/[0.06]" aria-hidden />
               ) : (
-                <div className="mb-1.5 px-3 text-[10px] font-medium tracking-wide text-ink-500">{group.label}</div>
+                <div className="mb-1.5 px-3 text-[10px] font-medium tracking-[0.06em] text-ink-500">{group.label}</div>
               ))}
             <div className="space-y-0.5">
               {group.items.map((n) => (
@@ -218,7 +288,7 @@ export function SidebarContent({
         ))}
       </nav>
 
-      <div className={cn("space-y-3 p-3", collapsed && "p-2")}>
+      <div className={cn("space-y-2.5 border-t border-white/[0.06] p-3", collapsed && "p-2")}>
         {!collapsed && <SessionRole />}
         <div className="relative">
           <button
@@ -228,11 +298,11 @@ export function SidebarContent({
             aria-haspopup="menu"
             aria-label={`حساب کاربری — ${user?.name ?? ""}`}
             className={cn(
-              "flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-2 text-right transition-colors hover:border-white/[0.12]",
+              "flex w-full items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-2 text-right transition-colors hover:border-gold-500/30 hover:bg-white/[0.04]",
               collapsed && "justify-center border-0 bg-transparent p-1",
             )}
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-500/30">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-wood-400 to-wood-700 text-sm font-bold text-ink-50 ring-2 ring-gold-400/40">
               {(user?.name ?? "؟").trim().charAt(0)}
             </span>
             {!collapsed && (
@@ -291,12 +361,38 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   /* Read ONCE per shell, not once per rendered instance: the desktop rail and
      the wide sidebar are two mounts of the same data. */
   const badges = useNavBadges();
+
+  /*
+    Escape dismisses the mobile drawer — the same keydown contract every other
+    overlay in this product already owns (`Drawer` and `Dialog` in
+    ds/patterns.tsx add exactly this listener). The drawer declares
+    `role="dialog" aria-modal="true"`, so a keyboard user must be able to leave
+    it the way they leave every other modal. Nothing else about the drawer
+    moves: entry focus, tab order and the routing on a nav click are unchanged.
+  */
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileOpen, onClose]);
   return (
     <>
-      {/* Desktop: full sidebar at xl, icon rail at lg; collapse state is user-controlled & remembered */}
+      {/*
+        Desktop: full sidebar at xl, icon rail at lg; collapse state is
+        user-controlled & remembered.
+
+        The rail FLOATS — inset from every edge, 28px corners, a gilt edge and a
+        warm outer glow (`.surface-ornate`) — instead of being a flush column
+        with a hairline down its side. That is the reference's chrome: the rail
+        reads as an object in the room, not as the edge of the page.
+      */}
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-30 hidden border-l border-white/[0.06] bg-ink-900/80 backdrop-blur-xl transition-[width] duration-[var(--eighth)] ease-[var(--ease-resonance)] lg:block",
+          "surface-ornate fixed z-30 hidden overflow-hidden transition-[width,background-color,border-color] duration-[var(--eighth)] ease-[var(--ease-resonance)] lg:block",
+          "bottom-[var(--rail-gutter)] right-[var(--rail-gutter)] top-[var(--rail-gutter)]",
           "lg:w-[var(--rail-w)]",
           railCollapsed ? "xl:w-[var(--rail-w)]" : "xl:w-[var(--sidebar-w)]",
         )}
@@ -309,11 +405,14 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
         </div>
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — the same floating plate, arriving from the edge. */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="منو">
-          <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
-          <aside className="absolute inset-y-0 right-0 w-[86vw] max-w-[320px] animate-sheet-in border-l border-white/[0.06] bg-ink-900 shadow-2xl" style={{ animationName: "sheet-in-rtl" }}>
+          <button type="button" aria-label="بستن" onClick={onClose} className="absolute inset-0 animate-fade-in bg-ink-950/75 backdrop-blur-sm" />
+          <aside
+            className="surface-ornate absolute inset-y-3 right-3 w-[86vw] max-w-[320px] animate-sheet-in overflow-hidden"
+            style={{ animationName: "sheet-in-rtl" }}
+          >
             <SidebarContent onClose={onClose} navLabel="ناوبری موبایل" badges={badges} />
           </aside>
         </div>

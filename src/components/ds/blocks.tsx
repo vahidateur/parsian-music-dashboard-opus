@@ -23,22 +23,25 @@ export function SignalBlock({ signal, onOpen, className }: { signal: Signal; onO
       )}
     >
       <div className="flex w-full items-center justify-between">
-        <span className="text-xs font-medium text-ink-300">{signal.label}</span>
+        <span className="text-[11.5px] font-medium tracking-wide text-ink-300">{signal.label}</span>
         <ChevronLeft className="size-3.5 text-ink-500 opacity-0 transition-all duration-[var(--eighth)] group-hover:-translate-x-0.5 group-hover:opacity-100" />
       </div>
+      {/*
+        The reference's KPI tile reads number-first, chart-as-provider: the
+        figure is the largest thing on the slab and the series sits beside it,
+        low, at the drawing's own height. Its baseline aligns with the number's.
+      */}
       <div className="flex w-full items-end justify-between gap-4">
-        <div className="min-w-0">
-          <div className="nums flex items-baseline gap-1.5 text-[26px] font-semibold leading-none tracking-tight text-ink-50">
-            {signal.value}
-            {signal.unit && <span className="text-sm font-medium text-ink-300">{signal.unit}</span>}
-          </div>
-          <Delta value={signal.delta} label={signal.deltaLabel} className="mt-2.5" />
+        <div className="numeral flex items-baseline gap-1.5 text-[28px] font-semibold leading-none text-ink-50">
+          {signal.value}
+          {signal.unit && <span className="text-sm font-medium text-ink-300">{signal.unit}</span>}
         </div>
-        <Sparkline data={signal.series} kind={signal.kind} tone={signal.tone === "warn" ? "warn" : "gold"} width={92} height={34} className="shrink-0 opacity-90" />
+        <Sparkline data={signal.series} kind={signal.kind} tone={signal.tone === "warn" ? "warn" : "gold"} width={96} height={36} className="shrink-0 opacity-90" />
       </div>
-      <p className="flex w-full items-center gap-2 border-t border-white/[0.05] pt-3 text-xs text-ink-300">
+      <p className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 border-t border-white/[0.05] pt-3 text-xs text-ink-300">
+        <Delta value={signal.delta} label={signal.deltaLabel} />
         <span className={cn("size-1.5 shrink-0 rounded-full", toneDot)} aria-hidden />
-        <span className="truncate">{signal.context}</span>
+        <span className="min-w-0 flex-1 truncate">{signal.context}</span>
       </p>
     </button>
   );
@@ -80,7 +83,7 @@ export function AlertItem({ item, onOpen, className }: { item: AttentionItem; on
       )}
     >
       <span className={cn("absolute inset-y-3 right-0 w-[2px] rounded-full opacity-70", meta.bar)} aria-hidden />
-      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg border", meta.mark)}>{meta.icon}</span>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl border", meta.mark)}>{meta.icon}</span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-ink-50">{item.title}</span>
@@ -216,6 +219,7 @@ export function TimelineEvent({
   onOpen,
   onResolve,
   now = academyNowMinutes(),
+  footer,
 }: {
   session: ClassSession;
   status: ClassSessionStatus;
@@ -223,6 +227,12 @@ export function TimelineEvent({
   onOpen?: () => void;
   onResolve?: () => void;
   now?: number;
+  /**
+   * One extra line under the row, for state the row itself does not carry — the
+   * teaching desk puts the session's register sentence and its action here. The
+   * management flow passes nothing, so its rows are byte-for-byte what they were.
+   */
+  footer?: ReactNode;
 }) {
   const badge = statusBadge[status];
   const muted = status === "done" || status === "cancelled";
@@ -271,6 +281,7 @@ export function TimelineEvent({
             <ChevronLeft className="size-3.5" />
           </button>
         )}
+        {footer && <div className="mt-2">{footer}</div>}
       </div>
     </li>
   );
@@ -323,18 +334,28 @@ export function NavItem({
       aria-current={active ? "page" : undefined}
       title={collapsed ? label : undefined}
       className={cn(
-        "relative flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)]",
-        active ? "bg-gold-500/[0.09] text-gold-300" : "text-ink-300 hover:bg-white/[0.04] hover:text-ink-50",
+        /*
+          The lit row of the rail. The ACTIVE treatment is the shared
+          `.nav-pill-active` class rather than a pile of utilities, because the
+          floating rail and the mobile drawer must render the same lozenge — two
+          utility piles would drift the moment one of them was tuned.
+        */
+        "group relative flex h-10 w-full items-center gap-3 rounded-xl border px-3 text-[13.5px] transition-all duration-[var(--sixteenth)] ease-[var(--ease-resonance)]",
+        active
+          ? "nav-pill-active font-semibold text-gold-200"
+          : "border-transparent text-ink-300 hover:border-white/[0.07] hover:bg-white/[0.035] hover:text-ink-50",
         collapsed && "justify-center px-0",
       )}
     >
-      {active && <span className="absolute right-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-l-full bg-gold-500" aria-hidden />}
-      <Icon className={cn("size-[18px] shrink-0", active ? "text-gold-400" : "text-ink-400 group-hover:text-ink-200")} strokeWidth={1.75} />
+      <Icon
+        className={cn("size-[18px] shrink-0 transition-colors", active ? "text-gold-300" : "text-ink-400 group-hover:text-ink-200")}
+        strokeWidth={active ? 2 : 1.75}
+      />
       {!collapsed && <span className="flex-1 text-right">{label}</span>}
       {badge ? (
         <span
           className={cn(
-            "nums flex h-5 min-w-5 items-center justify-center rounded-full bg-gold-500/15 px-1.5 text-[10px] font-semibold text-gold-300",
+            "nums flex h-5 min-w-5 items-center justify-center rounded-full border border-gold-500/30 bg-gold-500/15 px-1.5 text-[10px] font-semibold text-gold-200",
             collapsed && "absolute -top-0.5 left-2",
           )}
         >
@@ -389,9 +410,9 @@ export function ChartCard({
     <Surface className={cn("flex flex-col p-5", className)}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-xs font-medium text-ink-300">{title}</h3>
-          {headline && <div className="nums mt-1 text-lg font-semibold leading-tight text-ink-50">{headline}</div>}
-          {insight && <p className="mt-1 text-xs leading-relaxed text-ink-300">{insight}</p>}
+          <h3 className="text-[11.5px] font-medium tracking-wide text-ink-300">{title}</h3>
+          {headline && <div className="numeral mt-1.5 text-2xl font-semibold leading-none text-ink-50">{headline}</div>}
+          {insight && <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{insight}</p>}
         </div>
         {toolbar}
       </header>

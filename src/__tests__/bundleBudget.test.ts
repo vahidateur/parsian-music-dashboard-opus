@@ -4,19 +4,26 @@
  * WHY THIS TEST EXISTS
  *
  * D9 forbids invented limits: every number below is measured, not chosen.
- * The anchors come from the baseline build measured at c16890f with the
+ * The ENTRY anchor comes from the baseline build measured at c16890f with the
  * exact same methodology this test uses (`gzip -6 -n`, the GNU CLI, one
  * invocation per file):
  *
  *   entry JS (single eager chunk)  raw 984476  gzip 273791
  *   CSS                            raw 115373  gzip 16453
  *   index.html                     raw 1885    gzip 999
- *   gzip total JS+CSS+HTML         291243 (recorded baseline)
+ *   gzip total JS+CSS+HTML         291243 (c16890f anchor — historical, superseded)
+ *
+ * The TOTAL baseline is the one anchor that has been re-measured: the D9-A-lite
+ * reduction landed on 2026-09-25 and the post-reduction build was measured, so the
+ * total is anchored on that measurement instead of on c16890f (DECISIONS.md §22):
+ *
+ *   gzip total JS+CSS+HTML         343947 (POST-A-lite measurement = the baseline)
+ *                                  → hard cap 361144 (baseline × 1.05, floored)
  *
  * The recorded D9 shape, implemented here:
  *   1. the entry chunk's gzip must STRICTLY decrease from 273791;
  *   2. the total gzip (JS+CSS+HTML) may grow by at most 5% over the
- *      recorded 291243 → hard cap 305805;
+ *      recorded 343947 → hard cap 361144;
  *   3. no single emitted chunk may reach 400000 gzip;
  *   4. weights 300/800 of vazirmatn are REMOVED, not budgeted — they must
  *      not come back;
@@ -55,10 +62,10 @@ function gzipSize(file: string): number {
   return parseInt(out, 10);
 }
 
-const GZIP_TOTAL_BASELINE = 291243;
-const ENTRY_GZIP_BASELINE = 273791;
-/** +5% allowance, floored — 291243 * 1.05 = 305805.15. */
-const GZIP_TOTAL_CAP = Math.floor(GZIP_TOTAL_BASELINE * 1.05); // 305805
+const GZIP_TOTAL_BASELINE = 343947; // D9-B: measured after D9-A-lite (DECISIONS.md §22)
+const ENTRY_GZIP_BASELINE = 273791; // c16890f anchor — unchanged by the re-baseline
+/** +5% allowance, floored — 343947 * 1.05 = 361144.35. */
+const GZIP_TOTAL_CAP = Math.floor(GZIP_TOTAL_BASELINE * 1.05); // 361144
 const SINGLE_CHUNK_GZIP_CEILING = 400000; // strictly under; D9 "= a failure"
 
 interface AssetStat {

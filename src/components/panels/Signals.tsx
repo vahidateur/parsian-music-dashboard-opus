@@ -6,9 +6,18 @@ import { LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
 
 /**
- * Four signals on one plane, separated by hairlines — not four cards.
+ * The four signals.
  *
- * M9/H4: the four signals are passed in, derived from stored records by
+ * REVISED FOR THE STAGE LANGUAGE. This row used to be one plane cut into four
+ * cells by hairlines — an explicit reaction to four separate boxes that read as
+ * unrelated cards. The reference design the product now follows makes the
+ * opposite call: the KPI row is four floating slabs with the stage showing
+ * between them, each carrying its own label, figure, chart and delta. What the
+ * old comment was protecting against is preserved by the CONTENT and the
+ * spacing rather than by the shared border: all four read from one read set, so
+ * they cannot disagree, and they sit on a common grid with one rhythm.
+ *
+ * M9/H4: the signals are passed in, derived from stored records by
  * `useDashboardInsights`. This component renders them and nothing else — it has
  * no fixture to fall back on, and a signal whose records carry no history gets
  * `series: null`, which `SignalBlock` renders as `NO_DATA` instead of a trend.
@@ -25,27 +34,19 @@ export function Signals({ signals, loading, className }: { signals: Signal[]; lo
   }
 
   return (
-    <Surface className={cn("overflow-hidden", className)} aria-label="سیگنال‌های اصلی">
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        {signals.map((s, i) => (
-          <div
-            key={s.id}
-            className={cn(
-              "animate-phrase-in border-white/[0.06]",
-              // 1-col (mobile): stacked hairlines
-              i > 0 && "max-sm:border-t",
-              // 2-col (sm..xl): items 2 & 4 get a start hairline, items 3 & 4 a top hairline
-              i % 2 === 1 && "sm:border-s",
-              i >= 2 && "sm:border-t xl:border-t-0",
-              // 4-col (xl+): every item after the first gets a start hairline
-              i > 0 && "xl:border-s",
-            )}
-            style={{ animationDelay: `${i * 70}ms` }}
-          >
-            <SignalBlock signal={s} onOpen={() => navigate(s.target)} />
-          </div>
-        ))}
-      </div>
-    </Surface>
+    <div
+      className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4", className)}
+      aria-label="سیگنال‌های اصلی"
+    >
+      {signals.map((s, i) => (
+        <Surface
+          key={s.id}
+          className="animate-phrase-in overflow-hidden transition-colors hover:border-gold-500/25"
+          style={{ animationDelay: `${i * 70}ms` }}
+        >
+          <SignalBlock signal={s} onOpen={() => navigate(s.target)} />
+        </Surface>
+      ))}
+    </div>
   );
 }

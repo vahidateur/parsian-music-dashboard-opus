@@ -11,7 +11,6 @@
  * column lists rather than `Object.entries(record)`, so a field added later
  * cannot leak into a file by accident.
  */
-import { instrumentName } from "@/domains/instruments/catalog";
 import {
   getAttendanceRepository,
   getClassRepository,
@@ -25,8 +24,6 @@ import {
   getTeacherRepository,
 } from "@/domains/registry";
 import { safeFilename, toCsv, toXlsx } from "@/domains/import/spreadsheet";
-import { studentExportRows } from "@/domains/import/studentImport";
-import type { Permission } from "@/domains/auth/permissions";
 import {
   attendanceColumns,
   classColumns,
@@ -40,19 +37,17 @@ import {
   type ExportColumn,
 } from "./definitions";
 import { deriveOccupancy, deriveReceivables, deriveSignals, dashboardCounts } from "@/domains/shared/dashboardInsights";
+import { EXPORT_LABELS, type ExportEntity, type ExportFormat } from "./exportMeta";
 
-export type ExportFormat = "csv" | "xlsx";
-export type ExportEntity =
-  | "students"
-  | "teachers"
-  | "classes"
-  | "enrollments"
-  | "library"
-  | "gallery"
-  | "scheduling"
-  | "attendance"
-  | "compensation"
-  | "dashboard";
+/*
+  The catalogue (labels, permission gates, the two union types) lives in
+  `exportMeta` so a surface that only needs the label does not pull the readers
+  and the spreadsheet encoder with it — see that module's header. It is
+  re-exported here unchanged, so every existing importer of `exportService`
+  keeps the same names.
+*/
+export type { ExportEntity, ExportFormat } from "./exportMeta";
+export { EXPORT_LABELS, EXPORT_PERMISSIONS } from "./exportMeta";
 
 export interface ExportTable {
   headers: string[];
@@ -60,33 +55,6 @@ export interface ExportTable {
   /** Total available rows in the repository (for truncation disclosure I16). */
   total?: number;
 }
-
-export const EXPORT_LABELS: Record<ExportEntity, string> = {
-  students: "هنرجویان",
-  teachers: "مدرسین",
-  classes: "کلاس‌ها",
-  enrollments: "ثبت‌نام‌ها",
-  library: "کتابخانه",
-  gallery: "گالری",
-  scheduling: "برنامه‌ریزی",
-  attendance: "حضور",
-  compensation: "جبرانی",
-  dashboard: "داشبورد",
-};
-
-/** Permission required to export each entity — frontend guard (M2 rule: no control if forbidden). */
-export const EXPORT_PERMISSIONS: Record<ExportEntity, Permission> = {
-  students: "students.read",
-  teachers: "teachers.read",
-  classes: "classes.read",
-  enrollments: "classes.read",
-  library: "library.read",
-  gallery: "library.read",
-  scheduling: "schedule.read",
-  attendance: "attendance.read",
-  compensation: "schedule.read",
-  dashboard: "students.read",
-};
 
 function tableFromColumns<T>(columns: ExportColumn<T>[], rows: T[], total?: number): ExportTable {
   return {

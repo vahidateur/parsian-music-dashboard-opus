@@ -5,15 +5,16 @@
  * operational data, not user input, so they are not editable here — a new
  * teacher starts at zero and the numbers move as classes are assigned.
  */
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import type { Teacher } from "./types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
-import { getTeacherRepository } from "@/domains/registry";
+import { getMediaRepository, getTeacherRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { ProfilePhotoField } from "@/domains/media/ProfilePhotoField";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { cn } from "@/utils/cn";
 import type { CreateTeacherInput, TeacherStatus } from "./types";
 
@@ -91,6 +92,33 @@ export function TeacherFormDialog({
 
   const repository = useMemo(() => getTeacherRepository(), []);
 
+  /*
+    UPLOADS THIS DIALOG CREATED AND NEVER PERSISTED — the same split as the
+    student dialog: the field reports both ids and deletes nothing, this form
+    frees an upload that never reached a record, and the repository frees the
+    previously persisted photo once its write has stopped referencing it.
+  */
+  const stagedPhotos = useRef<Set<string>>(new Set());
+
+  const releaseStagedPhotos = useCallback((keep?: string) => {
+    const abandoned = [...stagedPhotos.current].filter((id) => id !== keep);
+    stagedPhotos.current.clear();
+    for (const id of abandoned) {
+      // No record has ever referenced these; failures are reported by the media
+      // domain rather than swallowed (media/release.ts).
+      void releaseStagedMedia(id, getMediaRepository());
+    }
+  }, []);
+
+  /* Session boundary: opening stages nothing; closing abandons staged uploads. */
+  useEffect(() => {
+    if (open) {
+      stagedPhotos.current.clear();
+      return;
+    }
+    releaseStagedPhotos();
+  }, [open, releaseStagedPhotos]);
+
   const form = useEntityForm<TeacherDraft, Teacher>({
     initial: toDraft(teacher),
     open, // H6: rebuild the draft from this record whenever the dialog opens
@@ -122,10 +150,26 @@ export function TeacherFormDialog({
       return repository.create(created);
     },
     onSuccess: (saved) => {
+      /*
+        The saved record references this photo, so it is no longer staged and
+        must not be freed when the dialog closes. The photo it replaced was
+        released by the repository, after this write.
+      */
+      if (saved.photoMediaId) stagedPhotos.current.delete(saved.photoMediaId);
       onSaved(saved, editing ? "edit" : "create");
       onClose();
     },
   });
+
+  /** Both ids travel up: what the draft points at now, and what it left behind. */
+  const changePhoto = (next: string | undefined, released: string | undefined) => {
+    if (next) stagedPhotos.current.add(next);
+    if (released && stagedPhotos.current.has(released)) {
+      stagedPhotos.current.delete(released);
+      void releaseStagedMedia(released, getMediaRepository());
+    }
+    form.set("photoMediaId", next);
+  };
 
   if (!open) return null;
   const busy = form.submitting;
@@ -169,7 +213,7 @@ export function TeacherFormDialog({
             mediaId={form.draft.photoMediaId}
             personName={form.draft.name || "مدرس"}
             disabled={busy}
-            onChange={(next) => form.set("photoMediaId", next)}
+            onChange={changePhoto}
           />
         </div>
 

@@ -4,6 +4,18 @@
  * Albums own their images; deleting an album frees the referenced media so the
  * blob store does not accumulate orphans.
  *
+ * MEDIA IS FREED THROUGH THE MEDIA DOMAIN, NOT THE BLOB STORE. This repository
+ * used to remove the bytes and the metadata row itself, which meant the gallery
+ * had its own private idea of deletion — and the check for "does anything else
+ * reference this asset?" only ever looked at gallery rows. Cleanup now goes
+ * through `MediaRepository.delete` via the ownership transition, and the check it
+ * asks is the global parent predicate (X1), so metadata and bytes always leave
+ * together and no other domain's reference is missed.
+ *
+ * ORDER: the image row is detached BEFORE its media is freed. The row is what
+ * makes the asset reachable; freeing first and relying on a count of remaining
+ * rows to notice was the same operation with the invariant inverted.
+ *
  * F1: sorting sortOrder ASC then createdAt per spec, album filtering via search,
  * empty state honest, alt required, upload via media seam, no fabricated counts,
  * seed VERIFIED 2 albums 0 images.
@@ -11,7 +23,10 @@
 import type { Page } from "@/api/types";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { getBlobStore, type BlobStore } from "@/domains/media/blobStore";
+import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { mediaStillReferenced } from "@/domains/media/demoReferences";
+import { releaseUnreferencedMedia } from "@/domains/media/release";
+import type { MediaRepository } from "@/domains/media/repository";
 import type { GalleryRepository } from "./repository";
 import type {
   AlbumListParams,
@@ -27,7 +42,8 @@ import type {
 export class DemoGalleryRepository implements GalleryRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
-    private readonly blobs: BlobStore = getBlobStore(),
+    /** Bytes belong to the media domain; this repository only names the id. */
+    private readonly media: MediaRepository = new DemoMediaRepository(),
   ) {}
 
   /* ------------------------------------------------------------ albums */
@@ -79,8 +95,10 @@ export class DemoGalleryRepository implements GalleryRepository {
     await this.getAlbum(id);
     for (const image of this.store.galleryImages.all()) {
       if (image.albumId !== id) continue;
-      await this.freeMedia(image.mediaId);
+      // Detach the row first, then free what it referenced: the reference check
+      // must not see this image as its own reason to keep the asset alive.
       this.store.galleryImages.remove(image.id);
+      await this.releaseImage(image.mediaId);
     }
     this.store.galleryAlbums.remove(id);
   }
@@ -136,7 +154,7 @@ export class DemoGalleryRepository implements GalleryRepository {
   async removeImage(id: string): Promise<void> {
     const existing = this.store.galleryImages.find(id);
     if (!existing) throw notFound("GALLERY_IMAGE_NOT_FOUND", `تصویر با شناسهٔ ${id} یافت نشد.`);
-    await this.freeMedia(existing.mediaId);
+    // Detach first — the row is the reference that keeps the media alive.
     this.store.galleryImages.remove(id);
 
     // Keep the remaining positions contiguous.
@@ -150,6 +168,10 @@ export class DemoGalleryRepository implements GalleryRepository {
       .forEach((row, index) => {
         if (row.sortOrder !== index) this.store.galleryImages.update(row.id, { sortOrder: index });
       });
+
+    // Only now is the asset a cleanup candidate — and it is kept if another
+    // image still uses the same media id.
+    await this.releaseImage(existing.mediaId);
   }
 
   async reorderImage(id: string, newOrder: number): Promise<GalleryImage> {
@@ -179,18 +201,18 @@ export class DemoGalleryRepository implements GalleryRepository {
   }
 
   /**
-   * Deletes the backing media row and bytes when no other record references it.
-   * A blob failure must not abort the domain delete, so it is swallowed here
-   * deliberately — the metadata row is the source of truth for what exists.
+   * Frees the media a detached image row no longer reaches — through
+   * `MediaRepository`, so metadata and bytes leave together — and keeps it while
+   * ANY persisted record still references it: another image, an album cover, or
+   * a parent in a different domain entirely (the global check, X1). The caller
+   * has already removed the row, so this can never be asked before the relation
+   * is gone.
    */
-  private async freeMedia(mediaId: string): Promise<void> {
-    const stillUsed = this.store.galleryImages.all().filter((row) => row.mediaId === mediaId).length > 1;
-    if (stillUsed) return;
-    try {
-      await this.blobs.remove(mediaId);
-    } catch {
-      /* the blob is already gone or unavailable; the metadata removal stands */
-    }
-    this.store.media.remove(mediaId);
+  private async releaseImage(mediaId: string): Promise<void> {
+    await releaseUnreferencedMedia(
+      mediaId,
+      (id) => mediaStillReferenced(this.store, id),
+      this.media,
+    );
   }
 }

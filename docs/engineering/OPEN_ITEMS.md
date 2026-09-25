@@ -1518,6 +1518,35 @@ recovery and the zero-record tests both remaining green.
 
 ---
 
+### I22. `ImportExportCenter`'s export half never renders — the permission guard is handed a holder that cannot carry permissions (found 2026-09-25 during the S5-A tone audit)
+
+- **What:** `src/domains/import/ImportExportCenter.tsx:61` filters the exportable entities with
+  `can(user as any, perm)`, and `src/domains/import/ImportExportCenter.tsx:143` re-checks the same
+  holder before running an export. `user` is `useAuth().user`, which is `session.user`
+  (`src/domains/auth/AuthContext.tsx:147`), while `can()` reads `holder.permissions`
+  (`src/domains/auth/permissions.ts:235`) — and a session carries its permission set on the
+  session/context (`src/domains/auth/AuthContext.tsx:139`), not on the user record. The guard
+  therefore answers *false* for every entity and every role, `allowedEntities` is empty, and
+  `src/domains/import/ImportExportCenter.tsx:170` renders **«برای هیچ موجودیتی مجوز خروجی ندارید.»**
+  instead of the export controls.
+- **Evidence:** verified in jsdom (2026-09-25) as the seeded administrator, `admin@demo.local`,
+  whose context carries 23 permissions: the export section («دانلود خروجی», entity and format
+  selects) is absent, while the import half of the same panel renders normally. The export half of
+  this Settings data surface is unreachable for every role, including the administrator — so the
+  truncation disclosure S5-A repaired can never be seen there. The sibling control shows the correct
+  holder: `src/domains/export/EntityExportButton.tsx:53` uses `can(auth, required)` (the context
+  value), which is why the per-list export button works.
+- **Record correction:** `docs/engineering/F4_REPORT.md:45` records this guard as implemented
+  ("ImportExportCenter filters allowedEntities by can()"). The filter does run, but against a holder
+  that cannot hold permissions, so that record overstates what landed.
+- **Done when:** the surface filters through the same holder its sibling control uses, a regression
+  test renders the panel as a permitted role and reaches «دانلود خروجی» end to end, and a role with
+  no export permission still sees the honest empty state. The fix must land **separately from S5-A**:
+  a product behaviour change must not ride on a type-fix commit.
+- **Status:** recorded 2026-09-25, **not authorized, not started**.
+
+---
+
 ## LOWER PRIORITY / HYGIENE
 
 - **I19. A scheduling write test is date-dependent, and it fails on the weekdays its own fixture assigns to `cl2`.** `src/views/__tests__/schedulingWrites.test.tsx` → *"a real reschedule resolving a real conflict"* asserts that, after the move, the class that owned the contested slot holds **exactly one** scheduled session on `TODAY`, where `TODAY = isoOf(academyNow())` follows the **real calendar date** (`src/domains/shared/clock.ts` freezes only the time of day, 10:47). The demo seed is anchored to the **fixed** `SEED_DATE = 2026-09-01` window (`src/domains/demo/schedulingSeed.ts`), and the fixture gives `cl2` `days: [3]` — **Tuesday**. On 2026-09-15 (a Tuesday) the seeded `ses_cl2_20260915_1400` row fell inside the same-day filter beside the test's own replacement row, so the case failed with `expected [ 'ses_m_…' ] to deeply equal [ 'ses_m_…', 'ses_cl2_20260915_1400' ]`. **It is environmental, not a regression:** it was measured failing on the **pre-CP4 tree** (pre-CP4 files restored, sha256-verified, re-run) as well as on the M7 tip, and no M7 commit touches this file, the scheduling domain, the seed, the store or the clock. It did not appear in M6's recorded run because that run happened on Monday 2026-09-14. **Nothing was weakened to hide it** — no skip, no retry, no re-timed assertion, no edit to the test — and **it is not M7's to fix**: it sits in the protected scheduling area, and the honest fix is either a target day the fixture cannot collide with or a filter that excludes seeded rows, both of which are semantic test changes that need authorization. Recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 18 and §4 → "M7 validation".
@@ -1614,6 +1643,39 @@ recovery and the zero-record tests both remaining green.
   is outside the five authorized drift targets of the M10 closure pass (its scope rule is STOP and
   report rather than expand), so it is **recorded here for the next documentation pass with owner
   authorization** instead of being fixed inline.
+
+- **L8. A governance-contract conflict: the scanned documents may quote only HEAD-reachable full
+  SHAs, and two preserved unmerged branch tips are recorded by full SHA in `PROJECT_STATE.md:221`.**
+  Found 2026-09-25 during the O-1 governance reconciliation run. Both affected commits exist and are
+  real: `251af96f…` is the tip of `arena/01a0b059-parsian-music-dashboard-opus` and `94d32de3…` is
+  the tip of `handoff/arena-frontend-pre-backend` (full values at `PROJECT_STATE.md:221`, in the row
+  that names the historical branches *"preserved — not deleted and not renamed"*). Both branches are
+  unmerged, so **neither tip is reachable from `HEAD`** — measured with `git merge-base --is-ancestor`
+  against `HEAD` and against `origin/main`, with both objects present in the clone. The gate that
+  enforces the no-self-reference rule (`src/__tests__/projectState.test.ts:278`; the rule itself
+  is stated at `PROJECT_STATE.md:295–300`) requires every full SHA quoted in these documents to
+  **exist as a commit and be reachable from `HEAD`**, so it currently rejects both: the check
+  *"no document quotes a commit that does not already exist"* stays red on its second clause.
+  Repository governance also explicitly prohibits each candidate resolution — weakening or re-scoping
+  the gate (`SESSION_HANDOFF.md:86`, `DECISIONS.md` §16, `PROJECT_STATE.md` §10), deleting or
+  shortening the recorded evidence merely to satisfy the test (`PROJECT_STATE.md:1436–1443`:
+  *"not … re-recorded or accommodated"*), and merging or rewriting preserved history
+  (`PROJECT_STATE.md:221`, `PRE_CLEANUP_HANDOFF.md` §7/§12). **This is therefore an unresolved
+  governance-contract conflict, not a product defect; no product causation exists and no automatic
+  remediation is authorized.** The owner reviewed it on 2026-09-25 and deferred it under
+  **δ — preserve and defer**; the contract-change options were **α** narrow the gate's SHA scope,
+  **β** change the representation of the preserved branch tips, **γ** change repository history.
+  **Done when:** the owner records one of those decisions and the matching smallest slice is
+  authorized. ✅ **DONE 2026-09-25 — the owner chose α together with the durable working-branch
+  invariant, and authorized the alignment slice.** The two full SHAs stay recorded; the gate's
+  reachability check now carries them as a closed, self-guarding exception (each must still exist
+  as a commit and still be registered at `PROJECT_STATE.md:221`), and the branch check no longer
+  compares the recorded branch against the per-session checkout — it asserts the recorded branch
+  exists on the remote and that the local ref of the same name is level with it. Both decisions
+  are recorded in [DECISIONS.md](DECISIONS.md) §21 and were verified by re-running the gate
+  afterwards; the two `projectState` reds this item described are gone from the suite's red list,
+  and the conflict stays in this file as the record of why the exception exists.
+
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 
 Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documentation only.

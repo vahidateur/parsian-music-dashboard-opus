@@ -196,9 +196,9 @@ function GrowthChart({ model }: { model: RosterModel }) {
               </linearGradient>
             </defs>
             {[0.25, 0.5, 0.75].map((f) => (
-              <line key={f} x1={padX} x2={width - padX} y1={padT + f * (H - padT - padB)} y2={padT + f * (H - padT - padB)} stroke="rgba(255,255,255,0.05)" />
+              <line key={f} x1={padX} x2={width - padX} y1={padT + f * (H - padT - padB)} y2={padT + f * (H - padT - padB)} stroke="var(--color-hairline-soft)" />
             ))}
-            <line x1={padX} x2={width - padX} y1={H - padB + 0.5} y2={H - padB + 0.5} stroke="rgba(255,255,255,0.07)" />
+            <line x1={padX} x2={width - padX} y1={H - padB + 0.5} y2={H - padB + 0.5} stroke="var(--color-hairline)" />
             <path d={geometry.area} fill="url(#growth-area)" style={{ animation: "fade-in 900ms var(--ease-legato) 500ms both" }} />
             <path
               d={geometry.path}
@@ -219,7 +219,7 @@ function GrowthChart({ model }: { model: RosterModel }) {
                     cx={point.x}
                     cy={point.y}
                     r={isLast ? 4 : active ? 3.5 : 2.5}
-                    fill={isLast || active ? gold[400] : "#1a1714"}
+                    fill={isLast || active ? gold[400] : "var(--color-ink-700)"}
                     stroke={gold[500]}
                     strokeWidth={1.5}
                     style={{ animation: `fade-in 300ms var(--ease-legato) ${200 + i * 160}ms both`, transition: "r var(--sixteenth)" }}
@@ -284,7 +284,7 @@ function OccupancyChart({ model }: { model: OccupancyModel }) {
       <div className="flex items-center gap-6">
         <div className="relative size-[124px] shrink-0">
           <svg viewBox="0 0 124 124" className="size-full -rotate-90">
-            <circle cx="62" cy="62" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
+            <circle cx="62" cy="62" r={r} fill="none" stroke="var(--color-hairline-soft)" strokeWidth="8" />
             {model.overallPct !== null && (
               <circle
                 cx="62"
@@ -333,7 +333,7 @@ function OccupancyChart({ model }: { model: OccupancyModel }) {
               key={day.full}
               title={`${day.full} · ${faPercent(day.pct)}`}
               className={cn("flex h-9 flex-col items-center justify-center rounded-lg border text-[11px] transition-colors", model.peakDay?.index === day.index ? "border-gold-500/50" : "border-transparent")}
-              style={{ background: day.pct === null ? "transparent" : `rgba(212,168,83,${(day.pct / 100) * 0.42})`, animation: `phrase-in 400ms var(--ease-phrase) ${i * 50}ms both` }}
+              style={{ background: day.pct === null ? "transparent" : `color-mix(in srgb, var(--accent-500) ${(day.pct / 100) * 42}%, transparent)`, animation: `phrase-in 400ms var(--ease-phrase) ${i * 50}ms both` }}
             >
               <span className={cn("font-medium", (day.pct ?? 0) > 60 ? "text-ink-50" : "text-ink-300")}>{day.label}</span>
               <span className="nums text-[9px] text-ink-200/80">{day.pct === null ? NO_DATA : faNum(day.pct)}</span>

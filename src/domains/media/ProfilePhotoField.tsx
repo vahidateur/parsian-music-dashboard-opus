@@ -12,6 +12,15 @@
  * The component does not persist the id itself: it reports the new
  * `MediaAsset.id` (or `undefined`) upward so the owning form saves it through
  * the student/teacher repository in the same write as the rest of the record.
+ *
+ * IT ALSO DOES NOT FREE THE PREVIOUS ASSET. Replacing a photo used to delete the
+ * old one immediately, which was wrong twice over: the record still referenced
+ * it until the form saved (so a cancel left a saved record pointing at deleted
+ * bytes), and another owner may reference the same photo. Both ids therefore
+ * travel upward — `onChange(next, released)` — and the owning form frees the
+ * released asset only after its own write succeeded, and only if nothing else
+ * references it (`media/release.ts`, `demoReferences.ts`). The field's own
+ * uploads that never reach a record are the form's staged assets to free.
  */
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2, Trash2, UserRound } from "lucide-react";
@@ -33,7 +42,12 @@ export function ProfilePhotoField({
   /** Used for the alt text and the fallback initials. */
   personName: string;
   disabled?: boolean;
-  onChange: (nextMediaId: string | undefined) => void;
+  /**
+   * `releasedMediaId` is the asset this field stopped pointing at — a replaced
+   * or removed photo. It is reported, NOT deleted: deciding when it may be freed
+   * is the owner's job (see the file header).
+   */
+  onChange: (nextMediaId: string | undefined, releasedMediaId?: string) => void;
 }) {
   const url = useMediaObjectUrl(mediaId);
   const [busy, setBusy] = useState(false);
@@ -54,15 +68,9 @@ export function ProfilePhotoField({
         bytes: await file.arrayBuffer(),
       });
 
-      // Free the previous photo's bytes; a replaced avatar is unreachable.
-      if (mediaId) {
-        await getMediaRepository()
-          .delete(mediaId)
-          .catch(() => {
-            /* an orphaned blob must not block the replacement */
-          });
-      }
-      onChange(asset.id);
+      // The previous photo is handed over, not freed: the record being edited
+      // still points at it (and another record may too). See the file header.
+      onChange(asset.id, mediaId);
     } catch (cause) {
       setError(apiErrorFromThrown(cause).message);
     } finally {
@@ -71,18 +79,11 @@ export function ProfilePhotoField({
     }
   };
 
-  const remove = async () => {
+  const remove = () => {
     if (!mediaId) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await getMediaRepository().delete(mediaId);
-      onChange(undefined);
-    } catch (cause) {
-      setError(apiErrorFromThrown(cause).message);
-    } finally {
-      setBusy(false);
-    }
+    // Same handoff: the field stops pointing at the photo; the owner decides
+    // when it may be freed, once its own write has stopped referencing it.
+    onChange(undefined, mediaId);
   };
 
   return (
@@ -131,7 +132,7 @@ export function ProfilePhotoField({
             {busy ? "در حال بارگذاری…" : mediaId ? "تغییر تصویر" : "افزودن تصویر"}
           </Button>
           {mediaId && (
-            <Button size="sm" variant="ghost" disabled={disabled || busy} onClick={() => void remove()}>
+            <Button size="sm" variant="ghost" disabled={disabled || busy} onClick={remove}>
               <Trash2 className="size-3.5" /> حذف
             </Button>
           )}

@@ -28,6 +28,7 @@ import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/cata
 import { resourceKindLabel, type LibraryItem, type ResourceKind, type LibraryVisibility } from "@/domains/library/types";
 import { useLibraryFile, useLibraryList } from "@/domains/library/useLibrary";
 import { getLibraryRepository, getMediaRepository } from "@/domains/registry";
+import { releaseStagedMedia } from "@/domains/media/release";
 import { apiErrorFromThrown } from "@/api/errors";
 import { useCan } from "@/domains/auth/AuthContext";
 import { useStudentList } from "@/domains/students/useStudents";
@@ -146,7 +147,10 @@ function LibraryItemDialog({
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const instruments = useInstrumentCatalog().filter((i) => i.active);
-  const students = useStudentList({ per_page: 200 }).students;
+  // The picker's read owns its failure: a broken read must not be rendered as
+  // "no students exist" (I15 — an empty picker and an unreadable one are
+  // different facts, and only the read itself can tell them apart).
+  const { students, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 200 });
 
   const submit = async () => {
     if (title.trim().length < 2) {
@@ -168,6 +172,17 @@ function LibraryItemDialog({
       return;
     }
     setBusy(true);
+    /*
+      The upload this attempt created, remembered so a FAILED catalogue write can
+      release it. Two awaited writes: the asset is stored first (the catalogue row
+      must be able to reference it), then the row is written. If that second write
+      fails, the asset would be a file nothing can reach and the retry would store
+      a second copy — so it is released through the media domain's staged path,
+      which frees metadata and bytes together and reports a cleanup failure rather
+      than swallowing it. A successful write keeps it, and the catalogue's own
+      replacement release (inside the repository) handles the PREVIOUS file.
+    */
+    let stagedMediaId: string | undefined;
     try {
       let mediaId: string | undefined;
       if (file) {
@@ -181,6 +196,7 @@ function LibraryItemDialog({
           bytes,
         });
         mediaId = asset.id;
+        stagedMediaId = asset.id;
       }
       const access =
         visibility === "students" && restricted ? [...studentIds] : [];
@@ -222,6 +238,8 @@ function LibraryItemDialog({
       onSaved();
       onClose();
     } catch (cause) {
+      // The catalogue write did not happen, so the staged upload must not linger.
+      await releaseStagedMedia(stagedMediaId, getMediaRepository());
       notify({ tone: "danger", title: editing ? "ذخیرهٔ تغییرات انجام نشد" : "افزودن منبع انجام نشد", detail: apiErrorFromThrown(cause).message });
     } finally {
       setBusy(false);
@@ -295,8 +313,17 @@ function LibraryItemDialog({
             <fieldset className="rounded-xl border border-white/[0.07] p-3">
               <legend className="px-1 text-[10.5px] text-ink-400">هنرجویان دارای دسترسی</legend>
               <div className="max-h-40 space-y-1 overflow-y-auto pl-1">
-                {students.length === 0 && <p className="text-[11px] text-ink-500">هنرجویی ثبت نشده است.</p>}
-                {students.map((student) => (
+                {studentsError ? (
+                  <p className="text-[11px] text-danger-400">
+                    خواندن فهرست هنرجویان ناموفق بود — {studentsError.message}{" "}
+                    <button type="button" className="underline" onClick={reloadStudents}>
+                      تلاش دوباره
+                    </button>
+                  </p>
+                ) : (
+                  <>
+                    {students.length === 0 && <p className="text-[11px] text-ink-500">هنرجویی ثبت نشده است.</p>}
+                    {students.map((student) => (
                   <label key={student.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-ink-200 hover:bg-white/[0.04]">
                     <input
                       type="checkbox"
@@ -308,7 +335,9 @@ function LibraryItemDialog({
                     />
                     <span>{student.name}</span>
                   </label>
-                ))}
+                    ))}
+                  </>
+                )}
               </div>
             </fieldset>
           )}
@@ -362,7 +391,9 @@ export function LibraryView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<LibraryItem | null>(null);
   const canWrite = useCan("library.write");
-  const students = useStudentList({ per_page: 200 }).students;
+  // Same read, same ownership: the drawer resolves restricted-student names
+  // through it, so a failed read must not be presented as a normal resolution.
+  const { students, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 200 });
 
   const { items, total, loading, error, reload } = useLibraryList({ per_page: 200 });
 
@@ -629,7 +660,16 @@ export function LibraryView() {
             {(open.restrictedToStudentIds?.length ?? 0) > 0 && (
               <div className="rounded-xl border border-gold-500/25 bg-gold-500/[0.06] p-3.5 text-[11.5px] leading-relaxed text-gold-100">
                 دسترسی این منبع محدود است به:{" "}
-                {open.restrictedToStudentIds!.map((id) => students.find((s) => s.id === id)?.name ?? id).join("، ")}
+                {studentsError ? (
+                  <span className="text-danger-400">
+                    نام هنرجویان خوانده نشد — خواندن فهرست هنرجویان ناموفق بود ({studentsError.message}).{" "}
+                    <button type="button" className="underline" onClick={reloadStudents}>
+                      تلاش دوباره
+                    </button>
+                  </span>
+                ) : (
+                  open.restrictedToStudentIds!.map((id) => students.find((s) => s.id === id)?.name ?? id).join("، ")
+                )}
                 <span className="mt-1 block text-[10.5px] text-ink-400">
                   قاعدهٔ دسترسی یک تابع خالص است (studentCanAccess) تا هر خوانندهٔ این فهرست — از جمله پرتال آیندهٔ
                   هنرجویان — دقیقاً همین قاعده را اجرا کند.

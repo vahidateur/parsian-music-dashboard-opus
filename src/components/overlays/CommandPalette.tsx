@@ -238,7 +238,7 @@ export function CommandPalette() {
       <button type="button" aria-label="بستن" onClick={closePalette} className="absolute inset-0 animate-fade-in bg-ink-950/70 backdrop-blur-sm" />
       {/* Mobile: action-sheet from the bottom · Desktop: centered command surface */}
       <div
-        className="relative w-full max-w-2xl animate-sheet-up overflow-hidden rounded-t-3xl border border-white/[0.1] bg-ink-900 shadow-[0_40px_80px_-20px_rgba(0,0,0,0.8)] sm:rounded-2xl"
+        className="surface-ornate relative w-full max-w-2xl animate-sheet-up overflow-hidden rounded-t-3xl sm:rounded-3xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div
