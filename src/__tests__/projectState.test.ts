@@ -72,6 +72,31 @@ function isCommit(sha: string): boolean {
   }
 }
 
+/**
+ * The closed set of preserved, unmerged branch tips exempt from the reachability clause.
+ *
+ * PROJECT_STATE.md §2 registers these tips by full SHA as *"preserved — not deleted and not
+ * renamed"*. History deliberately never merged them, so "reachable from HEAD" can never be true
+ * for them, and governance forbids the three alternatives (weakening the clause for everyone,
+ * shortening the recorded evidence, or rewriting history). The exception is bounded to exactly
+ * these two SHAs, and it is self-guarding: each must still exist as a commit in this clone and
+ * must still be registered by full SHA in PROJECT_STATE.md, so it covers no other SHA and cannot
+ * outlive its evidence. (DECISIONS.md §21 records the owner decision; OPEN_ITEMS.md L8 keeps the
+ * history of the conflict.)
+ */
+const PRESERVED_BRANCH_TIPS = new Set([
+  "251af96f405df5935ee17ddc9ba6b490f7989c2d",
+  "94d32de3220cee314606c0c4705e20e0fdcfb2af",
+]);
+
+/** The tip of a fully qualified ref, or null when the ref does not exist. */
+function refTip(ref: string): string | null {
+  // `for-each-ref` prints one line per matching ref and exits 0 when nothing matches, so this
+  // probe answers "does the ref exist" without catching an error.
+  const out = git("for-each-ref", "--format=%(objectname)", ref);
+  return out === "" ? null : out;
+}
+
 /** The 40-hex SHA recorded on the table row mentioning `label`. */
 function recordedSha(document: string, label: string): string {
   const row = document.split("\n").find((line) => line.includes(label));
@@ -282,21 +307,48 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
     // a lost object store fails here instead of sending the next reader to a commit that is not
     // there. (Short digests that are not commits — e.g. an aggregate content hash — are not
     // 40 hex characters and are deliberately out of scope.)
+    //
+    // One bounded exception: the two preserved unmerged branch tips registered in PROJECT_STATE.md
+    // §2 (DECISIONS.md §21). They are real commits that history deliberately never merged, and
+    // preserving the record of them is a rule of its own, so reachability cannot be the standard
+    // for those two — and only those two. The exception is self-guarding: see PRESERVED_BRANCH_TIPS.
     const head = git("rev-parse", "HEAD");
+    const state = doc("PROJECT_STATE.md");
+    for (const sha of PRESERVED_BRANCH_TIPS) {
+      expect(isCommit(sha), `the preserved-branch exception records ${sha}, which is not a commit in this clone`).toBe(true);
+      expect(
+        state.includes(sha),
+        `the preserved-branch exception records ${sha}, but PROJECT_STATE.md no longer registers it — remove the exception with the record`,
+      ).toBe(true);
+    }
     for (const name of REQUIRED_DOCS) {
       for (const match of doc(name).matchAll(/[0-9a-f]{40}/g)) {
         const sha = match[0];
         expect(isCommit(sha), `${name} quotes ${sha}, which is not a commit in this clone`).toBe(true);
         expect(
-          sha === head || isAncestor(sha, head),
-          `${name} quotes ${sha}, which is not reachable from HEAD ${head}`,
+          sha === head || isAncestor(sha, head) || PRESERVED_BRANCH_TIPS.has(sha),
+          `${name} quotes ${sha}, which is neither reachable from HEAD ${head} nor one of the two registered preserved-branch tips`,
         ).toBe(true);
       }
     }
   }, 30_000);
 
-  it("the recorded working branch is the branch actually checked out", () => {
-    expect(git("rev-parse", "--abbrev-ref", "HEAD")).toBe(recordedValue(doc("PROJECT_STATE.md"), "Working branch"));
+  it("the recorded working branch is a durable branch, in step with its remote", () => {
+    // §2 records the durable branch this work lives on. The branch a sandbox happens to have
+    // checked out is per-session and cannot be the standard the document is held to — comparing
+    // the two failed by construction in every session sandbox (PROJECT_STATE.md §7 item 16).
+    // The durable checks: the branch exists on the remote (as a fetched remote-tracking ref), and
+    // the local ref of the same name, when it exists, is level with the remote. (DECISIONS.md §21.)
+    const name = recordedValue(doc("PROJECT_STATE.md"), "Working branch");
+    const remote = refTip(`refs/remotes/origin/${name}`);
+    expect(
+      remote,
+      `PROJECT_STATE.md records the working branch "${name}", but no origin/${name} ref exists — fetch the remote before trusting the record`,
+    ).not.toBeNull();
+    const local = refTip(`refs/heads/${name}`);
+    if (local) {
+      expect(local, `local ${name} has drifted from origin/${name}`).toBe(remote);
+    }
   });
 
   it("every SHA quoted in the phase ledger is a real commit", () => {

@@ -1748,6 +1748,46 @@ resolution pass — 2026-09-21”. This pointer adds no D-number, amends no D1�
 remains ❌ not started and not authorized, and no `src/`, test, package, deployment or backend file is
 part of the pass.
 
+## 21. The state-document gate: a bounded preserved-branch SHA exception and the durable working-branch invariant
+
+**Decision.** Two clauses of `src/__tests__/projectState.test.ts` were aligned with the recorded
+policy on 2026-09-25, by explicit owner decision (the conflict and the options were registered as
+**L8** in [OPEN_ITEMS.md](OPEN_ITEMS.md)).
+
+*The reachability clause keeps its force for every full SHA in the four state documents.* Exactly
+two SHAs are exempt: the preserved, unmerged branch tips registered by full SHA in
+[PROJECT_STATE.md](PROJECT_STATE.md) §2 (`251af96f…` and `94d32de3…`). History deliberately never
+merged those branches, and the preservation rule requires their full SHAs to stay recorded, so
+"reachable from `HEAD`" can never hold for them. The exception is closed to those two SHAs and is
+self-guarding: each must still exist as a commit and still be registered by full SHA in §2, so it
+covers no other SHA and cannot outlive its evidence. The rule text in
+[PROJECT_STATE.md](PROJECT_STATE.md) §3 records the exception; the gate cites this entry.
+
+*The working-branch clause stops comparing a durable fact with a per-session fact.* The old
+assertion — "the recorded working branch is the branch actually checked out" — failed by
+construction in every session sandbox, where the checkout is a per-session branch
+([PROJECT_STATE.md](PROJECT_STATE.md) §7 item 16). The replacement asserts the durable facts
+instead: the recorded branch exists on the remote as a fetched remote-tracking ref, and the local
+branch of the same name, when it exists, is level with it.
+
+**Why.** Both clauses as written contradicted recorded rules of their own: the reachability clause
+against the preservation of the two branch tips, and the checkout clause against the fact that a
+sandbox branch is not durable (item 16 measured the failure as environmental — "recorded, not
+fixed, silenced or accommodated"). The three alternatives were rejected by name: weakening the
+reachability rule for every SHA, shortening or deleting the recorded evidence, and merging or
+rewriting the preserved history. This entry is the recorded owner decision the earlier state
+demanded; it changes the *testable form* of two checks and no product behaviour.
+
+**Enforced by.** `src/__tests__/projectState.test.ts` — "no document quotes a commit that does not
+already exist" (the closed, self-guarding exception) and "the recorded working branch is a durable
+branch, in step with its remote". [OPEN_ITEMS.md](OPEN_ITEMS.md) item **L8** records the conflict
+and its resolution; [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 16 remains the record of the
+period in which the old assertion failed.
+
+**Status.** ✅ In force 2026-09-25. A governance-document decision: it authorizes no product,
+dependency, threshold, backend or history change, and it is the only reason either gate clause
+reads differently today.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

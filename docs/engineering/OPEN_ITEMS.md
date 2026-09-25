@@ -1614,6 +1614,39 @@ recovery and the zero-record tests both remaining green.
   is outside the five authorized drift targets of the M10 closure pass (its scope rule is STOP and
   report rather than expand), so it is **recorded here for the next documentation pass with owner
   authorization** instead of being fixed inline.
+
+- **L8. A governance-contract conflict: the scanned documents may quote only HEAD-reachable full
+  SHAs, and two preserved unmerged branch tips are recorded by full SHA in `PROJECT_STATE.md:221`.**
+  Found 2026-09-25 during the O-1 governance reconciliation run. Both affected commits exist and are
+  real: `251af96f…` is the tip of `arena/01a0b059-parsian-music-dashboard-opus` and `94d32de3…` is
+  the tip of `handoff/arena-frontend-pre-backend` (full values at `PROJECT_STATE.md:221`, in the row
+  that names the historical branches *"preserved — not deleted and not renamed"*). Both branches are
+  unmerged, so **neither tip is reachable from `HEAD`** — measured with `git merge-base --is-ancestor`
+  against `HEAD` and against `origin/main`, with both objects present in the clone. The gate that
+  enforces the no-self-reference rule (`src/__tests__/projectState.test.ts:278`; the rule itself
+  is stated at `PROJECT_STATE.md:295–300`) requires every full SHA quoted in these documents to
+  **exist as a commit and be reachable from `HEAD`**, so it currently rejects both: the check
+  *"no document quotes a commit that does not already exist"* stays red on its second clause.
+  Repository governance also explicitly prohibits each candidate resolution — weakening or re-scoping
+  the gate (`SESSION_HANDOFF.md:86`, `DECISIONS.md` §16, `PROJECT_STATE.md` §10), deleting or
+  shortening the recorded evidence merely to satisfy the test (`PROJECT_STATE.md:1436–1443`:
+  *"not … re-recorded or accommodated"*), and merging or rewriting preserved history
+  (`PROJECT_STATE.md:221`, `PRE_CLEANUP_HANDOFF.md` §7/§12). **This is therefore an unresolved
+  governance-contract conflict, not a product defect; no product causation exists and no automatic
+  remediation is authorized.** The owner reviewed it on 2026-09-25 and deferred it under
+  **δ — preserve and defer**; the contract-change options were **α** narrow the gate's SHA scope,
+  **β** change the representation of the preserved branch tips, **γ** change repository history.
+  **Done when:** the owner records one of those decisions and the matching smallest slice is
+  authorized. ✅ **DONE 2026-09-25 — the owner chose α together with the durable working-branch
+  invariant, and authorized the alignment slice.** The two full SHAs stay recorded; the gate's
+  reachability check now carries them as a closed, self-guarding exception (each must still exist
+  as a commit and still be registered at `PROJECT_STATE.md:221`), and the branch check no longer
+  compares the recorded branch against the per-session checkout — it asserts the recorded branch
+  exists on the remote and that the local ref of the same name is level with it. Both decisions
+  are recorded in [DECISIONS.md](DECISIONS.md) §21 and were verified by re-running the gate
+  afterwards; the two `projectState` reds this item described are gone from the suite's red list,
+  and the conflict stays in this file as the record of why the exception exists.
+
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 
 Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documentation only.
