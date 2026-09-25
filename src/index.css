@@ -1,5 +1,16 @@
 @import "tailwindcss";
 /*
+  D9-A2: the stylesheet is generated from classes that are actually rendered.
+  `mergeClassNames.ts` is a conflict-resolution rule table — its strings are pattern
+  data, never markup — and test files only assert on class strings. Neither can name a
+  utility the product applies, yet scanning them emitted generated CSS for classes the
+  UI can never use. Excluded here so the stylesheet tracks the product, not the source
+  tree. (Verified: removing these lines leaves every runtime class in place.)
+*/
+@source not "./utils/mergeClassNames.ts";
+@source not "./**/*.test.ts";
+@source not "./**/*.test.tsx";
+/*
   M11/I6: weights 300 and 800 are NOT imported. A census of every font-weight
   utility and custom class in src/ showed the interface only ever sets
   400/500/600/700 — the imported 300/800 files were ~60 kB of woff2+woff that
