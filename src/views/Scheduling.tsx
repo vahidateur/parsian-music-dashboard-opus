@@ -100,7 +100,7 @@ import {
   type SessionStatus,
 } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
-import { academyNow, useAcademyNow } from "@/domains/shared/clock";
+import { useAcademyNow } from "@/domains/shared/clock";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime, minutesToFaTime, toFa } from "@/lib/format";

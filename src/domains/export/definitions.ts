@@ -7,15 +7,15 @@
  */
 
 import { instrumentName } from "@/domains/instruments/catalog";
-import type { Student, StudentListParams } from "@/domains/students/types";
-import type { Teacher, TeacherListParams } from "@/domains/teachers/types";
-import type { AcademyClass, ClassListParams } from "@/domains/classes/types";
-import type { Enrollment, EnrollmentListParams } from "@/domains/enrollments/types";
-import type { LibraryItem, LibraryListParams } from "@/domains/library/types";
-import type { GalleryImage, GalleryImageListParams } from "@/domains/gallery/types";
-import type { Session, SessionListParams } from "@/domains/scheduling/types";
-import type { AttendanceRecord, AttendanceListParams } from "@/domains/attendance/types";
-import type { SessionCompensation, CompensationListParams } from "@/domains/compensation/types";
+import type { Student } from "@/domains/students/types";
+import type { Teacher } from "@/domains/teachers/types";
+import type { AcademyClass } from "@/domains/classes/types";
+import type { Enrollment } from "@/domains/enrollments/types";
+import type { LibraryItem } from "@/domains/library/types";
+import type { GalleryImage } from "@/domains/gallery/types";
+import type { Session } from "@/domains/scheduling/types";
+import type { AttendanceRecord } from "@/domains/attendance/types";
+import type { SessionCompensation } from "@/domains/compensation/types";
 import type { Page } from "@/api/types";
 
 export interface ExportColumn<T> {

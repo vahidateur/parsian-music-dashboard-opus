@@ -20,7 +20,7 @@
  * - no new route, same surface
  */
 import { useMemo, useRef, useState } from "react";
-import { ImagePlus, Search, Trash2 } from "lucide-react";
+import { ImagePlus, Trash2 } from "lucide-react";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, Surface } from "@/components/ds/primitives";

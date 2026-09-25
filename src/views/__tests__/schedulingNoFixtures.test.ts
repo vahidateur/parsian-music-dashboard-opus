@@ -132,7 +132,7 @@ describe("Scheduling view reads the scheduling domain", () => {
   });
 
   it("takes today from the academy clock rather than from the wall clock", () => {
-    expect(VIEW).toContain("academyNow");
+    expect(VIEW).toMatch(/useAcademyNow\(|academyIsoDate\(/);
     // An inline `new Date()` or `Date.now()` would put a second, uncontrolled
     // clock in the view: demo mode freezes time precisely so this is checkable.
     expect(VIEW).not.toMatch(/new Date\(/);

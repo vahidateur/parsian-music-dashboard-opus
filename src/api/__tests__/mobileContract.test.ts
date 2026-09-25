@@ -217,7 +217,6 @@ describe("F9 — Mobile client contract — media upload same endpoint", () => {
     const registryPath = join(ROOT, "domains", "registry.ts");
     const source = readFileSync(registryPath, "utf8");
     // Registry should not have second media endpoint
-    const mediaEndpoints = (source.match(/\/media/g) || []).length;
     // At most one reference? Actually registry doesn't hardcode /media — ApiMediaRepository uses client
     // So ensure no hardcoded second media URL
     expect(source).not.toMatch(/https?:\/\/.*media/);

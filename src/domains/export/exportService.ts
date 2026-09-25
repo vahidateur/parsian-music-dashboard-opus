@@ -11,7 +11,6 @@
  * column lists rather than `Object.entries(record)`, so a field added later
  * cannot leak into a file by accident.
  */
-import { instrumentName } from "@/domains/instruments/catalog";
 import {
   getAttendanceRepository,
   getClassRepository,
@@ -25,7 +24,6 @@ import {
   getTeacherRepository,
 } from "@/domains/registry";
 import { safeFilename, toCsv, toXlsx } from "@/domains/import/spreadsheet";
-import { studentExportRows } from "@/domains/import/studentImport";
 import {
   attendanceColumns,
   classColumns,
