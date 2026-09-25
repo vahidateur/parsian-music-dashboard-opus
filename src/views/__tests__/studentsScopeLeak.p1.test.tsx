@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { assignedStudentIdsForTeacher } from "@/domains/auth/scope";
+import { assignedStudentIdsForTeacher, type EnrollmentRef } from "@/domains/auth/scope";
 
 /**
  * AUDIT-002 regression: Students scope leak when teacher scope dependencies loading or erroring.
@@ -9,7 +9,6 @@ import { assignedStudentIdsForTeacher } from "@/domains/auth/scope";
 
 type Student = { id: string; name: string };
 type ClassRef = { id: string; teacherId: string };
-type EnrollmentRef = { studentId: string; classId: string; status: string };
 
 function filteredStudentsLogic(
   students: Student[],

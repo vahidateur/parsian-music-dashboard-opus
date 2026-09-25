@@ -129,7 +129,7 @@ describe("switching albums never arms a delete against the previous album", () =
     expect(selectedAlbumTitle()).toContain(albumA.title);
 
     // The switch, sampled while the new album's read is still in flight.
-    fireEvent.click(screen.getByRole("button", { name: (content, element) => content.includes(albumB.title) } as any));
+    fireEvent.click(screen.getByRole("button", { name: (content: string) => content.includes(albumB.title) }));
     expect(selectedAlbumTitle()).toContain(albumB.title);
 
     for (let sample = 0; sample < 25; sample += 1) {

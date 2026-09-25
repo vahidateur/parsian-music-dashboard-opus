@@ -21,6 +21,16 @@ import {
 } from "@/domains/media/types";
 import { rolePermissions, ROLES, PERMISSIONS } from "@/domains/auth/permissions";
 
+/**
+ * `mockFetch` records the outgoing headers from inside a closure, so at the
+ * point of assertion TypeScript's flow analysis still sees the initial `null`
+ * and types the optional chain as `never`. Reading the value back at its
+ * declared type keeps these assertions honest without a cast at every site.
+ */
+function authorizationOf(headers: Record<string, string> | null): string | undefined {
+  return headers?.Authorization;
+}
+
 const ROOT = join(process.cwd(), "src");
 
 function sourceFiles(dir: string): string[] {
@@ -109,7 +119,7 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
     });
     await client.get("/me");
     expect(capturedHeaders).not.toBeNull();
-    expect(capturedHeaders?.Authorization).toBe("Bearer test-bearer-token-123");
+    expect(authorizationOf(capturedHeaders)).toBe("Bearer test-bearer-token-123");
   });
 
   it("ApiClient does not add Bearer header when no token", async () => {
@@ -127,7 +137,7 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
       fetchImpl: mockFetch as unknown as typeof fetch,
     });
     await client.get("/me");
-    expect(capturedHeaders?.Authorization).toBeUndefined();
+    expect(authorizationOf(capturedHeaders)).toBeUndefined();
   });
 
   it("ApiClient supports async getToken (secure storage)", async () => {
@@ -148,7 +158,7 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
       fetchImpl: mockFetch as unknown as typeof fetch,
     });
     await client.get("/me");
-    expect(capturedHeaders?.Authorization).toBe("Bearer secure-storage-token");
+    expect(authorizationOf(capturedHeaders)).toBe("Bearer secure-storage-token");
   });
 
   it("No localStorage for token in src (mobile uses secure storage not localStorage)", () => {
