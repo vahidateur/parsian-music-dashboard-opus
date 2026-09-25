@@ -151,7 +151,7 @@ export function ImportExportCenter() {
         ? `${result.count} ردیف از ${result.total} — خروجی به سقف ۱۰۰۰ ردیف محدود شد. برای مجموعه‌های بزرگ، سرور باید صفحه‌بندی کند.`
         : `${result.count} سطر از ${EXPORT_LABELS[exportEntityName]} در قالب ${exportFormat.toUpperCase()} دانلود شد.`;
       notify({
-        tone: result.truncated ? "warn" : "success",
+        tone: result.truncated ? "warning" : "success",
         title: result.truncated ? "خروجی با محدودیت" : "خروجی آماده شد",
         detail,
       });

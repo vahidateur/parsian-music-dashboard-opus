@@ -77,7 +77,7 @@ export function EntityExportButton({
         ? `${result.count} ردیف از ${result.total} — خروجی به سقف ۱۰۰۰ ردیف محدود شد.`
         : `${result.count} سطر از ${EXPORT_LABELS[entity]} در قالب ${format.toUpperCase()} دانلود شد.`;
       notify({
-        tone: result.truncated ? "warn" : "success",
+        tone: result.truncated ? "warning" : "success",
         title: result.truncated ? "خروجی با محدودیت" : "خروجی آماده شد",
         detail,
       });
