@@ -190,6 +190,7 @@ function ClassCard({
 function ClassDetail({
   c,
   teacherName,
+  mayWrite,
   onEdit,
   onEnroll,
   onArchived,
@@ -197,6 +198,13 @@ function ClassDetail({
   c: AcademyClass;
   /** Resolved by the shell from the teachers repository; «—» when it does not. */
   teacherName: string;
+  /**
+   * `classes.write`, resolved by the view, which owns the session and applies the
+   * same `useCan(...) || !user` idiom the roster uses. Without it the three write
+   * controls below are NOT rendered — the register's rule is "no control if
+   * forbidden", not a disabled one.
+   */
+  mayWrite: boolean;
   onEdit: () => void;
   onEnroll: () => void;
   onArchived: () => void;
@@ -336,18 +344,29 @@ function ClassDetail({
         }
         actions={
           <>
+            {/* Navigation, not a write: it stays whatever the permission is. */}
             <Button size="sm" variant="subtle" onClick={() => navigate({ view: "attendance" })}>
               <Users className="size-3.5" /> حضور و غیاب
             </Button>
-            <Button size="sm" variant="subtle" onClick={onEdit}>
-              <Pencil className="size-3.5" /> ویرایش
-            </Button>
-            <Button size="sm" variant="subtle" onClick={() => void archive()} disabled={archiveBusy || c.status === "archived"}>
-              <Archive className="size-3.5" /> {c.status === "archived" ? "بایگانی‌شده" : "بایگانی"}
-            </Button>
-            <Button size="sm" variant="primary" onClick={onEnroll}>
-              <UserPlus className="size-3.5" /> ثبت‌نام هنرجو
-            </Button>
+            {/*
+              The three write controls follow `classes.write`. A session without it
+              (teacher, accountant — both hold `classes.read` only) can open this
+              surface and read everything on it, but is not offered edit, archive or
+              enrol: the register renders no control rather than a disabled one.
+            */}
+            {mayWrite ? (
+              <>
+                <Button size="sm" variant="subtle" onClick={onEdit}>
+                  <Pencil className="size-3.5" /> ویرایش
+                </Button>
+                <Button size="sm" variant="subtle" onClick={() => void archive()} disabled={archiveBusy || c.status === "archived"}>
+                  <Archive className="size-3.5" /> {c.status === "archived" ? "بایگانی‌شده" : "بایگانی"}
+                </Button>
+                <Button size="sm" variant="primary" onClick={onEnroll}>
+                  <UserPlus className="size-3.5" /> ثبت‌نام هنرجو
+                </Button>
+              </>
+            ) : null}
           </>
         }
       />
@@ -791,6 +810,7 @@ export function ClassesView() {
           key={detail.id}
           c={detail}
           teacherName={teacherIndex.get(detail.teacherId)?.name ?? NO_DATA}
+          mayWrite={canWriteClasses}
           onEdit={() => {
             setEditing(detail);
             setFormOpen(true);
