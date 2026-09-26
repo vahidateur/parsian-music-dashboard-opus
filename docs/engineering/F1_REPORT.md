@@ -46,13 +46,16 @@ stored, and catches it.
 
 ## 4. Spec/implementation differences — owner decisions
 
-### G-5 — `not_applicable` empty-state wording — ACCEPTED DIFFERENCE
+### G-5 — `not_applicable` empty-state wording — ALIGNED WITH SPEC
 
 - Spec (`F1_INVENTORY.md`): «هنوز در برنامه‌ای قرار نگرفته».
-- Implementation: «این هنرجو هنوز روی سطحی قرار نگرفته», in `src/domains/learning/StudentLearningPanel.tsx`.
-- **Decision (owner): keep the current text.** The meaning is the same (no placement yet, so nothing
-  unlocks), and existing tests already pin the current text. The copy is unchanged; the decision
-  is recorded here and in a comment at the render site.
+- Before: «این هنرجو هنوز روی سطحی قرار نگرفته», in `src/domains/learning/StudentLearningPanel.tsx`.
+- **Decision (owner): align with the spec.** The empty-state title is now the spec text; the
+  description under it is unchanged. The three tests that pinned the old text now pin the new one:
+  `src/domains/learning/__tests__/StudentLearningPanel.test.tsx`,
+  `src/domains/shared/__tests__/failureDisclosureI15.test.tsx` and
+  `src/domains/shared/__tests__/staleQueryGates.test.tsx`.
+- Supersedes the "accepted difference" recorded in commit `6e150e1`.
 
 ### G-6 — «N ردیف از M» numerals in LearningPanel — FIXED
 
@@ -62,20 +65,29 @@ stored, and catches it.
   Pinned by `src/domains/learning/__tests__/learningPanelTruncationNote.test.tsx` (programs note,
   levels note, and no note on a complete read).
 
-### G-7 — Library "teacher" search — ACCEPTED WORKAROUND
+### G-7 — Library "teacher" search — **OPEN**
 
 - Spec: search by title/composer/teacher. `LibraryItem` has no teacher field. The view searches
   title, composer, level and instrument name, and treats composer as the teacher proxy. The
   placeholder («جستجوی عنوان، آهنگساز یا مدرس…») and the form hint («نام آهنگساز یا مدرس») both
   say so.
-- **Decision (owner): accept the composer-as-teacher proxy for now. Do not change the data model.**
-  A real teacher field on library items needs its own decision, taken only if a concrete need
-  appears; that decision should also cover backend shape. It is not entered as an open item.
+- **Status (owner decision): OPEN.** Nothing changes: the current search behaviour stays and the
+  data model is not touched. Whether composer is an acceptable stand-in, or library items need a
+  real teacher field, is **not decided**.
+- Supersedes the "accepted workaround" recorded in commit `6e150e1`. Recorded in this report only;
+  `OPEN_ITEMS.md` is not edited in this session.
 
-## 5. Final gate
+## 5. Final status
 
-Recorded in the commit that carries this report: typecheck, full test suite and build.
-Browser QA remains **NOT VERIFIED**.
+| Gap | Status |
+|---|---|
+| G-1…G-4 | ✅ closed (tests, mutation-checked) |
+| G-5 | ✅ aligned with spec |
+| G-6 | ✅ fixed |
+| G-7 | **OPEN** |
+| Browser QA | **NOT VERIFIED** |
+
+Gate results (typecheck, full test suite, build) are recorded in the commit that carries this revision.
 
 ## 6. Not touched
 

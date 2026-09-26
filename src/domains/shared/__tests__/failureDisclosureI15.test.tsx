@@ -149,7 +149,7 @@ describe("StudentLearningPanel failure disclosure", () => {
     } as Stubs<typeof real>));
     render(<AppProvider><StudentLearningPanel studentId="st1" studentName="Test" /></AppProvider>);
     expect(await screen.findByText(/بارگذاری دوره‌ها ناموفق بود/)).toBeDefined();
-    expect(screen.queryByText(/این هنرجو هنوز روی سطحی قرار نگرفته/)).toBeDefined();
+    expect(screen.queryByText(/هنوز در برنامه‌ای قرار نگرفته/)).toBeDefined();
   });
 
   it("levels failure discloses, not empty ladder", async () => {
