@@ -116,7 +116,7 @@ describe("an unplaced student", () => {
     renderFor(await unplacedStudentId());
     await settle();
 
-    expect(screen.getByText("این هنرجو هنوز روی سطحی قرار نگرفته")).toBeDefined();
+    expect(screen.getByText("هنوز در برنامه‌ای قرار نگرفته")).toBeDefined();
     expect(screen.getByText("منبعی برای این هنرجو باز نشده")).toBeDefined();
   });
 

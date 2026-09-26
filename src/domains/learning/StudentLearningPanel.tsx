@@ -84,7 +84,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
         {!placement ? (
           <>
             <EmptyState
-              title="این هنرجو هنوز روی سطحی قرار نگرفته"
+              title="هنوز در برنامه‌ای قرار نگرفته"
               description="تا زمانی که سطح تعیین نشود، منبعی برای او باز نمی‌شود — not_applicable empty state per F1."
             />
             {programsError ? (

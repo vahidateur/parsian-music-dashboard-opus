@@ -206,7 +206,7 @@ describe("I13 consumer gates — no stale rows, and no false empty, during a par
 
     await waitFor(() =>
       assertInFlightNotFalseEmpty("در حال بارگذاری سطوح این دوره…", [
-        "این هنرجو هنوز روی سطحی قرار نگرفته",
+        "هنوز در برنامه‌ای قرار نگرفته",
       ]),
     );
     // The count line and the unknown-level claim belong to a settled ladder.

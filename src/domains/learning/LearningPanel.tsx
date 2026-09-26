@@ -28,7 +28,7 @@ import type { LearningLevel, LearningProgram } from "./types";
 import { cn } from "@/utils/cn";
 
 function partialNote(name: string, shown: number, total: number): string | null {
-  return total > shown ? `${name}: ${shown} ردیف از ${total} — برای بارگذاری کامل نیاز به سرور است.` : null;
+  return total > shown ? `${name}: ${faNum(shown)} ردیف از ${faNum(total)} — برای بارگذاری کامل نیاز به سرور است.` : null;
 }
 
 /** Inline "add" row shared by the program and level lists. */
