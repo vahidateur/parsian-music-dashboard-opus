@@ -176,6 +176,20 @@ export function setRolePolicies(records: readonly RolePolicyRecord[]): void {
   emitPolicy();
 }
 
+/**
+ * Clears the projection at an authentication boundary.
+ *
+ * Role policy is shared by the shell, but it is not a session credential. Keeping
+ * a previous user's edited role matrix while a new session is being restored can
+ * transiently grant or revoke the wrong controls. The next role-policy read may
+ * repopulate it; until then AuthContext uses the current session's issued set.
+ */
+export function clearRolePolicies(): void {
+  if (policy.size === 0) return;
+  policy = new Map<RoleId, RolePolicyRecord>();
+  emitPolicy();
+}
+
 /** The edited record for a role, or undefined when it runs on defaults. */
 export function getRolePolicy(role: RoleId): RolePolicyRecord | undefined {
   return policy.get(role);

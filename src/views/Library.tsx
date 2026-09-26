@@ -8,6 +8,9 @@
  * - filters kind/instrument/level/visibility (visibility per publication status disposition active/visibility)
  * - sort added/uses/title (title fa locale)
  * - real preview via useLibraryFile + useMediaObjectUrl real bytes no fabricated URL
+ *   (PDF opens the stored bytes in the browser's own viewer, a plain-text note
+ *   renders inline from the same blob, and video is stated absent instead of
+ *   faked — no video container is in the media allow-list)
  * - locked honest reason
  * - complete metadata
  * - loading/empty/error + retry
@@ -49,6 +52,7 @@ import { Button, InstrumentGlyph, StatusBadge } from "@/components/ds/primitives
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Chip, Drawer, FilterBar, PageHeader, Panel, SearchInput, Segmented, StatStrip, Field, inputCls } from "@/components/ds/patterns";
 import { AudioMessagePlayer } from "@/domains/library/AudioMessagePlayer";
+import { ResourcePreview, needsPreviewObjectUrl } from "@/domains/library/ResourcePreview";
 import { cn } from "@/utils/cn";
 import { ALLOWED_AUDIO_TYPES, ALLOWED_DOCUMENT_TYPES, ALLOWED_IMAGE_TYPES } from "@/domains/media/types";
 
@@ -399,6 +403,13 @@ export function LibraryView() {
 
   const file = useLibraryFile(open);
   const audioUrl = useMediaObjectUrl(open?.kind === "audio" ? open.mediaId : undefined);
+  // The PDF is opened through useMediaObjectUrl rather than a URL built here,
+  // because that hook is the only owner of object-URL creation and revocation in
+  // this codebase. Gated on the asset's validated MIME type, so a text note (which
+  // renders from bytes the drawer already holds) never triggers a spare blob URL.
+  const previewUrl = useMediaObjectUrl(
+    open && needsPreviewObjectUrl(file.asset?.mimeType) ? open.mediaId : undefined,
+  );
 
   // Distinct levels for filter chips — from live data, no fixture
   const distinctLevels = useMemo(() => {
@@ -622,6 +633,10 @@ export function LibraryView() {
               )}
               {file.error && <div className="mt-1.5 text-danger-400">{file.error}</div>}
             </div>
+
+            {/* Preview sits on the detail surface itself — no new route, per the
+                F1 disposition this view documents. */}
+            <ResourcePreview file={file} previewUrl={previewUrl} kind={open.kind} />
 
             {(open.kind === "audio" || open.peaks) && (
               <AudioMessagePlayer

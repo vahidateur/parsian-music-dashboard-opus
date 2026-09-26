@@ -4,7 +4,7 @@ import { clearAttempts, recordFailure } from "@/security/loginThrottle";
 import { SESSION_TTL_MS } from "@/domains/auth/demoAuthRepository";
 import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
-import { can, canAccessView, canAll, canAny, getRolePolicy, type Permission } from "./permissions";
+import { can, canAccessView, canAll, canAny, clearRolePolicies, getRolePolicy, type Permission } from "./permissions";
 import { useRolePolicyVersion } from "./useRoles";
 import type { AuthRepository } from "./repository";
 import type { AuthStatus, LoginInput, Session } from "./types";
@@ -64,6 +64,11 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
           // party it is meant to constrain.
           anchorSessionClock(restored.expiresAt, SESSION_TTL_MS);
         }
+        // The permission projection is module-scoped for synchronous gates, so
+        // clear the previous session before the new one can render. A failed
+        // policy read then falls back deterministically to this session's own
+        // issued permissions rather than retaining another user's role edit.
+        clearRolePolicies();
         setSession(restored);
         setStatus(restored ? "authenticated" : "unauthenticated");
       })
@@ -88,6 +93,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
         // previous one's remaining absolute lifetime.
         resetSessionClock();
         clearAttempts();
+        clearRolePolicies();
         setSession(next);
         setStatus("authenticated");
         return true;
@@ -109,6 +115,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       await repo.logout();
     } finally {
       clearSessionClock();
+      clearRolePolicies();
       if (mounted.current) {
         setSession(null);
         setStatus("unauthenticated");
