@@ -428,7 +428,10 @@ export function LibraryView() {
         if (vis !== visibilityFilter) return false;
       }
       if (query) {
-        // Search title/composer/teacher — teacher as composer proxy per current model
+        // Search title/composer/teacher — teacher as composer proxy per current model.
+        // F1 G-7 — ACCEPTED WORKAROUND (owner decision, docs/engineering/F1_REPORT.md §4):
+        // LibraryItem has no teacher field and the data model is NOT to be changed for it;
+        // a real teacher field needs its own decision if a concrete need appears.
         const q = query;
         if (!r.title.includes(q) && !r.composer.includes(q) && !r.level.includes(q) && !instrumentName(r.instrument).includes(q)) return false;
       }

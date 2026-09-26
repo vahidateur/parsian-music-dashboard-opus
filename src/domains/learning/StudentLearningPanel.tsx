@@ -83,6 +83,11 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
       <Panel title="مسیر سطح" kicker="سطوح واقعی دورهٔ این هنرجو — F1 N eligible 1..N N+1+ locked">
         {!placement ? (
           <>
+            {/*
+              F1 G-5 — ACCEPTED DIFFERENCE (owner decision, docs/engineering/F1_REPORT.md §4).
+              The spec's wording is «هنوز در برنامه‌ای قرار نگرفته»; this text is kept on
+              purpose (same meaning: no placement, nothing unlocks). Tests pin it.
+            */}
             <EmptyState
               title="این هنرجو هنوز روی سطحی قرار نگرفته"
               description="تا زمانی که سطح تعیین نشود، منبعی برای او باز نمی‌شود — not_applicable empty state per F1."
