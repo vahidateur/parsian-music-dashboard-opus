@@ -10,6 +10,17 @@
 **Recorded:** 2026-09-21 · **Nature:** documentation-only. No product, test, dependency, backend or
 Git-history change is authorized by this file.
 
+> **⚠️ LIVE POINTER — added 2026-09-26.** The most recent session closed with **PR #16** (Library
+> document preview + clearing the role-policy projection at session boundaries) open and **unmerged**
+> on `arena/01a0daeb-parsian-music-dashboard-opus`, head `8fa81a1` on base `main` @ `6c9aa4c`. Its
+> full durable record — decisions, verification numbers, mutation evidence, exclusions, the Browser QA
+> checklist and the next-session start point — is
+> [../session-handoffs/PR16_FINAL_SESSION_HANDOFF.md](../session-handoffs/PR16_FINAL_SESSION_HANDOFF.md).
+> Everything below this blockquote remains valid **as the post-consolidation record of 2026-09-21**,
+> but its §1 SHA and working-branch rows are historical: `6ca25be` was later pushed, `main` has since
+> advanced past the PR #15 merge, and `arena/01a0cef8` is not the live branch. Read §1 as provenance,
+> and take current values from `git ls-remote`, never from this table.
+
 ---
 
 ## 1. Canonical state — read this first

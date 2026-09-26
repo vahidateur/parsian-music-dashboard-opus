@@ -1857,6 +1857,47 @@ budget baseline*) on `arena/01a0cef8-parsian-music-dashboard-opus` and pushed fa
 (`bcacdcb..046771d`); Slice 1 (`7c8dd87`) and A-1 (`bcacdcb`) were already on the remote, and
 `main` (`ece060d`) is untouched.
 
+## 23. A preview never owns a URL and never embeds; a session-scoped projection is cleared at every boundary
+
+**Decision.** Two rules, both introduced by PR #16 and both load-bearing for later work.
+(1) A preview surface may **never** create an object URL and may **never** embed.
+`useMediaObjectUrl` (`src/domains/media/useMedia.ts:31`) stays the only creator and revoker, the
+preview component takes the URL as a prop (`src/domains/library/ResourcePreview.tsx`), availability is
+derived from `ALLOWED_DOCUMENT_TYPES` (`src/domains/media/types.ts:103`) rather than a local MIME
+list, and a stored document is opened through `<a target="_blank" rel="noreferrer">` — because the
+policy shipped from `vite.config.ts` (`PRODUCTION_CSP`: `object-src 'none'` at `:30`,
+`frame-src 'none'` at `:34`) plus `X-Frame-Options: DENY` (`:113`) makes an `<iframe>`/`<embed>` over
+a `blob:` URL an empty box that only *looks* like a preview. "A read that has not landed", "a file with
+no bytes" and "a decode that failed" are three distinct states, each stated in words; none may render
+as progress, and none as an empty document. (2) A module-scoped projection that synchronous gates read
+must be cleared at **every** authentication boundary — restore, login **and** logout — because it
+outlives the session otherwise (`clearRolePolicies` in `src/domains/auth/permissions.ts`, lines 176–192). The
+clear touches only the projection, never the issued permission set, so the deterministic fallback is
+the current session's own permissions.
+
+**Why.** Both rules keep a UI honest about what it actually holds. An invented URL or an embedded frame
+promises a preview the policy will not render; a rejection that resets to the pending value promises
+progress that can never arrive; a projection that survives sign-out answers the next user's gates from
+the previous user's edits. `vite.config.ts` was deliberately left untouched by this work — the header
+and CSP are a constraint to design within, not an obstacle to relax.
+
+**Enforced by.** `src/domains/library/__tests__/resourcePreview.test.tsx` (15 cases: embeds nothing,
+no fabricated href, allow-list drift, failed decode, keyboard reachability),
+`src/views/__tests__/libraryDocumentPreview.test.tsx` (3),
+`src/domains/auth/__tests__/roleTransition.test.tsx` (3, including the ordering of the restore-time
+clear and a case against over-clearing), and `src/__tests__/cspCompatibility.test.ts` for the policy
+constants. Verification numbers, mutation evidence and the exclusions are recorded in
+[../session-handoffs/PR16_FINAL_SESSION_HANDOFF.md](../session-handoffs/PR16_FINAL_SESSION_HANDOFF.md)
+§3–§8.
+
+**Status.** ✅ In force at PR #16 head `8fa81a1` (with `ac91864`) on base `main` @ `6c9aa4c`; that PR
+is **open and unmerged**, and this entry is written by a documentation-only closeout that authorizes no
+product, dependency, test-weakening, governance-law or history change. Deviation noted on purpose: this
+file's own convention asks a test-protected entry to be linked from `PROJECT_STATE.md` §6, and that
+link — together with the test inventory, the §5 Browser QA row and the `OPEN_ITEMS.md` entry — is
+deferred to the post-merge documentation pass, because `PROJECT_STATE.md` and `OPEN_ITEMS.md` were
+excluded from PR #16 by the owner. See the handoff §10.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and
