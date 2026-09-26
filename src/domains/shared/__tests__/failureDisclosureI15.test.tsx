@@ -149,7 +149,9 @@ describe("StudentLearningPanel failure disclosure", () => {
     } as Stubs<typeof real>));
     render(<AppProvider><StudentLearningPanel studentId="st1" studentName="Test" /></AppProvider>);
     expect(await screen.findByText(/بارگذاری دوره‌ها ناموفق بود/)).toBeDefined();
-    expect(screen.queryByText(/هنوز در برنامه‌ای قرار نگرفته/)).toBeDefined();
+    // Placement answered "unplaced", so the not_applicable empty state is a legitimate
+    // answer and must be present; the programs failure is disclosed separately above.
+    expect(screen.getByText(/هنوز در برنامه‌ای قرار نگرفته/)).toBeTruthy();
   });
 
   it("levels failure discloses, not empty ladder", async () => {
