@@ -39,6 +39,18 @@ import type { LibraryFileState, ResourceKind } from "./types";
 const PDF_TYPE = "application/pdf";
 const TEXT_TYPE = "text/plain";
 
+/**
+ * The states a text read can be in, kept distinct on purpose.
+ *
+ * `idle` means "this asset is not a text file, or has no bytes" and renders
+ * nothing; `reading` means "a read is outstanding"; `failed` means the read
+ * itself broke. The last two must not share a state: a spinner that never ends
+ * is a claim about work that is no longer happening.
+ */
+type TextRead = { status: "idle" } | { status: "reading" } | { status: "failed" } | { status: "ready"; text: string };
+
+const IDLE: TextRead = { status: "idle" };
+
 export interface ResourcePreviewProps {
   /** The same file state the drawer already resolved — no second read here. */
   file: LibraryFileState;
@@ -67,22 +79,26 @@ export function ResourcePreview({ file, previewUrl, kind }: ResourcePreviewProps
 
   // Plain text is rendered from the bytes the drawer already holds, so no
   // object URL is involved and nothing has to be revoked here.
-  const [text, setText] = useState<string | undefined>(undefined);
+  const [read, setRead] = useState<TextRead>(IDLE);
   useEffect(() => {
     if (mimeType !== TEXT_TYPE || !file.blob) {
-      setText(undefined);
+      setRead(IDLE);
       return;
     }
     let live = true;
+    setRead({ status: "reading" });
     void file.blob
       .text()
-      .then((value) => {
-        if (live) setText(value);
-      })
-      // A failed decode is reported as "no preview", never as an empty document.
-      .catch(() => {
-        if (live) setText(undefined);
-      });
+      .then(
+        (value) => {
+          if (live) setRead({ status: "ready", text: value });
+        },
+        () => {
+          // A broken decode is reported as a failure. It is not an empty document,
+          // and it is not a read to keep waiting on.
+          if (live) setRead({ status: "failed" });
+        },
+      );
     return () => {
       live = false;
     };
@@ -132,7 +148,17 @@ export function ResourcePreview({ file, previewUrl, kind }: ResourcePreviewProps
   }
 
   if (mimeType === TEXT_TYPE) {
-    if (text === undefined) {
+    if (read.status === "failed") {
+      return (
+        <p className="rounded-xl border border-danger-500/25 bg-danger-500/[0.06] p-3.5 text-[11.5px] leading-relaxed text-danger-400">
+          متن این فایل خوانده نشد، بنابراین پیش‌نمایشی وجود ندارد. خود فایل دست‌نخورده ذخیره است و
+          «دریافت» همان بایت‌ها را برمی‌گرداند.
+        </p>
+      );
+    }
+    // `reading` and `idle` both mean "nothing has been read yet" — neither may
+    // render as an empty document, which is a claim about the file's content.
+    if (read.status !== "ready") {
       return (
         <p className="rounded-xl border border-white/[0.07] bg-black/20 p-3.5 text-[11.5px] text-ink-400">
           در حال خواندن متن فایل…
@@ -141,12 +167,20 @@ export function ResourcePreview({ file, previewUrl, kind }: ResourcePreviewProps
     }
     return (
       <pre
+        // The scroll region is focusable on purpose. `Drawer` traps focus while it
+        // is open, so without a tab stop of its own the clipped remainder of a
+        // long note is unreachable for a keyboard-only user. `index.css` supplies the
+        // `:focus-visible` outline, and `role="region"` is what lets the label be
+        // announced at all — `aria-label` on an unnamed generic element is ignored.
+        role="region"
+        tabIndex={0}
+        aria-label={`پیش‌نمایش متن ${file.asset.filename}`}
         className={cn(
           "max-h-[360px] overflow-auto whitespace-pre-wrap rounded-xl border border-white/[0.08] bg-black/30 p-3.5",
           "text-right text-[11.5px] leading-6 text-ink-200",
         )}
       >
-        {text === "" ? "متن فایل خالی است." : text}
+        {read.text === "" ? "متن فایل خالی است." : read.text}
       </pre>
     );
   }
