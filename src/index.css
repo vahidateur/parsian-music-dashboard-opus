@@ -768,37 +768,17 @@
 
 /*
   Short-desktop fit — laptops like 1366×683 / 1366×768. On a short viewport the
-  arch's safe region is shorter than the whole composition: the card's usability
-  floors (38 px fields, 40 px button) plus the api-mode data-source disclosure
-  and the demo panel push the login action and the demo list past the fold. So,
-  ONLY on lg+ short heights, tighten the design unit (spacing, padding and the
-  brand rhythm shrink together while the controls and type hold at their
-  usability floors), raise the column anchor toward the crown, and compact the
-  demo panel. No transform-scale, no hidden controls, nothing removed — a genuine
-  responsive reduction. Phones (< lg) keep their natural scroll; tall desktops
-  (≥ ~800 px, incl. 1080p) are untouched and keep the approved composition.
+  tunnel crown sits low enough that a column anchored to it would push the login
+  card's lower edge (and the «ورود» button) past the fold. The demo credentials
+  already live in a fixed corner toggle (not in this column), so the column is
+  just the card. Raise the column anchor toward the crown so the whole card fits
+  above the fold — no transform-scale, nothing hidden or removed. Phones (< lg)
+  keep their natural scroll; tall desktops (≥ ~800 px, incl. 1080p) are untouched
+  and keep the approved composition.
 */
 @media (min-width: 64rem) and (max-height: 800px) {
   .login-root {
-    --form-u: calc(var(--form-u-raw) * 0.8);
     --panel-top: min(var(--arch-open-top-y), 14vh);
-  }
-  .login-root [data-demo-panel] {
-    padding-top: 7px;
-    padding-bottom: 7px;
-    padding-left: 10px;
-    padding-right: 10px;
-  }
-  .login-root [data-demo-panel] > p {
-    margin-top: 3px;
-  }
-  .login-root [data-demo-panel] ul {
-    margin-top: 4px;
-    row-gap: 0;
-  }
-  .login-root [data-demo-panel] li > button {
-    padding-top: 1px;
-    padding-bottom: 1px;
   }
 }
 

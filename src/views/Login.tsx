@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Eye, EyeOff, Lock, ShieldAlert, TriangleAlert, User } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Lock, ShieldAlert, TriangleAlert, User } from "lucide-react";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
@@ -82,6 +82,9 @@ export function LoginView() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
+  // Demo credentials live behind a corner toggle (demo mode only), collapsed by
+  // default so they never compete with the login action.
+  const [demoOpen, setDemoOpen] = useState(false);
   const [touched, setTouched] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   // Short-viewport fallback: a failed submit inserts the alert above the button and
@@ -358,7 +361,7 @@ export function LoginView() {
                     "bg-gradient-to-l from-gold-500 via-gold-300 to-gold-500 bg-[length:200%_100%] bg-right",
                     "hover:bg-left hover:shadow-[0_14px_38px_-12px_color-mix(in_srgb,var(--accent-500)_55%,transparent)]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950",
-                    "disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none",
+                    "disabled:cursor-not-allowed disabled:saturate-[.5] disabled:shadow-none",
                   )}
                 >
                   {pending ? (
@@ -397,17 +400,51 @@ export function LoginView() {
               </form>
             </div>
 
-            {demo && <DemoPanel demoEnvironment={demoEnvironment} onPick={(nextEmail) => {
-              setEmail(nextEmail);
-              setPassword(DEMO_PASSPHRASE);
-              clearError();
-            }} />}
             {lifecycleRecovery && <LifecycleRecoveryPanel controller={lifecycleRecovery} />}
           </div>
         </div>
 
         <PortalFooter academyName={branding.academyName} />
       </div>
+
+      {/*
+        Demo credentials — DEMO MODE ONLY, tucked into a screen corner behind a
+        toggle so they never push or clutter the login action. SECURITY: this
+        whole block is gated by `demo` (= isDemoMode()); in api/real mode it is
+        false, so neither this button nor the passphrase/accounts exist in the
+        DOM at all — no demo credential can leak into a production build.
+      */}
+      {demo && (
+        <div className="fixed right-4 top-4 z-30 flex w-[min(22rem,calc(100vw-2rem))] flex-col items-end gap-2">
+          <div
+            className={cn(
+              "w-full transition-all duration-200",
+              demoOpen
+                ? "max-h-[80vh] opacity-100"
+                : "pointer-events-none max-h-0 overflow-hidden opacity-0",
+            )}
+          >
+            <DemoPanel
+              open={demoOpen}
+              demoEnvironment={demoEnvironment}
+              onPick={(nextEmail) => {
+                setEmail(nextEmail);
+                setPassword(DEMO_PASSPHRASE);
+                clearError();
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setDemoOpen((v) => !v)}
+            aria-expanded={demoOpen}
+            className="flex items-center gap-2 rounded-full border border-warn-500/30 bg-ink-900/90 px-3.5 py-2 text-[length:var(--p-text-xs)] font-semibold text-warn-300 shadow-[0_10px_30px_-10px_rgb(0_0_0/0.85)] backdrop-blur transition-colors hover:border-warn-500/50 hover:text-warn-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warn-400/60"
+          >
+            <KeyRound className="size-3.5" aria-hidden />
+            {demoOpen ? "بستن اطلاعات دمو" : "اطلاعات ورود دمو"}
+          </button>
+        </div>
+      )}
     </main>
   );
 }
@@ -645,12 +682,12 @@ const invalidCls = "border-danger-500/55 focus:border-danger-500/70 focus:ring-d
  * account it created is the only way in. What it must not do is call that
  * customer environment a demo, or that account a sample one.
  */
-function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPick: (email: string) => void }) {
+function DemoPanel({ open, demoEnvironment, onPick }: { open: boolean; demoEnvironment: boolean; onPick: (email: string) => void }) {
   const accounts = listDemoAccounts();
   return (
     <div
       data-demo-panel
-      className="mt-[var(--p-field-gap)] rounded-2xl border border-warn-500/[0.18] bg-warn-500/[0.045] p-[max(12px,calc(var(--form-u)*14))]"
+      className="rounded-2xl border border-warn-500/[0.18] bg-ink-950/95 p-[max(12px,calc(var(--form-u)*14))] text-right shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)] backdrop-blur"
     >
       <div className="flex items-center gap-1.5 text-[length:var(--p-text-xs)] font-semibold text-warn-400">
         <TriangleAlert className="size-3.5" aria-hidden />{" "}
@@ -674,6 +711,7 @@ function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPi
             <button
               type="button"
               onClick={() => onPick(account.email)}
+              tabIndex={open ? undefined : -1}
               className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-[max(4px,calc(var(--form-u)*6))] text-right text-[length:var(--p-text-xs)] text-ink-200 transition-colors hover:bg-white/[0.055] focus-visible:bg-white/[0.055] focus-visible:outline-none"
             >
               <span dir="ltr" className="truncate text-ink-300">
