@@ -154,7 +154,7 @@ export function LoginView() {
           peaks, so the panel enters after a modest fixed descent and the page
           scrolls naturally.
         */}
-        <div className="relative flex flex-1 justify-center px-4 pt-[min(var(--arch-open-top-y),96px)] sm:px-6 lg:pt-[var(--arch-open-top-y)]">
+        <div className="relative flex flex-1 justify-center px-4 pt-[min(var(--arch-open-top-y),96px)] sm:px-6 lg:pt-[var(--panel-top)]">
           <PortalMotto side="left" />
           <PortalMotto side="right" />
 
@@ -648,7 +648,10 @@ const invalidCls = "border-danger-500/55 focus:border-danger-500/70 focus:ring-d
 function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPick: (email: string) => void }) {
   const accounts = listDemoAccounts();
   return (
-    <div className="mt-[var(--p-field-gap)] rounded-2xl border border-warn-500/[0.18] bg-warn-500/[0.045] p-[max(12px,calc(var(--form-u)*14))]">
+    <div
+      data-demo-panel
+      className="mt-[var(--p-field-gap)] rounded-2xl border border-warn-500/[0.18] bg-warn-500/[0.045] p-[max(12px,calc(var(--form-u)*14))]"
+    >
       <div className="flex items-center gap-1.5 text-[length:var(--p-text-xs)] font-semibold text-warn-400">
         <TriangleAlert className="size-3.5" aria-hidden />{" "}
         {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
