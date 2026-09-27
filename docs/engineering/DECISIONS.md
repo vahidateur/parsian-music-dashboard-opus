@@ -1898,6 +1898,66 @@ link — together with the test inventory, the §5 Browser QA row and the `OPEN_
 deferred to the post-merge documentation pass, because `PROJECT_STATE.md` and `OPEN_ITEMS.md` were
 excluded from PR #16 by the owner. See the handoff §10.
 
+## 24. A library item names its teacher in a field of its own; `composer` never stands in for one
+
+**Decision.** Six clauses, approved by the owner as a product/data-model decision and implemented in
+the frontend/demo path only.
+
+(1) `Resource.teacherId?: string` — a real reference into the teachers domain, on the persisted
+catalogue entity in `src/domains/library/types.ts`, so `LibraryItem` inherits it. (2) **At most one
+teacher per item**; `teacherId` is optional, and an absent value means *no teacher is recorded* —
+an honest unknown, never an implicit teacher. (3) `Teacher` means **the educational
+teacher/contributor associated with the library content** — the person who prepared or contributed
+it. (4) `teacherId` and `composer` are **independent and may both be set**. (5) `composer` is the
+**creator attribution of the work** — Chopin, Bach, an orchestra, the academy — and **must never be
+used as a Teacher proxy**. (6) `teacherId` is **provenance/attribution, not authorization**: it grants
+no access and is never an access-control input.
+
+**Why.** The UI promised a teacher search the data could not perform. `LibraryItem` carried no
+teacher at all, so `composer` was standing in for one, and the placeholder («جستجوی عنوان، آهنگساز
+یا مدرس…») plus the form hint («نام آهنگساز یا مدرس») both advertised a capability that existed only
+as a string coincidence. The seeded catalogue showed why that is not the same thing: **six of twelve**
+rows held a real composer's name and **six** held a teacher's name, each of the six matching its
+teacher's own instrument exactly, with nothing in the data to tell the two apart — so a search for a
+teacher would return every Chopin score on which that name had ever been typed, and a teacher
+renaming themselves would silently break every result. A free-text field cannot be renamed,
+deactivated or org-scoped with the `Teacher` it is supposed to name, and its empty string cannot
+distinguish *no teacher* from *teacher unknown* from *composer unknown*. The canonical identity and
+the convention both already existed — `Student.teacherId`, `AcademyClass.teacherId`,
+`Session.teacherId` and an unused `LearningContent.teacherId` — so what was missing was the
+relationship, not a new domain. Clause (6) keeps this inside the existing O-08 line that
+`created_by` / `uploaded_by` / `recordedByUserId` are **provenance, not ACL**: visibility and
+`restrictedToStudentIds` remain the only access rule, and `studentCanAccess` remains the single
+sentence that evaluates it. It is deliberately **not** an O-02 instance: O-02 concerns
+`library_items.level` and `learning_levels` specifically, and forbids no reference in the domain.
+
+**Enforced by.** `src/domains/library/__tests__/teacherAttribution.test.ts` (11 cases) and four
+end-to-end cases in `src/views/__tests__/Library.test.tsx` that search by a real teacher name through
+the view and assert every hit is a hit *because of* the stored relationship. Each negative is a
+mutation check: restoring the `composer` proxy fails 5, dropping the `teacherId` validation fails 1,
+reverting the seed migration fails 2, and removing the teacher from the view's search fails 2. The
+back-up round trip is proven, including a pre-field back-up that still loads. The repository rejects
+a teacher the academy does not hold but — unlike `src/domains/classes/demoRepository.ts` — accepts an
+`inactive` one, because there a teacher is *assigned* to teach and here one is *credited* for
+material they prepared; applying the assignment rule would erase real history.
+
+**Status.** ✅ In force on the G-7 branch over base `main` @ `8e6bce9`. Frontend/demo scope only: no
+back-end implementation ships here, and `src/domains/library/apiRepository.ts` records the contract
+obligation — the server must resolve `search` against the teachers the org holds inside the query, or
+it would be the same proxy in the one place it would matter. **Browser QA remains NOT VERIFIED**: no
+browser session was run, and closing G-7 is not a browser claim. The full suite is **green** in a
+complete clone: `191` test files, `2533` tests, `0` failures. That figure is stated only for a
+**non-shallow** checkout on purpose — a shallow or tag-less clone cannot resolve the historical SHAs
+`PROJECT_STATE.md` quotes, and `src/__tests__/projectState.test.ts` then reports false failures
+against commits it cannot see. Verified: `33b10311…` and `a3867a60…` are ancestors of `main`, and the
+two unmerged preserved tips are carried by the §21 exemption, so the gate is satisfied on the real
+repository and not merely tolerated. `projectState.test.ts` is `52/52` here, identically with and
+without this change. Deviation noted on purpose: this file's own convention asks a
+test-protected entry to be linked from [PROJECT_STATE.md](PROJECT_STATE.md) §6, and that link is
+deferred, because `PROJECT_STATE.md` was excluded from this change by the owner — the same
+deviation §23 records. This entry amends no D-entry, changes no `O-*` or `T-02` status, touches no
+branch or tag, and authorizes no product, dependency, test-weakening, back-end or history change.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

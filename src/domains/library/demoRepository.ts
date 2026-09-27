@@ -37,6 +37,12 @@ export class DemoLibraryRepository implements LibraryRepository {
   ) {}
 
   async list(params: LibraryListParams = {}): Promise<Page<LibraryItem>> {
+    // Resolved once per call, not per row. `composer` is deliberately NOT here:
+    // it is the creator attribution and searching it for a teacher is the proxy
+    // G-7 removed. A row matches a teacher query only through a real
+    // `teacherId` -> `Teacher.name` link, so a search can no longer hit a
+    // teacher's name on a Chopin score that merely mentions them.
+    const teacherNames = this.teacherNameIndex();
     const rows = this.store.resources.all().filter((row) => {
       if (params.kind && row.kind !== params.kind) return false;
       if (params.instrument && row.instrument !== params.instrument) return false;
@@ -44,9 +50,25 @@ export class DemoLibraryRepository implements LibraryRepository {
       if (params.visibility && row.visibility && row.visibility !== params.visibility) return false;
       // If row has no visibility, treat as students visible (public) per default
       if (params.visibility && !row.visibility && params.visibility !== "students") return false;
-      return matchesQuery([row.title, row.composer, row.level], params.search);
+      return matchesQuery([row.title, row.composer, row.level, row.teacherId ? teacherNames.get(row.teacherId) : undefined], params.search);
     });
     return paginate(rows, params);
+  }
+
+  /**
+   * `teacherId` -> teacher name, for search only.
+   *
+   * A private lookup over the same demo dataset, mirroring how the classes
+   * repository filters on `teacherId`. It reads the teachers collection rather
+   * than duplicating a name onto the resource, so a teacher renamed in one place
+   * is renamed for search everywhere and cannot drift. A `teacherId` that names
+   * no teacher contributes no searchable text — the row stays findable by title
+   * and composer, and search reports no teacher it cannot prove.
+   */
+  private teacherNameIndex(): Map<string, string> {
+    const index = new Map<string, string>();
+    for (const teacher of this.store.teachers.all()) index.set(teacher.id, teacher.name);
+    return index;
   }
 
   async get(id: string): Promise<LibraryItem> {
@@ -67,6 +89,7 @@ export class DemoLibraryRepository implements LibraryRepository {
     return this.store.resources.create({
       title: input.title.trim(),
       composer: input.composer?.trim() ?? "",
+      ...(input.teacherId !== undefined ? { teacherId: input.teacherId } : {}),
       kind: input.kind,
       instrument: input.instrument,
       level: input.level?.trim() ?? "",
@@ -96,6 +119,7 @@ export class DemoLibraryRepository implements LibraryRepository {
     const patch: Partial<Omit<LibraryItem, "id">> = {
       ...(input.title !== undefined ? { title: input.title.trim() } : {}),
       ...(input.composer !== undefined ? { composer: input.composer.trim() } : {}),
+      ...(input.teacherId !== undefined ? { teacherId: input.teacherId } : {}),
       ...(input.kind !== undefined ? { kind: input.kind } : {}),
       ...(input.instrument !== undefined ? { instrument: input.instrument } : {}),
       ...(input.level !== undefined ? { level: input.level.trim() } : {}),
@@ -174,6 +198,20 @@ export class DemoLibraryRepository implements LibraryRepository {
     }
     if (input.instrument !== undefined && !this.store.instruments.find(input.instrument)) {
       fields.instrument = ["ساز انتخاب‌شده در فهرست سازهای آموزشگاه وجود ندارد."];
+    }
+    /*
+      A teacher reference must name a teacher the academy actually holds, or the
+      attribution is a dangling string that reads as a fact.
+
+      Unlike the classes repository, which also rejects an `inactive` teacher,
+      this accepts one: there a teacher is ASSIGNED to teach, and an inactive
+      teacher cannot be assigned; here the teacher is credited for material they
+      prepared, and a teacher who has since left still prepared it. Dropping that
+      attribution on deactivation would erase real history to satisfy a rule
+      about a different question.
+    */
+    if (input.teacherId !== undefined && input.teacherId !== "" && !this.store.teachers.find(input.teacherId)) {
+      fields.teacherId = ["مدرس یافت نشد."];
     }
     if (input.mediaId !== undefined && input.mediaId !== "" && !this.store.media.find(input.mediaId)) {
       fields.mediaId = ["فایل انتخاب‌شده در فضای ذخیره‌سازی وجود ندارد."];

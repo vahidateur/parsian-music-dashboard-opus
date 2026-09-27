@@ -31,6 +31,14 @@ const RESOURCE = "resources";
  * fallback the composition root forbids.
  *
  * F1: added level + visibility to query per publication status disposition.
+ *
+ * G-7: `Resource.teacherId` is part of the payload. `search` is passed through
+ * untouched, so the server is the one that must resolve it: a server that
+ * matches `search` against title/composer alone would be the same proxy this
+ * frontend just removed, in the one place it would matter. Resolving it is a
+ * join against the teachers the org holds, inside the query (T-02/O-08: the
+ * attribution is provenance and must not become a filter on what a caller may
+ * see). No backend implementation ships in F1.
  */
 export class ApiLibraryRepository implements LibraryRepository {
   constructor(private readonly client: ApiClient) {}
