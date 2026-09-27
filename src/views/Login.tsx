@@ -361,7 +361,17 @@ export function LoginView() {
                     "bg-gradient-to-l from-gold-500 via-gold-300 to-gold-500 bg-[length:200%_100%] bg-right",
                     "hover:bg-left hover:shadow-[0_14px_38px_-12px_color-mix(in_srgb,var(--accent-500)_55%,transparent)]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950",
-                    "disabled:cursor-not-allowed disabled:saturate-[.5] disabled:shadow-none",
+                    /*
+                      The button stays a bright, full-contrast gold bar in EVERY
+                      state — including the initial empty/disabled one, which is
+                      the first thing a visitor sees. Earlier it faded (opacity)
+                      or desaturated (saturate) when disabled, which washed the
+                      gold into a low-contrast tan against the dark scene and
+                      made the primary action effectively invisible. Keep it
+                      visible; the `disabled` property + not-allowed cursor +
+                      dropped hover-glow carry the "inactive" signal instead.
+                    */
+                    "disabled:cursor-not-allowed disabled:shadow-none",
                   )}
                 >
                   {pending ? (
