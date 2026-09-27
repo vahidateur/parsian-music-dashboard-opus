@@ -46,7 +46,7 @@ import type {
  * (D3): nothing measured the academy saying «خوب» about itself.
  */
 export const academy = {
-  name: "آکادمی موسیقی آوا",
+  name: "آموزشگاه موسیقی پارسیان",
   tagline: "سامانهٔ یکپارچهٔ آموزشگاه",
 };
 
@@ -440,7 +440,7 @@ const peaks = (seed: number) => Array.from({ length: 40 }, (_, i) => 0.25 + Math
 
 export const resources: Resource[] = [
   { id: "res1", title: "نوکتورن اپوس ۹ شمارهٔ ۲", composer: "شوپن", kind: "sheet", instrument: "piano", level: "پیشرفته", size: "۱٫۲ مگابایت", pages: 6, added: "۳ روز پیش", uses: 42 },
-  { id: "res2", title: "متد پیانو کودکان · دفتر اول", composer: "آموزشگاه آوا", kind: "sheet", instrument: "piano", level: "پایه", size: "۴٫۸ مگابایت", pages: 48, added: "۱ هفته پیش", uses: 128 },
+  { id: "res2", title: "متد پیانو کودکان · دفتر اول", composer: "آموزشگاه موسیقی پارسیان", kind: "sheet", instrument: "piano", level: "پایه", size: "۴٫۸ مگابایت", pages: 48, added: "۱ هفته پیش", uses: 128 },
   { id: "res3", title: "تمرین‌های آرپژ گیتار", composer: "کارکاسی", kind: "sheet", instrument: "guitar", level: "میانی", size: "۹۰۰ کیلوبایت", pages: 12, added: "۲ هفته پیش", uses: 76 },
   { id: "res4", title: "الگوهای ریتمیک ۶/۸", composer: "", teacherId: "t6", kind: "audio", instrument: "drums", level: "پایه", size: "۸٫۴ مگابایت", duration: "۴:۱۲", added: "۴ روز پیش", uses: 31, peaks: peaks(0.7) },
   { id: "res5", title: "تمرین صداسازی · گرم‌کردن", composer: "", teacherId: "t4", kind: "audio", instrument: "voice", level: "پایه", size: "۱۲٫۱ مگابایت", duration: "۶:۳۰", added: "۵ روز پیش", uses: 58, peaks: peaks(0.42) },
@@ -450,5 +450,5 @@ export const resources: Resource[] = [
   { id: "res9", title: "دیکتهٔ ملودیک · مجموعهٔ ۱", composer: "", teacherId: "t5", kind: "audio", instrument: "theory", level: "میانی", size: "۲۲٫۰ مگابایت", duration: "۱۵:۲۰", added: "۱ ماه پیش", uses: 89, peaks: peaks(0.55) },
   { id: "res10", title: "پرلود شمارهٔ ۱ · باخ", composer: "ی. س. باخ", kind: "sheet", instrument: "piano", level: "میانی", size: "۷۴۰ کیلوبایت", pages: 4, added: "۱ ماه پیش", uses: 97 },
   { id: "res11", title: "آکوردهای پایهٔ پاپ", composer: "", teacherId: "t2", kind: "doc", instrument: "guitar", level: "پایه", size: "۱٫۱ مگابایت", pages: 9, added: "۱ ماه پیش", uses: 203 },
-  { id: "res12", title: "اجرای نمونه · کنسرت پاییز", composer: "ارکستر نوجوانان آوا", kind: "video", instrument: "violin", level: "همه", size: "۳۲۰ مگابایت", duration: "۲۴:۵۰", added: "۲ ماه پیش", uses: 45 },
+  { id: "res12", title: "اجرای نمونه · کنسرت پاییز", composer: "ارکستر نوجوانان پارسیان", kind: "video", instrument: "violin", level: "همه", size: "۳۲۰ مگابایت", duration: "۲۴:۵۰", added: "۲ ماه پیش", uses: 45 },
 ];

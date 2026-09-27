@@ -82,7 +82,7 @@ export function migrateBackupIfNeeded(input: unknown): BackupMigrationResult | n
       environment: (candidate.environment as typeof BACKUP_ENVIRONMENT) ?? BACKUP_ENVIRONMENT,
       exportedAt: (candidate.exportedAt as string) ?? new Date().toISOString(),
       app: (candidate.app as { name: string; seedVersion: string }) ?? {
-        name: "Arena — Ava Music Academy (DEMO)",
+        name: "پارسیان (DEMO)",
         seedVersion: SEED_VERSION,
       },
       stats: (candidate.stats as DemoDatasetStats) ?? datasetStats(candidate.data as DemoDataset),
@@ -222,7 +222,7 @@ export function createBackup(dataset: DemoDataset, exportedAt: Date = new Date()
     schemaVersion: BACKUP_SCHEMA_VERSION,
     environment: BACKUP_ENVIRONMENT,
     exportedAt: exportedAt.toISOString(),
-    app: { name: "Arena — Ava Music Academy (DEMO)", seedVersion: SEED_VERSION },
+    app: { name: "پارسیان (DEMO)", seedVersion: SEED_VERSION },
     stats: datasetStats(dataset),
     data: dataset,
   };

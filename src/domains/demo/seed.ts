@@ -43,7 +43,7 @@ import { derivePieces, deriveProgress } from "./progressSeed";
 import { deriveScheduledSessions } from "./schedulingSeed";
 
 /** Bump when the *shape* or content of the canonical dataset changes. */
-export const SEED_VERSION = "2026.09.2";
+export const SEED_VERSION = "2026.09.3";
 
 function clone<T>(value: T): T {
   return typeof structuredClone === "function" ? structuredClone(value) : (JSON.parse(JSON.stringify(value)) as T);
