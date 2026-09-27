@@ -1935,7 +1935,8 @@ sentence that evaluates it. It is deliberately **not** an O-02 instance: O-02 co
 end-to-end cases in `src/views/__tests__/Library.test.tsx` that search by a real teacher name through
 the view and assert every hit is a hit *because of* the stored relationship. Each negative is a
 mutation check: restoring the `composer` proxy fails 5, dropping the `teacherId` validation fails 1,
-reverting the seed migration fails 2, and removing the teacher from the view's search fails 2. The
+reverting the seed migration fails 2 for a single row and 6 once all six are reverted, and
+removing the teacher from the view's search fails 2. The
 back-up round trip is proven, including a pre-field back-up that still loads. The repository rejects
 a teacher the academy does not hold but — unlike `src/domains/classes/demoRepository.ts` — accepts an
 `inactive` one, because there a teacher is *assigned* to teach and here one is *credited* for
