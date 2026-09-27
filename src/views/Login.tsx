@@ -356,10 +356,9 @@ export function LoginView() {
                   ref={submitRef}
                   disabled={!canSubmit}
                   className={cn(
-                    "group relative mt-[var(--p-sec-gap)] flex h-[var(--p-btn-h)] w-full items-center justify-center overflow-hidden rounded-xl",
+                    "login-submit group relative mt-[var(--p-sec-gap)] flex h-[var(--p-btn-h)] w-full items-center justify-center overflow-hidden rounded-xl",
                     "text-[length:var(--p-text)] font-semibold text-ink-950 transition-all duration-300",
-                    "bg-gradient-to-l from-gold-500 via-gold-300 to-gold-500 bg-[length:200%_100%] bg-right",
-                    "hover:bg-left hover:shadow-[0_14px_38px_-12px_color-mix(in_srgb,var(--accent-500)_55%,transparent)]",
+                    "hover:shadow-[0_14px_38px_-12px_color-mix(in_srgb,var(--accent-500)_55%,transparent)]",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950",
                     /*
                       The button stays a bright, full-contrast gold bar in EVERY

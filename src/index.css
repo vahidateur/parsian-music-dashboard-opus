@@ -782,6 +782,29 @@
   }
 }
 
+/*
+  The «ورود» submit button's gold fill. Painted with an explicit gradient
+  rather than the `bg-gradient-*` utilities: those compose their stops from the
+  `--tw-gradient-*` custom properties, and on the login view — which renders
+  outside AppProvider — that chain left the button with NO painted background
+  at all (a dark, near-invisible bar with near-black text). A direct gradient
+  through `--accent-*` (gold fallback) always paints, still honours a
+  configured brand colour, and keeps the right→left hover sheen.
+*/
+.login-root .login-submit {
+  background-image: linear-gradient(
+    to left,
+    var(--accent-500, #d4a853),
+    var(--accent-300, #efd89a),
+    var(--accent-500, #d4a853)
+  );
+  background-size: 200% 100%;
+  background-position: right;
+}
+.login-root .login-submit:hover {
+  background-position: left;
+}
+
 /* The artwork's own box — the exact rectangle object-cover would paint,
    expressed as a laid-out element so DOM can share its coordinate system. */
 .login-stage {
