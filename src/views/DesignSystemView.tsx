@@ -61,7 +61,7 @@ export function DesignSystemView() {
     <div className="mx-auto max-w-6xl space-y-8">
       <header>
         <div className="text-[11px] font-medium text-gold-400">Design System · v۱</div>
-        <h1 className="mt-1 text-2xl font-bold text-ink-50">سیستم طراحی آوا</h1>
+        <h1 className="mt-1 text-2xl font-bold text-ink-50">سیستم طراحی پارسیان</h1>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-300">
           توکن‌ها و اجزای قابل استفادهٔ مجدد برای همهٔ سطوح سامانه — پنل مدیریت، پنل مدرس و اپلیکیشن هنرجو. اجزا با Auto Layout و متغیرها طراحی شده‌اند و
           یک‌به‌یک با پیاده‌سازی مطابقت دارند.

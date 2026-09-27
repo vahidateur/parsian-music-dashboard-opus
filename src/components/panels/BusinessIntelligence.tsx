@@ -455,7 +455,7 @@ export function EcosystemStrip({ counts, className }: { counts: DashboardCounts;
   return (
     <Surface className={cn("flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between", className)}>
       <div className="max-w-md">
-        <h3 className="text-sm font-semibold text-ink-50">سامانهٔ یکپارچهٔ آوا</h3>
+        <h3 className="text-sm font-semibold text-ink-50">پارسیان</h3>
         <p className="mt-1 text-xs leading-relaxed text-ink-300">
           یک منبع داده برای مدیریت، مدرسین و هنرجویان. هر تغییری اینجا — لغو کلاس، جلسهٔ جبرانی، وضعیت شهریه — همان لحظه در نمای هنرجو دیده می‌شود.
         </p>
