@@ -200,7 +200,8 @@ Untouched, and not to be "tidied" by a later session without a new decision:
   (The **only** exception is the `SESSION_HANDOFF.md` live pointer, which is the repository's
   established handoff mechanism — see the precedent at the top of that file.)
 - `docs/frontend-completion/06-library-gallery-spec.md` and `src/domains/library/README.md` —
-  excluded by the owner. **See the known discrepancy in §7.**
+  excluded by the owner **until the pre-merge review**, which ruled that the spec's three G-7-caused
+  staleness claims **had** to be corrected (§7a). `src/domains/library/README.md` remains untouched.
 - O-01, O-02, O-08, T-02, the §21 preservation gate, every preserved ref and tag.
 - Any backend / Laravel implementation.
 - **F2 — not started. No planning, no scaffolding, no file.**
@@ -215,20 +216,25 @@ row are jsdom-verified only. Do not report G-7 as browser-verified.
 
 ---
 
-## 7. Known documentation discrepancy — reported, deliberately NOT fixed
+## 7. Known non-blocking observations
 
-`docs/frontend-completion/06-library-gallery-spec.md` line 14 states, as a **VERIFIED** fact:
+### 7a. The library spec discrepancy — **RESOLVED in this branch**
 
-> **Search:** title, composer, teacher — VERIFIED SearchInput placeholder «جستجوی عنوان، آهنگساز یا مدرس…»
+`docs/frontend-completion/06-library-gallery-spec.md` had asserted, as a **VERIFIED** fact, that
+Library teacher search existed because a `SearchInput` placeholder said so. G-7 made three of its
+statements false: it omitted `teacherId?` from the `Resource` type line and from the create-input
+line, and it quoted the **pre-G-7** placeholder verbatim.
 
-G-7 changed that placeholder to **«جستجوی عنوان، آهنگساز، مدرس یا ساز…»** (instrument is searched
-too, and that was already true). **The spec's quoted string is therefore stale.**
+That spec has an in-place edit precedent — commit `0ce60dc` (*"docs: finalize O-02 library level
+vocabulary"*) updated this same file when an owner decision changed the domain model, alongside the
+governance checkpoint, roadmap and decision register. G-7 is the same shape: an owner decision
+(`§24`) that changed the model.
 
-The owner explicitly excluded that file from this change, so it was **left alone and reported
-rather than fixed**. A future session may correct it with an explicit decision. Nothing in the code
-depends on the spec's wording; the test suite is unaffected.
+With the owner's explicit approval this session, the file was **updated in place** — three lines,
+G-7-only, no new product claim, no D-number, citing `§24` as the live authority. The historical body
+is otherwise untouched. **A later session must not "re-flag" this as pending.**
 
-### Non-blocking observations, also deliberately not fixed
+### 7b. Deliberately not fixed
 
 1. **Clearing a teacher stores `""`, not an absent value.** Behaviour is identical everywhere
    (a row cleared to `""` is not findable by that teacher's name); it is a data-hygiene nit, not a
