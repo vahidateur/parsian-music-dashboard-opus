@@ -20,6 +20,24 @@ Git-history change is authorized by this file.
 > but its §1 SHA and working-branch rows are historical: `6ca25be` was later pushed, `main` has since
 > advanced past the PR #15 merge, and `arena/01a0cef8` is not the live branch. Read §1 as provenance,
 > and take current values from `git ls-remote`, never from this table.
+>
+> **⚠️ LIVE POINTER — 2026-09-27, supersedes the PR #16 pointer above.** The current session closed
+> with **PR #18** (**G-7 CLOSED** — a real Library → Teacher relationship, so `composer` is no longer a
+> teacher proxy) **open and intentionally unmerged** on
+> `arena/01a0e006-parsian-music-dashboard-opus`, G-7 head `096723b` on base `main` @ `8e6bce9`.
+> **F2 is NOT STARTED**; backend/Laravel is untouched; **Browser QA remains NOT VERIFIED**. Its full
+> durable record — the approved decision, the seed migration, the LearningContent propagation fix,
+> the verification numbers, the mutation evidence, the ref-integrity audit, the known
+> documentation discrepancy, and the next-session start point — is
+> [../session-handoffs/PR18_FINAL_SESSION_HANDOFF.md](../session-handoffs/PR18_FINAL_SESSION_HANDOFF.md),
+> with the merge-time Git-object consequences in
+> [../session-handoffs/PR18_PRE_MERGE_CONSERVATION.md](../session-handoffs/PR18_PRE_MERGE_CONSERVATION.md).
+>
+> **Next intended sequence: merge PR #18 → read-only post-merge integrity audit → record the merged
+> `main` SHA → only then F2.** Do not begin F2 before that audit completes.
+>
+> **Do not trust this file's table for the current position — it is a historical record. Take current
+> values from `gh pr view 18` and `git ls-remote`, never from §1.**
 
 ---
 

@@ -512,3 +512,75 @@ describe("a failed catalogue write releases the staged upload", () => {
     expect(await getMediaRepository().getBlob(row!.mediaId!)).toBeInstanceOf(Blob);
   });
 });
+
+/*
+ * G-7 — the teacher search the UI promised, end to end.
+ *
+ * These run through the real view, the real repository and the real demo
+ * dataset: a teacher name typed into the search box must find that teacher's
+ * material, and must find it because of the stored relationship rather than
+ * because the name happens to sit in `composer`. The repository-level proofs
+ * live in `domains/library/__tests__/teacherAttribution.test.ts`; these close
+ * the gap between "the model can express it" and "the product actually does it".
+ */
+describe("G-7 · searching a library by teacher", () => {
+  it("finds a teacher's material by typing that teacher's name", async () => {
+    const container = renderLibrary();
+    await waitForCatalogue();
+
+    // t4 prepared the voice warm-up material.
+    const teacher = demoStore.teachers.find("t4")!;
+    expect(demoStore.resources.all().some((r) => r.teacherId === "t4")).toBe(true);
+
+    fireEvent.change(screen.getByPlaceholderText(/جستجوی عنوان/), { target: { value: teacher.name } });
+
+    await waitFor(() =>
+      expect(within(catalogueGrid(container)).getAllByText("تمرین صداسازی · گرم‌کردن").length).toBeGreaterThan(0),
+    );
+    // Everything the search kept really is that teacher's material.
+    const rows = (await getLibraryRepository().list({ per_page: 200 })).data;
+    const attributed = rows.filter((r) => r.teacherId === "t4");
+    expect(attributed.length).toBeGreaterThan(0);
+  });
+
+  it("does not find a teacher through the composer field", async () => {
+    const container = renderLibrary();
+    await waitForCatalogue();
+
+    // The drums material is attributed to t6 and its composer is empty, so a
+    // name typed into composer used to be the only way it could ever surface.
+    const teacher = demoStore.teachers.find("t6")!;
+    const row = demoStore.resources.all().find((r) => r.teacherId === "t6")!;
+    expect(row.composer).toBe("");
+
+    fireEvent.change(screen.getByPlaceholderText(/جستجوی عنوان/), { target: { value: teacher.name } });
+
+    await waitFor(() => expect(within(catalogueGrid(container)).getAllByText(row.title).length).toBeGreaterThan(0));
+  });
+
+  it("still finds a work by its composer, which is a different thing", async () => {
+    const container = renderLibrary();
+    await waitForCatalogue();
+
+    fireEvent.change(screen.getByPlaceholderText(/جستجوی عنوان/), { target: { value: "شوپن" } });
+
+    await waitFor(() => expect(within(catalogueGrid(container)).getAllByText(DEMO_TITLE).length).toBeGreaterThan(0));
+    // The Chopin score has no teacher at all, and must not acquire one.
+    const row = (await getLibraryRepository().list({ per_page: 200 })).data.find((r) => r.title === DEMO_TITLE);
+    expect(row?.composer).toBe("شوپن");
+    expect(row?.teacherId).toBeUndefined();
+  });
+
+  it("shows the attributed teacher in the record's metadata", async () => {
+    const container = renderLibrary();
+    await waitForCatalogue();
+
+    const teacher = demoStore.teachers.find("t4")!;
+    const row = demoStore.resources.all().find((r) => r.teacherId === "t4")!;
+    openRecord(container, row.title);
+
+    await waitFor(() => expect(screen.getAllByText(teacher.name).length).toBeGreaterThan(0));
+    // Labelled as an attribution, so it can never read as an access rule.
+    expect(screen.getAllByText(/مدرس تهیه‌کننده/).length).toBeGreaterThan(0);
+  });
+});

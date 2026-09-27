@@ -4,7 +4,8 @@
  *   View → useLibraryList / useLibraryFile → LibraryRepository + MediaRepository
  *
  * F1 scope:
- * - search title/composer/teacher (composer as teacher proxy, level also searched via repo)
+ * - search title/composer/level/instrument + teacher by its real name (G-7:
+ *   `Resource.teacherId` -> `Teacher.name`; composer is NO LONGER a teacher proxy)
  * - filters kind/instrument/level/visibility (visibility per publication status disposition active/visibility)
  * - sort added/uses/title (title fa locale)
  * - real preview via useLibraryFile + useMediaObjectUrl real bytes no fabricated URL
@@ -35,6 +36,7 @@ import { releaseStagedMedia } from "@/domains/media/release";
 import { apiErrorFromThrown } from "@/api/errors";
 import { useCan } from "@/domains/auth/AuthContext";
 import { useStudentList } from "@/domains/students/useStudents";
+import { useTeachers } from "@/domains/teachers/useTeachers";
 
 /* ------------------------------------------------------------------ */
 /* Shelf layout — presentation config owned by this view (M10).       */
@@ -74,7 +76,20 @@ function Waveform({ peaks }: { peaks: number[] }) {
   );
 }
 
-function ResourceCard({ r, onOpen }: { r: LibraryItem; onOpen: () => void }) {
+/**
+ * The one line a card shows under the title: the creator attribution when the
+ * work has one, otherwise the teacher it is attributed to.
+ *
+ * G-7: before the teacher became a real reference these were the same string —
+ * `composer` held a teacher name in half the catalogue — and a card could not
+ * say which it was showing. Now the two are independent, and a row that has
+ * both shows its composer, because the composer is what identifies the work.
+ */
+export function resourceByline(r: LibraryItem, teacherNameOf: (id?: string) => string): string {
+  return r.composer || teacherNameOf(r.teacherId);
+}
+
+function ResourceCard({ r, byline, onOpen }: { r: LibraryItem; byline: string; onOpen: () => void }) {
   const Icon = kindIcon[r.kind];
   const locked = !r.mediaId;
   return (
@@ -88,7 +103,7 @@ function ResourceCard({ r, onOpen }: { r: LibraryItem; onOpen: () => void }) {
             {locked && <Lock className="size-3 text-warn-400 shrink-0" aria-label="قفل" />}
             {r.title}
           </div>
-          <div className="mt-0.5 truncate text-[11.5px] text-ink-400">{r.composer}</div>
+          <div className="mt-0.5 truncate text-[11.5px] text-ink-400">{byline}</div>
         </div>
         <StatusBadge tone="neutral" label={resourceKindLabel[r.kind]} glyph={false} className="shrink-0" />
       </div>
@@ -146,6 +161,10 @@ function LibraryItemDialog({
   const [visibility, setVisibility] = useState<LibraryVisibility>(editing?.visibility ?? "students");
   const [restricted, setRestricted] = useState((editing?.restrictedToStudentIds?.length ?? 0) > 0);
   const [studentIds, setStudentIds] = useState<string[]>(editing?.restrictedToStudentIds ?? []);
+  // G-7: the teacher this material is attributed to. `""` means "no teacher
+  // recorded" and is sent as an empty value, which the repository treats as
+  // "no attribution" rather than as a teacher whose id happens to be blank.
+  const [teacherId, setTeacherId] = useState(editing?.teacherId ?? "");
   const [active, setActive] = useState(editing ? editing.active !== false : true);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -155,6 +174,12 @@ function LibraryItemDialog({
   // "no students exist" (I15 — an empty picker and an unreadable one are
   // different facts, and only the read itself can tell them apart).
   const { students, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 200 });
+
+  // G-7: the attribution picker reads the same teachers list the view resolves
+  // names from, so a row can never be attributed to a teacher the picker could
+  // not have chosen. Its failure is the picker's to own, exactly like the
+  // student picker's — a broken read is not an empty academy.
+  const { items: teachers, error: teachersError, reload: reloadTeachers } = useTeachers({ per_page: 200 });
 
   const submit = async () => {
     if (title.trim().length < 2) {
@@ -208,6 +233,7 @@ function LibraryItemDialog({
         await getLibraryRepository().update(editing.id, {
           title: title.trim(),
           composer: composer.trim() || undefined,
+          teacherId,
           kind,
           instrument,
           level: level.trim() || undefined,
@@ -225,6 +251,7 @@ function LibraryItemDialog({
         await getLibraryRepository().create({
           title: title.trim(),
           composer: composer.trim() || undefined,
+          teacherId,
           kind,
           instrument,
           level: level.trim() || undefined,
@@ -262,9 +289,35 @@ function LibraryItemDialog({
           <Field label="عنوان">
             {(c) => <input {...c} className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="مثلاً اتود شماره ۱" />}
           </Field>
-          <Field label="آهنگساز / تهیه‌کننده">
-            {(c) => <input {...c} className={inputCls} value={composer} onChange={(e) => setComposer(e.target.value)} placeholder="نام آهنگساز یا مدرس" />}
+          <Field label="آهنگساز / خالق اثر">
+            {(c) => <input {...c} className={inputCls} value={composer} onChange={(e) => setComposer(e.target.value)} placeholder="مثلاً شوپن" />}
           </Field>
+          {/*
+            G-7: the teacher is a separate, real reference — picked from the
+            academy's teachers, never typed as a name. The field below is
+            explicitly not an access control: it records who prepared the
+            material and is never consulted by `studentCanAccess`.
+          */}
+          <Field label="مدرس تهیه‌کننده (ثبت انتساب، نه دسترسی)">
+            {(c) => (
+              <select {...c} className={inputCls} value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
+                <option value="">— ثبت نشده —</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} · {t.title}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          {teachersError ? (
+            <p className="text-[11px] text-danger">
+              فهرست مدرسان خوانده نشد؛ انتخاب مدرس ممکن نیست.{" "}
+              <button type="button" className="underline" onClick={() => void reloadTeachers()}>
+                تلاش دوباره
+              </button>
+            </p>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <Field label="نوع">
               {(c) => (
@@ -399,6 +452,16 @@ export function LibraryView() {
   // through it, so a failed read must not be presented as a normal resolution.
   const { students, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 200 });
 
+  // G-7: the teachers this view needs, only to put a real name to
+  // `Resource.teacherId` for search and display. The library domain owns the
+  // relationship; this view resolves only the id the item already carries, the
+  // same way it already resolves `studentId` to a student name in the drawer.
+  const { items: teachers } = useTeachers({ per_page: 200 });
+  const teacherName = useMemo(() => {
+    const byId = new Map<string, string>(teachers.map((t) => [t.id, t.name]));
+    return (id?: string): string => (id ? byId.get(id) ?? "" : "");
+  }, [teachers]);
+
   const { items, total, loading, error, reload } = useLibraryList({ per_page: 200 });
 
   const file = useLibraryFile(open);
@@ -428,11 +491,19 @@ export function LibraryView() {
         if (vis !== visibilityFilter) return false;
       }
       if (query) {
-        // Search title/composer/teacher — teacher as composer proxy per current model.
-        // F1 G-7 — OPEN (owner decision, docs/engineering/F1_REPORT.md §4): LibraryItem has no
-        // teacher field. Behaviour and data model stay as they are until this is decided.
+        // G-7: a teacher query matches a REAL `teacherId` -> `Teacher.name` link.
+        // `composer` is still searched, but only as the creator attribution it
+        // now honestly is — it is no longer a stand-in for the teacher, so a
+        // score that merely names a composer never answers a teacher search.
         const q = query;
-        if (!r.title.includes(q) && !r.composer.includes(q) && !r.level.includes(q) && !instrumentName(r.instrument).includes(q)) return false;
+        if (
+          !r.title.includes(q) &&
+          !r.composer.includes(q) &&
+          !r.level.includes(q) &&
+          !instrumentName(r.instrument).includes(q) &&
+          !teacherName(r.teacherId).includes(q)
+        )
+          return false;
       }
       return true;
     });
@@ -445,7 +516,7 @@ export function LibraryView() {
       if (aTime && bTime) return bTime - aTime;
       return 0;
     });
-  }, [items, kind, inst, levelFilter, visibilityFilter, query, sort]);
+  }, [items, kind, inst, levelFilter, visibilityFilter, query, sort, teacherName]);
 
   const stats = useMemo(() => {
     const byKind = (k: ResourceKind) => items.filter((r) => r.kind === k).length;
@@ -532,7 +603,7 @@ export function LibraryView() {
 
       <FilterBar
         className="mt-5"
-        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی عنوان، آهنگساز یا مدرس…" />}
+        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی عنوان، آهنگساز، مدرس یا ساز…" />}
         trailing={
           <Segmented
             value={sort}
@@ -573,7 +644,7 @@ export function LibraryView() {
         ) : (
           <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {list.map((r) => (
-              <ResourceCard key={r.id} r={r} onOpen={() => setOpen(r)} />
+              <ResourceCard key={r.id} r={r} byline={resourceByline(r, teacherName)} onOpen={() => setOpen(r)} />
             ))}
           </div>
         )}
@@ -592,7 +663,7 @@ export function LibraryView() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] text-ink-50">{r.title}</span>
-                      <span className="block truncate text-[10.5px] text-ink-400">{r.added} · {r.composer}</span>
+                      <span className="block truncate text-[10.5px] text-ink-400">{r.added} · {resourceByline(r, teacherName)}</span>
                     </span>
                   </button>
                 </li>
@@ -654,7 +725,10 @@ export function LibraryView() {
               {[
                 ["ساز", instrumentName(open.instrument)],
                 ["سطح", open.level || "—"],
-                ["آهنگساز / تهیه", open.composer || "—"],
+                ["آهنگساز", open.composer || "—"],
+                // Provenance, and labelled as such: this is who prepared the
+                // material, never who may open it.
+                ["مدرس تهیه‌کننده (ثبت انتساب)", teacherName(open.teacherId) || "ثبت نشده"],
                 ["حجم", open.size],
                 open.pages ? ["تعداد صفحه", faNum(open.pages)] : ["مدت", open.duration ?? "—"],
                 ["افزوده‌شده", open.added],

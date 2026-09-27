@@ -12,7 +12,7 @@
  * students.
  */
 import { SEEDED_INSTRUMENTS } from "@/domains/instruments/catalog";
-import { conversations, resources, students } from "./academySeed";
+import { conversations, resources, students, teachers } from "./academySeed";
 import type { InstrumentRecord } from "@/domains/instruments/types";
 import type {
   LearningContent,
@@ -134,13 +134,28 @@ const KIND_TO_TYPE: Record<string, LearningContentType> = {
  * library and the learning domain describe the SAME material rather than two
  * disconnected catalogues.
  */
+/** The teacher a library row is attributed to, by id. "" when there is none. */
+function teacherName(teacherId?: string): string {
+  return teacherId ? teachers.find((t) => t.id === teacherId)?.name ?? "" : "";
+}
+
 export function deriveLearningContent(): LearningContent[] {
   return resources.map((resource) => ({
     id: `lc_${resource.id}`,
     title: resource.title,
-    description: `${resource.composer} · ${resource.level}`,
+    // G-7: the same split the catalogue now keeps. A row whose material has no
+    // composer of the work is described by the teacher who prepared it, so the
+    // description never degenerates into an empty " · <level>" now that
+    // `composer` is no longer allowed to hold a teacher's name.
+    description: `${resource.composer || teacherName(resource.teacherId)} · ${resource.level}`,
     type: KIND_TO_TYPE[resource.kind] ?? "document",
+    // `author` is the creator attribution of the work, so it stays the composer
+    // and is empty for the academy's own material — which is the truth about it.
     author: resource.composer,
+    // `LearningContent.teacherId` existed but was never populated. G-7 gives the
+    // catalogue a real teacher, so the derived content can finally carry it,
+    // instead of the teacher being smuggled through `composer` as before.
+    ...(resource.teacherId ? { teacherId: resource.teacherId } : {}),
     instrumentId: resource.instrument,
     // Seeded library material is student-facing.
     visibility: "students",

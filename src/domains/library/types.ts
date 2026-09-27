@@ -37,6 +37,32 @@ export interface Resource {
   id: string;
   title: string;
   composer: string;
+  /**
+   * The educational teacher / contributor this material belongs to — a real
+   * reference into the teachers domain, following the same convention
+   * `Student.teacherId`, `AcademyClass.teacherId`, `Session.teacherId` and
+   * `LearningContent.teacherId` already use. At most ONE teacher per item.
+   *
+   * PROVENANCE, NOT AUTHORIZATION. This says who prepared the material. It
+   * grants no access and must never be read as an ACL: visibility and
+   * `restrictedToStudentIds` below are the only access rules, and
+   * `studentCanAccess` is the one sentence that evaluates them (O-08: the
+   * attribution field is provenance; it is not a permission).
+   *
+   * INDEPENDENT OF `composer`. `composer` is the creator attribution of the
+   * work itself — Chopin, Bach, an orchestra, the academy. `teacherId` is the
+   * teacher who prepared or contributed the teaching material. Both may be set
+   * at once, and neither stands in for the other: a Chopin nocturne prepared by
+   * a piano teacher carries both, and a method book the academy wrote carries
+   * `composer` with no `teacherId` at all. Composer is NEVER a teacher proxy —
+   * before this field existed, `composer` silently held a teacher name in half
+   * the seed, which made "search by teacher" a string coincidence rather than a
+   * relationship. See docs/engineering/F1_REPORT.md §4 G-7.
+   *
+   * Absent = no teacher is recorded. That is an honest "unknown / not
+   * applicable", never an implicit teacher.
+   */
+  teacherId?: string;
   kind: ResourceKind;
   instrument: InstrumentId;
   level: string;
@@ -104,6 +130,11 @@ export interface LibraryListParams extends ListParams {
 export interface CreateLibraryItemInput {
   title: string;
   composer?: string;
+  /**
+   * The contributing teacher. See `Resource.teacherId` — provenance, never
+   * authorization, and independent of `composer`.
+   */
+  teacherId?: string;
   kind: ResourceKind;
   instrument: InstrumentId;
   level?: string;

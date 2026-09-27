@@ -4,14 +4,14 @@
 
 ### Types (VERIFIED)
 
-- Resource (persisted DemoDataset.resources): id, title, composer, kind (sheet/audio/video/doc), instrument (InstrumentId), level (string display label), size (Persian label), duration?, pages?, added (Persian label), uses (number), peaks? (audio waveform)
+- Resource (persisted DemoDataset.resources): id, title, composer, kind (sheet/audio/video/doc), instrument (InstrumentId), level (string display label), size (Persian label), duration?, pages?, added (Persian label), uses (number), peaks? (audio waveform), teacherId? (Teacher.id ref)
 - LibraryItem extends Resource: mediaId? (MediaAsset.id ref), createdAt? ISO authoritative, size/duration/added derived from createdAt so never disagree
-- Create input: title, composer?, kind, instrument, level?, mediaId?, pages?, durationSeconds?, peaks?
+- Create input: title, composer?, kind, instrument, level?, mediaId?, pages?, durationSeconds?, peaks?, teacherId?
 - LibraryFileStatus: none (no mediaId), loading, ready (metadata+bytes present), missing (metadata exists bytes don't — backup carries metadata only, legitimate not error)
 
 ### Search / Filter / Sort / Preview / Locked / Metadata Workflows
 
-**Search:** title, composer, teacher — VERIFIED SearchInput placeholder "جستجوی عنوان، آهنگساز یا مدرس…"
+**Search:** title, composer, level, instrument, teacher — VERIFIED against the implementation. SearchInput placeholder "جستجوی عنوان، آهنگساز، مدرس یا ساز…". **G-7:** `teacher` is no longer a `composer` proxy — it resolves `Resource.teacherId → Teacher.name` through the teachers the academy holds, and is backed by tests; `composer` remains an independent creator attribution. At most one teacher per item; an absent `teacherId` means *no teacher recorded*. `teacherId` is provenance/attribution, **not** an access-control input. Authority: [`../engineering/DECISIONS.md`](../engineering/DECISIONS.md) §24.
 
 **Filter (current + desired):**
 - kind: sheet/audio/video/doc — exists? FilterBar with Chip? Need to inspect Library.tsx further — VERIFIED shelves by kind+instrument but not generic filter — INFERRED gap: kind filter exists via shelves but not as explicit filter chip — classify A NOW add FilterBar kind/instrument/level/visibility

@@ -412,19 +412,43 @@ export const conversations: Conversation[] = [
 /* ------------------------------------------------------------------ */
 
 
+/*
+  G-7 — teacher attribution moved out of `composer`.
+
+  Six of the twelve rows below used to carry a TEACHER's name in `composer`
+  (res4, res5, res6, res8, res9, res11) and the other six a real creator
+  attribution. Each of the six matched its teacher's own instrument exactly,
+  which is what identified them as attributions rather than coincidences:
+
+      res4  کاوه کاظمی    -> t6  (drums)   res4  is a drums resource
+      res5  نرگس حسینی    -> t4  (voice)   res5  is a voice resource
+      res6  مینا فرهادی   -> t8  (violin)  res6  is a violin resource
+      res8  بهرام نیک‌نژاد -> t5  (theory)  res8  is a theory resource
+      res9  بهرام نیک‌نژاد -> t5  (theory)  res9  is a theory resource
+      res11 محمد رضایی    -> t2  (guitar)  res11 is a guitar resource
+
+  Those six now say it in `teacherId`, and their `composer` is empty: all six
+  are the academy's own teaching material, so "no composer of the work" is the
+  truthful reading, and re-filling it (with the academy, or with the teacher's
+  name again) would recreate the very conflation this moved out. The other six
+  are untouched — Chopin, Carcassi, Bach, the youth orchestra and the academy
+  method book keep their `composer` and gain no teacher, because no teacher was
+  ever recorded for them and inventing one would be fabricated history.
+*/
+
 const peaks = (seed: number) => Array.from({ length: 40 }, (_, i) => 0.25 + Math.abs(Math.sin(i * seed)) * 0.75);
 
 export const resources: Resource[] = [
   { id: "res1", title: "نوکتورن اپوس ۹ شمارهٔ ۲", composer: "شوپن", kind: "sheet", instrument: "piano", level: "پیشرفته", size: "۱٫۲ مگابایت", pages: 6, added: "۳ روز پیش", uses: 42 },
   { id: "res2", title: "متد پیانو کودکان · دفتر اول", composer: "آموزشگاه آوا", kind: "sheet", instrument: "piano", level: "پایه", size: "۴٫۸ مگابایت", pages: 48, added: "۱ هفته پیش", uses: 128 },
   { id: "res3", title: "تمرین‌های آرپژ گیتار", composer: "کارکاسی", kind: "sheet", instrument: "guitar", level: "میانی", size: "۹۰۰ کیلوبایت", pages: 12, added: "۲ هفته پیش", uses: 76 },
-  { id: "res4", title: "الگوهای ریتمیک ۶/۸", composer: "کاوه کاظمی", kind: "audio", instrument: "drums", level: "پایه", size: "۸٫۴ مگابایت", duration: "۴:۱۲", added: "۴ روز پیش", uses: 31, peaks: peaks(0.7) },
-  { id: "res5", title: "تمرین صداسازی · گرم‌کردن", composer: "نرگس حسینی", kind: "audio", instrument: "voice", level: "پایه", size: "۱۲٫۱ مگابایت", duration: "۶:۳۰", added: "۵ روز پیش", uses: 58, peaks: peaks(0.42) },
-  { id: "res6", title: "درس ۳ · کوک و وضعیت دست", composer: "مینا فرهادی", kind: "video", instrument: "violin", level: "پایه", size: "۱۴۸ مگابایت", duration: "۱۱:۰۵", added: "۱ هفته پیش", uses: 64 },
+  { id: "res4", title: "الگوهای ریتمیک ۶/۸", composer: "", teacherId: "t6", kind: "audio", instrument: "drums", level: "پایه", size: "۸٫۴ مگابایت", duration: "۴:۱۲", added: "۴ روز پیش", uses: 31, peaks: peaks(0.7) },
+  { id: "res5", title: "تمرین صداسازی · گرم‌کردن", composer: "", teacherId: "t4", kind: "audio", instrument: "voice", level: "پایه", size: "۱۲٫۱ مگابایت", duration: "۶:۳۰", added: "۵ روز پیش", uses: 58, peaks: peaks(0.42) },
+  { id: "res6", title: "درس ۳ · کوک و وضعیت دست", composer: "", teacherId: "t8", kind: "video", instrument: "violin", level: "پایه", size: "۱۴۸ مگابایت", duration: "۱۱:۰۵", added: "۱ هفته پیش", uses: 64 },
   { id: "res7", title: "ردیف میرزا عبدالله · درآمد", composer: "روایت نورعلی برومند", kind: "audio", instrument: "violin", level: "پیشرفته", size: "۱۸٫۶ مگابایت", duration: "۹:۴۴", added: "۲ هفته پیش", uses: 23, peaks: peaks(0.9) },
-  { id: "res8", title: "جزوهٔ تئوری · فواصل و گام‌ها", composer: "بهرام نیک‌نژاد", kind: "doc", instrument: "theory", level: "پایه", size: "۲٫۳ مگابایت", pages: 24, added: "۳ هفته پیش", uses: 156 },
-  { id: "res9", title: "دیکتهٔ ملودیک · مجموعهٔ ۱", composer: "بهرام نیک‌نژاد", kind: "audio", instrument: "theory", level: "میانی", size: "۲۲٫۰ مگابایت", duration: "۱۵:۲۰", added: "۱ ماه پیش", uses: 89, peaks: peaks(0.55) },
+  { id: "res8", title: "جزوهٔ تئوری · فواصل و گام‌ها", composer: "", teacherId: "t5", kind: "doc", instrument: "theory", level: "پایه", size: "۲٫۳ مگابایت", pages: 24, added: "۳ هفته پیش", uses: 156 },
+  { id: "res9", title: "دیکتهٔ ملودیک · مجموعهٔ ۱", composer: "", teacherId: "t5", kind: "audio", instrument: "theory", level: "میانی", size: "۲۲٫۰ مگابایت", duration: "۱۵:۲۰", added: "۱ ماه پیش", uses: 89, peaks: peaks(0.55) },
   { id: "res10", title: "پرلود شمارهٔ ۱ · باخ", composer: "ی. س. باخ", kind: "sheet", instrument: "piano", level: "میانی", size: "۷۴۰ کیلوبایت", pages: 4, added: "۱ ماه پیش", uses: 97 },
-  { id: "res11", title: "آکوردهای پایهٔ پاپ", composer: "محمد رضایی", kind: "doc", instrument: "guitar", level: "پایه", size: "۱٫۱ مگابایت", pages: 9, added: "۱ ماه پیش", uses: 203 },
+  { id: "res11", title: "آکوردهای پایهٔ پاپ", composer: "", teacherId: "t2", kind: "doc", instrument: "guitar", level: "پایه", size: "۱٫۱ مگابایت", pages: 9, added: "۱ ماه پیش", uses: 203 },
   { id: "res12", title: "اجرای نمونه · کنسرت پاییز", composer: "ارکستر نوجوانان آوا", kind: "video", instrument: "violin", level: "همه", size: "۳۲۰ مگابایت", duration: "۲۴:۵۰", added: "۲ ماه پیش", uses: 45 },
 ];
