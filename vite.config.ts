@@ -9,6 +9,42 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * Which composition to build.
+ *
+ *   APP_TARGET=demo   (default) — the demo composition: demo repositories,
+ *                      demo provisioning, demo credential panel, delivery UI.
+ *   APP_TARGET=client           — the production/client composition: API
+ *                      repositories, DOMAIN_UNAVAILABLE for unserved domains,
+ *                      and NOT ONE demo module in any chunk.
+ *
+ * Selection is by FILE ALIAS (below), which is what makes the boundary
+ * physical: the bundler never resolves a demo target file when building the
+ * client — it is not a runtime flag that dead code elimination might miss.
+ * `src/domains/registry` is swapped the same way (registry.client.ts is
+ * export-compatible, so no application code changes between compositions).
+ * Tests (vitest) run with the default demo target unless APP_TARGET says
+ * otherwise; `__APP_TARGET__` is defined to match.
+ *
+ * Asserted by src/__tests__/bundleBoundary.test.ts against the real
+ * `dist/client` and `dist/demo` output — negative AND positive checks.
+ */
+const APP_TARGET: "demo" | "client" = process.env.APP_TARGET === "client" ? "client" : "demo";
+const targetFile = (base: string, ext: string): string =>
+  path.resolve(__dirname, `src/targets/${base}${APP_TARGET === "client" ? ".client" : ""}.${ext}`);
+const targetAliases: { find: string; replacement: string }[] = [
+  { find: "@/targets/environment", replacement: targetFile("environment", "tsx") },
+  { find: "@/targets/libraryProvisioning", replacement: targetFile("libraryProvisioning", "ts") },
+  { find: "@/targets/galleryProvisioning", replacement: targetFile("galleryProvisioning", "ts") },
+  { find: "@/targets/targetCopy", replacement: targetFile("targetCopy", "ts") },
+  { find: "@/targets/targetFeatures", replacement: targetFile("targetFeatures", "tsx") },
+  { find: "@/targets/commandShowcase", replacement: targetFile("commandShowcase", "ts") },
+];
+const registryAlias: { find: string; replacement: string }[] =
+  APP_TARGET === "client"
+    ? [{ find: "@/domains/registry", replacement: path.resolve(__dirname, "src/domains/registry.client.ts") }]
+    : [];
+
+/**
  * The Content-Security-Policy the edge enforces in production.
  *
  * Kept here so the dev server can report against the SAME string the
@@ -40,6 +76,9 @@ export const PRODUCTION_CSP = [
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __APP_TARGET__: JSON.stringify(APP_TARGET),
+  },
   build: {
     /*
       Hashed, externally-loaded assets — NOT a single inlined file.
@@ -81,9 +120,8 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
-    },
+    /* Ordered: the specific target/registry swaps win over the generic "@". */
+    alias: [...targetAliases, ...registryAlias, { find: "@", replacement: path.resolve(__dirname, "src") }],
   },
   server: {
     host: true,
