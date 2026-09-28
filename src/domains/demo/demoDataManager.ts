@@ -15,7 +15,7 @@
  *   uninitialize  — remove the environment itself (destructive; see lifecycle.ts)
  *   exportBackup  — versioned envelope of the current state
  */
-import { demoStore, type DemoStore } from "@/services/demoStore";
+import { demoStore, stampDatasetProvenance, type DemoStore } from "@/services/demoStore";
 import {
   BACKUP_SCHEMA_VERSION,
   createBackup,
@@ -26,6 +26,13 @@ import {
   type ValidationIssue,
 } from "./backup";
 import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
+import {
+  DemoDisabledError,
+  DEMO_DISABLED_MESSAGE,
+  DELIVERY_PENDING_MESSAGE,
+  isDemoCapabilityAvailable,
+  isDestructiveOperationAllowed,
+} from "@/api/deploymentLock";
 import { setInstrumentCatalog } from "@/domains/instruments/catalog";
 import {
   initializeDemoEnvironment,
@@ -116,6 +123,12 @@ export class DemoDataManager {
    */
   initialize(): DemoOperationSuccess {
     const result = initializeDemoEnvironment(this.store);
+    if (!result.ok && result.reason === "demo-disabled") {
+      // The contract of this method is "created or already there"; after the
+      // production lock neither holds, so the call itself is rejected — loudly,
+      // with the stable code, rather than reported as a no-op success.
+      throw new DemoDisabledError("initialize");
+    }
     return this.success(
       "initialize",
       result.changed,
@@ -141,11 +154,13 @@ export class DemoDataManager {
    * hide demo records behind a "real data" label.
    */
   resetToSeed(request: ConfirmedRequest): DemoOperationResult {
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset");
     return this.applyDataset("reset", createSeedDataset(), request, "دادهٔ دمو به حالت اولیه بازگردانده شد.", "demo");
   }
 
   /** Alias with distinct intent: importing the canonical seed. Also marks DEMO. */
   importSeed(request: ConfirmedRequest): DemoOperationResult {
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-seed");
     return this.applyDataset("import-seed", createSeedDataset(), request, "دیتاست کانونیکال وارد شد.", "demo");
   }
 
@@ -158,18 +173,36 @@ export class DemoDataManager {
    * inferred from how many rows are left.
    */
   clear(request: ConfirmedRequest): DemoOperationResult {
+    // While a delivery attempt is pending, EVERY destructive operation is
+    // frozen: recovery must observe a stable dataset. After delivery `clear`
+    // remains a customer operation (it empties the customer's own records) —
+    // it is not "Clear Demo", which no longer exists.
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked("clear");
     return this.applyDataset("clear", createEmptyDataset(), request, "همهٔ رکوردهای دمو حذف شد.");
   }
 
-  /** Replaces the demo state with an externally supplied dataset. */
+  /**
+   * Replaces the demo state with an externally supplied dataset.
+   *
+   * Post-delivery this is rejected: an externally supplied payload has no
+   * provable ownership, and installing an unprovable dataset into a locked
+   * deployment violates the same fail-closed rule that keeps delivery from
+   * deleting one. Pre-delivery it behaves exactly as before.
+   */
   importDataset(dataset: DemoDataset, request: ConfirmedRequest): DemoOperationResult {
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked("import-dataset");
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-dataset");
     return this.applyDataset("import-dataset", dataset, request, "دیتاست وارد شد.");
   }
 
   /* ---------------- backup / restore ---------------- */
 
   exportBackup(exportedAt: Date = new Date()): DemoBackup {
-    return createBackup(this.store.snapshot(), exportedAt);
+    // Stamp the envelope with the CURRENT environment: a customer environment
+    // exports as `empty` (restorable after delivery); only a demo environment
+    // exports as `demo` (rejected by a locked deployment on restore).
+    const environment = this.lifecycleState() === "empty" ? "empty" : "demo";
+    return createBackup(this.store.snapshot(), exportedAt, environment);
   }
 
   exportBackupJson(exportedAt?: Date): string {
@@ -187,11 +220,22 @@ export class DemoDataManager {
    * provisioning off), which is the label the visitor chose.
    */
   restoreBackup(text: string, request: ConfirmedRequest): DemoOperationResult {
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked("restore-backup");
     if (!request?.confirm) return this.needsConfirmation("restore-backup");
 
     const parsed = parseBackup(text);
     if (!parsed.ok) {
       return { ok: false, operation: "restore-backup", issues: parsed.issues, message: "فایل پشتیبان معتبر نیست؛ دادهٔ فعلی تغییر نکرد." };
+    }
+    if (!isDemoCapabilityAvailable() && parsed.backup.environment === "demo") {
+      // Locked deployments accept customer (`empty`) backups only — a
+      // demo-stamped envelope is demo capability by another name.
+      return {
+        ok: false,
+        operation: "restore-backup",
+        issues: [{ code: "WRONG_ENVIRONMENT", message: DEMO_DISABLED_MESSAGE }],
+        message: DEMO_DISABLED_MESSAGE,
+      };
     }
     return this.applyDataset("restore-backup", parsed.backup.data, request, "پشتیبان بازگردانی شد.");
   }
@@ -221,7 +265,14 @@ export class DemoDataManager {
     const safetyBackup = this.store.isInitialized() ? createBackup(this.store.snapshot()) : undefined;
 
     try {
-      this.store.replace(dataset);
+      // An operation that records the mode (reset/import of canonical data)
+      // also re-establishes OWNSERSHIP: the payload being installed IS that
+      // mode's data, so its stamp must land with it — otherwise an EMPTY
+      // environment reset to the seed would carry a customer stamp over demo
+      // records and delivery would (correctly) refuse to delete them.
+      this.store.replace(
+        mode ? stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run") : dataset,
+      );
     } catch (cause) {
       return {
         ok: false,
@@ -260,6 +311,24 @@ export class DemoDataManager {
     } catch {
       /* storage unavailable or unparsable — nothing to invalidate */
     }
+  }
+
+  private demoDisabled(operation: DemoOperation): DemoOperationFailure {
+    return {
+      ok: false,
+      operation,
+      issues: [{ code: "DEMO_DISABLED", message: DEMO_DISABLED_MESSAGE }],
+      message: DEMO_DISABLED_MESSAGE,
+    };
+  }
+
+  private operationBlocked(operation: DemoOperation): DemoOperationFailure {
+    return {
+      ok: false,
+      operation,
+      issues: [{ code: "OPERATION_BLOCKED", message: DELIVERY_PENDING_MESSAGE }],
+      message: DELIVERY_PENDING_MESSAGE,
+    };
   }
 
   private needsConfirmation(operation: DemoOperation): DemoOperationFailure {

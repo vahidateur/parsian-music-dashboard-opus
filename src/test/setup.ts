@@ -10,6 +10,17 @@
  */
 import { beforeEach } from "vitest";
 
+/*
+  The demo target's data-version bridge.
+  In the app this subscription is installed by `src/targets/environment.tsx`
+  when the demo composition loads (module scope). Vitest does not render the
+  shell before domain tests write through repositories, so the SAME wiring is
+  installed here — the test environment mirrors the demo composition exactly,
+  and the shared `dataVersion` module stays dependency-free for the client
+  build.
+*/
+import "@/targets/environment";
+
 beforeEach(() => {
   if (typeof window !== "undefined") window.history.replaceState(null, "", "/");
 });

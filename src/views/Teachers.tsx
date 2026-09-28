@@ -27,7 +27,7 @@ import { ErrorState } from "@/components/ds/states";
 import { useTeachers, useTeacher } from "@/domains/teachers/useTeachers";
 import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
 import { getTeacherRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { apiErrorFromThrown } from "@/api/errors";
 import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDay";
 import { indexById } from "@/views/relations/indexById";

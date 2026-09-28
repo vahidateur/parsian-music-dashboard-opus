@@ -1,14 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Eye, EyeOff, KeyRound, Lock, ShieldAlert, TriangleAlert, User } from "lucide-react";
+import { Eye, EyeOff, Lock, ShieldAlert, TriangleAlert, User } from "lucide-react";
 import { useBranding } from "@/domains/branding/useBranding";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
-import { isDemoMode } from "@/api/config";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
-import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryContext";
-import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecoveryPanel";
-import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
-import { roleLabel } from "@/domains/auth/permissions";
+import { LoginAssist, LoginSourceNotice } from "@/targets/targetFeatures";
 import portalBg from "@/assets/login-portal.webp";
 import portalBgSm from "@/assets/login-portal-sm.webp";
 import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
@@ -84,7 +78,6 @@ export function LoginView() {
   const [reveal, setReveal] = useState(false);
   // Demo credentials live behind a corner toggle (demo mode only), collapsed by
   // default so they never compete with the login action.
-  const [demoOpen, setDemoOpen] = useState(false);
   const [touched, setTouched] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
   // Short-viewport fallback: a failed submit inserts the alert above the button and
@@ -96,13 +89,6 @@ export function LoginView() {
   const errorId = useId();
   const emailErrorId = useId();
   const passwordErrorId = useId();
-  const demo = isDemoMode();
-  // The data source decides WHETHER a credential panel exists at all; the
-  // persisted lifecycle state decides what that panel may CALL itself. In an
-  // EMPTY environment the accounts on screen are the visitor's own, so labelling
-  // them demo data is the same dishonesty in the opposite direction.
-  const demoEnvironment = useIsDemoEnvironment();
-  const lifecycleRecovery = useLifecycleRecovery();
 
   useEffect(() => {
     emailRef.current?.focus();
@@ -236,7 +222,7 @@ export function LoginView() {
               </div>
 
               {/* D8: the disclosure precedes authentication, not just follows it. */}
-              <DemoBackedNotice className="mt-[var(--p-sec-gap)]" />
+              <LoginSourceNotice />
 
               <form onSubmit={onSubmit} noValidate className="mt-[var(--p-sec-gap)]">
                 {/*
@@ -409,51 +395,19 @@ export function LoginView() {
               </form>
             </div>
 
-            {lifecycleRecovery && <LifecycleRecoveryPanel controller={lifecycleRecovery} />}
+            <LoginAssist
+              onPick={(nextEmail, nextPassphrase) => {
+                setEmail(nextEmail);
+                setPassword(nextPassphrase);
+                clearError();
+              }}
+            />
           </div>
         </div>
 
         <PortalFooter academyName={branding.academyName} />
       </div>
 
-      {/*
-        Demo credentials — DEMO MODE ONLY, tucked into a screen corner behind a
-        toggle so they never push or clutter the login action. SECURITY: this
-        whole block is gated by `demo` (= isDemoMode()); in api/real mode it is
-        false, so neither this button nor the passphrase/accounts exist in the
-        DOM at all — no demo credential can leak into a production build.
-      */}
-      {demo && (
-        <div className="fixed right-4 top-4 z-30 flex w-[min(22rem,calc(100vw-2rem))] flex-col items-end gap-2">
-          <div
-            className={cn(
-              "w-full transition-all duration-200",
-              demoOpen
-                ? "max-h-[80vh] opacity-100"
-                : "pointer-events-none max-h-0 overflow-hidden opacity-0",
-            )}
-          >
-            <DemoPanel
-              open={demoOpen}
-              demoEnvironment={demoEnvironment}
-              onPick={(nextEmail) => {
-                setEmail(nextEmail);
-                setPassword(DEMO_PASSPHRASE);
-                clearError();
-              }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setDemoOpen((v) => !v)}
-            aria-expanded={demoOpen}
-            className="flex items-center gap-2 rounded-full border border-warn-500/30 bg-ink-900/90 px-3.5 py-2 text-[length:var(--p-text-xs)] font-semibold text-warn-300 shadow-[0_10px_30px_-10px_rgb(0_0_0/0.85)] backdrop-blur transition-colors hover:border-warn-500/50 hover:text-warn-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warn-400/60"
-          >
-            <KeyRound className="size-3.5" aria-hidden />
-            {demoOpen ? "بستن اطلاعات دمو" : "اطلاعات ورود دمو"}
-          </button>
-        </div>
-      )}
     </main>
   );
 }
@@ -678,59 +632,3 @@ const fieldCls =
   "disabled:cursor-not-allowed disabled:opacity-50";
 
 const invalidCls = "border-danger-500/55 focus:border-danger-500/70 focus:ring-danger-500/15";
-
-/**
- * Local credentials.
- *
- * Rendered only when the data source is demo; in api mode it is not in the DOM
- * at all. The wording states plainly that this login has no security — claiming
- * otherwise about localStorage auth would be dishonest.
- *
- * `demoEnvironment` chooses the LABELS only, never the capability: an EMPTY
- * environment still needs the passphrase on screen, because the bootstrap
- * account it created is the only way in. What it must not do is call that
- * customer environment a demo, or that account a sample one.
- */
-function DemoPanel({ open, demoEnvironment, onPick }: { open: boolean; demoEnvironment: boolean; onPick: (email: string) => void }) {
-  const accounts = listDemoAccounts();
-  return (
-    <div
-      data-demo-panel
-      className="rounded-2xl border border-warn-500/[0.18] bg-ink-950/95 p-[max(12px,calc(var(--form-u)*14))] text-right shadow-[0_20px_50px_-20px_rgb(0_0_0/0.9)] backdrop-blur"
-    >
-      <div className="flex items-center gap-1.5 text-[length:var(--p-text-xs)] font-semibold text-warn-400">
-        <TriangleAlert className="size-3.5" aria-hidden />{" "}
-        {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
-      </div>
-      <p className="mt-[calc(var(--form-u)*6)] text-[length:var(--p-text-xs)] leading-relaxed text-ink-300">
-        {demoEnvironment
-          ? "این ورود صرفاً نمایشی است و هیچ محافظت امنیتی ندارد. گذرواژهٔ همهٔ حساب‌های نمونه"
-          : "این ورود روی دادهٔ ذخیره‌شده در همین مرورگر است و هیچ محافظت امنیتی ندارد. گذرواژهٔ حساب دسترسیِ این محیط"}{" "}
-        <code dir="ltr" className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[length:var(--p-text-xs)] text-ink-100">
-          {DEMO_PASSPHRASE}
-        </code>{" "}
-        است.
-      </p>
-      {/* Two columns where there is width: five one-tap accounts are the tallest
-          honest element on the screen, and pairing them is what keeps a desktop
-          demo environment inside one viewport. */}
-      <ul className="mt-[calc(var(--form-u)*8)] grid grid-cols-1 gap-x-4 gap-y-0.5 sm:grid-cols-2">
-        {accounts.map((account) => (
-          <li key={account.id}>
-            <button
-              type="button"
-              onClick={() => onPick(account.email)}
-              tabIndex={open ? undefined : -1}
-              className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-[max(4px,calc(var(--form-u)*6))] text-right text-[length:var(--p-text-xs)] text-ink-200 transition-colors hover:bg-white/[0.055] focus-visible:bg-white/[0.055] focus-visible:outline-none"
-            >
-              <span dir="ltr" className="truncate text-ink-300">
-                {account.email}
-              </span>
-              <span className="shrink-0 text-ink-400">{roleLabel(account.role)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}

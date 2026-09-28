@@ -21,7 +21,7 @@ import { LearningPanel } from "@/domains/learning/LearningPanel";
 import { GalleryPanel } from "@/domains/gallery/GalleryPanel";
 import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
 import { ImportExportCenter } from "@/domains/import/ImportExportCenter";
-import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
+import { SettingsFeatures } from "@/targets/targetFeatures";
 import { UsersPanel } from "@/components/settings/UsersPanel";
 import { ManualColorsPanel } from "@/components/settings/ManualColorsPanel";
 import { SessionRulesPanel } from "@/domains/organization/SessionRulesPanel";
@@ -422,7 +422,7 @@ export function SettingsView() {
               <RepertoirePanel />
               <GalleryPanel />
               <SessionRulesPanel />
-              <DemoDataPanel />
+              <SettingsFeatures />
             </>
           )}
 

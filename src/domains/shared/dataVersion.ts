@@ -12,12 +12,14 @@
  * future backend makes re-reads expensive, this is the one place to add
  * per-collection granularity.
  *
- * Views never import DemoStore. In demo mode the store's write notification
- * drives this; in API mode nothing subscribes and mutations bump it directly
- * via `bumpDataVersion`, so the same hooks work in both environments.
+ * Views never import DemoStore — and neither does THIS module any more: the
+ * demo-store subscription is installed by the target seam
+ * (`src/targets/environment.tsx`) at module scope, so the shared invalidation
+ * primitive stays dependency-free and the client build cannot pull the demo
+ * store in through every list hook. Outside the demo composition, mutations
+ * bump the version directly via `bumpDataVersion`.
  */
 import { useSyncExternalStore } from "react";
-import { demoStore } from "@/services/demoStore";
 
 let version = 0;
 const listeners = new Set<() => void>();
@@ -48,10 +50,6 @@ function subscribe(listener: () => void): () => void {
     listeners.delete(listener);
   };
 }
-
-// Demo persistence is one source of version bumps. Subscribing once at module
-// scope keeps the wiring in a single place instead of in every hook.
-demoStore.subscribe(bumpDataVersion);
 
 /**
  * Re-renders the caller whenever persisted data changes. Pass the result into

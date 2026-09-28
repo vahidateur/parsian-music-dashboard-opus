@@ -33,7 +33,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { BOOTSTRAP_ADMIN_EMAIL, isDemoEnvironment } from "@/domains/demo/lifecycle";
 import { getStudentRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";

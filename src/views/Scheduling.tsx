@@ -100,7 +100,7 @@ import {
   type SessionStatus,
 } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
-import { useAcademyNow } from "@/domains/shared/clock";
+import { academyNow, useAcademyNow } from "@/domains/shared/clock";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import { NO_DATA, faNum, faTime, minutesToFaTime, toFa } from "@/lib/format";
@@ -260,8 +260,13 @@ export function SchedulingView() {
   // `?filter=conflict` and reading a week only to throw it away and read today
   // would be a wasted round trip on every entry.
   const [mode, setMode] = useState<"week" | "day">(isFocusFilter(filter) ? "day" : "week");
-  /** The date the window is anchored on — a real ISO date, never a weekday index. */
-  const [anchor, setAnchor] = useState<string>(todayIso);
+  /**
+   * The date the window is anchored on — a real ISO date, never a weekday
+   * index. Seeded straight from `academyNow()` (the same value `todayIso`
+   * computes on mount): the anchor is initial state, so it reads the clock
+   * once and then lives on `setAnchor`.
+   */
+  const [anchor, setAnchor] = useState<string>(() => academyIsoDate(academyNow()));
   const [roomFilter, setRoomFilter] = useState<string | "all">("all");
   const [teacherFilter, setTeacherFilter] = useState<string | "all">("all");
   /**

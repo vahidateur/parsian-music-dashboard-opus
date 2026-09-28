@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { getEnrollmentRepository } from "../registry";
+import { getEnrollmentRepository } from "@/domains/registry";
 import { useResourceList } from "../shared/useResource";
 import type { CreateEnrollmentInput, Enrollment, EnrollmentListParams, UpdateEnrollmentInput } from "./types";
 

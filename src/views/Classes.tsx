@@ -26,7 +26,7 @@ import { useLevels, usePrograms } from "@/domains/learning/useLearning";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
 import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
 import { getClassRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { apiErrorFromThrown } from "@/api/errors";
 import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDay";
 import { indexById } from "@/views/relations/indexById";

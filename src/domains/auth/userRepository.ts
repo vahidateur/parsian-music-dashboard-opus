@@ -1,11 +1,16 @@
 import { ApiError } from "@/api/errors";
 import type { Page, QueryParams } from "@/api/types";
 import type { ApiClient } from "@/api/client";
-import { demoStore, type DemoStore } from "@/services/demoStore";
-import { demoCredentialStore, isAcceptablePassphrase, type DemoCredentialStore } from "./demoCredentials";
+import { isAcceptablePassphrase } from "./passphrase";
 import { isRoleId } from "./permissions";
 import type { UserRepository } from "./repository";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
+
+/*
+  The DEMO implementation of this interface lives in `./demoUserRepository` —
+  deliberately NOT co-located: it imports the demo store and the credential
+  store, and those imports in this shared file leak the demo persistence graph
+  into the client bundle (see demoUserRepository.ts). */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Persian and Latin digits, spaces, `+`, `-` — a contact number, loosely. */
@@ -28,98 +33,6 @@ export function validateUserInput(input: Partial<CreateUserInput>, required: boo
   }
   if (Object.keys(fields).length === 0) return null;
   return new ApiError({ kind: "validation", code: "USER_INVALID", message: "اطلاعات کاربر معتبر نیست.", fields });
-}
-
-/** Demo implementation — delegates persistence to the single DemoStore. */
-export class DemoUserRepository implements UserRepository {
-  constructor(
-    private readonly store: DemoStore = demoStore,
-    private readonly credentials: DemoCredentialStore = demoCredentialStore(),
-  ) {}
-
-  async list(): Promise<Page<AuthUser>> {
-    const data = this.store.users.all();
-    return { data, meta: { page: 1, per_page: data.length || 25, total: data.length } };
-  }
-
-  async get(id: string): Promise<AuthUser> {
-    const found = this.store.users.find(id);
-    if (!found) throw notFound(id);
-    return found;
-  }
-
-  async create(input: CreateUserInput): Promise<AuthUser> {
-    const invalid = validateUserInput(input, true);
-    if (invalid) throw invalid;
-    if (this.emailTaken(input.email)) throw emailTaken();
-    return this.store.users.create({
-      name: input.name.trim(),
-      email: input.email.trim().toLowerCase(),
-      role: input.role,
-      ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
-      status: input.status ?? "active",
-    });
-  }
-
-  async update(id: string, input: UpdateUserInput): Promise<AuthUser> {
-    const invalid = validateUserInput(input, false);
-    if (invalid) throw invalid;
-    if (input.email && this.emailTaken(input.email, id)) throw emailTaken();
-    const updated = this.store.users.update(id, {
-      ...input,
-      ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
-      ...(input.name ? { name: input.name.trim() } : {}),
-      ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
-    });
-    if (!updated) throw notFound(id);
-    this.syncTeacher(updated);
-    return updated;
-  }
-
-  async delete(id: string): Promise<void> {
-    if (!this.store.users.remove(id)) throw notFound(id);
-    // A credential must not outlive the account it belonged to.
-    this.credentials.clear(id);
-  }
-
-  async setPassword(id: string, passphrase: string): Promise<void> {
-    if (!this.store.users.find(id)) throw notFound(id);
-    if (passphrase === "") {
-      this.credentials.clear(id);
-      return;
-    }
-    if (!isAcceptablePassphrase(passphrase)) throw weakPassphrase();
-    this.credentials.set(id, passphrase.trim());
-  }
-
-  async hasOwnPassword(id: string): Promise<boolean> {
-    return this.credentials.has(id);
-  }
-
-  /**
-   * ONE PERSON, ONE NAME.
-   *
-   * An account linked to a teacher record (`teacherId`) is the same human the
-   * teachers view edits. Renaming one and not the other is what made the panel
-   * look unsynchronized — Settings showed the old name next to the new one — so
-   * the write propagates here, in the repository, where every caller passes
-   * through. The API implementation leaves this to the server, which owns both
-   * tables.
-   */
-  private syncTeacher(user: AuthUser): void {
-    if (!user.teacherId) return;
-    const teacher = this.store.teachers.find(user.teacherId);
-    if (!teacher) return;
-    const patch: { name?: string; phone?: string } = {};
-    if (user.name && teacher.name !== user.name) patch.name = user.name;
-    if (user.phone && teacher.phone !== user.phone) patch.phone = user.phone;
-    if (Object.keys(patch).length > 0) this.store.teachers.update(teacher.id, patch);
-  }
-
-  private emailTaken(email: string, exceptId?: string): boolean {
-    const target = email.trim().toLowerCase();
-    return this.store.users.all().some((u) => u.email.toLowerCase() === target && u.id !== exceptId);
-  }
 }
 
 /** REST implementation. BACKEND REQUIRED — no server exists yet. */
@@ -178,7 +91,7 @@ function toWire(input: UpdateUserInput | CreateUserInput): QueryParams {
   return wire as QueryParams;
 }
 
-function weakPassphrase(): ApiError {
+export function weakPassphrase(): ApiError {
   return new ApiError({
     kind: "validation",
     code: "USER_PASSWORD_WEAK",
@@ -187,11 +100,11 @@ function weakPassphrase(): ApiError {
   });
 }
 
-function notFound(id: string): ApiError {
+export function notFound(id: string): ApiError {
   return new ApiError({ kind: "not_found", code: "USER_NOT_FOUND", message: `کاربر با شناسهٔ ${id} یافت نشد.` });
 }
 
-function emailTaken(): ApiError {
+export function emailTaken(): ApiError {
   return new ApiError({
     kind: "conflict",
     code: "USER_EMAIL_TAKEN",

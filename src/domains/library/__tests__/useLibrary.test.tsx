@@ -27,7 +27,8 @@ import { demoStore } from "@/services/demoStore";
 import { ensureDemoLibraryFile } from "../demoContent";
 import type { LibraryRepository } from "../repository";
 import type { LibraryListParams } from "../types";
-import { useDemoLibraryFile, useLibraryFile, useLibraryList } from "../useLibrary";
+import { useLibraryFile, useLibraryList } from "../useLibrary";
+import { useDemoLibraryFile } from "@/targets/libraryProvisioning";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 const wrapper = ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider>;

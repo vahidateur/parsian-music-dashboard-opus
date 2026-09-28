@@ -24,6 +24,7 @@ import {
   demoLibraryFileBytes,
 } from "@/domains/demo/librarySeed";
 import { getBlobStore, type BlobStore } from "@/domains/media/blobStore";
+import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 
 export interface DemoFileProvisionResult {
@@ -47,6 +48,12 @@ export async function ensureDemoLibraryFile(
   store: DemoStore = demoStore,
   blobs: BlobStore = getBlobStore(),
 ): Promise<DemoFileProvisionResult> {
+  // Production lock: demo provisioning is a demo capability, not a UI detail.
+  // The environment is empty after delivery, so there is no row to link anyway
+  // — but the guard makes the refusal explicit and independent of that fact.
+  if (!isDemoCapabilityAvailable()) {
+    return { status: "present", bytesWritten: false, metadataWritten: false, linked: false };
+  }
   let bytesWritten = false;
   let metadataWritten = false;
   let linked = false;

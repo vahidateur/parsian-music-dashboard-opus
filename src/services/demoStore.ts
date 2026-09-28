@@ -40,6 +40,49 @@ export const DEMO_STORAGE_KEY = "ava:demo:dataset";
  * from one environment into another by a restore.
  */
 export const LIFECYCLE_STORAGE_KEY = "ava:demo:lifecycle";
+/**
+ * Dataset provenance — explicit ownership/identity metadata (Phase 2A).
+ *
+ * The lifecycle marker answers "what KIND of environment is this?"; the
+ * provenance stamp answers "whose records are in this dataset, and which
+ * environment are they?" with a stable `datasetId`. Delivery uses BOTH: they
+ * must AGREE before any dataset is removed (disagreement = ownership conflict
+ * → fail closed, preserve everything, park the delivery in pending/recovery).
+ *
+ * It lives INSIDE the dataset payload as a top-level `provenance` field — not
+ * as a third storage key. The store's persistence contract (asserted by
+ * demoDataManager's "single localStorage key for data" test) is exactly two
+ * keys: the serialized dataset and the mode marker. A sidecar key would break
+ * that invariant for metadata that belongs WITH the dataset anyway: it
+ * travels with restores (round-trips through backups), dies with the dataset
+ * (a deleted dataset cannot claim ownership it no longer holds), and needs no
+ * extra write path. Absence on a legacy payload is reported as absence —
+ * delivery then trusts the marker alone; a present-but-corrupt value is
+ * unproven → preserve.
+ */
+export interface DatasetProvenance {
+  version: 1;
+  /** Stable id minted when the environment was created/adopted. */
+  datasetId: string;
+  owner: "demo" | "customer";
+  origin: "seed" | "first-run" | "adopted" | "import";
+  seedVersion?: string;
+  createdAt: string;
+}
+
+/**
+ * A raw probe result that distinguishes ABSENT (readable, value null) from
+ * UNREADABLE (the read itself failed). Delivery's fail-closed ownership check
+ * treats those differently: absent can mean "nothing to remove", unreadable
+ * always means "cannot prove — preserve".
+ */
+export type StoragePeek = { readable: true; value: string | null } | { readable: false };
+
+export type ProvenanceRead =
+  | { kind: "absent" }
+  | { kind: "valid"; value: DatasetProvenance }
+  | { kind: "corrupt" };
+
 const STORAGE_PREFIX = "ava:demo:";
 
 export interface StorageLike {
@@ -80,6 +123,28 @@ export function memoryStorage(): StorageLike {
  * none to lose. Prototype-polluting keys are stripped before the shape check, so
  * a hostile payload cannot smuggle inherited properties into the answer.
  */
+export function isUsableDatasetPayload(raw: string): boolean { return isUsablePayload(raw); }
+
+/** A copy of `dataset` with a provenance stamp (datasetId/createdAt preserved). */
+export function stampDatasetProvenance(
+  dataset: DemoDataset,
+  owner: "demo" | "customer",
+  origin: DatasetProvenance["origin"],
+  existing?: DatasetProvenance,
+): DemoDataset & { provenance: DatasetProvenance } {
+  return {
+    ...dataset,
+    provenance: {
+      version: 1,
+      datasetId: existing?.datasetId ?? nextId("ds_"),
+      owner,
+      origin,
+      ...(existing?.seedVersion ? { seedVersion: existing.seedVersion } : {}),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+    },
+  };
+}
+
 function isUsablePayload(raw: string): boolean {
   try {
     const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
@@ -187,7 +252,32 @@ function hasOrganizationRules(organization: Partial<OrganizationSettings>): bool
 }
 
 export class DemoStoreImpl {
-  constructor(private readonly storage: StorageLike = safeStorage() ?? memoryStorage()) {}
+  #injected?: StorageLike;
+  #resolved?: StorageLike;
+
+  /**
+   * Storage is resolved LAZILY, on first access.
+   *
+   * Two reasons, both load-bearing: (1) `safeStorage()` PROBES localStorage —
+   * running that inside the constructor would make every `new` a storage
+   * side effect; (2) the module-scope singleton below must be *constructible
+   * without observable effects* so a build that never binds it (the CLIENT
+   * composition, which imports this module transitively through co-located
+   * Api/Demo files) can drop the whole graph — annotated `/* @__PURE__ *\/`
+   * and honest. The eager constructor was exactly how the demo store, seed and
+   * backup leaked into the client bundle despite every import being unused.
+   *
+   * An explicit storage argument (tests, delivery probes) is still honoured:
+   * it is kept as the injection and resolved on first use.
+   */
+  constructor(storage?: StorageLike) {
+    this.#injected = storage;
+  }
+
+  private get storage(): StorageLike {
+    this.#resolved ??= this.#injected ?? safeStorage() ?? memoryStorage();
+    return this.#resolved;
+  }
 
   /**
    * Write notification.
@@ -289,8 +379,19 @@ export class DemoStoreImpl {
    * writes the marker itself.)
    */
   replace(dataset: DemoDataset): void {
-    if (this.readLifecycleMarker() === null) this.storage.setItem(LIFECYCLE_STORAGE_KEY, "empty");
-    this.write(dataset);
+    const creating = this.readLifecycleMarker() === null;
+    if (creating) this.storage.setItem(LIFECYCLE_STORAGE_KEY, "empty");
+    // A first write into an unmarked store CREATES a customer environment:
+    // the visitor's own records are customer-owned from the first byte — stamp
+    // that here, when the environment comes into being. Incoming datasets that
+    // already carry provenance (restores, imports) keep theirs untouched, and
+    // a legacy environment without provenance is deliberately left without:
+    // absence is reported as absence, never faked.
+    const stamped =
+      creating && !("provenance" in dataset)
+        ? stampDatasetProvenance(dataset, "customer", "first-run")
+        : dataset;
+    this.write(stamped);
     this.emit();
   }
 
@@ -305,8 +406,85 @@ export class DemoStoreImpl {
    */
   initializeEnvironment(mode: DataLifecycleMode, dataset: DemoDataset): void {
     this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
-    this.write(dataset);
+    // Ownership metadata rides INSIDE the payload (still exactly two keys).
+    // The only interruptible intermediate is marker-only (UNINITIALIZED
+    // recovery) — safe for delivery, which treats a marker without a dataset
+    // as "nothing to delete".
+    this.write(
+      stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run"),
+    );
     this.emit();
+  }
+
+  /* ---------------- raw probes (delivery/ownership) ---------------- */
+
+  /**
+   * The raw persisted dataset string, or null. NEVER writes, never migrates —
+   * delivery's ownership evaluation must observe storage exactly as it is, so
+   * a read path that could repair-and-write (as `snapshot()` may) is unusable
+   * there. Raw bytes are useless until proven readable, which is precisely the
+   * fail-closed question delivery asks.
+   */
+  peekDatasetPayload(): StoragePeek {
+    try {
+      return { readable: true, value: this.storage.getItem(DEMO_STORAGE_KEY) };
+    } catch {
+      return { readable: false };
+    }
+  }
+
+  /** The raw persisted lifecycle marker string, or null. Read-only. */
+  peekLifecycleMarkerValue(): StoragePeek {
+    try {
+      return { readable: true, value: this.storage.getItem(LIFECYCLE_STORAGE_KEY) };
+    } catch {
+      return { readable: false };
+    }
+  }
+
+  /* ---------------- dataset provenance ---------------- */
+
+  /**
+   * Explicit ownership metadata, read from the dataset's top-level field.
+   * Defensive: storage is user-editable, so anything that does not parse into
+   * the exact shape is reported `corrupt` — never coerced into a guess.
+   */
+  readProvenance(): ProvenanceRead {
+    const peek = this.peekDatasetPayload();
+    if (!peek.readable || peek.value === null) return { kind: "absent" };
+    if (!isUsablePayload(peek.value)) return { kind: "corrupt" };
+    try {
+      const parsed = JSON.parse(peek.value) as { provenance?: unknown };
+      const p = parsed.provenance;
+      if (p === undefined || p === null) return { kind: "absent" };
+      if (typeof p !== "object" || Array.isArray(p)) return { kind: "corrupt" };
+      const rec = p as Record<string, unknown>;
+      const ok =
+        rec.version === 1 &&
+        typeof rec.datasetId === "string" &&
+        rec.datasetId.length > 0 &&
+        (rec.owner === "demo" || rec.owner === "customer") &&
+        (rec.origin === "seed" || rec.origin === "first-run" || rec.origin === "adopted" || rec.origin === "import") &&
+        typeof rec.createdAt === "string";
+      if (!ok) return { kind: "corrupt" };
+      return { kind: "valid", value: rec as unknown as DatasetProvenance };
+    } catch {
+      return { kind: "corrupt" };
+    }
+  }
+
+  /**
+   * Stamps provenance onto the CURRENT dataset, keeping `datasetId` and
+   * `createdAt` when one exists. No-op when no readable dataset is present.
+   */
+  syncProvenance(owner: "demo" | "customer", origin: DatasetProvenance["origin"]): void {
+    const peek = this.peekDatasetPayload();
+    if (!peek.readable || peek.value === null || !isUsablePayload(peek.value)) return;
+    const current = this.readProvenance();
+    const existing = current.kind === "valid" ? current.value : undefined;
+    const dataset = JSON.parse(peek.value) as DemoDataset & { provenance?: DatasetProvenance };
+    dataset.provenance = stampDatasetProvenance({} as DemoDataset, owner, origin, existing).provenance;
+    this.write(dataset);
   }
 
   /* ---------------- lifecycle marker ---------------- */
@@ -321,7 +499,15 @@ export class DemoStoreImpl {
       : null;
   }
 
-  /** Records the environment's mode. Notifies, because the app gates on it. */
+  /**
+   * Records the environment's mode. Notifies, because the app gates on it.
+   *
+   * Deliberately does NOT touch the dataset — mode is metadata, and a marker
+   * write must never modify records (contract: dataLifecycle's "records a mode
+   * without touching the dataset"). Ownership stamps are written by the
+   * operations that INSTALL data (`initializeEnvironment`, `applyDataset`),
+   * where the dataset is being written anyway.
+   */
   writeLifecycleMarker(mode: DataLifecycleMode): void {
     if (this.readLifecycleMarker() === mode) return;
     this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
@@ -352,6 +538,8 @@ export class DemoStoreImpl {
   reset(): void {
     this.storage.removeItem(DEMO_STORAGE_KEY);
     this.storage.removeItem(LIFECYCLE_STORAGE_KEY);
+    // Provenance needs no cleanup: it lives inside the payload just deleted —
+    // a removed dataset cannot keep claiming ownership it no longer holds.
     this.emit();
   }
 
@@ -578,6 +766,6 @@ type ArrayCollection =
 
 export type StudentDraft = Omit<Student, "id">;
 
-export const demoStore = new DemoStoreImpl();
+export const demoStore = /* @__PURE__ */ new DemoStoreImpl();
 
 export type DemoStore = DemoStoreImpl;

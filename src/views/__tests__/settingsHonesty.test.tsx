@@ -45,7 +45,7 @@ function renderSettings() {
 
 async function renderSettingsWithAuth() {
   const { DEMO_PASSPHRASE, DemoAuthRepository } = await import("@/domains/auth/demoAuthRepository");
-  const { DemoUserRepository } = await import("@/domains/auth/userRepository");
+  const { DemoUserRepository } = await import("@/domains/auth/demoUserRepository");
   const { setAuthRepository, setUserRepository } = await import("@/domains/registry");
   const { AuthProvider } = await import("@/domains/auth/AuthContext");
   const { demoStore, memoryStorage } = await import("@/services/demoStore");

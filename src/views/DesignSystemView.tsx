@@ -14,7 +14,8 @@ import {
 import { AlertItem, InsightItem, IntelligenceCardView, NavItem, QuickAction, SignalBlock, TimelineEvent } from "@/components/ds/blocks";
 import { Avatar, Chip, DataTable, Dialog, Drawer, Field, FilterBar, ListRow, Meter, PageHeader, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, Toggle, inputCls } from "@/components/ds/patterns";
 import { Button, Delta, InstrumentGlyph, Kbd, Sparkline, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
-import { BreathingWave, DemoNote, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+import { BreathingWave, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+import { DemoNote } from "@/targets/environment";
 import { CommandSearchTrigger } from "@/components/layout/TopBar";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/utils/cn";

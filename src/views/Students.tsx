@@ -20,7 +20,7 @@ import { addDays, isoToJalaliDisplay } from "@/domains/scheduling/dateBridge";
 import { SESSION_STATUS_LABEL, type Session } from "@/domains/scheduling/types";
 import { useSessions } from "@/domains/scheduling/useScheduling";
 import { useTeachers } from "@/domains/teachers/useTeachers";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { apiErrorFromThrown } from "@/api/errors";
 import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
 import { useApp } from "@/context/AppContext";

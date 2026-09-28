@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
-import { getClassRepository } from "../registry";
+import { getClassRepository } from "@/domains/registry";
 import { useDataVersion } from "../shared/dataVersion";
 import { useResourceList } from "../shared/useResource";
 import type { AcademyClass, ClassListParams, CreateClassInput, UpdateClassInput } from "./types";

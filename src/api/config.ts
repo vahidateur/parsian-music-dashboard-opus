@@ -46,9 +46,15 @@ export function resolveConfig(env: RawEnv = readEnv()): RuntimeConfig {
   const raw = (env.VITE_DATA_SOURCE ?? "").trim().toLowerCase();
   const apiBaseUrl = (env.VITE_API_BASE_URL ?? "").trim() || DEFAULT_BASE_URL;
 
-  // Unset → demo. Developer convenience, and unambiguous: nobody who set
-  // nothing believes they configured production.
-  if (raw === "") return { mode: "demo", apiBaseUrl, error: null };
+  // Unset → demo… but ONLY in the demo composition. The client build has no
+  // demo capability at all (its target files and demo repositories are not in
+  // the bundle), so an unset data source there means the API — falling back to
+  // demo here would be exactly the silent downgrade this module exists to
+  // prevent, and could not work anyway.
+  if (raw === "") {
+    if (__APP_TARGET__ === "client") return { mode: "api", apiBaseUrl, error: null };
+    return { mode: "demo", apiBaseUrl, error: null };
+  }
 
   if (raw === "demo") return { mode: "demo", apiBaseUrl, error: null };
 

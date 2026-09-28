@@ -7,7 +7,7 @@
  * landing.
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = join(process.cwd(), "src");
@@ -369,7 +369,13 @@ describe("F8 — Telegram/Bale adapters keep business logic out of bots", () => 
 describe("F9 — Mobile client contract — same backend no second API bearer secure storage", () => {
   it("registry has single ApiClient instantiation — no second API", () => {
     const registryPath = join(ROOT, "domains", "registry.ts");
-    const source = code(readFileSync(registryPath, "utf8"));
+    // The composition root was split (registry.ts = demo selection,
+    // registryCore.ts = shared plumbing) — the invariant is still EXACTLY ONE
+    // ApiClient instantiation across the composition files, so the scan
+    // covers both halves.
+    const source = code(
+      readFileSync(registryPath, "utf8") + "\n" + readFileSync(join(dirname(registryPath), "registryCore.ts"), "utf8"),
+    );
     const matches = source.match(/new\s+ApiClient/g) || [];
     expect(matches).toEqual(["new ApiClient"]);
   });

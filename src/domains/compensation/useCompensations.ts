@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { getCompensationRepository } from "../registry";
+import { getCompensationRepository } from "@/domains/registry";
 import { useResourceList } from "../shared/useResource";
 import type {
   CompensationListParams,

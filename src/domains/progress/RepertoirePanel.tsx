@@ -15,7 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Chip, ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getProgressRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { PieceFormDialog } from "./PieceFormDialog";
 import { usePieces } from "./useProgress";

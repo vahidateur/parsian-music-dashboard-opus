@@ -1,7 +1,8 @@
 import { Download, Info, Plus, Wallet2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ds/primitives";
-import { DemoNote } from "@/components/ds/states";
+import { DemoNote } from "@/targets/environment";
+import { financeDeferredNote } from "@/targets/targetCopy";
 import { PageHeader, Panel } from "@/components/ds/patterns";
 
 /* ------------------------------------------------------------------ */
@@ -63,7 +64,7 @@ export function FinanceView() {
         </div>
       </Panel>
 
-      <DemoNote className="mt-6" text="ثبت پرداخت از اقدام‌های سریع دمو باز می‌شود و داده‌ای ذخیره نمی‌کند؛ نمایش فاکتورها و اشتراک‌ها به قرارداد سرور نیاز دارد." />
+      <DemoNote className="mt-6" text={financeDeferredNote} />
     </div>
   );
 }

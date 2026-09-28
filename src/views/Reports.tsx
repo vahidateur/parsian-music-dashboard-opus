@@ -1,7 +1,7 @@
 import { Download, FileBarChart, Info } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ds/primitives";
-import { DemoNote } from "@/components/ds/states";
+import { DemoNote } from "@/targets/environment";
 import { PageHeader, Panel } from "@/components/ds/patterns";
 
 /* ------------------------------------------------------------------ */

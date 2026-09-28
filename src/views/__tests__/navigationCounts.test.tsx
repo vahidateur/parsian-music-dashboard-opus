@@ -43,7 +43,7 @@ import { navGroups } from "@/lib/navigation";
 import type { QuickActionDef } from "@/lib/viewContracts";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { getChatRepository, resetRegistry, setAuthRepository, setChatRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";

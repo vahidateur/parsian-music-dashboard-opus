@@ -6,7 +6,7 @@ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepo
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
 import { resetRegistry, setAuthRepository, setClassRepository, setEnrollmentRepository, setStudentRepository, setTeacherRepository, setUserRepository } from "@/domains/registry";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { Student } from "@/domains/students/types";
 import type { AcademyClass } from "@/domains/classes/types";

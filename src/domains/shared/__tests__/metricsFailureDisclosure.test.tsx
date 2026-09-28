@@ -30,7 +30,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import {
   getAttendanceRepository,

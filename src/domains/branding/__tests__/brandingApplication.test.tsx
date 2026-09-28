@@ -44,7 +44,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";

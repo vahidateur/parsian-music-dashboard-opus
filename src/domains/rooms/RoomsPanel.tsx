@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getRoomRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { RoomFormDialog } from "./RoomFormDialog";
 import { useRooms } from "./useRooms";
 import type { Room } from "./types";

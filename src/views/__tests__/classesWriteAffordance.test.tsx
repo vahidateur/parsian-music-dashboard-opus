@@ -28,7 +28,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { getClassRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
