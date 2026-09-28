@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { ROLES } from "@/domains/auth/permissions";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { createBackup } from "@/domains/demo/backup";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { createSeedDataset } from "@/domains/demo/seed";

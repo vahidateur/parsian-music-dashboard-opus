@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { ApiClient } from "../client";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -104,9 +104,9 @@ describe("F9 — Mobile client contract — same envelope Collection/Item PageMe
 
 describe("F9 — Mobile client contract — auth bearer secure storage not localStorage", () => {
   it("ApiClient adds Authorization Bearer header when token present", async () => {
-    let capturedHeaders: Record<string, string> | null = null;
+    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
     const mockFetch = async (_url: string, init?: RequestInit) => {
-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
+      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
       return new Response(JSON.stringify({ data: { id: "1" } }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -118,14 +118,14 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
       fetchImpl: mockFetch as unknown as typeof fetch,
     });
     await client.get("/me");
-    expect(capturedHeaders).not.toBeNull();
-    expect(authorizationOf(capturedHeaders)).toBe("Bearer test-bearer-token-123");
+    expect(capturedHeadersRef.value).not.toBeNull();
+    expect(authorizationOf(capturedHeadersRef.value)).toBe("Bearer test-bearer-token-123");
   });
 
   it("ApiClient does not add Bearer header when no token", async () => {
-    let capturedHeaders: Record<string, string> | null = null;
+    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
     const mockFetch = async (_url: string, init?: RequestInit) => {
-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
+      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
       return new Response(JSON.stringify({ data: { id: "1" } }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -137,13 +137,13 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
       fetchImpl: mockFetch as unknown as typeof fetch,
     });
     await client.get("/me");
-    expect(authorizationOf(capturedHeaders)).toBeUndefined();
+    expect(authorizationOf(capturedHeadersRef.value)).toBeUndefined();
   });
 
   it("ApiClient supports async getToken (secure storage)", async () => {
-    let capturedHeaders: Record<string, string> | null = null;
+    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
     const mockFetch = async (_url: string, init?: RequestInit) => {
-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
+      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
       return new Response(JSON.stringify({ data: { id: "1" } }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -158,7 +158,7 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
       fetchImpl: mockFetch as unknown as typeof fetch,
     });
     await client.get("/me");
-    expect(authorizationOf(capturedHeaders)).toBe("Bearer secure-storage-token");
+    expect(authorizationOf(capturedHeadersRef.value)).toBe("Bearer secure-storage-token");
   });
 
   it("No localStorage for token in src (mobile uses secure storage not localStorage)", () => {
@@ -252,7 +252,13 @@ describe("F9 — Mobile client contract — media upload same endpoint", () => {
 describe("F9 — Mobile client contract — no second API", () => {
   it("Registry has single ApiClient instantiation", () => {
     const registryPath = join(ROOT, "domains", "registry.ts");
-    const source = code(readFileSync(registryPath, "utf8"));
+    // The composition root is split (registry.ts = demo selection,
+    // registryCore.ts = shared plumbing): the invariant is still exactly ONE
+    // ApiClient instantiation across the composition files, so the scan
+    // covers both halves.
+    const source = code(
+      readFileSync(registryPath, "utf8") + "\n" + readFileSync(join(dirname(registryPath), "registryCore.ts"), "utf8"),
+    );
     const matches = source.match(/new\s+ApiClient/g) || [];
     expect(matches.length).toBe(1);
   });

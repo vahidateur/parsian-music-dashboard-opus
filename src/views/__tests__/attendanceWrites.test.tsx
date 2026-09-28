@@ -47,7 +47,7 @@ import { Toasts } from "@/components/overlays/ActionSheet";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import {
   ATTENDANCE_ERRORS,

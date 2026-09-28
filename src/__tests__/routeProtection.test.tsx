@@ -5,7 +5,7 @@ import App from "@/App";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { demoDataManager } from "@/domains/demo";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";

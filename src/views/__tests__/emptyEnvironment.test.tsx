@@ -25,7 +25,7 @@ import { viewTitles } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { createSeedDataset } from "@/domains/demo/seed";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { getTeacherRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";

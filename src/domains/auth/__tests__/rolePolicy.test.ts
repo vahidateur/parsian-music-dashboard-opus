@@ -16,7 +16,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { ApiClient } from "@/api/client";
-import { ApiRoleRepository, DemoRoleRepository, defaultRoleRecord } from "@/domains/auth/roleRepository";
+import { ApiRoleRepository, defaultRoleRecord } from "@/domains/auth/roleRepository";
+import { DemoRoleRepository } from "@/domains/auth/demoRoleRepository";
 import {
   PERMISSIONS,
   ROLES,

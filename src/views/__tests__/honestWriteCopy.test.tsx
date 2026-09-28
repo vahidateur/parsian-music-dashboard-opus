@@ -57,7 +57,7 @@ import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvi
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { demoDataManager } from "@/domains/demo";
 
 /** The confirmation for a saved record, per environment. */

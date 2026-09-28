@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { ApiClient } from "@/api/client";
-import { ApiUserRepository, DemoUserRepository, validateUserInput } from "@/domains/auth/userRepository";
+import { ApiUserRepository, validateUserInput } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
 import { asFetch, createFetchMock, jsonResponse, requestOf } from "@/test/fetchMock";

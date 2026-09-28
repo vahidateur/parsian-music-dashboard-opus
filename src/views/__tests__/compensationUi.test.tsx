@@ -49,7 +49,7 @@ import { navGroups, viewTitles } from "@/lib/navigation";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { canAccessView, permissionsForRole, viewPermissions } from "@/domains/auth/permissions";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import type { CompensationActor, SessionCompensation } from "@/domains/compensation/types";
 import {
   getAttendanceRepository,

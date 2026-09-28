@@ -41,7 +41,7 @@ import { AppProvider } from "@/context/AppContext";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DemoUserRepository } from "@/domains/auth/userRepository";
+import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
