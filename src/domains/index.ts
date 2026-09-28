@@ -1,2 +1,2 @@
 export { demoDataManager } from "./demo";
-export { getApiClient, getStudentRepository, resetRegistry, setAuthToken, setStudentRepository } from "./registry";
+export { getApiClient, getStudentRepository, resetRegistry, setAuthToken, setStudentRepository } from "@/domains/registry";

@@ -15,7 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { ListRow, Panel } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getInstrumentRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { InstrumentFormDialog } from "./InstrumentFormDialog";
 import { useInstruments } from "./useInstruments";
 import type { InstrumentRecord } from "./types";

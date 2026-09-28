@@ -37,6 +37,11 @@
  *    `DemoNote`.
  */
 import { isDemoMode } from "@/api/config";
+import {
+  DemoDisabledError,
+  DEMO_DISABLED_MESSAGE,
+  isDemoCapabilityAvailable,
+} from "@/api/deploymentLock";
 import { getBlobStore } from "@/domains/media/blobStore";
 import type { AuthUser } from "@/domains/auth/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
@@ -134,7 +139,13 @@ export function createEmptyEnvironment(): DemoDataset {
 export function readLifecycleState(store: DemoStore = demoStore): DataLifecycleState {
   const marker = store.readLifecycleMarker();
   if (marker !== null) return store.isInitialized() ? marker : "uninitialized";
-  return store.isInitialized() ? "demo" : "uninitialized";
+  if (!store.isInitialized()) return "uninitialized";
+  // No marker + a dataset: pre-delivery this is the documented legacy
+  // adoption as DEMO (every payload an older build could write was demo
+  // sourced). POST-delivery the same shape must never re-enable demo — the
+  // safe direction for unknown-ownership data is `empty`: preserved, with
+  // every demo affordance off. (This is the fail-closed twin of adoption.)
+  return isDemoCapabilityAvailable() ? "demo" : "empty";
 }
 
 /**
@@ -144,7 +155,10 @@ export function readLifecycleState(store: DemoStore = demoStore): DataLifecycleS
  */
 export function persistLifecycleAdoption(store: DemoStore = demoStore): DataLifecycleState {
   const state = readLifecycleState(store);
-  if (state !== "uninitialized" && store.readLifecycleMarker() === null) {
+  if (state !== "uninitialized" && store.readLifecycleMarker() === null && isDemoCapabilityAvailable()) {
+    // Marker only — adoption must not modify records (a legacy payload stays
+    // byte-identical; provenance simply remains absent, which delivery reads
+    // as "trust the marker", exactly the pre-provenance contract).
     store.writeLifecycleMarker(state);
   }
   return state;
@@ -175,8 +189,8 @@ export interface LifecycleChoiceSuccess {
 
 export interface LifecycleChoiceRefused {
   ok: false;
-  /** Why nothing was written. Only one reason exists: an environment is there. */
-  reason: "already-initialized";
+  /** Why nothing was written. */
+  reason: "already-initialized" | "demo-disabled";
   state: DataLifecycleState;
   changed: false;
   message: string;
@@ -221,6 +235,17 @@ export function initializeEmptyEnvironment(store: DemoStore = demoStore): Lifecy
  * customer's data.
  */
 export function initializeDemoEnvironment(store: DemoStore = demoStore): LifecycleChoiceResult {
+  // Service-level production lock: the first-run choice, a hand-invoked call
+  // or any future caller is rejected here — UI hiding alone is never enough.
+  if (!isDemoCapabilityAvailable()) {
+    return {
+      ok: false,
+      reason: "demo-disabled",
+      state: readLifecycleState(store),
+      changed: false,
+      message: DEMO_DISABLED_MESSAGE,
+    };
+  }
   if (store.isInitialized()) return refuseExisting(store);
   store.initializeEnvironment("demo", createSeedDataset());
   return {
@@ -238,6 +263,11 @@ export function initializeDemoEnvironment(store: DemoStore = demoStore): Lifecyc
  * that can change an existing environment's data.
  */
 export function markLifecycle(mode: DataLifecycleMode, store: DemoStore = demoStore): void {
+  if (mode === "demo" && !isDemoCapabilityAvailable()) {
+    // Callers guard their operations; this throw is the backstop that makes
+    // an unguarded path loud instead of silently re-arming demo data.
+    throw new DemoDisabledError("markLifecycle");
+  }
   store.writeLifecycleMarker(mode);
 }
 
@@ -272,6 +302,18 @@ export async function uninitializeEnvironment(
       state: readLifecycleState(store),
       changed: false,
       message: "حذف محیط بدون تأیید صریح انجام نمی‌شود.",
+    };
+  }
+
+  // Post-delivery, tearing the environment down would return the app to the
+  // first-run choice — a demo re-entry path. The lock rejects it here, at the
+  // service layer, regardless of what any UI shows.
+  if (!isDemoCapabilityAvailable()) {
+    return {
+      ok: false,
+      state: readLifecycleState(store),
+      changed: false,
+      message: DEMO_DISABLED_MESSAGE,
     };
   }
 

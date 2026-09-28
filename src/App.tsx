@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
 import { defaultViewFor } from "@/domains/auth/permissions";
 import { LoginView } from "@/views/Login";
 import { SessionGuard } from "@/security/SessionGuard";
-import { DataLifecycleGate } from "@/components/lifecycle/DataLifecycleGate";
+import { DataLifecycleFeature, ShellFeatures } from "@/targets/targetFeatures";
 import { useApplyBranding, useBranding } from "@/domains/branding/useBranding";
 import { EmptyState, LoadingState } from "@/components/ds/states";
 import { cn } from "@/utils/cn";
@@ -14,9 +14,7 @@ import { BottomNav, TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/overlays/CommandPalette";
 import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
 import { useRolePolicySync } from "@/domains/auth/useRoles";
-import { useDemoLibraryFile } from "@/domains/library/useLibrary";
 import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
-import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
 import { Dashboard } from "@/views/Dashboard";
 
 /*
@@ -109,16 +107,6 @@ function Shell() {
   */
   useRolePolicySync();
 
-  /*
-    Demo content provisioning — the bytes behind the seeded library file.
-
-    Runs inside the shell, i.e. after the access gate and after authentication,
-    so a visitor who never gets in never touches storage. Idempotent, and the
-    ONE call site for demo file provisioning: the lifecycle phase gates this
-    call by environment mode rather than changing the Library domain.
-  */
-  useDemoLibraryFile();
-
   // Global command shortcut
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -156,8 +144,9 @@ function Shell() {
       >
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
-          {/* D8: in api mode the demo-backed domains are declared, always. */}
-          <DemoBackedNotice className="mb-5" />
+          {/* Target seam: demo provisioning + the D8 data-source disclosure
+              (demo composition). Empty in the client composition. */}
+          <ShellFeatures />
 
           <div key={`${view}-${filter ?? ""}-${detailId ?? ""}`} className="animate-phrase-in">
             <ViewOutlet />
@@ -255,12 +244,12 @@ function BrandingApplication() {
 export default function App() {
   return (
     <ConfigGate>
-      <DataLifecycleGate>
+      <DataLifecycleFeature>
         <BrandingApplication />
         <AuthProvider>
           <AuthGate />
         </AuthProvider>
-      </DataLifecycleGate>
+      </DataLifecycleFeature>
     </ConfigGate>
   );
 }

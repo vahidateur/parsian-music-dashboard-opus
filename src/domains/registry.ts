@@ -1,9 +1,9 @@
-import { ApiClient } from "@/api/client";
-import { getRuntimeConfig } from "@/api/config";
 import { ApiAuthRepository } from "./auth/apiAuthRepository";
 import { DemoAuthRepository } from "./auth/demoAuthRepository";
-import { ApiUserRepository, DemoUserRepository } from "./auth/userRepository";
-import { ApiRoleRepository, DemoRoleRepository } from "./auth/roleRepository";
+import { ApiUserRepository } from "./auth/userRepository";
+import { DemoUserRepository } from "./auth/demoUserRepository";
+import { ApiRoleRepository } from "./auth/roleRepository";
+import { DemoRoleRepository } from "./auth/demoRoleRepository";
 import type { RoleRepository } from "./auth/roleRepository";
 import type { AuthRepository, UserRepository } from "./auth/repository";
 import { ApiStudentRepository } from "./students/apiRepository";
@@ -52,52 +52,42 @@ import { DemoCompensationRepository } from "@/domains/compensation/demoRepositor
  * concrete class.
  */
 
-let client: ApiClient | null = null;
-let authToken: string | null = null;
+/*
+  Composition root — DEMO target.
 
-interface Overrides {
-  students?: StudentRepository;
-  teachers?: TeacherRepository;
-  rooms?: RoomRepository;
-  classes?: ClassRepository;
-  enrollments?: EnrollmentRepository;
-  auth?: AuthRepository;
-  users?: UserRepository;
-  roles?: RoleRepository;
-  instruments?: InstrumentRepository;
-  learning?: LearningRepository;
-  chat?: ChatRepository;
-  media?: MediaRepository;
-  library?: LibraryRepository;
-  branding?: BrandingRepository;
-  organization?: OrganizationRepository;
-  gallery?: GalleryRepository;
-  progress?: ProgressRepository;
-  scheduling?: SchedulingRepository;
-  attendance?: AttendanceRepository;
-  compensation?: CompensationRepository;
-}
-const overrides: Overrides = {};
+  The shared half (ApiClient, auth token, override seams, reset) lives in
+  `./registryCore` so the client composition (`./registry.client.ts`) can reuse
+  it WITHOUT inheriting a single demo repository import. This file is the demo
+  composition: selection below may resolve Demo repositories; the client
+  composition never does (no demo fallback — see registry.client.ts).
+*/
+import { coreOverrides as overrides, coreIsApiMode as isApiMode, getApiClient, setAuthToken } from "./registryCore";
 
-const isApiMode = (): boolean => getRuntimeConfig().mode === "api";
-
-export function getApiClient(): ApiClient {
-  if (!client) {
-    client = new ApiClient({
-      baseUrl: getRuntimeConfig().apiBaseUrl,
-      getToken: () => authToken,
-      onUnauthenticated: () => {
-        authToken = null;
-      },
-    });
-  }
-  return client;
-}
-
-/** Auth integration point — called by the auth domain after login/refresh. */
-export function setAuthToken(token: string | null): void {
-  authToken = token;
-}
+export {
+  getApiClient,
+  setAuthToken,
+  setProgressRepository,
+  setSchedulingRepository,
+  setAttendanceRepository,
+  setCompensationRepository,
+  setInstrumentRepository,
+  setLearningRepository,
+  setChatRepository,
+  setMediaRepository,
+  setLibraryRepository,
+  setBrandingRepository,
+  setOrganizationRepository,
+  setGalleryRepository,
+  setStudentRepository,
+  setTeacherRepository,
+  setRoomRepository,
+  setClassRepository,
+  setEnrollmentRepository,
+  setAuthRepository,
+  setUserRepository,
+  setRoleRepository,
+  resetRegistry,
+} from "./registryCore";
 
 export function getStudentRepository(): StudentRepository {
   if (overrides.students) return overrides.students;
@@ -327,92 +317,4 @@ function attendancePresence(): ReadonlySet<string> | undefined {
   } catch {
     return undefined;
   }
-}
-
-/* Test seams: inject fakes. Pass `undefined` to restore the real selection. */
-export function setProgressRepository(repository: ProgressRepository | undefined): void {
-  overrides.progress = repository;
-}
-export function setSchedulingRepository(repository: SchedulingRepository | undefined): void {
-  overrides.scheduling = repository;
-}
-export function setAttendanceRepository(repository: AttendanceRepository | undefined): void {
-  overrides.attendance = repository;
-}
-export function setCompensationRepository(repository: CompensationRepository | undefined): void {
-  overrides.compensation = repository;
-}
-export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
-  overrides.instruments = repository;
-}
-export function setLearningRepository(repository: LearningRepository | undefined): void {
-  overrides.learning = repository;
-}
-export function setChatRepository(repository: ChatRepository | undefined): void {
-  overrides.chat = repository;
-}
-export function setMediaRepository(repository: MediaRepository | undefined): void {
-  overrides.media = repository;
-}
-export function setLibraryRepository(repository: LibraryRepository | undefined): void {
-  overrides.library = repository;
-}
-export function setBrandingRepository(repository: BrandingRepository | undefined): void {
-  overrides.branding = repository;
-}
-export function setOrganizationRepository(repository: OrganizationRepository | undefined): void {
-  overrides.organization = repository;
-}
-export function setGalleryRepository(repository: GalleryRepository | undefined): void {
-  overrides.gallery = repository;
-}
-export function setStudentRepository(repository: StudentRepository | undefined): void {
-  overrides.students = repository;
-}
-export function setTeacherRepository(repository: TeacherRepository | undefined): void {
-  overrides.teachers = repository;
-}
-export function setRoomRepository(repository: RoomRepository | undefined): void {
-  overrides.rooms = repository;
-}
-export function setClassRepository(repository: ClassRepository | undefined): void {
-  overrides.classes = repository;
-}
-export function setEnrollmentRepository(repository: EnrollmentRepository | undefined): void {
-  overrides.enrollments = repository;
-}
-export function setAuthRepository(repository: AuthRepository | undefined): void {
-  overrides.auth = repository;
-}
-export function setUserRepository(repository: UserRepository | undefined): void {
-  overrides.users = repository;
-}
-export function setRoleRepository(repository: RoleRepository | undefined): void {
-  overrides.roles = repository;
-}
-
-/** Drops memoized instances (used after `setRuntimeConfig`). */
-export function resetRegistry(): void {
-  client = null;
-  authToken = null;
-  overrides.students = undefined;
-  overrides.teachers = undefined;
-  overrides.rooms = undefined;
-  overrides.classes = undefined;
-  overrides.enrollments = undefined;
-  overrides.auth = undefined;
-  overrides.users = undefined;
-  overrides.roles = undefined;
-  overrides.instruments = undefined;
-  overrides.progress = undefined;
-  overrides.learning = undefined;
-  overrides.chat = undefined;
-  overrides.media = undefined;
-  overrides.library = undefined;
-  overrides.branding = undefined;
-  overrides.organization = undefined;
-  overrides.gallery = undefined;
-  overrides.scheduling = undefined;
-  overrides.attendance = undefined;
-  overrides.compensation = undefined;
 }

@@ -12,7 +12,7 @@ import { Field, Panel, inputCls } from "@/components/ds/patterns";
 import { ErrorState, LoadingState } from "@/components/ds/states";
 import { useApp } from "@/context/AppContext";
 import { getBrandingRepository } from "@/domains/registry";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";

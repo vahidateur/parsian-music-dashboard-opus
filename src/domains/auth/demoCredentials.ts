@@ -22,8 +22,12 @@ import type { StorageLike } from "@/services/demoStore";
 
 export const DEMO_CREDENTIALS_KEY = "ava:demo:credentials";
 
-/** Shortest passphrase the panel accepts. Long enough to not be a formality. */
-export const MIN_PASSPHRASE_LENGTH = 6;
+/*
+  Passphrase policy lives in its own neutral module so shared consumers
+  (UsersPanel, ApiUserRepository) never have to import this demo store to get
+  it. Re-exported here so the existing surface is unchanged.
+*/
+export { MIN_PASSPHRASE_LENGTH, isAcceptablePassphrase } from "./passphrase";
 
 interface CredentialMap {
   [userId: string]: string;
@@ -99,9 +103,4 @@ export function demoCredentialStore(storage: StorageLike = browserStorage() ?? m
     },
     has: (userId) => read(storage)[userId] !== undefined,
   };
-}
-
-/** A passphrase must be long enough to be worth calling one. */
-export function isAcceptablePassphrase(value: string): boolean {
-  return value.trim().length >= MIN_PASSPHRASE_LENGTH;
 }

@@ -7,7 +7,6 @@ export type {
   StudentStatus,
   UpdateStudentInput,
 } from "./types";
-export { DemoStudentRepository } from "./demoRepository";
 export { ApiStudentRepository, toQuery as studentListQuery } from "./apiRepository";
 export { useStudentList, useStudent } from "./useStudents";
 export type { StudentListState, StudentDetailState } from "./useStudents";

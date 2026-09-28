@@ -20,21 +20,24 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import type { ApiClient } from "@/api/client";
-import { demoStore, type DemoStore } from "@/services/demoStore";
 import {
   isPermission,
   isRoleId,
-  permissionsForRole,
   roleLabels,
-  ROLES,
   rolePermissions,
   type Permission,
   type RoleId,
   type RolePolicyRecord,
 } from "./permissions";
 
+/*
+  The DEMO implementation of this interface lives in `./demoRoleRepository` —
+  deliberately NOT co-located: it imports the demo store, and a demo-store
+  import in this shared file leaks the whole demo persistence graph into the
+  client bundle (see demoRoleRepository.ts). */
+
 /** The scope line each role ships with; an edit replaces it per role. */
-const DEFAULT_SCOPES: Record<RoleId, string> = {
+export const DEFAULT_SCOPES: Record<RoleId, string> = {
   administrator: "دسترسی کامل به همهٔ بخش‌ها",
   manager: "مدیریت آموزشی، برنامه‌ریزی و گزارش‌ها",
   teacher: "کلاس‌های خود، حضور و غیاب، کتابخانه",
@@ -68,7 +71,7 @@ export function defaultRoleRecord(id: RoleId): RolePolicyRecord {
   };
 }
 
-function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
+export function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
   const base = rolePermissions[id] ?? [];
   return (
     record.label === roleLabels[id] &&
@@ -78,7 +81,7 @@ function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
   );
 }
 
-function validate(id: string, input: UpdateRoleInput): void {
+export function validate(id: string, input: UpdateRoleInput): void {
   const fields: Record<string, string[]> = {};
   if (!isRoleId(id)) fields.id = ["نقش نامعتبر است."];
   if (input.label !== undefined && input.label.trim().length < 2) fields.label = ["نام نقش باید حداقل ۲ نویسه باشد."];
@@ -97,81 +100,6 @@ function validate(id: string, input: UpdateRoleInput): void {
   }
   if (Object.keys(fields).length > 0) {
     throw new ApiError({ kind: "validation", code: "ROLE_INVALID", message: "تغییرات نقش معتبر نیست.", fields });
-  }
-}
-
-/** Demo implementation — the roles collection of the one dataset. */
-export class DemoRoleRepository implements RoleRepository {
-  constructor(private readonly store: DemoStore = demoStore) {}
-
-  async list(): Promise<Page<RolePolicyRecord>> {
-    const data = ROLES.map((id) => this.record(id));
-    return { data, meta: { page: 1, per_page: data.length, total: data.length } };
-  }
-
-  async get(id: RoleId): Promise<RolePolicyRecord> {
-    if (!isRoleId(id)) throw notFound(id);
-    return this.record(id);
-  }
-
-  async update(id: RoleId, input: UpdateRoleInput): Promise<RolePolicyRecord> {
-    validate(id, input);
-    const current = this.record(id);
-    const next: RolePolicyRecord = {
-      id,
-      label: (input.label ?? current.label).trim(),
-      scope: (input.scope ?? current.scope).trim(),
-      permissions: input.permissions ? [...input.permissions] : current.permissions,
-      customized: true,
-      updatedAt: new Date().toISOString(),
-    };
-    next.customized = !sameAsDefault(id, next);
-    this.write(next);
-    return next;
-  }
-
-  async reset(id: RoleId): Promise<RolePolicyRecord> {
-    if (!isRoleId(id)) throw notFound(id);
-    const fresh = defaultRoleRecord(id);
-    this.write(fresh);
-    return fresh;
-  }
-
-  /** One row per role, edited values where they exist, defaults elsewhere. */
-  private record(id: RoleId): RolePolicyRecord {
-    const row = this.store.roles.find(id);
-    if (!row) return defaultRoleRecord(id);
-    const permissions = (row.permissions ?? permissionsForRole(id)).filter(isPermission);
-    const record: RolePolicyRecord = {
-      id,
-      label: row.label?.trim() ? row.label : roleLabels[id],
-      scope: row.scope?.trim() ? row.scope : DEFAULT_SCOPES[id],
-      permissions,
-      customized: Boolean(row.permissions) || row.label !== roleLabels[id] || row.scope !== DEFAULT_SCOPES[id],
-      ...(row.updatedAt ? { updatedAt: row.updatedAt } : {}),
-    };
-    record.customized = !sameAsDefault(id, record);
-    return record;
-  }
-
-  private write(record: RolePolicyRecord): void {
-    const existing = this.store.roles.find(record.id);
-    if (existing) {
-      this.store.roles.update(record.id, {
-        label: record.label,
-        scope: record.scope,
-        permissions: record.customized ? record.permissions : undefined,
-        updatedAt: record.updatedAt,
-      });
-      return;
-    }
-    this.store.roles.create({
-      id: record.id,
-      label: record.label,
-      scope: record.scope,
-      ...(record.customized ? { permissions: record.permissions } : {}),
-      ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
-    });
   }
 }
 
@@ -205,6 +133,6 @@ export class ApiRoleRepository implements RoleRepository {
   }
 }
 
-function notFound(id: string): ApiError {
+export function notFound(id: string): ApiError {
   return new ApiError({ kind: "not_found", code: "ROLE_NOT_FOUND", message: `نقش «${id}» وجود ندارد.` });
 }

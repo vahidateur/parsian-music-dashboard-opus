@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { clearAttempts, recordFailure } from "@/security/loginThrottle";
-import { SESSION_TTL_MS } from "@/domains/auth/demoAuthRepository";
+import { SESSION_TTL_MS } from "@/domains/auth/session";
 import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
 import { can, canAccessView, canAll, canAny, clearRolePolicies, getRolePolicy, type Permission } from "./permissions";

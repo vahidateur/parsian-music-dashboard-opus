@@ -16,7 +16,8 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
 import { Intelligence } from "@/components/panels/Intelligence";
 import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
-import { DemoNote, ErrorState, LoadingState } from "@/components/ds/states";
+import { ErrorState, LoadingState } from "@/components/ds/states";
+import { DemoNote } from "@/targets/environment";
 import { useAuthSafe } from "@/domains/auth/AuthContext";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import { Button } from "@/components/ds/primitives";

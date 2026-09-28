@@ -21,7 +21,8 @@
 /*    They are not product state: the authoritative at-risk measure is   */
 /*    derived by `useAcademyMetrics` from stored attendance records.     */
 /* ------------------------------------------------------------------ */
-import type { Severity, Target } from "@/lib/viewContracts";
+import type { Target } from "@/lib/viewContracts";
+import { nlAnswers, type NlShowcaseAnswer } from "@/targets/commandShowcase";
 
 export interface NLCommand {
   id: string;
@@ -29,7 +30,7 @@ export interface NLCommand {
   keywords: string[];
   resultTitle: string;
   summary: string;
-  rows: { title: string; meta: string; tone?: Severity }[];
+  rows: { title: string; meta: string; tone?: NlShowcaseAnswer["rows"][number]["tone"] }[];
   target: Target;
 }
 
@@ -43,40 +44,27 @@ export const commandVerbs: { id: string; label: string; hint: string; target: Ta
   { id: "cv6", label: "هنرجویان در معرض ریزش", hint: "هنرجویان · در معرض ریزش", target: { view: "students", filter: "at-risk" } },
 ];
 
-/**
- * Demo answer rows for the "at-risk students" nl command (n1), relocated
- * unchanged from the fixture. See the honesty note above.
- */
-export const atRiskDemoRows = [
-  { name: "سارا محمدی", instrument: "پیانو", meta: "۱۵ روز غیبت · ۳ جلسه باقی‌مانده" },
-  { name: "امیرحسین کریمی", instrument: "گیتار", meta: "۱۸ روز غیبت · ۱ جلسه باقی‌مانده" },
-  { name: "نیلوفر رستمی", instrument: "آواز", meta: "۱۴ روز غیبت · ۵ جلسه باقی‌مانده" },
-  { name: "پارسا نادری", instrument: "ویولن", meta: "۲۱ روز غیبت · شهریه پرداخت‌نشده" },
-  { name: "مهسا قاسمی", instrument: "پیانو", meta: "۱۶ روز غیبت · ۲ جلسه باقی‌مانده" },
-];
-
+/*
+  The nl commands' ANSWERS (resultTitle/summary/rows for n1/n2) are the
+  target's showcase material — demo content in the demo composition, honest
+  unavailables in the client composition — and arrive through the
+  `targets/commandShowcase` seam. Phrases, keywords and targets stay here:
+  the QUESTION is product surface; only the demo ANSWER is target-specific.
+  `atRiskDemoRows` now lives in the seam too (it was n1's demo rows).
+*/
 export const nlCommands: NLCommand[] = [
   {
     id: "n1",
     phrase: "هنرجوهایی که دو هفته غیبت داشته‌اند را نشان بده",
     keywords: ["غیبت", "دو هفته", "ریزش", "غایب"],
-    resultTitle: "۵ هنرجو با بیش از دو هفته غیبت",
-    summary: "همهٔ این هنرجویان جلسات باقی‌مانده دارند؛ تماس امروز احتمال بازگشت را بالا می‌برد.",
-    rows: atRiskDemoRows.map((s) => ({ title: s.name, meta: `${s.instrument} · ${s.meta}`, tone: "warning" as Severity })),
+    ...nlAnswers.n1,
     target: { view: "students", filter: "at-risk" },
   },
   {
     id: "n2",
     phrase: "چه چیزهایی امروز نیاز به توجه دارند؟",
     keywords: ["توجه", "امروز", "مشکل", "هشدار"],
-    resultTitle: "۴ مورد نیازمند توجه",
-    summary: "یک مورد مالی فوری و سه مورد عملیاتی برای امروز و فردا.",
-    rows: [
-      { title: "۳ فاکتور سررسید گذشته", meta: "مجموع ۲٬۴۵۰٬۰۰۰ تومان · قدیمی‌ترین ۱۲ روز", tone: "critical" },
-      { title: "۵ هنرجو در معرض ریزش", meta: "بیش از دو هفته غیبت متوالی", tone: "warning" },
-      { title: "تعارض اتاق در ساعت ۱۴:۰۰", meta: "اتاق ۱ · ویولن و پیانو پیشرفته هم‌زمان", tone: "warning" },
-      { title: "غیبت ۲ مدرس در فردا", meta: "۵ کلاس بدون مدرس · نیاز به جایگزین", tone: "warning" },
-    ],
+    ...nlAnswers.n2,
     target: { view: "dashboard" },
   },
   {

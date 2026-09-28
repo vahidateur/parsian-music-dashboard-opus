@@ -7,7 +7,7 @@ import { Dialog } from "@/components/ds/patterns";
 import { cn } from "@/utils/cn";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 
 /* ------------------------------------------------------------------ */
 /* Quick-action definitions (M-1)                                       */

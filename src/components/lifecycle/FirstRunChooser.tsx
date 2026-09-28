@@ -1,4 +1,5 @@
-import { Database, FlaskConical, RotateCcw, TriangleAlert } from "lucide-react";
+import { Database, FlaskConical, LockKeyhole, RotateCcw, TriangleAlert } from "lucide-react";
+import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
 import { Button, Surface } from "@/components/ds/primitives";
 import { useDataLifecycle } from "@/domains/demo/useDataLifecycle";
 import { useLifecycleRecovery } from "./LifecycleRecoveryContext";
@@ -27,6 +28,11 @@ import { useLifecycleRecovery } from "./LifecycleRecoveryContext";
 export function FirstRunChooser() {
   const { notice, chooseEmpty, chooseDemo } = useDataLifecycle();
   const recovery = useLifecycleRecovery();
+  // Production lock: after delivery the demo option does not exist (the service
+  // would refuse it anyway). Normally unreachable — delivery installs an EMPTY
+  // environment — but a corrupted/reset marker lands here, and the fail-closed
+  // choice is to offer only the honest path.
+  const demoAvailable = isDemoCapabilityAvailable();
   const recovering = recovery?.busy && recovery.pending?.action === "uninitialize";
   const recoveryMessage =
     recovery?.lastResult?.operation === "uninitialize" ? recovery.lastResult.message : null;
@@ -70,7 +76,10 @@ export function FirstRunChooser() {
               </Button>
             </div>
 
-            {/* Secondary: showcase / QA material, labelled as such. */}
+            {/* Secondary: showcase / QA material, labelled as such.
+                Hidden when the production lock is engaged — offering a button
+                the service layer would refuse would be a lie. */}
+            {demoAvailable ? (
             <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
               <FlaskConical className="size-5 text-violet-300" strokeWidth={1.7} aria-hidden />
               <h2 className="mt-3 text-[14px] font-semibold text-ink-50">دادهٔ نمونهٔ نمایشی</h2>
@@ -82,6 +91,14 @@ export function FirstRunChooser() {
                 بارگذاری دادهٔ نمونه
               </Button>
             </div>
+            ) : (
+              <div className="flex flex-col items-start justify-center rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4">
+                <LockKeyhole className="size-5 text-ink-400" strokeWidth={1.7} aria-hidden />
+                <p className="mt-3 text-[11.5px] leading-relaxed text-ink-400">
+                  پس از تحویل نسخهٔ تولید، دادهٔ نمایشی برای همیشه غیرفعال شده است و فقط محیط خالی در دسترس است.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

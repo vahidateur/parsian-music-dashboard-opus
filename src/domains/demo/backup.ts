@@ -22,6 +22,21 @@ export const BACKUP_LEGACY_VERSION = "1.0";
 export const BACKUP_SUPPORTED_VERSIONS = [BACKUP_LEGACY_VERSION, BACKUP_SCHEMA_VERSION] as const;
 export type BackupSchemaVersion = (typeof BACKUP_SUPPORTED_VERSIONS)[number];
 export const BACKUP_ENVIRONMENT = "demo" as const;
+/**
+ * Which environment a backup was EXPORTED from.
+ *
+ * - `demo`  — a demo environment's envelope (the historical value, still the
+ *   default for callers that never said otherwise; legacy 1.0 files read as
+ *   `demo`). Post-delivery, a `demo`-stamped file is REJECTED on restore —
+ *   shipping demo data back into a locked production deployment fails closed.
+ * - `empty` — a customer (non-demo) environment's envelope. Restoring these is
+ *   a customer operation and stays available after delivery.
+ *
+ * Validation therefore accepts exactly these two; `production` or anything
+ * unknown is a foreign deployment → WRONG_ENVIRONMENT (honest rejection).
+ */
+export type BackupEnvironment = "demo" | "empty";
+export const BACKUP_ENVIRONMENTS: readonly BackupEnvironment[] = ["demo", "empty"];
 export const BACKUP_KIND = "arena.demo.backup" as const;
 
 /** Optional integrity hash — B CONTRACT NOW BACKEND LATER REQUIRED, frontend can verify if present. */
@@ -33,7 +48,7 @@ export interface BackupIntegrity {
 export interface DemoBackup {
   kind: typeof BACKUP_KIND;
   schemaVersion: string;
-  environment: typeof BACKUP_ENVIRONMENT;
+  environment: BackupEnvironment;
   /** ISO timestamp. The only intentionally non-deterministic field. */
   exportedAt: string;
   app: { name: string; seedVersion: string };
@@ -79,7 +94,7 @@ export function migrateBackupIfNeeded(input: unknown): BackupMigrationResult | n
     const migrated: DemoBackup = {
       kind: (candidate.kind as typeof BACKUP_KIND) ?? BACKUP_KIND,
       schemaVersion: BACKUP_SCHEMA_VERSION,
-      environment: (candidate.environment as typeof BACKUP_ENVIRONMENT) ?? BACKUP_ENVIRONMENT,
+      environment: ((candidate.environment as BackupEnvironment) ?? BACKUP_ENVIRONMENT) as BackupEnvironment,
       exportedAt: (candidate.exportedAt as string) ?? new Date().toISOString(),
       app: (candidate.app as { name: string; seedVersion: string }) ?? {
         name: "Arena — Ava Music Academy (DEMO)",
@@ -216,11 +231,15 @@ export function datasetStats(dataset: DemoDataset): DemoDatasetStats {
   return { seedVersion: SEED_VERSION, counts, total };
 }
 
-export function createBackup(dataset: DemoDataset, exportedAt: Date = new Date()): DemoBackup {
+export function createBackup(
+  dataset: DemoDataset,
+  exportedAt: Date = new Date(),
+  environment: BackupEnvironment = BACKUP_ENVIRONMENT,
+): DemoBackup {
   return {
     kind: BACKUP_KIND,
     schemaVersion: BACKUP_SCHEMA_VERSION,
-    environment: BACKUP_ENVIRONMENT,
+    environment,
     exportedAt: exportedAt.toISOString(),
     app: { name: "Arena — Ava Music Academy (DEMO)", seedVersion: SEED_VERSION },
     stats: datasetStats(dataset),
@@ -242,6 +261,8 @@ export type ValidationCode =
   | "NOT_AN_OBJECT"
   | "UNSUPPORTED_SCHEMA_VERSION"
   | "WRONG_ENVIRONMENT"
+  | "DEMO_DISABLED"
+  | "OPERATION_BLOCKED"
   | "MISSING_COLLECTION"
   | "INVALID_COLLECTION"
   | "MISSING_ID"
@@ -290,8 +311,14 @@ export function validateBackup(input: unknown): ValidationResult {
       ),
     );
   }
-  if (candidate.environment !== BACKUP_ENVIRONMENT) {
-    issues.push(issue("WRONG_ENVIRONMENT", "این فایل متعلق به محیط دمو نیست.", "environment"));
+  if (!(BACKUP_ENVIRONMENTS as readonly string[]).includes(candidate.environment as string)) {
+    issues.push(
+      issue(
+        "WRONG_ENVIRONMENT",
+        "environment باید یکی از demo (دمو) یا empty باشد؛ این فایل متعلق به یک استقرار دیگر است.",
+        "environment",
+      ),
+    );
   }
 
   const data = candidate.data;

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { getRoomRepository } from "../registry";
+import { getRoomRepository } from "@/domains/registry";
 import { useResourceList } from "../shared/useResource";
 import type { CreateRoomInput, Room, RoomListParams, UpdateRoomInput } from "./types";
 

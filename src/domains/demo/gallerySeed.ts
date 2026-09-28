@@ -125,7 +125,7 @@ export const DEMO_GALLERY_PHOTOS: readonly DemoGalleryPhoto[] = [
 ];
 
 /** The metadata rows for the bundle's photographs — dataset-sized, backup-safe. */
-export const DEMO_GALLERY_MEDIA: MediaAsset[] = DEMO_GALLERY_PHOTOS.map((photo) => ({
+export const DEMO_GALLERY_MEDIA: MediaAsset[] = /* @__PURE__ */ DEMO_GALLERY_PHOTOS.map((photo) => ({
   id: photo.mediaId,
   kind: "image",
   filename: photo.filename,

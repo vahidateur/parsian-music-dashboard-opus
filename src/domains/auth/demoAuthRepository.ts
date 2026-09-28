@@ -1,4 +1,5 @@
 import { ApiError } from "@/api/errors";
+import { SESSION_TTL_MS } from "./session";
 import { isDemoMode } from "@/api/config";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { demoCredentialStore, type DemoCredentialStore } from "./demoCredentials";
@@ -30,11 +31,13 @@ export const DEMO_PASSPHRASE = "arena-demo";
 export const AUTH_SESSION_KEY = "ava:demo:session";
 
 /**
- * Demo token lifetime. Exported so the client-side session clock can derive
- * when a restored session actually began, instead of trusting a localStorage
- * value the user can delete.
+ * Demo token lifetime. Defined in the neutral session module so the shared
+ * auth path (`AuthContext`) never imports this demo implementation — and
+ * re-exported here so this module's public surface is unchanged. The client-
+ * side session clock derives when a restored session actually began from it,
+ * instead of trusting a localStorage value the user can delete.
  */
-export const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+export { SESSION_TTL_MS } from "./session";
 
 interface PersistedSession {
   userId: string;

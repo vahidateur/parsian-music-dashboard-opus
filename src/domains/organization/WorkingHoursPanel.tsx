@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { useCan } from "@/domains/auth/AuthContext";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
 import { Button, StatusBadge } from "@/components/ds/primitives";
 import { Field, Panel, inputCls } from "@/components/ds/patterns";

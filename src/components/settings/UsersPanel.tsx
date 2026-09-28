@@ -31,7 +31,7 @@ import { PERMISSIONS, ROLES, roleLabel, type Permission, type RoleId } from "@/d
 import { useUsers } from "@/domains/auth/useUsers";
 import { PERMISSION_GROUPS, PERMISSION_LABELS, useRoles } from "@/domains/auth/useRoles";
 import { defaultRoleRecord } from "@/domains/auth/roleRepository";
-import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/demoCredentials";
+import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/passphrase";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import type { AuthUser } from "@/domains/auth/types";
 import { faNum } from "@/lib/format";
@@ -42,7 +42,7 @@ import { Dialog } from "@/components/ds/patterns";
 import { ConfirmDialog } from "@/components/ds/confirm";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+import { useIsDemoEnvironment } from "@/targets/environment";
 import { cn } from "@/utils/cn";
 
 /** Rows per relation read. Stated, never inherited from the API default. */

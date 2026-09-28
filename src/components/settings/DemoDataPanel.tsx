@@ -87,9 +87,11 @@ export function DemoDataPanel() {
     notify({
       tone: "success",
       // In a customer's environment this file holds their own records, so the
-      // confirmation must not call it a demo backup. (The file envelope itself
-      // is still stamped `environment: "demo"` — a format change, tracked as a
-      // known limitation in `docs/architecture/demo-data.md`.)
+      // confirmation must not call it a demo backup — and the envelope agrees
+      // with the confirmation: `exportBackup` stamps `environment` from the
+      // current mode, so a customer environment exports as `empty` (restorable
+      // after delivery) while a demo environment exports as `demo` (rejected by
+      // a locked deployment on restore).
       title: demoEnvironment ? "پشتیبان دمو ساخته شد" : "پشتیبان داده‌ها ساخته شد",
       detail: `نسخهٔ ساختار ${backup.schemaVersion}`,
     });

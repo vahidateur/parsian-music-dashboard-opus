@@ -14,6 +14,7 @@
  */
 import { DEMO_GALLERY_PHOTOS } from "@/domains/demo/gallerySeed";
 import { getBlobStore, type BlobStore } from "@/domains/media/blobStore";
+import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 
 export interface DemoGalleryProvisionResult {
@@ -28,6 +29,11 @@ export async function ensureDemoGalleryBytes(
   store: DemoStore = demoStore,
   blobs: BlobStore = getBlobStore(),
 ): Promise<DemoGalleryProvisionResult> {
+  // Production lock — see the library counterpart: demo bytes are demo
+  // capability, refused at the service even if a call site forgets to gate.
+  if (!isDemoCapabilityAvailable()) {
+    return { status: "present", written: 0 };
+  }
   let written = 0;
   try {
     for (const photo of DEMO_GALLERY_PHOTOS) {
