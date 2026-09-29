@@ -1,0 +1,56 @@
+[
+  {
+    "id": "gal_hall",
+    "albumId": "alb_recital",
+    "mediaId": "md_gal_hall",
+    "caption": "تالار اصلی، دقیقه‌های پیش از شروع اجرا",
+    "alt": "صحنهٔ تاریک تالار کنسرت با پیانوی گراند زیر نور طلایی و جای‌نت‌های خالی",
+    "sortOrder": 1,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "gal_violin",
+    "albumId": "alb_recital",
+    "mediaId": "md_gal_violin",
+    "caption": "اجرای ویولن، بخش دوم برنامه",
+    "alt": "ویولن‌نواز در نور لبه‌ای گرم روی صحنهٔ تاریک، کمانه در حرکت",
+    "sortOrder": 2,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "gal_strings",
+    "albumId": "alb_recital",
+    "mediaId": "md_gal_strings",
+    "caption": "سیم‌ها و چکش‌های پیانوی صحنه",
+    "alt": "نمای نزدیک از سیم‌ها و چکش‌های نمدی داخل پیانو با بازتاب‌های گرم",
+    "sortOrder": 3,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "gal_audience",
+    "albumId": "alb_recital",
+    "mediaId": "md_gal_audience",
+    "caption": "تشویق پایان اجرا",
+    "alt": "سیلوئت تماشاگران در تاریکی رو به نور گرم صحنه و دست‌های در حال تشویق",
+    "sortOrder": 4,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "gal_practice",
+    "albumId": "alb_rooms",
+    "mediaId": "md_gal_practice",
+    "caption": "اتاق تمرین شمارهٔ دو، عصر",
+    "alt": "اتاق تمرین خالی با جای‌نت چوبی و پیانو دیواری در نور گرم پنجره",
+    "sortOrder": 1,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "gal_tar",
+    "albumId": "alb_rooms",
+    "mediaId": "md_gal_tar",
+    "caption": "تار، از مجموعهٔ سازهای آموزشگاه",
+    "alt": "نمای نزدیک از بدنهٔ کنده‌کاری‌شدهٔ تار ایرانی روی مخمل تیره در نور گرم",
+    "sortOrder": 2,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  }
+]

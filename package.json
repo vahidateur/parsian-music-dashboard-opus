@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:access-path": "node scripts/gen-access-path.mjs"
+    "gen:access-path": "node scripts/gen-access-path.mjs",
+    "gen:dataset": "node scripts/write-dataset.mjs"
   },
   "dependencies": {
     "@fontsource/vazirmatn": "^5.3.0",

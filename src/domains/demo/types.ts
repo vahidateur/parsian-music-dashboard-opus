@@ -1,9 +1,17 @@
 /**
- * The demo dataset — a snapshot of the whole demo environment expressed in
- * *domain entities*, never in localStorage details.
+ * The dataset ENVELOPE — the shape a snapshot of the whole demo environment has
+ * when it is expressed in *domain entities*, never in localStorage details.
  *
  * A future backend can serve exactly this shape from `GET /demo/export` and
  * accept it at `POST /demo/import`; nothing here mentions storage keys.
+ *
+ * W2 split: the dataset SCHEMA (the member enumeration and the artifact
+ * contract) now lives in `src/dataset/schema.ts` — the lowest layer of the data
+ * plane, which imports nothing. The envelope composed here stays in the demo
+ * domain: its rows ARE domain entities (one model, not two), and its per-domain
+ * record shapes are the ones D6/I2's deferral ledger names this file as the
+ * owner of. `DEMO_COLLECTIONS` and `DemoCollectionName` are re-exported below,
+ * so every import path that has always named this module keeps working.
  */
 import type { AcademyClass } from "@/domains/classes/types";
 import type { Student } from "@/domains/students/types";
@@ -30,6 +38,18 @@ import type { BrandingSettings } from "@/domains/branding/types";
 import type { OrganizationSettings } from "@/domains/organization/types";
 import type { Permission, RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
+
+/*
+  The dataset schema's enumeration, re-exported from its new owner. A VALUE
+  re-export plus a LOCAL type import: the type is used by `DemoDatasetStats`
+  below, and the re-export keeps `import { DEMO_COLLECTIONS } from
+  "@/domains/demo/types"` — the path the store, the panel and the suites have
+  always used — resolving unchanged.
+*/
+import type { DemoCollectionName } from "@/dataset/schema";
+
+export { DEMO_COLLECTIONS } from "@/dataset/schema";
+export type { DemoCollectionName } from "@/dataset/schema";
 
 export interface DemoRoom {
   id: string;
@@ -234,42 +254,6 @@ export interface DemoDataset {
   progressEvents: ProgressEvent[];
 }
 
-/** Names of the array-shaped collections — used by validation and clearing. */
-export const DEMO_COLLECTIONS = [
-  "rooms",
-  "teachers",
-  "students",
-  "classes",
-  "enrollments",
-  "sessions",
-  "attendance",
-  "invoices",
-  "payments",
-  "conversations",
-  "resources",
-  "users",
-  "roles",
-  "media",
-  "instruments",
-  "programs",
-  "levels",
-  "learningContent",
-  "levelContent",
-  "placements",
-  "chatConversations",
-  "chatMessages",
-  "galleryAlbums",
-  "galleryImages",
-  "pieces",
-  "pieceAssignments",
-  "progressEvents",
-  "scheduledSessions",
-  "attendanceRecords",
-  "attendanceCorrections",
-  "sessionCompensations",
-] as const;
-
-export type DemoCollectionName = (typeof DEMO_COLLECTIONS)[number];
 
 export interface DemoDatasetStats {
   seedVersion: string;

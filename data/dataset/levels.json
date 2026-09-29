@@ -1,0 +1,716 @@
+[
+  {
+    "id": "lv_violin_1",
+    "programId": "pg_violin",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با ویولن، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_2",
+    "programId": "pg_violin",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_3",
+    "programId": "pg_violin",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_4",
+    "programId": "pg_violin",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_5",
+    "programId": "pg_violin",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_6",
+    "programId": "pg_violin",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_7",
+    "programId": "pg_violin",
+    "order": 7,
+    "name": "سطح 7",
+    "description": "تمرین‌ها و رپرتوار سطح 7 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 7",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_8",
+    "programId": "pg_violin",
+    "order": 8,
+    "name": "سطح 8",
+    "description": "تمرین‌ها و رپرتوار سطح 8 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 8",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_9",
+    "programId": "pg_violin",
+    "order": 9,
+    "name": "سطح 9",
+    "description": "تمرین‌ها و رپرتوار سطح 9 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 9",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_10",
+    "programId": "pg_violin",
+    "order": 10,
+    "name": "سطح 10",
+    "description": "تمرین‌ها و رپرتوار سطح 10 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 10",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_11",
+    "programId": "pg_violin",
+    "order": 11,
+    "name": "سطح 11",
+    "description": "تمرین‌ها و رپرتوار سطح 11 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 11",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_12",
+    "programId": "pg_violin",
+    "order": 12,
+    "name": "سطح 12",
+    "description": "تمرین‌ها و رپرتوار سطح 12 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 12",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_13",
+    "programId": "pg_violin",
+    "order": 13,
+    "name": "سطح 13",
+    "description": "تمرین‌ها و رپرتوار سطح 13 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 13",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_14",
+    "programId": "pg_violin",
+    "order": 14,
+    "name": "سطح 14",
+    "description": "تمرین‌ها و رپرتوار سطح 14 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 14",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_violin_15",
+    "programId": "pg_violin",
+    "order": 15,
+    "name": "سطح 15",
+    "description": "تمرین‌ها و رپرتوار سطح 15 برای ویولن.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 15",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_1",
+    "programId": "pg_piano",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با پیانو، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_2",
+    "programId": "pg_piano",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_3",
+    "programId": "pg_piano",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_4",
+    "programId": "pg_piano",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_5",
+    "programId": "pg_piano",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_6",
+    "programId": "pg_piano",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_7",
+    "programId": "pg_piano",
+    "order": 7,
+    "name": "سطح 7",
+    "description": "تمرین‌ها و رپرتوار سطح 7 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 7",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_8",
+    "programId": "pg_piano",
+    "order": 8,
+    "name": "سطح 8",
+    "description": "تمرین‌ها و رپرتوار سطح 8 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 8",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_9",
+    "programId": "pg_piano",
+    "order": 9,
+    "name": "سطح 9",
+    "description": "تمرین‌ها و رپرتوار سطح 9 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 9",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_10",
+    "programId": "pg_piano",
+    "order": 10,
+    "name": "سطح 10",
+    "description": "تمرین‌ها و رپرتوار سطح 10 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 10",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_11",
+    "programId": "pg_piano",
+    "order": 11,
+    "name": "سطح 11",
+    "description": "تمرین‌ها و رپرتوار سطح 11 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 11",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_piano_12",
+    "programId": "pg_piano",
+    "order": 12,
+    "name": "سطح 12",
+    "description": "تمرین‌ها و رپرتوار سطح 12 برای پیانو.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 12",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_1",
+    "programId": "pg_guitar",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با گیتار، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_2",
+    "programId": "pg_guitar",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_3",
+    "programId": "pg_guitar",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_4",
+    "programId": "pg_guitar",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_5",
+    "programId": "pg_guitar",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_6",
+    "programId": "pg_guitar",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_7",
+    "programId": "pg_guitar",
+    "order": 7,
+    "name": "سطح 7",
+    "description": "تمرین‌ها و رپرتوار سطح 7 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 7",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_8",
+    "programId": "pg_guitar",
+    "order": 8,
+    "name": "سطح 8",
+    "description": "تمرین‌ها و رپرتوار سطح 8 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 8",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_9",
+    "programId": "pg_guitar",
+    "order": 9,
+    "name": "سطح 9",
+    "description": "تمرین‌ها و رپرتوار سطح 9 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 9",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_guitar_10",
+    "programId": "pg_guitar",
+    "order": 10,
+    "name": "سطح 10",
+    "description": "تمرین‌ها و رپرتوار سطح 10 برای گیتار.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 10",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_1",
+    "programId": "pg_voice",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با آواز، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_2",
+    "programId": "pg_voice",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_3",
+    "programId": "pg_voice",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_4",
+    "programId": "pg_voice",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_5",
+    "programId": "pg_voice",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_6",
+    "programId": "pg_voice",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_7",
+    "programId": "pg_voice",
+    "order": 7,
+    "name": "سطح 7",
+    "description": "تمرین‌ها و رپرتوار سطح 7 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 7",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_voice_8",
+    "programId": "pg_voice",
+    "order": 8,
+    "name": "سطح 8",
+    "description": "تمرین‌ها و رپرتوار سطح 8 برای آواز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 8",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_1",
+    "programId": "pg_drums",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با درامز، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_2",
+    "programId": "pg_drums",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_3",
+    "programId": "pg_drums",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_4",
+    "programId": "pg_drums",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_5",
+    "programId": "pg_drums",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_6",
+    "programId": "pg_drums",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_7",
+    "programId": "pg_drums",
+    "order": 7,
+    "name": "سطح 7",
+    "description": "تمرین‌ها و رپرتوار سطح 7 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 7",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_drums_8",
+    "programId": "pg_drums",
+    "order": 8,
+    "name": "سطح 8",
+    "description": "تمرین‌ها و رپرتوار سطح 8 برای درامز.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 8",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_1",
+    "programId": "pg_theory",
+    "order": 1,
+    "name": "سطح 1",
+    "description": "آشنایی مقدماتی با تئوری، وضعیت بدن و تولید صدا.",
+    "objectives": [
+      "نگه‌داری صحیح ساز",
+      "تولید صدای پایدار",
+      "خواندن نت‌های پایه"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_2",
+    "programId": "pg_theory",
+    "order": 2,
+    "name": "سطح 2",
+    "description": "تمرین‌ها و رپرتوار سطح 2 برای تئوری.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 2",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_3",
+    "programId": "pg_theory",
+    "order": 3,
+    "name": "سطح 3",
+    "description": "تمرین‌ها و رپرتوار سطح 3 برای تئوری.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 3",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_4",
+    "programId": "pg_theory",
+    "order": 4,
+    "name": "سطح 4",
+    "description": "تمرین‌ها و رپرتوار سطح 4 برای تئوری.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 4",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_5",
+    "programId": "pg_theory",
+    "order": 5,
+    "name": "سطح 5",
+    "description": "تمرین‌ها و رپرتوار سطح 5 برای تئوری.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 5",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  },
+  {
+    "id": "lv_theory_6",
+    "programId": "pg_theory",
+    "order": 6,
+    "name": "سطح 6",
+    "description": "تمرین‌ها و رپرتوار سطح 6 برای تئوری.",
+    "objectives": [
+      "تسلط بر تمرین‌های سطح 6",
+      "اجرای یک قطعهٔ کامل"
+    ],
+    "active": true
+  }
+]

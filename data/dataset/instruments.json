@@ -1,0 +1,50 @@
+[
+  {
+    "id": "piano",
+    "slug": "piano",
+    "name": "پیانو",
+    "description": "ساز کلیدی؛ پایهٔ هارمونی و تئوری موسیقی.",
+    "active": true,
+    "sortOrder": 1
+  },
+  {
+    "id": "guitar",
+    "slug": "guitar",
+    "name": "گیتار",
+    "description": "ساز زهی مضرابی؛ کلاسیک، پاپ و فلامنکو.",
+    "active": true,
+    "sortOrder": 2
+  },
+  {
+    "id": "voice",
+    "slug": "voice",
+    "name": "آواز",
+    "description": "آموزش آواز، تنفس و تربیت شنوایی.",
+    "active": true,
+    "sortOrder": 3
+  },
+  {
+    "id": "violin",
+    "slug": "violin",
+    "name": "ویولن",
+    "description": "ساز زهی آرشه‌ای؛ ستون ارکستر زهی.",
+    "active": true,
+    "sortOrder": 4
+  },
+  {
+    "id": "drums",
+    "slug": "drums",
+    "name": "درامز",
+    "description": "ساز کوبه‌ای؛ ریتم و هماهنگی گروهی.",
+    "active": true,
+    "sortOrder": 5
+  },
+  {
+    "id": "theory",
+    "slug": "theory",
+    "name": "تئوری",
+    "description": "تئوری موسیقی، سلفژ و دیکتهٔ موسیقی.",
+    "active": true,
+    "sortOrder": 6
+  }
+]

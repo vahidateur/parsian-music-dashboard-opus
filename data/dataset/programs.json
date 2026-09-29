@@ -1,0 +1,44 @@
+[
+  {
+    "id": "pg_violin",
+    "instrumentId": "violin",
+    "name": "ویولن کلاسیک",
+    "description": "برنامهٔ آموزشی ویولن با 15 سطح.",
+    "active": true
+  },
+  {
+    "id": "pg_piano",
+    "instrumentId": "piano",
+    "name": "پیانو کلاسیک",
+    "description": "برنامهٔ آموزشی پیانو با 12 سطح.",
+    "active": true
+  },
+  {
+    "id": "pg_guitar",
+    "instrumentId": "guitar",
+    "name": "گیتار پایه تا پیشرفته",
+    "description": "برنامهٔ آموزشی گیتار با 10 سطح.",
+    "active": true
+  },
+  {
+    "id": "pg_voice",
+    "instrumentId": "voice",
+    "name": "آواز و تربیت شنوایی",
+    "description": "برنامهٔ آموزشی آواز با 8 سطح.",
+    "active": true
+  },
+  {
+    "id": "pg_drums",
+    "instrumentId": "drums",
+    "name": "درامز و ریتم",
+    "description": "برنامهٔ آموزشی درامز با 8 سطح.",
+    "active": true
+  },
+  {
+    "id": "pg_theory",
+    "instrumentId": "theory",
+    "name": "تئوری موسیقی",
+    "description": "برنامهٔ آموزشی تئوری با 6 سطح.",
+    "active": true
+  }
+]

@@ -1,0 +1,124 @@
+[
+  {
+    "sessionId": "g7",
+    "classId": "cl2",
+    "time": "09:00",
+    "state": "recorded",
+    "recordedBy": "سارا احمدی",
+    "entries": [
+      {
+        "studentId": "st7",
+        "mark": "present"
+      }
+    ]
+  },
+  {
+    "sessionId": "g8",
+    "classId": "cl3",
+    "time": "09:30",
+    "state": "recorded",
+    "recordedBy": "محمد رضایی",
+    "entries": [
+      {
+        "studentId": "st2",
+        "mark": "absent"
+      },
+      {
+        "studentId": "st8",
+        "mark": "present"
+      },
+      {
+        "studentId": "st6",
+        "mark": "late"
+      }
+    ]
+  },
+  {
+    "sessionId": "g9",
+    "classId": "cl8",
+    "time": "11:00",
+    "state": "recorded",
+    "recordedBy": "بهرام نیک‌نژاد",
+    "entries": [
+      {
+        "studentId": "st12",
+        "mark": "present"
+      }
+    ]
+  },
+  {
+    "sessionId": "g10",
+    "classId": "cl5",
+    "time": "12:00",
+    "state": "in-progress",
+    "entries": [
+      {
+        "studentId": "st3",
+        "mark": null
+      },
+      {
+        "studentId": "st9",
+        "mark": "present"
+      }
+    ]
+  },
+  {
+    "sessionId": "g11",
+    "classId": "cl7",
+    "time": "14:00",
+    "state": "pending",
+    "entries": [
+      {
+        "studentId": "st4",
+        "mark": null
+      }
+    ]
+  },
+  {
+    "sessionId": "g14",
+    "classId": "cl9",
+    "time": "16:00",
+    "state": "pending",
+    "entries": [
+      {
+        "studentId": "st12",
+        "mark": null
+      }
+    ]
+  },
+  {
+    "sessionId": "g15",
+    "classId": "cl1",
+    "time": "17:00",
+    "state": "pending",
+    "entries": [
+      {
+        "studentId": "st1",
+        "mark": null
+      },
+      {
+        "studentId": "st5",
+        "mark": null
+      },
+      {
+        "studentId": "st7",
+        "mark": null
+      },
+      {
+        "studentId": "st11",
+        "mark": null
+      },
+      {
+        "studentId": "st13",
+        "mark": null
+      }
+    ]
+  },
+  {
+    "sessionId": "g13",
+    "classId": "cl10",
+    "time": "15:30",
+    "state": "cancelled",
+    "entries": []
+  }
+]

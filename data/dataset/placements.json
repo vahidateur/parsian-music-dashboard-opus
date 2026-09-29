@@ -1,0 +1,176 @@
+[
+  {
+    "id": "pl_st1",
+    "studentId": "st1",
+    "programId": "pg_piano",
+    "levelId": "lv_piano_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  },
+  {
+    "id": "pl_st2",
+    "studentId": "st2",
+    "programId": "pg_guitar",
+    "levelId": "lv_guitar_4",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_guitar_3",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st3",
+    "studentId": "st3",
+    "programId": "pg_voice",
+    "levelId": "lv_voice_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  },
+  {
+    "id": "pl_st4",
+    "studentId": "st4",
+    "programId": "pg_violin",
+    "levelId": "lv_violin_10",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_violin_9",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st5",
+    "studentId": "st5",
+    "programId": "pg_piano",
+    "levelId": "lv_piano_5",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_piano_4",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st6",
+    "studentId": "st6",
+    "programId": "pg_guitar",
+    "levelId": "lv_guitar_2",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_guitar_1",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st7",
+    "studentId": "st7",
+    "programId": "pg_piano",
+    "levelId": "lv_piano_3",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_piano_2",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st8",
+    "studentId": "st8",
+    "programId": "pg_guitar",
+    "levelId": "lv_guitar_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  },
+  {
+    "id": "pl_st9",
+    "studentId": "st9",
+    "programId": "pg_voice",
+    "levelId": "lv_voice_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  },
+  {
+    "id": "pl_st10",
+    "studentId": "st10",
+    "programId": "pg_drums",
+    "levelId": "lv_drums_4",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_drums_3",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st11",
+    "studentId": "st11",
+    "programId": "pg_violin",
+    "levelId": "lv_violin_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  },
+  {
+    "id": "pl_st12",
+    "studentId": "st12",
+    "programId": "pg_theory",
+    "levelId": "lv_theory_2",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_theory_1",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st13",
+    "studentId": "st13",
+    "programId": "pg_piano",
+    "levelId": "lv_piano_5",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_piano_4",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st14",
+    "studentId": "st14",
+    "programId": "pg_guitar",
+    "levelId": "lv_guitar_5",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": [
+      {
+        "levelId": "lv_guitar_4",
+        "changedAt": "2026-09-01T00:00:00.000Z",
+        "note": "ارتقا پس از ارزیابی دوره"
+      }
+    ]
+  },
+  {
+    "id": "pl_st15",
+    "studentId": "st15",
+    "programId": "pg_voice",
+    "levelId": "lv_voice_1",
+    "assignedAt": "2026-09-01T00:00:00.000Z",
+    "history": []
+  }
+]

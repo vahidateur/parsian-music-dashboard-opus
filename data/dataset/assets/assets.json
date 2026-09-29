@@ -1,0 +1,65 @@
+[
+  {
+    "id": "md_demo_res1",
+    "kind": "document",
+    "filename": "nocturne-op9-no2.txt",
+    "mimeType": "text/plain",
+    "sizeBytes": 1595,
+    "file": "assets/nocturne-op9-no2.txt",
+    "sha256": "005e799fcce17f88cfb0e3ffd51b16df1188019afb2730c260c263eda954d473"
+  },
+  {
+    "id": "md_gal_hall",
+    "kind": "image",
+    "filename": "hall-stage.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 176547,
+    "sourcePath": "src/assets/images/hall.jpg",
+    "sha256": "a0a16bf87dee0f1fffdf10b1d7dca239edeb2ed698de225f84011e530fadd4c1"
+  },
+  {
+    "id": "md_gal_violin",
+    "kind": "image",
+    "filename": "recital-violin.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 107765,
+    "sourcePath": "src/assets/images/recital-violin.jpg",
+    "sha256": "87360fb57be8d6332d5074e7be546ea9515b3f8001fd86144998531a710eee4c"
+  },
+  {
+    "id": "md_gal_strings",
+    "kind": "image",
+    "filename": "piano-strings.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 178688,
+    "sourcePath": "src/assets/images/strings.jpg",
+    "sha256": "346861b716e79af9773afbe5536e1c3828aba8e6cbba899a1f4bf5a3ebc03e39"
+  },
+  {
+    "id": "md_gal_audience",
+    "kind": "image",
+    "filename": "audience-warm.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 164242,
+    "sourcePath": "src/assets/images/audience-warm.jpg",
+    "sha256": "5c1c50ac1990c6fcd1da84793e87ee6bcfdddf6cda307ba7806fe14029ecfc88"
+  },
+  {
+    "id": "md_gal_practice",
+    "kind": "image",
+    "filename": "practice-room.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 118225,
+    "sourcePath": "src/assets/images/practice-room.jpg",
+    "sha256": "70b31953998d48410dbb93fb96fd66f6db91702fd0a2bf8f3f65a21ec39b4f3a"
+  },
+  {
+    "id": "md_gal_tar",
+    "kind": "image",
+    "filename": "tar-persian.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 150254,
+    "sourcePath": "src/assets/images/tar-persian.jpg",
+    "sha256": "9bde4dcc4241eb6172c42ab46017f64f4c0a11ff81e49fdd1de8fa9773b541a6"
+  }
+]

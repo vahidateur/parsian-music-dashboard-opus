@@ -1,0 +1,230 @@
+[
+  {
+    "id": "g1",
+    "classId": "cl3",
+    "day": 0,
+    "start": "09:30",
+    "end": "10:30",
+    "roomId": "r2",
+    "teacherId": "t2"
+  },
+  {
+    "id": "g2",
+    "classId": "cl7",
+    "day": 0,
+    "start": "16:00",
+    "end": "17:00",
+    "roomId": "r1",
+    "teacherId": "t3"
+  },
+  {
+    "id": "g3",
+    "classId": "cl6",
+    "day": 1,
+    "start": "16:00",
+    "end": "16:45",
+    "roomId": "r1",
+    "teacherId": "t8"
+  },
+  {
+    "id": "g4",
+    "classId": "cl4",
+    "day": 1,
+    "start": "18:00",
+    "end": "19:00",
+    "roomId": "r2",
+    "teacherId": "t2"
+  },
+  {
+    "id": "g5",
+    "classId": "cl1",
+    "day": 2,
+    "start": "13:00",
+    "end": "14:00",
+    "roomId": "r1",
+    "teacherId": "t1"
+  },
+  {
+    "id": "g6",
+    "classId": "cl9",
+    "day": 2,
+    "start": "16:00",
+    "end": "17:00",
+    "roomId": "r3",
+    "teacherId": "t5"
+  },
+  {
+    "id": "g7",
+    "classId": "cl2",
+    "day": 3,
+    "start": "09:00",
+    "end": "10:00",
+    "roomId": "r1",
+    "teacherId": "t1"
+  },
+  {
+    "id": "g8",
+    "classId": "cl3",
+    "day": 3,
+    "start": "09:30",
+    "end": "10:30",
+    "roomId": "r2",
+    "teacherId": "t2"
+  },
+  {
+    "id": "g9",
+    "classId": "cl8",
+    "day": 3,
+    "start": "11:00",
+    "end": "12:00",
+    "roomId": "r3",
+    "teacherId": "t5"
+  },
+  {
+    "id": "g10",
+    "classId": "cl5",
+    "day": 3,
+    "start": "12:00",
+    "end": "13:00",
+    "roomId": "r3",
+    "teacherId": "t4"
+  },
+  {
+    "id": "g11",
+    "classId": "cl7",
+    "day": 3,
+    "start": "14:00",
+    "end": "15:00",
+    "roomId": "r1",
+    "teacherId": "t3",
+    "conflictWith": "g12"
+  },
+  {
+    "id": "g12",
+    "classId": "cl2",
+    "day": 3,
+    "start": "14:00",
+    "end": "15:00",
+    "roomId": "r1",
+    "teacherId": "t1",
+    "conflictWith": "g11"
+  },
+  {
+    "id": "g13",
+    "classId": "cl10",
+    "day": 3,
+    "start": "15:30",
+    "end": "16:30",
+    "roomId": "r4",
+    "teacherId": "t6",
+    "cancelled": true
+  },
+  {
+    "id": "g14",
+    "classId": "cl9",
+    "day": 3,
+    "start": "16:00",
+    "end": "17:00",
+    "roomId": "r3",
+    "teacherId": "t5"
+  },
+  {
+    "id": "g15",
+    "classId": "cl1",
+    "day": 3,
+    "start": "17:00",
+    "end": "18:30",
+    "roomId": "r1",
+    "teacherId": "t1"
+  },
+  {
+    "id": "g16",
+    "classId": "cl4",
+    "day": 3,
+    "start": "18:00",
+    "end": "19:00",
+    "roomId": "r2",
+    "teacherId": "t2"
+  },
+  {
+    "id": "g17",
+    "classId": "cl5",
+    "day": 3,
+    "start": "19:00",
+    "end": "20:00",
+    "roomId": "r3",
+    "teacherId": "t4"
+  },
+  {
+    "id": "g18",
+    "classId": "cl6",
+    "day": 4,
+    "start": "16:00",
+    "end": "16:45",
+    "roomId": "r1",
+    "teacherId": "t8"
+  },
+  {
+    "id": "g19",
+    "classId": "cl4",
+    "day": 4,
+    "start": "18:00",
+    "end": "19:00",
+    "roomId": "r2",
+    "teacherId": "t2"
+  },
+  {
+    "id": "g20",
+    "classId": "cl3",
+    "day": 4,
+    "start": "19:00",
+    "end": "20:00",
+    "roomId": "r2",
+    "teacherId": "t7"
+  },
+  {
+    "id": "g21",
+    "classId": "cl10",
+    "day": 5,
+    "start": "15:30",
+    "end": "16:30",
+    "roomId": "r4",
+    "teacherId": "t6"
+  },
+  {
+    "id": "g22",
+    "classId": "cl1",
+    "day": 5,
+    "start": "17:00",
+    "end": "18:30",
+    "roomId": "r1",
+    "teacherId": "t1"
+  },
+  {
+    "id": "g23",
+    "classId": "cl8",
+    "day": 5,
+    "start": "11:00",
+    "end": "12:00",
+    "roomId": "r3",
+    "teacherId": "t5"
+  },
+  {
+    "id": "g24",
+    "classId": "cl9",
+    "day": 6,
+    "start": "10:00",
+    "end": "11:00",
+    "roomId": "r3",
+    "teacherId": "t5"
+  },
+  {
+    "id": "g25",
+    "classId": "cl4",
+    "day": 6,
+    "start": "11:00",
+    "end": "12:00",
+    "roomId": "r2",
+    "teacherId": "t2"
+  }
+]

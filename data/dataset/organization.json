@@ -1,0 +1,19 @@
+{
+  "name": "آکادمی موسیقی آوا",
+  "tagline": "سامانهٔ یکپارچهٔ آموزشگاه",
+  "locale": "fa-IR",
+  "direction": "rtl",
+  "calendar": "jalali",
+  "currency": "toman",
+  "firstWeekday": 0,
+  "defaultSessionMinutes": 60,
+  "sessionGapMinutes": 10,
+  "cancellationGraceHours": 24,
+  "maxMakeupsPerTerm": 2,
+  "workingDayStart": "08:00",
+  "workingDayEnd": "21:00",
+  "closedWeekdays": [
+    6
+  ],
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

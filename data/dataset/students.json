@@ -1,0 +1,861 @@
+[
+  {
+    "id": "st1",
+    "nationalId": "2000000002",
+    "name": "سارا محمدی",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "level": "سطح ۳ · میانی",
+    "levelStep": 3,
+    "status": "at-risk",
+    "payment": "due",
+    "sessionsUsed": 9,
+    "sessionsTotal": 12,
+    "attendance": 62,
+    "progress": 54,
+    "since": "مهر ۱۴۰۳",
+    "age": 17,
+    "phone": "۰۹۱۲ ··· ۴۰۲۲",
+    "nextClass": {
+      "day": "پنجشنبه",
+      "time": "۱۷:۰۰",
+      "room": "اتاق ۱"
+    },
+    "lastSeen": "۱۵ روز پیش",
+    "balance": 1200000,
+    "notes": [
+      {
+        "by": "سارا احمدی",
+        "date": "۲ هفته پیش",
+        "text": "قطعه‌ی بتهوون را نیمه‌کاره رها کرد؛ انگیزه پایین آمده. پیشنهاد می‌کنم رپرتوار سبک‌تری انتخاب کنیم."
+      },
+      {
+        "by": "پذیرش",
+        "date": "۱ ماه پیش",
+        "text": "درخواست جابه‌جایی ساعت کلاس به بعدازظهر داشت."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۱۵ روز پیش",
+        "kind": "absence",
+        "text": "غیبت در کلاس پیانو — بدون اطلاع قبلی"
+      },
+      {
+        "date": "۱۸ روز پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۹ از ۱۲ برگزار شد"
+      },
+      {
+        "date": "۲۲ روز پیش",
+        "kind": "note",
+        "text": "یادداشت مدرس ثبت شد"
+      },
+      {
+        "date": "۱ ماه پیش",
+        "kind": "payment",
+        "text": "پرداخت شهریهٔ دورهٔ پاییز — ۳٬۶۰۰٬۰۰۰ تومان"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 58
+      },
+      {
+        "label": "ریتم",
+        "value": 64
+      },
+      {
+        "label": "شنیداری",
+        "value": 49
+      },
+      {
+        "label": "اجرا",
+        "value": 45
+      }
+    ]
+  },
+  {
+    "id": "st2",
+    "nationalId": "2000035711",
+    "name": "امیرحسین کریمی",
+    "instrument": "guitar",
+    "teacherId": "t2",
+    "level": "سطح ۲ · مقدماتی",
+    "levelStep": 2,
+    "status": "at-risk",
+    "payment": "overdue",
+    "sessionsUsed": 11,
+    "sessionsTotal": 12,
+    "attendance": 58,
+    "progress": 41,
+    "since": "آبان ۱۴۰۳",
+    "age": 15,
+    "phone": "۰۹۱۲ ··· ۸۸۱۴",
+    "guardian": "مریم کریمی",
+    "nextClass": {
+      "day": "چهارشنبه",
+      "time": "۱۸:۰۰",
+      "room": "اتاق ۲"
+    },
+    "lastSeen": "۱۸ روز پیش",
+    "balance": 850000,
+    "notes": [
+      {
+        "by": "محمد رضایی",
+        "date": "۳ هفته پیش",
+        "text": "تمرین خانگی انجام نمی‌شود. تماس با خانواده لازم است."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۱۸ روز پیش",
+        "kind": "absence",
+        "text": "دومین غیبت متوالی"
+      },
+      {
+        "date": "۲۵ روز پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۱۱ از ۱۲ برگزار شد"
+      },
+      {
+        "date": "۱ ماه پیش",
+        "kind": "message",
+        "text": "یادآوری پرداخت برای ولی ارسال شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 44
+      },
+      {
+        "label": "ریتم",
+        "value": 52
+      },
+      {
+        "label": "شنیداری",
+        "value": 38
+      },
+      {
+        "label": "اجرا",
+        "value": 36
+      }
+    ]
+  },
+  {
+    "id": "st3",
+    "nationalId": "2000071422",
+    "name": "نیلوفر رستمی",
+    "instrument": "voice",
+    "teacherId": "t4",
+    "level": "سطح ۱ · پایه",
+    "levelStep": 1,
+    "status": "at-risk",
+    "payment": "paid",
+    "sessionsUsed": 7,
+    "sessionsTotal": 12,
+    "attendance": 66,
+    "progress": 38,
+    "since": "دی ۱۴۰۳",
+    "age": 22,
+    "phone": "۰۹۱۲ ··· ۵۵۹۰",
+    "nextClass": {
+      "day": "سه‌شنبه",
+      "time": "۱۹:۰۰",
+      "room": "اتاق ۳"
+    },
+    "lastSeen": "۱۴ روز پیش",
+    "balance": 0,
+    "notes": [
+      {
+        "by": "نرگس حسینی",
+        "date": "۱۰ روز پیش",
+        "text": "صدای خوبی دارد اما به تمرین تنفس منظم نیاز دارد."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۱۴ روز پیش",
+        "kind": "absence",
+        "text": "غیبت با اطلاع قبلی — سفر کاری"
+      },
+      {
+        "date": "۲۰ روز پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۷ از ۱۲ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 40
+      },
+      {
+        "label": "ریتم",
+        "value": 45
+      },
+      {
+        "label": "شنیداری",
+        "value": 55
+      },
+      {
+        "label": "اجرا",
+        "value": 34
+      }
+    ]
+  },
+  {
+    "id": "st4",
+    "nationalId": "2000107133",
+    "name": "پارسا نادری",
+    "instrument": "violin",
+    "teacherId": "t3",
+    "level": "سطح ۴ · پیشرفته",
+    "levelStep": 4,
+    "status": "at-risk",
+    "payment": "overdue",
+    "sessionsUsed": 10,
+    "sessionsTotal": 16,
+    "attendance": 55,
+    "progress": 72,
+    "since": "شهریور ۱۴۰۲",
+    "age": 19,
+    "phone": "۰۹۱۲ ··· ۷۱۶۳",
+    "nextClass": {
+      "day": "شنبه",
+      "time": "۱۶:۰۰",
+      "room": "اتاق ۱"
+    },
+    "lastSeen": "۲۱ روز پیش",
+    "balance": 400000,
+    "notes": [
+      {
+        "by": "علی موسوی",
+        "date": "۳ هفته پیش",
+        "text": "استعداد بالا؛ غیبت‌ها به دلیل تداخل با دانشگاه است. پیشنهاد: انتقال به بازهٔ عصر پنجشنبه."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۲۱ روز پیش",
+        "kind": "absence",
+        "text": "سومین غیبت این ماه"
+      },
+      {
+        "date": "۱ ماه پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۱۰ از ۱۶ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 78
+      },
+      {
+        "label": "ریتم",
+        "value": 71
+      },
+      {
+        "label": "شنیداری",
+        "value": 74
+      },
+      {
+        "label": "اجرا",
+        "value": 68
+      }
+    ]
+  },
+  {
+    "id": "st5",
+    "nationalId": "2000142842",
+    "name": "مهسا قاسمی",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "level": "سطح ۲ · مقدماتی",
+    "levelStep": 2,
+    "status": "at-risk",
+    "payment": "due",
+    "sessionsUsed": 10,
+    "sessionsTotal": 12,
+    "attendance": 64,
+    "progress": 47,
+    "since": "آذر ۱۴۰۳",
+    "age": 13,
+    "phone": "۰۹۱۲ ··· ۳۳۰۸",
+    "guardian": "حسین قاسمی",
+    "nextClass": {
+      "day": "دوشنبه",
+      "time": "۱۳:۰۰",
+      "room": "اتاق ۱"
+    },
+    "lastSeen": "۱۶ روز پیش",
+    "balance": 600000,
+    "notes": [],
+    "activity": [
+      {
+        "date": "۱۶ روز پیش",
+        "kind": "absence",
+        "text": "غیبت بدون اطلاع"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 50
+      },
+      {
+        "label": "ریتم",
+        "value": 56
+      },
+      {
+        "label": "شنیداری",
+        "value": 44
+      },
+      {
+        "label": "اجرا",
+        "value": 42
+      }
+    ]
+  },
+  {
+    "id": "st6",
+    "nationalId": "2000178553",
+    "name": "کیان عباسی",
+    "instrument": "guitar",
+    "teacherId": "t2",
+    "level": "سطح ۳ · میانی",
+    "levelStep": 3,
+    "status": "active",
+    "payment": "overdue",
+    "sessionsUsed": 6,
+    "sessionsTotal": 12,
+    "attendance": 91,
+    "progress": 66,
+    "since": "مرداد ۱۴۰۳",
+    "age": 24,
+    "phone": "۰۹۱۲ ··· ۴۴۲۱",
+    "nextClass": {
+      "day": "سه‌شنبه",
+      "time": "۱۸:۰۰",
+      "room": "اتاق ۲"
+    },
+    "lastSeen": "دیروز",
+    "balance": 400000,
+    "notes": [
+      {
+        "by": "محمد رضایی",
+        "date": "۱ هفته پیش",
+        "text": "آمادهٔ اجرای گروهی در کنسرت فصل است."
+      }
+    ],
+    "activity": [
+      {
+        "date": "دیروز",
+        "kind": "session",
+        "text": "جلسهٔ ۶ از ۱۲ برگزار شد"
+      },
+      {
+        "date": "۳ روز پیش",
+        "kind": "note",
+        "text": "پیشنهاد شرکت در کنسرت فصل"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 70
+      },
+      {
+        "label": "ریتم",
+        "value": 74
+      },
+      {
+        "label": "شنیداری",
+        "value": 62
+      },
+      {
+        "label": "اجرا",
+        "value": 69
+      }
+    ]
+  },
+  {
+    "id": "st7",
+    "nationalId": "2000214266",
+    "name": "آیدا شریفی",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "level": "سطح ۵ · پیشرفته",
+    "levelStep": 5,
+    "status": "active",
+    "payment": "paid",
+    "sessionsUsed": 4,
+    "sessionsTotal": 16,
+    "attendance": 98,
+    "progress": 88,
+    "since": "بهمن ۱۴۰۱",
+    "age": 20,
+    "phone": "۰۹۱۲ ··· ۱۰۵۵",
+    "nextClass": {
+      "day": "سه‌شنبه",
+      "time": "۱۴:۰۰",
+      "room": "اتاق ۱"
+    },
+    "lastSeen": "امروز",
+    "balance": 0,
+    "notes": [
+      {
+        "by": "سارا احمدی",
+        "date": "۴ روز پیش",
+        "text": "آمادهٔ اجرای رسیتال انفرادی؛ رپرتوار شوپن انتخاب شد."
+      }
+    ],
+    "activity": [
+      {
+        "date": "امروز",
+        "kind": "session",
+        "text": "جلسهٔ ۴ از ۱۶ برگزار شد"
+      },
+      {
+        "date": "۱ هفته پیش",
+        "kind": "payment",
+        "text": "پرداخت شهریه — ۴٬۸۰۰٬۰۰۰ تومان"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 90
+      },
+      {
+        "label": "ریتم",
+        "value": 86
+      },
+      {
+        "label": "شنیداری",
+        "value": 84
+      },
+      {
+        "label": "اجرا",
+        "value": 92
+      }
+    ]
+  },
+  {
+    "id": "st8",
+    "nationalId": "2000249973",
+    "name": "رضا شریفی",
+    "instrument": "guitar",
+    "teacherId": "t7",
+    "level": "سطح ۲ · مقدماتی",
+    "levelStep": 2,
+    "status": "active",
+    "payment": "overdue",
+    "sessionsUsed": 8,
+    "sessionsTotal": 12,
+    "attendance": 84,
+    "progress": 52,
+    "since": "مهر ۱۴۰۳",
+    "age": 29,
+    "phone": "۰۹۱۲ ··· ۹۰۳۴",
+    "nextClass": {
+      "day": "چهارشنبه",
+      "time": "۱۹:۰۰",
+      "room": "اتاق ۲"
+    },
+    "lastSeen": "۴ روز پیش",
+    "balance": 1200000,
+    "notes": [],
+    "activity": [
+      {
+        "date": "۴ روز پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۸ از ۱۲ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 55
+      },
+      {
+        "label": "ریتم",
+        "value": 60
+      },
+      {
+        "label": "شنیداری",
+        "value": 48
+      },
+      {
+        "label": "اجرا",
+        "value": 50
+      }
+    ]
+  },
+  {
+    "id": "st9",
+    "nationalId": "2000285686",
+    "name": "مریم توکلی",
+    "instrument": "voice",
+    "teacherId": "t4",
+    "level": "سطح ۳ · میانی",
+    "levelStep": 3,
+    "status": "active",
+    "payment": "overdue",
+    "sessionsUsed": 5,
+    "sessionsTotal": 12,
+    "attendance": 89,
+    "progress": 61,
+    "since": "آبان ۱۴۰۲",
+    "age": 26,
+    "phone": "۰۹۱۲ ··· ۶۶۱۲",
+    "nextClass": {
+      "day": "سه‌شنبه",
+      "time": "۱۲:۰۰",
+      "room": "اتاق ۳"
+    },
+    "lastSeen": "امروز",
+    "balance": 850000,
+    "notes": [],
+    "activity": [
+      {
+        "date": "امروز",
+        "kind": "session",
+        "text": "جلسهٔ ۵ از ۱۲ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 64
+      },
+      {
+        "label": "ریتم",
+        "value": 58
+      },
+      {
+        "label": "شنیداری",
+        "value": 72
+      },
+      {
+        "label": "اجرا",
+        "value": 66
+      }
+    ]
+  },
+  {
+    "id": "st10",
+    "nationalId": "2000321399",
+    "name": "سهیل مرادی",
+    "instrument": "drums",
+    "teacherId": "t6",
+    "level": "سطح ۱ · پایه",
+    "levelStep": 1,
+    "status": "active",
+    "payment": "paid",
+    "sessionsUsed": 3,
+    "sessionsTotal": 12,
+    "attendance": 95,
+    "progress": 29,
+    "since": "اسفند ۱۴۰۴",
+    "age": 12,
+    "phone": "۰۹۱۲ ··· ۲۷۴۸",
+    "guardian": "لیلا مرادی",
+    "nextClass": {
+      "day": "پنجشنبه",
+      "time": "۱۵:۳۰",
+      "room": "اتاق ۴"
+    },
+    "lastSeen": "۲ روز پیش",
+    "balance": 0,
+    "notes": [],
+    "activity": [
+      {
+        "date": "۲ روز پیش",
+        "kind": "enroll",
+        "text": "ثبت‌نام در دورهٔ درامز مقدماتی"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 30
+      },
+      {
+        "label": "ریتم",
+        "value": 46
+      },
+      {
+        "label": "شنیداری",
+        "value": 28
+      },
+      {
+        "label": "اجرا",
+        "value": 25
+      }
+    ]
+  },
+  {
+    "id": "st11",
+    "nationalId": "2000357105",
+    "name": "زهرا اکبری",
+    "instrument": "violin",
+    "teacherId": "t8",
+    "level": "سطح ۲ · مقدماتی",
+    "levelStep": 2,
+    "status": "active",
+    "payment": "paid",
+    "sessionsUsed": 7,
+    "sessionsTotal": 12,
+    "attendance": 93,
+    "progress": 58,
+    "since": "دی ۱۴۰۳",
+    "age": 9,
+    "phone": "۰۹۱۲ ··· ۵۱۹۹",
+    "guardian": "نازنین اکبری",
+    "nextClass": {
+      "day": "یکشنبه",
+      "time": "۱۶:۰۰",
+      "room": "اتاق ۱"
+    },
+    "lastSeen": "۳ روز پیش",
+    "balance": 0,
+    "notes": [
+      {
+        "by": "مینا فرهادی",
+        "date": "۵ روز پیش",
+        "text": "پیشرفت خوب در کوک‌کردن گوشی؛ والدین همراهی خوبی دارند."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۳ روز پیش",
+        "kind": "session",
+        "text": "جلسهٔ ۷ از ۱۲ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 56
+      },
+      {
+        "label": "ریتم",
+        "value": 62
+      },
+      {
+        "label": "شنیداری",
+        "value": 66
+      },
+      {
+        "label": "اجرا",
+        "value": 52
+      }
+    ]
+  },
+  {
+    "id": "st12",
+    "nationalId": "2000392814",
+    "name": "بهنام یوسفی",
+    "instrument": "theory",
+    "teacherId": "t5",
+    "level": "سطح ۲ · مقدماتی",
+    "levelStep": 2,
+    "status": "active",
+    "payment": "due",
+    "sessionsUsed": 6,
+    "sessionsTotal": 10,
+    "attendance": 87,
+    "progress": 63,
+    "since": "آذر ۱۴۰۳",
+    "age": 31,
+    "phone": "۰۹۱۲ ··· ۸۳۲۰",
+    "nextClass": {
+      "day": "سه‌شنبه",
+      "time": "۱۱:۰۰",
+      "room": "اتاق ۳"
+    },
+    "lastSeen": "امروز",
+    "balance": 450000,
+    "notes": [],
+    "activity": [
+      {
+        "date": "امروز",
+        "kind": "session",
+        "text": "جلسهٔ ۶ از ۱۰ برگزار شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 60
+      },
+      {
+        "label": "ریتم",
+        "value": 70
+      },
+      {
+        "label": "شنیداری",
+        "value": 68
+      },
+      {
+        "label": "اجرا",
+        "value": 44
+      }
+    ]
+  },
+  {
+    "id": "st13",
+    "nationalId": "2000428525",
+    "name": "الناز کریمی",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "level": "سطح ۱ · پایه",
+    "levelStep": 1,
+    "status": "paused",
+    "payment": "paid",
+    "sessionsUsed": 5,
+    "sessionsTotal": 12,
+    "attendance": 80,
+    "progress": 33,
+    "since": "بهمن ۱۴۰۳",
+    "age": 11,
+    "phone": "۰۹۱۲ ··· ۴۷۷۱",
+    "guardian": "سعید کریمی",
+    "lastSeen": "۱ ماه پیش",
+    "balance": 0,
+    "notes": [
+      {
+        "by": "پذیرش",
+        "date": "۱ ماه پیش",
+        "text": "توقف موقت به دلیل امتحانات مدرسه؛ بازگشت در اردیبهشت."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۱ ماه پیش",
+        "kind": "note",
+        "text": "درخواست توقف موقت ثبت شد"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 38
+      },
+      {
+        "label": "ریتم",
+        "value": 42
+      },
+      {
+        "label": "شنیداری",
+        "value": 40
+      },
+      {
+        "label": "اجرا",
+        "value": 30
+      }
+    ]
+  },
+  {
+    "id": "st14",
+    "nationalId": "2000464238",
+    "name": "فرزاد بهرامی",
+    "instrument": "guitar",
+    "teacherId": "t7",
+    "level": "—",
+    "levelStep": 0,
+    "status": "waitlist",
+    "payment": "due",
+    "sessionsUsed": 0,
+    "sessionsTotal": 0,
+    "attendance": 0,
+    "progress": 0,
+    "since": "این هفته",
+    "age": 27,
+    "phone": "۰۹۱۲ ··· ۳۹۰۵",
+    "lastSeen": "—",
+    "balance": 0,
+    "notes": [
+      {
+        "by": "پذیرش",
+        "date": "۲ روز پیش",
+        "text": "در انتظار بازهٔ عصر سه‌شنبه؛ تماس گرفته شود."
+      }
+    ],
+    "activity": [
+      {
+        "date": "۲ روز پیش",
+        "kind": "enroll",
+        "text": "افزوده شدن به لیست انتظار گیتار"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 0
+      },
+      {
+        "label": "ریتم",
+        "value": 0
+      },
+      {
+        "label": "شنیداری",
+        "value": 0
+      },
+      {
+        "label": "اجرا",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "id": "st15",
+    "nationalId": "2000499945",
+    "name": "شیوا نعمتی",
+    "instrument": "voice",
+    "teacherId": "t4",
+    "level": "—",
+    "levelStep": 0,
+    "status": "waitlist",
+    "payment": "due",
+    "sessionsUsed": 0,
+    "sessionsTotal": 0,
+    "attendance": 0,
+    "progress": 0,
+    "since": "این هفته",
+    "age": 23,
+    "phone": "۰۹۱۲ ··· ۱۴۶۰",
+    "lastSeen": "—",
+    "balance": 0,
+    "notes": [],
+    "activity": [
+      {
+        "date": "۴ روز پیش",
+        "kind": "enroll",
+        "text": "افزوده شدن به لیست انتظار آواز"
+      }
+    ],
+    "skills": [
+      {
+        "label": "تکنیک",
+        "value": 0
+      },
+      {
+        "label": "ریتم",
+        "value": 0
+      },
+      {
+        "label": "شنیداری",
+        "value": 0
+      },
+      {
+        "label": "اجرا",
+        "value": 0
+      }
+    ]
+  }
+]

@@ -1,0 +1,200 @@
+[
+  {
+    "id": "enr_cl1_st1",
+    "studentId": "st1",
+    "classId": "cl1",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3600000
+    }
+  },
+  {
+    "id": "enr_cl1_st5",
+    "studentId": "st5",
+    "classId": "cl1",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3600000
+    }
+  },
+  {
+    "id": "enr_cl1_st7",
+    "studentId": "st7",
+    "classId": "cl1",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3600000
+    }
+  },
+  {
+    "id": "enr_cl1_st13",
+    "studentId": "st13",
+    "classId": "cl1",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3600000
+    }
+  },
+  {
+    "id": "enr_cl1_st11",
+    "studentId": "st11",
+    "classId": "cl1",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3600000
+    }
+  },
+  {
+    "id": "enr_cl2_st7",
+    "studentId": "st7",
+    "classId": "cl2",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۵",
+      "amount": 4800000
+    }
+  },
+  {
+    "id": "enr_cl3_st2",
+    "studentId": "st2",
+    "classId": "cl3",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱–۲",
+      "amount": 2800000
+    }
+  },
+  {
+    "id": "enr_cl3_st8",
+    "studentId": "st8",
+    "classId": "cl3",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱–۲",
+      "amount": 2800000
+    }
+  },
+  {
+    "id": "enr_cl3_st6",
+    "studentId": "st6",
+    "classId": "cl3",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱–۲",
+      "amount": 2800000
+    }
+  },
+  {
+    "id": "enr_cl4_st6",
+    "studentId": "st6",
+    "classId": "cl4",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3200000
+    }
+  },
+  {
+    "id": "enr_cl4_st8",
+    "studentId": "st8",
+    "classId": "cl4",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۳",
+      "amount": 3200000
+    }
+  },
+  {
+    "id": "enr_cl5_st3",
+    "studentId": "st3",
+    "classId": "cl5",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۲–۳",
+      "amount": 3400000
+    }
+  },
+  {
+    "id": "enr_cl5_st9",
+    "studentId": "st9",
+    "classId": "cl5",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۲–۳",
+      "amount": 3400000
+    }
+  },
+  {
+    "id": "enr_cl6_st11",
+    "studentId": "st11",
+    "classId": "cl6",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱",
+      "amount": 2600000
+    }
+  },
+  {
+    "id": "enr_cl7_st4",
+    "studentId": "st4",
+    "classId": "cl7",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۴",
+      "amount": 4200000
+    }
+  },
+  {
+    "id": "enr_cl8_st12",
+    "studentId": "st12",
+    "classId": "cl8",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱–۲",
+      "amount": 1800000
+    }
+  },
+  {
+    "id": "enr_cl9_st12",
+    "studentId": "st12",
+    "classId": "cl9",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۲",
+      "amount": 1800000
+    }
+  },
+  {
+    "id": "enr_cl10_st10",
+    "studentId": "st10",
+    "classId": "cl10",
+    "status": "active",
+    "startDate": "۱۴۰۴/۰۷/۰۱",
+    "pricingPlan": {
+      "label": "سطح ۱",
+      "amount": 3000000
+    }
+  }
+]

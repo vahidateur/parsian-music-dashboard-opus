@@ -1,0 +1,140 @@
+[
+  {
+    "id": "lc_res1",
+    "title": "نوکتورن اپوس ۹ شمارهٔ ۲",
+    "description": "شوپن · پیشرفته",
+    "type": "pdf",
+    "author": "شوپن",
+    "instrumentId": "piano",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res2",
+    "title": "متد پیانو کودکان · دفتر اول",
+    "description": "آموزشگاه آوا · پایه",
+    "type": "pdf",
+    "author": "آموزشگاه آوا",
+    "instrumentId": "piano",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res3",
+    "title": "تمرین‌های آرپژ گیتار",
+    "description": "کارکاسی · میانی",
+    "type": "pdf",
+    "author": "کارکاسی",
+    "instrumentId": "guitar",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res4",
+    "title": "الگوهای ریتمیک ۶/۸",
+    "description": "کاوه کاظمی · پایه",
+    "type": "audio",
+    "author": "",
+    "teacherId": "t6",
+    "instrumentId": "drums",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res5",
+    "title": "تمرین صداسازی · گرم‌کردن",
+    "description": "نرگس حسینی · پایه",
+    "type": "audio",
+    "author": "",
+    "teacherId": "t4",
+    "instrumentId": "voice",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res6",
+    "title": "درس ۳ · کوک و وضعیت دست",
+    "description": "مینا فرهادی · پایه",
+    "type": "video",
+    "author": "",
+    "teacherId": "t8",
+    "instrumentId": "violin",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res7",
+    "title": "ردیف میرزا عبدالله · درآمد",
+    "description": "روایت نورعلی برومند · پیشرفته",
+    "type": "audio",
+    "author": "روایت نورعلی برومند",
+    "instrumentId": "violin",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res8",
+    "title": "جزوهٔ تئوری · فواصل و گام‌ها",
+    "description": "بهرام نیک‌نژاد · پایه",
+    "type": "document",
+    "author": "",
+    "teacherId": "t5",
+    "instrumentId": "theory",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res9",
+    "title": "دیکتهٔ ملودیک · مجموعهٔ ۱",
+    "description": "بهرام نیک‌نژاد · میانی",
+    "type": "audio",
+    "author": "",
+    "teacherId": "t5",
+    "instrumentId": "theory",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res10",
+    "title": "پرلود شمارهٔ ۱ · باخ",
+    "description": "ی. س. باخ · میانی",
+    "type": "pdf",
+    "author": "ی. س. باخ",
+    "instrumentId": "piano",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res11",
+    "title": "آکوردهای پایهٔ پاپ",
+    "description": "محمد رضایی · پایه",
+    "type": "document",
+    "author": "",
+    "teacherId": "t2",
+    "instrumentId": "guitar",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "lc_res12",
+    "title": "اجرای نمونه · کنسرت پاییز",
+    "description": "ارکستر نوجوانان آوا · همه",
+    "type": "video",
+    "author": "ارکستر نوجوانان آوا",
+    "instrumentId": "violin",
+    "visibility": "students",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "active": true
+  }
+]
