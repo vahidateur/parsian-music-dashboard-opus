@@ -56,7 +56,7 @@ export interface DemoDataState {
 
 export type DestructiveAction = Extract<
   DemoOperation,
-  "reset" | "clear" | "import-seed" | "restore-backup" | "uninitialize"
+  "reset" | "import-sample" | "reset-clean" | "clear" | "import-seed" | "restore-backup" | "uninitialize"
 >;
 
 export interface PendingAction {
@@ -83,6 +83,14 @@ export const DESTRUCTIVE_LABELS: Record<DestructiveAction, { title: string; warn
     title: "پاک‌کردن کامل داده‌ها",
     warning:
       "همهٔ رکوردهای این محیط، از جمله حساب‌های کاربری، حذف می‌شوند و ورود ممکن نخواهد بود؛ خود محیط و حالت آن باقی می‌ماند و برای بازگشت باید از مسیر «شروع دوباره» استفاده کنید.",
+  },
+  "import-sample": {
+    title: "ورود دادهٔ نمونه",
+    warning: "دادهٔ نمونه از سازندهٔ seed جایگزین می‌شود. محیط مشتری یا اثبات‌نشده نوشته نمی‌شود.",
+  },
+  "reset-clean": {
+    title: "بازنشانی به محیط خالی",
+    warning: "فقط محیط نمونهٔ اثبات‌شده به محیط خالی تبدیل می‌شود. محیط مشتری، اثبات‌نشده، خالی یا مقداردهی‌نشده نوشته نمی‌شود.",
   },
   "import-seed": { title: "ورود دیتاست کانونیکال", warning: "دادهٔ فعلی دمو با دیتاست کانونیکال جایگزین می‌شود." },
   "restore-backup": {
@@ -152,9 +160,13 @@ export function useDemoData(manager: DemoDataManager = demoDataManager): DemoDat
             ? manager.resetToSeed(confirmed)
             : pending.action === "clear"
               ? manager.clear(confirmed)
-              : pending.action === "import-seed"
-                ? manager.importSeed(confirmed)
-                : manager.restoreBackup(pending.payload ?? "", confirmed);
+              : pending.action === "import-sample"
+                ? manager.importSample(confirmed)
+                : pending.action === "reset-clean"
+                  ? manager.resetToClean(confirmed)
+                  : pending.action === "import-seed"
+                    ? manager.importSeed(confirmed)
+                    : manager.restoreBackup(pending.payload ?? "", confirmed);
       }
       setLastResult(result);
       setStats(manager.stats());
