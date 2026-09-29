@@ -28,11 +28,16 @@ cleanup complete. Old SHAs in this file must not be deleted.
 
 ```text
 Current branch:     docs/demo-migration-plan
-Current HEAD:       the commit that introduces this 2026-09-30 live pointer
-                    parent MUST be 13599bbfc4fdce42de975ef28d104a8264bf88bf
-                    until an owner-authorized rewrite
-                    verify: git ls-remote origin refs/heads/docs/demo-migration-plan
-Remote HEAD:        same ref, same parent requirement; do not trust a local clone over ls-remote
+Handoff content:    ca8afba365e375a9c150fef5441f200f3e9f9dc4
+                    parent 13599bbfc4fdce42de975ef28d104a8264bf88bf
+                    tree  f5198ed4655af85b8ac4884bda4d491ef0c8743f
+                    subject: docs(engineering): record the pre-cleanup session recovery handoff
+Current HEAD:       child of ca8afba365e375a9c150fef5441f200f3e9f9dc4 that only records this SHA
+                    subject: docs(engineering): record the handoff commit SHA
+                    this file cannot contain that child SHA; verify with ls-remote
+Remote HEAD:        git ls-remote origin refs/heads/docs/demo-migration-plan
+                    must be that child, or ca8afba if the SHA-record commit was not pushed
+                    do not trust a local clone over ls-remote
 Main:               15775ea9486cb57fbfb8fefa3268658cbe7eb669
                     tree 6eb78338ec19880adf5f97735f61de32e11cbf20
 Backup:             backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
@@ -84,10 +89,15 @@ Next exact step:
   Do not rewrite, force-push, merge, or start backend before that choice.
 ```
 
-This file cannot contain its own commit SHA. After the push, the live migration tip is the child of
-`13599bbfc4fdce42de975ef28d104a8264bf88bf` whose subject is
-`docs(engineering): record the pre-cleanup session recovery handoff`.
-If that is not what `git ls-remote` shows, stop.
+Handoff content commit, already created and not yet the cleanup result:
+`ca8afba365e375a9c150fef5441f200f3e9f9dc4`.
+Parent: `13599bbfc4fdce42de975ef28d104a8264bf88bf`.
+Tree: `f5198ed4655af85b8ac4884bda4d491ef0c8743f`.
+
+The following commit only records that SHA in this recovery section. It is part of the handoff.
+A later cleanup may squash it into `ca8afba` and must not drop the text. It must not be treated as
+a post-cleanup HEAD. If `git ls-remote` does not show `ca8afba` or its SHA-record child as
+`docs/demo-migration-plan`, stop.
 
 ---
 
@@ -177,9 +187,9 @@ executed squash.
 | `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` | W9 evidence | keep | not created |
 | `13599bbfc4fdce42de975ef28d104a8264bf88bf` | W10 eradication audit | keep | not created |
 
-This handoff commit is not in that table. It is additional documentation on top of `13599bb`.
-A later cleanup must keep it, or squash it only into a documentation commit that still contains
-this text. It must not be dropped.
+`ca8afba365e375a9c150fef5441f200f3e9f9dc4` is not in that table. It is additional documentation on top of `13599bb`.
+The following SHA-record commit is the same handoff. A later cleanup must keep both, or squash
+them only into a documentation commit that still contains this text. Neither may be dropped.
 
 No implementation commit has been squashed. The three remote-verification commits are
 content-bearing documentation, not duplicates to delete. Squashing them is optional and only
@@ -364,7 +374,7 @@ Intended squash groups, none created:
 | Dead-end drop | `1eb6366`, `10c8154`, `22cbd26` | Omit from lineage. Do not omit their SHAs from this file. |
 | Optional doc squash | `bab9e460` into W1 handoff; `713d9b3` into W2 evidence; `6fed2a3` into W3 evidence | Text must survive. |
 | Not a squash | W7B's two implementation commits and two evidence commits | Separate authorized batches. Keep. |
-| This handoff | the commit that introduces this live pointer | Must remain in the cleaned history. |
+| This handoff | `ca8afba365e375a9c150fef5441f200f3e9f9dc4` plus the following SHA-record commit | Must remain in the cleaned history. Squash together is allowed. Dropping the text is not. |
 
 Merge strategy:
 
