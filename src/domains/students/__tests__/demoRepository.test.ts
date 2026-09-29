@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { students as seedStudents } from "@/domains/demo/academySeed";
 import { demoStore } from "@/services/demoStore";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import type { CreateStudentInput } from "@/domains/students/types";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
@@ -26,12 +26,12 @@ const draft: CreateStudentInput = {
   balance: 0,
 };
 
-describe("DemoStudentRepository", () => {
-  let repo: DemoStudentRepository;
+describe("LocalStudentRepository", () => {
+  let repo: LocalStudentRepository;
 
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoStudentRepository();
+    repo = new LocalStudentRepository();
   });
 
   it("lists seeded students with page meta", async () => {
@@ -80,7 +80,7 @@ describe("DemoStudentRepository", () => {
 
   it("persists across repository instances (localStorage-backed)", async () => {
     const created = await repo.create(draft);
-    const fresh = new DemoStudentRepository();
+    const fresh = new LocalStudentRepository();
     await expect(fresh.get(created.id)).resolves.toMatchObject({ id: created.id });
   });
 

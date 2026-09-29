@@ -18,7 +18,7 @@
 import type { Page } from "@/api/types";
 import { faNum } from "@/lib/format";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
@@ -29,11 +29,11 @@ import type { CreateLibraryItemInput, LibraryItem, LibraryListParams, UpdateLibr
 /** Size label for a row with no file: unknown, and said so. */
 const UNKNOWN_SIZE = "نامشخص";
 
-export class DemoLibraryRepository implements LibraryRepository {
+export class LocalLibraryRepository implements LibraryRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     /** Bytes and their metadata belong to the media domain, never to us. */
-    private readonly media: MediaRepository = new DemoMediaRepository(),
+    private readonly media: MediaRepository = new LocalMediaRepository(),
   ) {}
 
   async list(params: LibraryListParams = {}): Promise<Page<LibraryItem>> {

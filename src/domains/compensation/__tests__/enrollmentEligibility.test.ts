@@ -31,15 +31,15 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { permissionsForRole } from "@/domains/auth/permissions";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import { ATTENDANCE_ERRORS } from "@/domains/attendance/types";
-import { DemoEnrollmentRepository } from "@/domains/enrollments/demoRepository";
+import { LocalEnrollmentRepository } from "@/domains/enrollments/localRepository";
 import { jalaliToIso } from "@/domains/scheduling/dateBridge";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import type { RosterEntry } from "@/domains/scheduling/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 import {
   COMPENSATION_ERRORS,
   type CompensationActor,
@@ -75,19 +75,19 @@ const TEACHER: CompensationActor = {
   permissions: permissionsForRole("teacher"),
 };
 
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
-let attendance: DemoAttendanceRepository;
-let enrollments: DemoEnrollmentRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
+let attendance: LocalAttendanceRepository;
+let enrollments: LocalEnrollmentRepository;
 let store: DemoStore;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  attendance = new DemoAttendanceRepository(store);
-  scheduling = new DemoSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
-  enrollments = new DemoEnrollmentRepository(store);
-  repo = new DemoCompensationRepository(store, { scheduling, attendance });
+  attendance = new LocalAttendanceRepository(store);
+  scheduling = new LocalSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
+  enrollments = new LocalEnrollmentRepository(store);
+  repo = new LocalCompensationRepository(store, { scheduling, attendance });
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -380,7 +380,7 @@ describe("C-2 — the roster read cannot turn a reportable state into an error",
      * deleted session (`missing`, reported — never an error).
      */
     let deleted = false;
-    const racing = Object.create(scheduling) as DemoSchedulingRepository;
+    const racing = Object.create(scheduling) as LocalSchedulingRepository;
     racing.sessionRoster = async (sessionId: string): Promise<RosterEntry[]> => {
       if (!deleted && sessionId === makeUpSessionId) {
         deleted = true;
@@ -388,7 +388,7 @@ describe("C-2 — the roster read cannot turn a reportable state into an error",
       }
       return scheduling.sessionRoster(sessionId);
     };
-    const reading = new DemoCompensationRepository(store, { scheduling: racing, attendance });
+    const reading = new LocalCompensationRepository(store, { scheduling: racing, attendance });
 
     const reread = await reading.get(compensation.id);
     expect(deleted).toBe(true);

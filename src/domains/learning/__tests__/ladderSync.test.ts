@@ -16,20 +16,20 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoClassRepository } from "@/domains/classes/demoRepository";
+import { LocalClassRepository } from "@/domains/classes/localRepository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoLearningRepository } from "../demoRepository";
+import { LocalLearningRepository } from "../localRepository";
 
 let store: DemoStore;
-let learning: DemoLearningRepository;
-let classes: DemoClassRepository;
+let learning: LocalLearningRepository;
+let classes: LocalClassRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  learning = new DemoLearningRepository(store);
-  classes = new DemoClassRepository(store);
+  learning = new LocalLearningRepository(store);
+  classes = new LocalClassRepository(store);
 });
 
 describe("a level keeps what the academy writes about it", () => {

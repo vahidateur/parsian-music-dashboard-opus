@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { loadDatasetArtifact } from "@/dataset/load";
 import { canonicalDatasetJson, DEMO_COLLECTIONS } from "@/dataset/schema";
 import { createSeedDataset } from "@/domains/demo/seed";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import { seedDatasetSource, type CanonicalDatasetSource } from "@/services/canonicalDatasetSource";
 import {
   DEMO_STORAGE_KEY as SHIM_KEY,
@@ -79,7 +79,7 @@ describe("W3 store plumbing — the artifact feeds the store", () => {
     expect(snap.organization).toEqual(loaded.dataset.organization);
     expect(snap.branding).toEqual(loaded.dataset.branding);
 
-    const page = await new DemoStudentRepository(store).list({ per_page: 500 });
+    const page = await new LocalStudentRepository(store).list({ per_page: 500 });
     expect(page.meta.total).toBe(loaded.dataset.students.length);
     expect(page.data.map((row) => row.id)).toEqual(loaded.dataset.students.map((row) => row.id));
   });

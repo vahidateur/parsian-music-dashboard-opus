@@ -56,7 +56,7 @@ export function sanitizeFilename(raw: string): string {
   return cleaned.slice(0, 120);
 }
 
-export class DemoMediaRepository implements MediaRepository {
+export class LocalMediaRepository implements MediaRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     private readonly blobs: BlobStore = getBlobStore(),

@@ -44,14 +44,14 @@ function renderSettings() {
 }
 
 async function renderSettingsWithAuth() {
-  const { DEMO_PASSPHRASE, DemoAuthRepository } = await import("@/domains/auth/demoAuthRepository");
-  const { DemoUserRepository } = await import("@/domains/auth/demoUserRepository");
+  const { DEMO_PASSPHRASE, LocalAuthRepository } = await import("@/domains/auth/localAuthRepository");
+  const { LocalUserRepository } = await import("@/domains/auth/localUserRepository");
   const { setAuthRepository, setUserRepository } = await import("@/domains/registry");
   const { AuthProvider } = await import("@/domains/auth/AuthContext");
   const { demoStore, memoryStorage } = await import("@/services/demoStore");
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
   return render(
     <AuthProvider>

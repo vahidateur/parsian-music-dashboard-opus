@@ -26,7 +26,7 @@ import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryCo
 import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
 import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
 import { ProductionDeliveryGate } from "@/components/settings/ProductionDeliveryGate";
-import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/localAuthRepository";
 import { roleLabel } from "@/domains/auth/permissions";
 import { useIsDemoEnvironment } from "@/targets/environment";
 import { useDemoLibraryFile } from "@/targets/libraryProvisioning";

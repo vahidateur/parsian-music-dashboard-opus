@@ -11,7 +11,7 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoOrganizationRepository } from "@/domains/organization/demoRepository";
+import { LocalOrganizationRepository } from "@/domains/organization/localRepository";
 import { ApiOrganizationRepository } from "@/domains/organization/apiRepository";
 import { cancellationWindow, isClosedWeekday, isInsideWorkingHours, schedulingRules, workingWindow } from "@/domains/organization/rules";
 import {
@@ -27,12 +27,12 @@ import { ApiClient } from "@/api/client";
 import { asFetch, createFetchMock, jsonResponse, requestOf } from "@/test/fetchMock";
 
 let store: DemoStore;
-let repo: DemoOrganizationRepository;
+let repo: LocalOrganizationRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  repo = new DemoOrganizationRepository(store);
+  repo = new LocalOrganizationRepository(store);
 });
 
 describe("the record", () => {

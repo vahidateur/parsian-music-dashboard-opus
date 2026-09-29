@@ -6,16 +6,16 @@
  * through the real store, and assert that unavailable transports say so.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoChatRepository } from "../demoRepository";
+import { LocalChatRepository } from "../localRepository";
 import { MAX_MESSAGE_LENGTH } from "../types";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoChatRepository;
+let repo: LocalChatRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoChatRepository();
+  repo = new LocalChatRepository();
 });
 
 /** Resolves the error code of a rejected promise. */
@@ -100,7 +100,7 @@ describe("sending messages", () => {
     await repo.sendMessage({ conversationId: id, body: "پیام ماندگار" });
 
     // A brand-new repository instance reads the same persisted dataset.
-    const fresh = new DemoChatRepository();
+    const fresh = new LocalChatRepository();
     const messages = await fresh.listMessages({ conversationId: id, per_page: 200 });
     expect(messages.data.some((m) => m.body === "پیام ماندگار")).toBe(true);
   });

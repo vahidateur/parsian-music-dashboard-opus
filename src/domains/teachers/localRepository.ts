@@ -1,6 +1,6 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
@@ -17,10 +17,10 @@ import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput
  * the photo is part of the record this repository writes, and the shared-photo
  * check needs the dataset (`media/demoReferences.ts`).
  */
-export class DemoTeacherRepository implements TeacherRepository {
+export class LocalTeacherRepository implements TeacherRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
-    private readonly media: MediaRepository = new DemoMediaRepository(),
+    private readonly media: MediaRepository = new LocalMediaRepository(),
   ) {}
 
   async list(params: TeacherListParams = {}): Promise<Page<Teacher>> {

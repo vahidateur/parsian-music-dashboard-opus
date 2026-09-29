@@ -14,14 +14,14 @@
  *      media collection itself — the gallery no longer has a private definition
  *      of what deleting an asset means.
  *
- * The removal is observed through a real `DemoMediaRepository` behind a probe,
+ * The removal is observed through a real `LocalMediaRepository` behind a probe,
  * so "freed" still means the metadata row and the bytes are both gone.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import type { MediaAsset } from "@/domains/media/types";
-import { DemoGalleryRepository } from "../demoRepository";
+import { LocalGalleryRepository } from "../localRepository";
 import { getMediaRepository, resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 
 async function storePhoto(filename: string): Promise<MediaAsset> {
-  return new DemoMediaRepository().create({
+  return new LocalMediaRepository().create({
     kind: "image",
     filename,
     mimeType: "image/png",
@@ -44,7 +44,7 @@ async function storePhoto(filename: string): Promise<MediaAsset> {
 
 /** Real media work, with deletions recorded and probed as they happen. */
 function spyingMedia(onDelete?: (mediaId: string) => void) {
-  const inner = new DemoMediaRepository();
+  const inner = new LocalMediaRepository();
   const deleted: string[] = [];
   const repo = withStubs(inner, {
     delete: async (id: string) => {
@@ -57,7 +57,7 @@ function spyingMedia(onDelete?: (mediaId: string) => void) {
 }
 
 async function albumWithImage(mediaId: string, caption = "تصویر آزمایشی") {
-  const gallery = new DemoGalleryRepository(demoStore, new DemoMediaRepository());
+  const gallery = new LocalGalleryRepository(demoStore, new LocalMediaRepository());
   const album = await gallery.createAlbum({ title: "آلبوم آزمایشی", description: "" });
   const image = await gallery.addImage({ albumId: album.id, mediaId, caption, alt: caption });
   return { album, image };
@@ -72,7 +72,7 @@ describe("removing a gallery image", () => {
     const { repo, deleted } = spyingMedia((mediaId) => {
       probe.push({ mediaId, rowAlreadyGone: demoStore.galleryImages.find(image.id) === undefined });
     });
-    const gallery = new DemoGalleryRepository(demoStore, repo);
+    const gallery = new LocalGalleryRepository(demoStore, repo);
 
     await gallery.removeImage(image.id);
 
@@ -87,11 +87,11 @@ describe("removing a gallery image", () => {
   it("keeps the media while another image still references it", async () => {
     const photo = await storePhoto("shared.png");
     const { album, image } = await albumWithImage(photo.id);
-    const galleryForSetup = new DemoGalleryRepository(demoStore, new DemoMediaRepository());
+    const galleryForSetup = new LocalGalleryRepository(demoStore, new LocalMediaRepository());
     await galleryForSetup.addImage({ albumId: album.id, mediaId: photo.id, caption: "نسخهٔ دوم", alt: "نسخهٔ دوم" });
 
     const { repo, deleted } = spyingMedia();
-    const gallery = new DemoGalleryRepository(demoStore, repo);
+    const gallery = new LocalGalleryRepository(demoStore, repo);
 
     await gallery.removeImage(image.id);
 
@@ -104,7 +104,7 @@ describe("removing a gallery image", () => {
     const first = await storePhoto("one.png");
     const second = await storePhoto("two.png");
     const { album, image } = await albumWithImage(first.id);
-    const galleryForSetup = new DemoGalleryRepository(demoStore, new DemoMediaRepository());
+    const galleryForSetup = new LocalGalleryRepository(demoStore, new LocalMediaRepository());
     const other = await galleryForSetup.addImage({ albumId: album.id, mediaId: second.id, caption: "دومی", alt: "دومی" });
 
     const probe: { mediaId: string; itsRowAlreadyGone: boolean }[] = [];
@@ -112,7 +112,7 @@ describe("removing a gallery image", () => {
       const row = mediaId === first.id ? image.id : other.id;
       probe.push({ mediaId, itsRowAlreadyGone: demoStore.galleryImages.find(row) === undefined });
     });
-    const gallery = new DemoGalleryRepository(demoStore, repo);
+    const gallery = new LocalGalleryRepository(demoStore, repo);
 
     await gallery.deleteAlbum(album.id);
 

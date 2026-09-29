@@ -42,8 +42,8 @@ import { quickActions } from "@/components/overlays/ActionSheet";
 import { navGroups } from "@/lib/navigation";
 import type { QuickActionDef } from "@/lib/viewContracts";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { getChatRepository, resetRegistry, setAuthRepository, setChatRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -75,9 +75,9 @@ const compactItem = (label: string) => screen.getByTitle(label);
 
 async function renderNav() {
   freshUrl();
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
   render(
     <AuthProvider repository={auth}>

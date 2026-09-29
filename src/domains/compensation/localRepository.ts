@@ -172,7 +172,7 @@ function bookingSectionFor(store: DemoStore): Map<string, Promise<void>> {
   return created;
 }
 
-export class DemoCompensationRepository implements CompensationRepository {
+export class LocalCompensationRepository implements CompensationRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     private readonly deps: CompensationDeps,

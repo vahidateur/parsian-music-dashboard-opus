@@ -33,7 +33,7 @@ import { getLearningRepository, resetRegistry, setLearningRepository } from "@/d
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
 import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { faNum } from "@/lib/format";
-import { DemoLearningRepository } from "../demoRepository";
+import { LocalLearningRepository } from "../localRepository";
 import { LearningPanel } from "../LearningPanel";
 import type { LearningRepository } from "../repository";
 import type { LearningContent, LearningLevel, LearningProgram } from "../types";
@@ -63,7 +63,7 @@ function renderPanel() {
  * the expectation comes from somewhere other than the thing being stubbed.
  */
 function truth(): LearningRepository {
-  return new DemoLearningRepository();
+  return new LocalLearningRepository();
 }
 
 async function programsOf(): Promise<LearningProgram[]> {

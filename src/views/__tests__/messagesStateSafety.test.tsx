@@ -27,7 +27,7 @@ import { AppProvider } from "@/context/AppContext";
 import { MessagesView } from "@/views/Messages";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { useComposer } from "@/views/messages/useComposer";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
 import type { ChatMessage } from "@/domains/chat/types";
 import { getChatRepository, resetRegistry, setChatRepository } from "@/domains/registry";
 import { withStubs } from "@/test/repositoryStubs";
@@ -83,7 +83,7 @@ function deferred<T>() {
 }
 
 async function messagesOf(conversationId: string) {
-  return (await new DemoChatRepository().listMessages({ conversationId, per_page: 200 })).data;
+  return (await new LocalChatRepository().listMessages({ conversationId, per_page: 200 })).data;
 }
 
 describe("draft isolation across a conversation switch", () => {
@@ -139,7 +139,7 @@ describe("draft isolation across a conversation switch", () => {
     const held = deferred<ChatMessage>();
     let sentTo: string | null = null;
     setChatRepository(
-      withStubs(new DemoChatRepository(), {
+      withStubs(new LocalChatRepository(), {
         sendMessage: (input) => {
           sentTo = input.conversationId;
           return held.promise;
@@ -227,7 +227,7 @@ describe("pending attachment belongs to one conversation", () => {
 
 describe("a failed message read is never an empty conversation", () => {
   it("renders a failure with the reason, and no empty-thread claim", async () => {
-    const real = new DemoChatRepository();
+    const real = new LocalChatRepository();
     setChatRepository(
       withStubs(real, {
         // Every read fails, so the failure state cannot be cleared by the
@@ -253,7 +253,7 @@ describe("a failed message read is never an empty conversation", () => {
   });
 
   it("retries the read and then shows what the repository returns", async () => {
-    const real = new DemoChatRepository();
+    const real = new LocalChatRepository();
     let failing = true;
     let calls = 0;
     setChatRepository(

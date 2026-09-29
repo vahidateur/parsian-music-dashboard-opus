@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { students as seedStudents } from "@/domains/demo/academySeed";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import type { CreateStudentInput } from "@/domains/students/types";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
@@ -43,11 +43,11 @@ async function expectApiError(promise: Promise<unknown>, code: string) {
 }
 
 describe("student national_id invariant", () => {
-  let repo: DemoStudentRepository;
+  let repo: LocalStudentRepository;
 
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoStudentRepository();
+    repo = new LocalStudentRepository();
   });
 
   it("rejects a missing national id", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { ROLES } from "@/domains/auth/permissions";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { createBackup } from "@/domains/demo/backup";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { createSeedDataset } from "@/domains/demo/seed";
@@ -16,8 +16,8 @@ function ctx() {
     store,
     sessionStore,
     manager: new DemoDataManager(store),
-    auth: new DemoAuthRepository(store, sessionStore),
-    users: new DemoUserRepository(store),
+    auth: new LocalAuthRepository(store, sessionStore),
+    users: new LocalUserRepository(store),
   };
 }
 

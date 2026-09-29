@@ -1,6 +1,6 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
-import { isClassActive } from "@/domains/classes/demoRepository";
+import { isClassActive } from "@/domains/classes/localRepository";
 import type { Page } from "@/api/types";
 import type { EnrollmentRepository } from "./repository";
 import type { CreateEnrollmentInput, Enrollment, EnrollmentListParams, UpdateEnrollmentInput } from "./types";
@@ -24,7 +24,7 @@ export const occupiesSeat = (e: Enrollment): boolean => SEAT_STATUSES.has(e.stat
  * capacity check inside a transaction. Client-side checks race under
  * concurrency and must never be the only enforcement.
  */
-export class DemoEnrollmentRepository implements EnrollmentRepository {
+export class LocalEnrollmentRepository implements EnrollmentRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async list(params: EnrollmentListParams = {}): Promise<Page<Enrollment>> {

@@ -54,10 +54,10 @@ import {
   setUserRepository,
 } from "@/domains/registry";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { demoDataManager } from "@/domains/demo";
 
 /** The confirmation for a saved record, per environment. */
@@ -84,9 +84,9 @@ beforeEach(async () => {
   resetToDemoEnvironment();
   demoDataManager.initialize();
   const sessionStore = memoryStorage();
-  const authRepo = new DemoAuthRepository(demoStore, sessionStore);
+  const authRepo = new LocalAuthRepository(demoStore, sessionStore);
   setAuthRepository(authRepo);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await authRepo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
 });
 

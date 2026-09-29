@@ -1,50 +1,50 @@
 import { ApiAuthRepository } from "./auth/apiAuthRepository";
-import { DemoAuthRepository } from "./auth/demoAuthRepository";
+import { LocalAuthRepository } from "./auth/localAuthRepository";
 import { ApiUserRepository } from "./auth/userRepository";
-import { DemoUserRepository } from "./auth/demoUserRepository";
+import { LocalUserRepository } from "./auth/localUserRepository";
 import { ApiRoleRepository } from "./auth/roleRepository";
-import { DemoRoleRepository } from "./auth/demoRoleRepository";
+import { LocalRoleRepository } from "./auth/localRoleRepository";
 import type { RoleRepository } from "./auth/roleRepository";
 import type { AuthRepository, UserRepository } from "./auth/repository";
 import { ApiStudentRepository } from "./students/apiRepository";
-import { DemoStudentRepository } from "./students/demoRepository";
+import { LocalStudentRepository } from "./students/localRepository";
 import type { StudentRepository } from "./students/repository";
 import { ApiTeacherRepository } from "./teachers/apiRepository";
-import { DemoTeacherRepository } from "./teachers/demoRepository";
+import { LocalTeacherRepository } from "./teachers/localRepository";
 import type { TeacherRepository } from "./teachers/repository";
 import { ApiRoomRepository } from "./rooms/apiRepository";
-import { DemoRoomRepository } from "./rooms/demoRepository";
+import { LocalRoomRepository } from "./rooms/localRepository";
 import type { RoomRepository } from "./rooms/repository";
 import { ApiClassRepository } from "./classes/apiRepository";
-import { DemoClassRepository } from "./classes/demoRepository";
+import { LocalClassRepository } from "./classes/localRepository";
 import type { ClassRepository } from "./classes/repository";
 import { ApiEnrollmentRepository } from "./enrollments/apiRepository";
-import { DemoEnrollmentRepository } from "./enrollments/demoRepository";
+import { LocalEnrollmentRepository } from "./enrollments/localRepository";
 import type { EnrollmentRepository } from "./enrollments/repository";
-import { DemoInstrumentRepository } from "./instruments/demoRepository";
+import { LocalInstrumentRepository } from "./instruments/localRepository";
 import type { InstrumentRepository } from "./instruments/repository";
-import { DemoLearningRepository } from "./learning/demoRepository";
+import { LocalLearningRepository } from "./learning/localRepository";
 import type { LearningRepository } from "./learning/repository";
-import { DemoChatRepository } from "./chat/demoRepository";
+import { LocalChatRepository } from "./chat/localRepository";
 import type { ChatRepository } from "./chat/repository";
-import { DemoMediaRepository } from "./media/demoRepository";
+import { LocalMediaRepository } from "./media/localRepository";
 import type { MediaRepository } from "./media/repository";
-import { DemoLibraryRepository } from "./library/demoRepository";
+import { LocalLibraryRepository } from "./library/localRepository";
 import type { LibraryRepository } from "./library/repository";
-import { DemoBrandingRepository } from "./branding/demoRepository";
+import { LocalBrandingRepository } from "./branding/localRepository";
 import type { BrandingRepository } from "./branding/repository";
-import { DemoOrganizationRepository } from "./organization/demoRepository";
+import { LocalOrganizationRepository } from "./organization/localRepository";
 import type { OrganizationRepository } from "./organization/repository";
-import { DemoGalleryRepository } from "./gallery/demoRepository";
+import { LocalGalleryRepository } from "./gallery/localRepository";
 import type { GalleryRepository } from "./gallery/repository";
 import type { ProgressRepository } from "@/domains/progress/repository";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
-import { DemoProgressRepository } from "@/domains/progress/demoRepository";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalProgressRepository } from "@/domains/progress/localRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import type { CompensationRepository } from "@/domains/compensation/repository";
-import { DemoCompensationRepository } from "@/domains/compensation/demoRepository";
+import { LocalCompensationRepository } from "@/domains/compensation/localRepository";
 
 /**
  * Composition root. The only place that decides whether a domain is served by
@@ -91,39 +91,39 @@ export {
 
 export function getStudentRepository(): StudentRepository {
   if (overrides.students) return overrides.students;
-  return isApiMode() ? new ApiStudentRepository(getApiClient()) : new DemoStudentRepository();
+  return isApiMode() ? new ApiStudentRepository(getApiClient()) : new LocalStudentRepository();
 }
 
 export function getTeacherRepository(): TeacherRepository {
   if (overrides.teachers) return overrides.teachers;
-  return isApiMode() ? new ApiTeacherRepository(getApiClient()) : new DemoTeacherRepository();
+  return isApiMode() ? new ApiTeacherRepository(getApiClient()) : new LocalTeacherRepository();
 }
 
 export function getRoomRepository(): RoomRepository {
   if (overrides.rooms) return overrides.rooms;
-  return isApiMode() ? new ApiRoomRepository(getApiClient()) : new DemoRoomRepository();
+  return isApiMode() ? new ApiRoomRepository(getApiClient()) : new LocalRoomRepository();
 }
 
 export function getClassRepository(): ClassRepository {
   if (overrides.classes) return overrides.classes;
-  return isApiMode() ? new ApiClassRepository(getApiClient()) : new DemoClassRepository();
+  return isApiMode() ? new ApiClassRepository(getApiClient()) : new LocalClassRepository();
 }
 
 export function getEnrollmentRepository(): EnrollmentRepository {
   if (overrides.enrollments) return overrides.enrollments;
-  return isApiMode() ? new ApiEnrollmentRepository(getApiClient()) : new DemoEnrollmentRepository();
+  return isApiMode() ? new ApiEnrollmentRepository(getApiClient()) : new LocalEnrollmentRepository();
 }
 
 export function getAuthRepository(): AuthRepository {
   if (overrides.auth) return overrides.auth;
   return isApiMode()
     ? new ApiAuthRepository(getApiClient(), (session) => setAuthToken(session?.token ?? null))
-    : new DemoAuthRepository();
+    : new LocalAuthRepository();
 }
 
 export function getUserRepository(): UserRepository {
   if (overrides.users) return overrides.users;
-  return isApiMode() ? new ApiUserRepository(getApiClient()) : new DemoUserRepository();
+  return isApiMode() ? new ApiUserRepository(getApiClient()) : new LocalUserRepository();
 }
 
 /**
@@ -138,7 +138,7 @@ export function getUserRepository(): UserRepository {
  */
 export function getRoleRepository(): RoleRepository {
   if (overrides.roles) return overrides.roles;
-  return isApiMode() ? new ApiRoleRepository(getApiClient()) : new DemoRoleRepository();
+  return isApiMode() ? new ApiRoleRepository(getApiClient()) : new LocalRoleRepository();
 }
 
 /**
@@ -152,16 +152,16 @@ export function getRoleRepository(): RoleRepository {
  * above these getters changes when it lands.
  */
 export function getInstrumentRepository(): InstrumentRepository {
-  return overrides.instruments ?? new DemoInstrumentRepository();
+  return overrides.instruments ?? new LocalInstrumentRepository();
 }
 export function getLearningRepository(): LearningRepository {
-  return overrides.learning ?? new DemoLearningRepository();
+  return overrides.learning ?? new LocalLearningRepository();
 }
 export function getChatRepository(): ChatRepository {
-  return overrides.chat ?? new DemoChatRepository();
+  return overrides.chat ?? new LocalChatRepository();
 }
 export function getMediaRepository(): MediaRepository {
-  return overrides.media ?? new DemoMediaRepository();
+  return overrides.media ?? new LocalMediaRepository();
 }
 
 /**
@@ -174,10 +174,10 @@ export function getMediaRepository(): MediaRepository {
  * would advertise a download path that cannot work (§37).
  */
 export function getLibraryRepository(): LibraryRepository {
-  return overrides.library ?? new DemoLibraryRepository();
+  return overrides.library ?? new LocalLibraryRepository();
 }
 export function getBrandingRepository(): BrandingRepository {
-  return overrides.branding ?? new DemoBrandingRepository();
+  return overrides.branding ?? new LocalBrandingRepository();
 }
 
 /**
@@ -192,13 +192,13 @@ export function getBrandingRepository(): BrandingRepository {
  * the source later changes this line and nothing else.
  */
 export function getOrganizationRepository(): OrganizationRepository {
-  return overrides.organization ?? new DemoOrganizationRepository();
+  return overrides.organization ?? new LocalOrganizationRepository();
 }
 export function getGalleryRepository(): GalleryRepository {
-  return overrides.gallery ?? new DemoGalleryRepository();
+  return overrides.gallery ?? new LocalGalleryRepository();
 }
 export function getProgressRepository(): ProgressRepository {
-  return overrides.progress ?? new DemoProgressRepository();
+  return overrides.progress ?? new LocalProgressRepository();
 }
 
 /**
@@ -224,7 +224,7 @@ export function getProgressRepository(): ProgressRepository {
  * repository treats as "attendance may exist" and refuses the operation.
  */
 export function getSchedulingRepository(): SchedulingRepository {
-  return overrides.scheduling ?? new DemoSchedulingRepository(undefined, attendancePresence);
+  return overrides.scheduling ?? new LocalSchedulingRepository(undefined, attendancePresence);
 }
 
 /**
@@ -235,7 +235,7 @@ export function getSchedulingRepository(): SchedulingRepository {
  * serves it.
  */
 export function getAttendanceRepository(): AttendanceRepository {
-  return overrides.attendance ?? new DemoAttendanceRepository();
+  return overrides.attendance ?? new LocalAttendanceRepository();
 }
 
 /**
@@ -257,7 +257,7 @@ export function getAttendanceRepository(): AttendanceRepository {
 export function getCompensationRepository(): CompensationRepository {
   return (
     overrides.compensation ??
-    new DemoCompensationRepository(undefined, {
+    new LocalCompensationRepository(undefined, {
       scheduling: getSchedulingRepository(),
       attendance: getAttendanceRepository(),
     })
@@ -307,8 +307,8 @@ export const DEMO_SERVED_DOMAINS: readonly DemoServedDomain[] = [
  */
 function attendancePresence(): ReadonlySet<string> | undefined {
   try {
-    const repository = overrides.attendance ?? new DemoAttendanceRepository();
-    if (repository instanceof DemoAttendanceRepository) {
+    const repository = overrides.attendance ?? new LocalAttendanceRepository();
+    if (repository instanceof LocalAttendanceRepository) {
       return repository.sessionIdsWithAttendanceSync();
     }
     // A non-demo adapter cannot answer synchronously. Fail safe rather than

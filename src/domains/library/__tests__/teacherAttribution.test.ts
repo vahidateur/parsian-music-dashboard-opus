@@ -25,16 +25,16 @@ import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoLibraryRepository } from "../demoRepository";
+import { LocalLibraryRepository } from "../localRepository";
 import type { LibraryItem } from "../types";
 
-let repo: DemoLibraryRepository;
+let repo: LocalLibraryRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
-  repo = new DemoLibraryRepository();
+  repo = new LocalLibraryRepository();
 });
 
 const ids = (rows: LibraryItem[]) => rows.map((r) => r.id);

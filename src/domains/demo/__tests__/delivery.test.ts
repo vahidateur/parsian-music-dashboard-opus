@@ -37,7 +37,7 @@ import {
   writeDeliveryPending,
   writeDeliveryState,
 } from "@/api/deploymentLock";
-import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY } from "@/domains/auth/localAuthRepository";
 import { DEMO_CREDENTIALS_KEY } from "@/domains/auth/demoCredentials";
 import { createSeedDataset } from "../seed";
 import type { ConfirmedRequest } from "../lifecycle";

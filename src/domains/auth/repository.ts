@@ -2,7 +2,7 @@ import type { Page } from "@/api/types";
 import type { AuthUser, CreateUserInput, LoginInput, Session, UpdateUserInput } from "./types";
 
 /**
- * Authentication contract. Implementations: DemoAuthRepository (#1) and
+ * Authentication contract. Implementations: LocalAuthRepository (#1) and
  * ApiAuthRepository (#2). Failures are always `ApiError`s.
  */
 export interface AuthRepository {

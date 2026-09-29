@@ -43,13 +43,13 @@ import App from "@/App";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
 import { LoginView } from "@/views/Login";
-import { DemoBrandingRepository } from "../demoRepository";
+import { LocalBrandingRepository } from "../localRepository";
 import { DEFAULT_BRANDING } from "../types";
 import { applyBranding } from "../useBranding";
 
@@ -61,7 +61,7 @@ const FIXTURE_NAME = "آکادمی موسیقی آوا";
 
 const onRoot = (property: string) => document.documentElement.style.getPropertyValue(property).toLowerCase();
 
-const brandingRepo = () => new DemoBrandingRepository();
+const brandingRepo = () => new LocalBrandingRepository();
 
 beforeEach(() => {
   /* Order matters: `clear()` wipes everything, so it runs before the dataset is
@@ -215,9 +215,9 @@ describe("the design-system tokens consume the brand properties", () => {
 /** Signs in as the demo administrator, then renders the real sidebar. */
 async function renderSidebar() {
   window.history.replaceState(null, "", "#/");
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
   render(
     <AuthProvider repository={auth}>

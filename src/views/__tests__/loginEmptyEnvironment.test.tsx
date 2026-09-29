@@ -26,7 +26,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
-import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
 import { resetRegistry } from "@/domains/registry";

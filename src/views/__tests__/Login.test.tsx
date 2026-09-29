@@ -18,7 +18,7 @@ vi.mock("@/api/config", async (importOriginal) => ({
 
 import { LoginView } from "../Login";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/localAuthRepository";
 import { resetRegistry } from "@/domains/registry";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 

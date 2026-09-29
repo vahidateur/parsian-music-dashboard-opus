@@ -12,15 +12,15 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import { jalaliToIso } from "@/domains/scheduling/dateBridge";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { permissionsForRole } from "@/domains/auth/permissions";
 import type { CompensationActor } from "../types";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 
 const PRIVATE_CLASS = "cl2";
 const PRIVATE_STUDENT = "st7";
@@ -39,14 +39,14 @@ const ISO_MAKEUP = "2027-04-04";
 /** The original's own date (cl2 meets on day index 3). */
 const ORIGINAL_DATE = "2027-05-11";
 
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  const attendance = new DemoAttendanceRepository(demoStore);
-  scheduling = new DemoSchedulingRepository(demoStore, () => attendance.sessionIdsWithAttendanceSync());
-  repo = new DemoCompensationRepository(demoStore, { scheduling, attendance });
+  const attendance = new LocalAttendanceRepository(demoStore);
+  scheduling = new LocalSchedulingRepository(demoStore, () => attendance.sessionIdsWithAttendanceSync());
+  repo = new LocalCompensationRepository(demoStore, { scheduling, attendance });
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {

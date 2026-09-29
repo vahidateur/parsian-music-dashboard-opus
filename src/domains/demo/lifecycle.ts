@@ -73,7 +73,7 @@ export interface ConfirmedRequest {
  * `users`, so zero users means nobody can ever get in to create the first
  * student. It is an `administrator` so the customer can rename it, add staff and
  * delete it from Settings → Users; it carries no credential material (demo auth
- * has none — see `auth/demoAuthRepository.ts`).
+ * has none — see `auth/localAuthRepository.ts`).
  */
 const ENVIRONMENT_EPOCH = "2026-09-01T00:00:00.000Z";
 

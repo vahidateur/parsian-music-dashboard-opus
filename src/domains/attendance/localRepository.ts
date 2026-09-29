@@ -37,7 +37,7 @@ import {
  * any permission decision here, and the server must not trust it either: a
  * client can send any id. Authorization is a backend concern (§31).
  */
-export class DemoAttendanceRepository implements AttendanceRepository {
+export class LocalAttendanceRepository implements AttendanceRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   /* ---------------- records ---------------- */

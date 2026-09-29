@@ -7,10 +7,10 @@ import type { UserRepository } from "./repository";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
 
 /*
-  The DEMO implementation of this interface lives in `./demoUserRepository` —
+  The local implementation of this interface lives in `./localUserRepository` —
   deliberately NOT co-located: it imports the demo store and the credential
   store, and those imports in this shared file leak the demo persistence graph
-  into the client bundle (see demoUserRepository.ts). */
+  into the client bundle (see localUserRepository.ts). */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** Persian and Latin digits, spaces, `+`, `-` — a contact number, loosely. */

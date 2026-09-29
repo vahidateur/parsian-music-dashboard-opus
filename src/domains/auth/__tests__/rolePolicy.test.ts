@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { ApiClient } from "@/api/client";
 import { ApiRoleRepository, defaultRoleRecord } from "@/domains/auth/roleRepository";
-import { DemoRoleRepository } from "@/domains/auth/demoRoleRepository";
+import { LocalRoleRepository } from "@/domains/auth/localRoleRepository";
 import {
   PERMISSIONS,
   ROLES,
@@ -38,11 +38,11 @@ function ctx() {
   const store = new DemoStoreImpl(memoryStorage());
   const manager = new DemoDataManager(store);
   manager.initialize();
-  return { store, manager, repo: new DemoRoleRepository(store) };
+  return { store, manager, repo: new LocalRoleRepository(store) };
 }
 
 /** Loads a repository's answer into the projection the gates read. */
-async function project(repo: DemoRoleRepository) {
+async function project(repo: LocalRoleRepository) {
   const page = await repo.list();
   setRolePolicies(page.data);
   return page.data;
@@ -137,7 +137,7 @@ describe("an administrator's edit", () => {
 
   it("persists across a fresh repository reading the same dataset", async () => {
     await c.repo.update("accountant", { label: "امور مالی آموزشگاه", scope: "فقط فاکتورها" });
-    const reopened = new DemoRoleRepository(c.store);
+    const reopened = new LocalRoleRepository(c.store);
     const record = await reopened.get("accountant");
     expect(record.label).toBe("امور مالی آموزشگاه");
     expect(record.scope).toBe("فقط فاکتورها");

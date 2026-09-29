@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { ApiClient } from "@/api/client";
 import { ApiUserRepository, validateUserInput } from "@/domains/auth/userRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
 import { asFetch, createFetchMock, jsonResponse, requestOf } from "@/test/fetchMock";
@@ -11,7 +11,7 @@ function ctx() {
   const store = new DemoStoreImpl(memoryStorage());
   const manager = new DemoDataManager(store);
   manager.initialize();
-  return { store, manager, repo: new DemoUserRepository(store) };
+  return { store, manager, repo: new LocalUserRepository(store) };
 }
 
 describe("user validation", () => {
@@ -31,7 +31,7 @@ describe("user validation", () => {
   });
 });
 
-describe("DemoUserRepository", () => {
+describe("LocalUserRepository", () => {
   let c: ReturnType<typeof ctx>;
   beforeEach(() => {
     c = ctx();

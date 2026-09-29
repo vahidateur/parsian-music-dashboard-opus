@@ -30,7 +30,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { MessagesView } from "@/views/Messages";
 import { Toasts } from "@/components/overlays/ActionSheet";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
 import type { ChatConversation } from "@/domains/chat/types";
 import { getChatRepository, resetRegistry, setChatRepository } from "@/domains/registry";
 import { withStubs } from "@/test/repositoryStubs";
@@ -121,7 +121,7 @@ describe("rename and topic", () => {
     await waitFor(() => expect(within(threadList()).getAllByText("ارکستر زهی").length).toBeGreaterThan(0));
 
     // Persisted: a brand-new repository instance reads the same dataset.
-    const persisted = await new DemoChatRepository().getConversation(target.id);
+    const persisted = await new LocalChatRepository().getConversation(target.id);
     expect(persisted.name).toBe("ارکستر زهی");
   });
 
@@ -136,7 +136,7 @@ describe("rename and topic", () => {
     await save();
 
     await waitFor(async () => {
-      expect((await new DemoChatRepository().getConversation(target.id)).topic).toBe("تمرین شنبه‌ها");
+      expect((await new LocalChatRepository().getConversation(target.id)).topic).toBe("تمرین شنبه‌ها");
     });
   });
 
@@ -151,7 +151,7 @@ describe("rename and topic", () => {
     await save();
 
     await screen.findByText(/۲ نویسه باشد\./);
-    expect((await new DemoChatRepository().getConversation(target.id)).name).toBe(target.name);
+    expect((await new LocalChatRepository().getConversation(target.id)).name).toBe(target.name);
     expect(successRings()).toBe(0);
   });
 
@@ -161,7 +161,7 @@ describe("rename and topic", () => {
     const target = (await listed())[0];
     await selectThread(target.name);
 
-    const real = new DemoChatRepository();
+    const real = new LocalChatRepository();
     setChatRepository(
       withStubs(real, {
         updateConversation: () => Promise.reject(new Error("سرور گفتگوها پاسخ نداد.")),
@@ -191,7 +191,7 @@ describe("pin and unpin", () => {
     await save();
 
     await waitFor(async () => {
-      expect((await new DemoChatRepository().getConversation(target!.id)).pinned).toBe(true);
+      expect((await new LocalChatRepository().getConversation(target!.id)).pinned).toBe(true);
     });
     // A pinned thread sorts to the top of the list.
     await waitFor(() => expect((within(threadList()).getAllByText(target!.name)[0])).toBeTruthy());
@@ -210,7 +210,7 @@ describe("pin and unpin", () => {
     await save();
 
     await waitFor(async () => {
-      expect((await new DemoChatRepository().getConversation(target!.id)).pinned).toBe(false);
+      expect((await new LocalChatRepository().getConversation(target!.id)).pinned).toBe(false);
     });
   });
 });
@@ -230,7 +230,7 @@ describe("archive, discovery and restore", () => {
     await screen.findByText("این گفتگو در فهرست فعلی نمایش داده نمی‌شود");
     expect(screen.queryByLabelText("متن پیام")).toBeNull();
     // And it is persisted, not merely hidden locally.
-    expect((await new DemoChatRepository().getConversation(target.id)).archived).toBe(true);
+    expect((await new LocalChatRepository().getConversation(target.id)).archived).toBe(true);
   });
 
   it("discovers an archived conversation through the explicit filter, marked as archived", async () => {
@@ -269,7 +269,7 @@ describe("archive, discovery and restore", () => {
 
     // Persisted…
     await waitFor(async () => {
-      expect((await new DemoChatRepository().getConversation(target.id)).archived).toBe(false);
+      expect((await new LocalChatRepository().getConversation(target.id)).archived).toBe(false);
     });
 
     // …and genuinely restored: switching the archived filter back OFF must not
@@ -303,7 +303,7 @@ describe("write honesty", () => {
     await selectThread(target.name);
 
     const held = deferred<ChatConversation>();
-    const real = new DemoChatRepository();
+    const real = new LocalChatRepository();
     setChatRepository(withStubs(real, { updateConversation: () => held.promise }));
 
     await openManager();

@@ -29,8 +29,8 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import {
   getAttendanceRepository,
@@ -121,9 +121,9 @@ function renderHooks() {
  * registry, so the rejection a case installed stays installed.
  */
 async function renderDashboard() {
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
   return render(
     <AuthProvider repository={auth}>

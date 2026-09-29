@@ -44,7 +44,7 @@ import {
   type DeliveryPendingReason,
 } from "@/api/deploymentLock";
 import { DEMO_CREDENTIALS_KEY } from "@/domains/auth/demoCredentials";
-import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY } from "@/domains/auth/localAuthRepository";
 import { getBlobStore } from "@/domains/media/blobStore";
 import { createEmptyEnvironment, type ConfirmedRequest } from "./lifecycle";
 import { createSeedDataset } from "./seed";

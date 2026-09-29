@@ -53,10 +53,25 @@ function importLines(): string[] {
 describe("source boundary — no demo capability in the client composition", () => {
   it("never imports a demo repository, the demo store, a seed, or demo credentials", () => {
     const imports = importLines().join("\n");
-    expect(imports).not.toMatch(/demoRepository|demoUserRepository|demoRoleRepository/);
-    expect(imports).not.toMatch(/demoStore|localStore|demoCredentials|demoAuthRepository/);
-    // Non-vacuous: the rename to localStore must not slip past this gate.
+    expect(imports).not.toMatch(
+      /demoRepository|localRepository|demoUserRepository|localUserRepository|demoRoleRepository|localRoleRepository/,
+    );
+    expect(imports).not.toMatch(
+      /demoStore|localStore|demoCredentials|demoAuthRepository|localAuthRepository/,
+    );
+    // Non-vacuous: renaming demo repositories to local repositories must not
+    // open a client-bundle path. Both the old and the new module names fail.
     expect(/demoStore|localStore/.test('import { localStore } from "@/services/localStore";')).toBe(true);
+    expect(
+      /demoRepository|localRepository/.test(
+        'import { LocalStudentRepository } from "./students/localRepository";',
+      ),
+    ).toBe(true);
+    expect(
+      /demoRepository|localRepository/.test(
+        'import { DemoStudentRepository } from "./students/demoRepository";',
+      ),
+    ).toBe(true);
     expect(imports).not.toMatch(/\/seed|gallerySeed|academySeed|createSeedDataset/);
     // and not through the shared barrel either — the client resolves the
     // unavailable stubs, never a demo module.

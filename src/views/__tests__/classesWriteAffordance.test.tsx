@@ -19,16 +19,16 @@
  *   - with `classes.write` all three render exactly as before;
  *   - the roster's pre-existing gating is unchanged.
  *
- * The session is real (`DemoAuthRepository`, the seeded demo users), the classes
+ * The session is real (`LocalAuthRepository`, the seeded demo users), the classes
  * are real repository rows, and every assertion is made on what the operator can
  * actually reach in the DOM.
  */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { getClassRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -56,9 +56,9 @@ function hasButton(name: RegExp): boolean {
 
 /** Signs in as a real seeded user; the views read the session, not a stub. */
 async function signInAs(email: string) {
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email, password: DEMO_PASSPHRASE });
 }
 

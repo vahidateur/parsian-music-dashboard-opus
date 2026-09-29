@@ -24,7 +24,7 @@
  *
  * THIS IS A PRE-FILTER, NOT A SECURITY BOUNDARY
  *
- * `DemoMediaRepository.create` re-validates everything: allow-list, size
+ * `LocalMediaRepository.create` re-validates everything: allow-list, size
  * ceiling, empty bytes, and a magic-byte cross-check against the declared type.
  * This module exists so an obviously invalid file never reaches the repository
  * (and so the operator gets the reason immediately, in the same words), NOT to
@@ -78,7 +78,7 @@ export type AttachmentCheck = { ok: true; kind: MediaKind } | { ok: false; reaso
 /**
  * The client-side verdict on a picked file, with the reason the operator sees.
  *
- * The rejections mirror `DemoMediaRepository.create`'s own wording and order
+ * The rejections mirror `LocalMediaRepository.create`'s own wording and order
  * (type, then empty, then size) so the two layers cannot tell a user two
  * different stories about the same file.
  */

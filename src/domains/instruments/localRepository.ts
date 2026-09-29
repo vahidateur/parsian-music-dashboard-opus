@@ -23,7 +23,7 @@ import type {
  */
 const SLUG_PATTERN = /^[a-z][a-z0-9_-]{1,30}$/;
 
-export class DemoInstrumentRepository implements InstrumentRepository {
+export class LocalInstrumentRepository implements InstrumentRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async list(params: InstrumentListParams = {}): Promise<Page<InstrumentRecord>> {

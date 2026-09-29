@@ -31,10 +31,10 @@ import {
 } from "./permissions";
 
 /*
-  The DEMO implementation of this interface lives in `./demoRoleRepository` —
+  The local implementation of this interface lives in `./localRoleRepository` —
   deliberately NOT co-located: it imports the demo store, and a demo-store
   import in this shared file leaks the whole demo persistence graph into the
-  client bundle (see demoRoleRepository.ts). */
+  client bundle (see localRoleRepository.ts). */
 
 /** The scope line each role ships with; an edit replaces it per role. */
 export const DEFAULT_SCOPES: Record<RoleId, string> = {

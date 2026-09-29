@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { createSeedDataset } from "@/domains/demo/seed";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
@@ -10,7 +10,7 @@ const CONFIRM = { confirm: true } as const;
 describe("repository contract stability", () => {
   function ctx() {
     const store = new DemoStoreImpl(memoryStorage());
-    return { store, repo: new DemoStudentRepository(store), manager: new DemoDataManager(store) };
+    return { store, repo: new LocalStudentRepository(store), manager: new DemoDataManager(store) };
   }
 
   it("exposes the unchanged StudentRepository surface", () => {

@@ -3,7 +3,7 @@ import type { CreateLibraryItemInput, LibraryItem, LibraryListParams, UpdateLibr
 
 /**
  * Business-facing contract for library catalogue persistence.
- * Implementations: DemoLibraryRepository (#1) and ApiLibraryRepository (#2).
+ * Implementations: LocalLibraryRepository (#1) and ApiLibraryRepository (#2).
  *
  * BYTES ARE NOT PART OF THIS CONTRACT — deliberately.
  *

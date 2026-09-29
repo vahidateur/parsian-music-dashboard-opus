@@ -718,7 +718,7 @@ describe("generation protections", () => {
    * slot that has already happened, a hand edit, a cancellation, and one left
    * exactly as generation wrote it — so what the dialog renders cannot have come
    * from the dialog. `SKIP_PROTECTED` needs an attendance record, which the
-   * domain's own frozen suite covers (`demoRepository.test.ts`, "protects an
+   * domain's own frozen suite covers (`localRepository.test.ts`, "protects an
    * attendance-bearing session from generation"), so it is asserted ABSENT here
    * instead: the fifth label existing in the map is precisely what would prove a
    * fixed list had been painted onto the screen.

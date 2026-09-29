@@ -6,16 +6,16 @@
  * the repository feeds that rule the right rows and keeps the ladder coherent.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoLearningRepository } from "../demoRepository";
-import { DemoInstrumentRepository } from "@/domains/instruments/demoRepository";
+import { LocalLearningRepository } from "../localRepository";
+import { LocalInstrumentRepository } from "@/domains/instruments/localRepository";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoLearningRepository;
+let repo: LocalLearningRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoLearningRepository();
+  repo = new LocalLearningRepository();
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
@@ -261,7 +261,7 @@ describe("student placement and eligibility", () => {
 
 describe("instrument ↔ learning relationship", () => {
   it("refuses to delete an instrument that a program depends on", async () => {
-    const instruments = new DemoInstrumentRepository();
+    const instruments = new LocalInstrumentRepository();
     expect(await codeOf(instruments.delete("violin"))).toBe("INSTRUMENT_IN_USE");
   });
 });

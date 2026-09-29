@@ -1,7 +1,7 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import { conflict, validationError } from "@/domains/shared/demoCollection";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
@@ -22,10 +22,10 @@ const DEFAULT_PER_PAGE = 25;
  * knowable here (`media/release.ts`). The media repository is injected so tests
  * can watch the transition without the store being reachable from a view.
  */
-export class DemoStudentRepository implements StudentRepository {
+export class LocalStudentRepository implements StudentRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
-    private readonly media: MediaRepository = new DemoMediaRepository(),
+    private readonly media: MediaRepository = new LocalMediaRepository(),
   ) {}
 
   async list(params: StudentListParams = {}): Promise<Page<Student>> {

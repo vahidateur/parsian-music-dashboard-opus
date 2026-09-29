@@ -1,7 +1,7 @@
 /** §11 room domain invariants (rooms constrain class capacity and scheduling). */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoRoomRepository } from "@/domains/rooms/demoRepository";
+import { LocalRoomRepository } from "@/domains/rooms/localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -14,11 +14,11 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected the promise to reject");
 }
 
-describe("DemoRoomRepository", () => {
-  let repo: DemoRoomRepository;
+describe("LocalRoomRepository", () => {
+  let repo: LocalRoomRepository;
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoRoomRepository();
+    repo = new LocalRoomRepository();
   });
 
   it("rejects a duplicate room name", async () => {

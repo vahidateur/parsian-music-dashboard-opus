@@ -23,7 +23,7 @@
 import type { Page } from "@/api/types";
 import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { mediaStillReferenced } from "@/domains/media/demoReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
@@ -39,11 +39,11 @@ import type {
   UpdateGalleryImageInput,
 } from "./types";
 
-export class DemoGalleryRepository implements GalleryRepository {
+export class LocalGalleryRepository implements GalleryRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     /** Bytes belong to the media domain; this repository only names the id. */
-    private readonly media: MediaRepository = new DemoMediaRepository(),
+    private readonly media: MediaRepository = new LocalMediaRepository(),
   ) {}
 
   /* ------------------------------------------------------------ albums */

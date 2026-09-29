@@ -17,10 +17,10 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import type { MediaAsset } from "@/domains/media/types";
-import { DemoLibraryRepository, sizeLabel } from "../demoRepository";
+import { LocalLibraryRepository, sizeLabel } from "../localRepository";
 import { getMediaRepository, resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 async function storeFile(filename: string, text: string): Promise<MediaAsset> {
-  return new DemoMediaRepository().create({
+  return new LocalMediaRepository().create({
     kind: "document",
     filename,
     mimeType: "text/plain",
@@ -43,7 +43,7 @@ async function storeFile(filename: string, text: string): Promise<MediaAsset> {
 
 /** Real media work, with deletions recorded and probed as they happen. */
 function spyingMedia(onDelete?: (mediaId: string) => void) {
-  const inner = new DemoMediaRepository();
+  const inner = new LocalMediaRepository();
   const deleted: string[] = [];
   const repo = withStubs(inner, {
     delete: async (id: string) => {
@@ -56,7 +56,7 @@ function spyingMedia(onDelete?: (mediaId: string) => void) {
 }
 
 async function catalogueRowWithFile(fileId: string, title = "منبع دارای فایل") {
-  const repo = new DemoLibraryRepository(demoStore, new DemoMediaRepository());
+  const repo = new LocalLibraryRepository(demoStore, new LocalMediaRepository());
   return repo.create({ title, kind: "doc", instrument: "piano", mediaId: fileId });
 }
 
@@ -70,7 +70,7 @@ describe("replacing a catalogue file", () => {
     const { repo, deleted } = spyingMedia((mediaId) => {
       probe.push({ mediaId, rowAlreadyRePointed: demoStore.resources.find(row.id)?.mediaId === next.id });
     });
-    const library = new DemoLibraryRepository(demoStore, repo);
+    const library = new LocalLibraryRepository(demoStore, repo);
 
     const updated = await library.update(row.id, { mediaId: next.id });
 
@@ -89,7 +89,7 @@ describe("replacing a catalogue file", () => {
     const previous = await storeFile("kept.txt", "فایل فعلی");
     const row = await catalogueRowWithFile(previous.id);
     const { repo, deleted } = spyingMedia();
-    const library = new DemoLibraryRepository(demoStore, repo);
+    const library = new LocalLibraryRepository(demoStore, repo);
 
     // An unknown media id is refused by the write-time validation: the row must
     // keep pointing at the file it has, and that file must keep its bytes.
@@ -107,7 +107,7 @@ describe("replacing a catalogue file", () => {
     await catalogueRowWithFile(shared.id, "نسخهٔ دوم");
     const next = await storeFile("second-copy.txt", "فایل تازه");
     const { repo, deleted } = spyingMedia();
-    const library = new DemoLibraryRepository(demoStore, repo);
+    const library = new LocalLibraryRepository(demoStore, repo);
 
     await library.update(first.id, { mediaId: next.id });
 
@@ -121,12 +121,12 @@ describe("replacing a catalogue file", () => {
     const previous = await storeFile("stuck.txt", "آزاد نمی‌شود");
     const next = await storeFile("next.txt", "نسخهٔ تازه");
     const row = await catalogueRowWithFile(previous.id, "منبع با فایل چسبنده");
-    const failing = withStubs(new DemoMediaRepository(), {
+    const failing = withStubs(new LocalMediaRepository(), {
       delete: async () => {
         throw new ApiError({ kind: "server", code: "MEDIA_STORAGE_FAILED", message: "ذخیره‌سازی پاسخ نداد." });
       },
     });
-    const library = new DemoLibraryRepository(demoStore, failing);
+    const library = new LocalLibraryRepository(demoStore, failing);
 
     const updated = await library.update(row.id, { mediaId: next.id });
 

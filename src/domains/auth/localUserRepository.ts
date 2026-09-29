@@ -21,7 +21,7 @@ import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
 import { emailTaken, notFound, validateUserInput, weakPassphrase } from "./userRepository";
 
 /** Demo implementation — delegates persistence to the single DemoStore. */
-export class DemoUserRepository implements UserRepository {
+export class LocalUserRepository implements UserRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     private readonly credentials: DemoCredentialStore = demoCredentialStore(),

@@ -1,7 +1,7 @@
 /**
  * Repository plumbing — paging and the shared error constructors.
  *
- * Every local repository (still named demoRepository until W4) needs the same
+ * Every local repository needs the same
  * five things: paging, not-found errors, conflict errors, validation errors and
  * authorization errors. Implementing that once keeps the domain repositories to
  * their actual business rules.

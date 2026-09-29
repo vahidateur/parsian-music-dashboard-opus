@@ -25,13 +25,13 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import { can, PERMISSIONS, permissionsForRole, type RoleId } from "@/domains/auth/permissions";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
-import { DemoOrganizationRepository } from "@/domains/organization/demoRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
+import { LocalOrganizationRepository } from "@/domains/organization/localRepository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 import { COMPENSATION_ERRORS, type CompensationActor, type SessionCompensation } from "../types";
 
 /** A seeded PRIVATE class with exactly one enrolled student (`st7`). */
@@ -51,17 +51,17 @@ const AUTHORIZED_ROLES: RoleId[] = ["staff", "manager", "administrator"];
 /** The two it withholds it from — a teacher first, because that is the rule. */
 const FORBIDDEN_ROLES: RoleId[] = ["teacher", "accountant"];
 
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
-let attendance: DemoAttendanceRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
+let attendance: LocalAttendanceRepository;
 let store: DemoStore;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  attendance = new DemoAttendanceRepository(store);
-  scheduling = new DemoSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
-  repo = new DemoCompensationRepository(store, { scheduling, attendance });
+  attendance = new LocalAttendanceRepository(store);
+  scheduling = new LocalSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
+  repo = new LocalCompensationRepository(store, { scheduling, attendance });
 });
 
 /** The `ApiError` a refused call produced, or `null` when it resolved. */
@@ -312,7 +312,7 @@ describe("an authorized actor proceeds", () => {
       decide the outcome for one student three times over — a refusal here would
       say nothing about authorization and everything about a number in Settings.
     */
-    await new DemoOrganizationRepository(store).update({ maxMakeupsPerTerm: AUTHORIZED_ROLES.length });
+    await new LocalOrganizationRepository(store).update({ maxMakeupsPerTerm: AUTHORIZED_ROLES.length });
 
     const registered_ids: string[] = [];
     for (const role of AUTHORIZED_ROLES) {

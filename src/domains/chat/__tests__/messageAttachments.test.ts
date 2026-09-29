@@ -18,8 +18,8 @@
  * message's attachment stays a reference.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoChatRepository } from "../demoRepository";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalChatRepository } from "../localRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { ApiError } from "@/api/errors";
 import { demoStore, type DemoStore } from "@/services/demoStore";
@@ -27,7 +27,7 @@ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { ChatRepository } from "../repository";
 
 let repo: ChatRepository;
-let media: DemoMediaRepository;
+let media: LocalMediaRepository;
 let store: DemoStore;
 
 /** A minimal but structurally valid PNG header. */
@@ -48,8 +48,8 @@ beforeEach(() => {
   resetToDemoEnvironment();
   setBlobStore(createMemoryBlobStore());
   store = demoStore;
-  media = new DemoMediaRepository(store);
-  repo = new DemoChatRepository(store);
+  media = new LocalMediaRepository(store);
+  repo = new LocalChatRepository(store);
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
@@ -90,7 +90,7 @@ describe("sending a message with an attachment", () => {
     const sent = await repo.sendMessage({ conversationId: id, body: "نت پیوست شد.", mediaId: asset.id });
     expect(sent.mediaId).toBe(asset.id);
 
-    const persisted = await new DemoChatRepository(store).listMessages({ conversationId: id, per_page: 200 });
+    const persisted = await new LocalChatRepository(store).listMessages({ conversationId: id, per_page: 200 });
     const stored = persisted.data.find((m) => m.id === sent.id);
     expect(stored?.mediaId).toBe(asset.id);
   });
@@ -247,7 +247,7 @@ describe("the media seam the UI will use", () => {
     const asset = await upload("document", "قطعه.pdf");
     await setBlobStore(createMemoryBlobStore()); // a fresh browser: metadata present, bytes gone
 
-    const blob = await new DemoMediaRepository(store).getBlob(asset.id);
+    const blob = await new LocalMediaRepository(store).getBlob(asset.id);
     expect(blob).toBeUndefined();
   });
 });

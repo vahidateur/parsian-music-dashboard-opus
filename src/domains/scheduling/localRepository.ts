@@ -79,7 +79,7 @@ export const denyAllMutationsWhenUnknown: AttendancePresenceProvider = () => und
  */
 export const noAttendanceRecorded: AttendancePresenceProvider = () => new Set<string>();
 
-export class DemoSchedulingRepository implements SchedulingRepository {
+export class LocalSchedulingRepository implements SchedulingRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     private readonly attendancePresence: AttendancePresenceProvider = denyAllMutationsWhenUnknown,

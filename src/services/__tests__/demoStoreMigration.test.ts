@@ -29,9 +29,9 @@ import {
 } from "@/services/demoStore";
 import { createEmptyDataset, createSeedDataset } from "@/domains/demo/seed";
 import { DEMO_COLLECTIONS, type DemoDataset } from "@/domains/demo/types";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
-import { DemoLearningRepository } from "@/domains/learning/demoRepository";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
+import { LocalLearningRepository } from "@/domains/learning/localRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 
 /** The collections a pre-migration build persisted. */
 const LEGACY_COLLECTIONS = [
@@ -181,7 +181,7 @@ describe("repositories on a migrated legacy payload", () => {
   });
 
   it("chat lists conversations instead of throwing on undefined.filter", async () => {
-    const page = await new DemoChatRepository(store).listConversations({ per_page: 100 });
+    const page = await new LocalChatRepository(store).listConversations({ per_page: 100 });
     expect(page.meta.total).toBeGreaterThan(0);
   });
 
@@ -189,11 +189,11 @@ describe("repositories on a migrated legacy payload", () => {
     const studentId = store.snapshot().students[0].id;
     // A placement is derived data the old build did not store; the read must
     // succeed and may legitimately be undefined.
-    await expect(new DemoLearningRepository(store).getStudentPlacement(studentId)).resolves.not.toThrow();
+    await expect(new LocalLearningRepository(store).getStudentPlacement(studentId)).resolves.not.toThrow();
   });
 
   it("media lists assets instead of throwing on undefined.filter", async () => {
-    const page = await new DemoMediaRepository(store).list({ per_page: 50 });
+    const page = await new LocalMediaRepository(store).list({ per_page: 50 });
     expect(Array.isArray(page.data)).toBe(true);
   });
 
@@ -207,7 +207,7 @@ describe("repositories on a migrated legacy payload", () => {
     migrated.chatMessages = [];
     empty.replace(migrated);
 
-    const page = await new DemoChatRepository(empty).listConversations({ per_page: 100 });
+    const page = await new LocalChatRepository(empty).listConversations({ per_page: 100 });
     expect(page.data).toEqual([]);
     expect(page.meta.total).toBe(0);
   });

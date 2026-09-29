@@ -9,7 +9,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
-import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { LoginView } from "@/views/Login";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";

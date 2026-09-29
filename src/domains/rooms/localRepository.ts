@@ -7,7 +7,7 @@ import type { CreateRoomInput, Room, RoomListParams, UpdateRoomInput } from "./t
 /** A room is assignable unless explicitly deactivated (`active === false`). */
 export const isRoomAssignable = (room: Room): boolean => room.active !== false;
 
-export class DemoRoomRepository implements RoomRepository {
+export class LocalRoomRepository implements RoomRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async list(params: RoomListParams = {}): Promise<Page<Room>> {

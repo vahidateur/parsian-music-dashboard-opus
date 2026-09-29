@@ -32,8 +32,8 @@ import { cleanup, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { BOOTSTRAP_ADMIN_EMAIL, isDemoEnvironment } from "@/domains/demo/lifecycle";
 import { getStudentRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
@@ -98,9 +98,9 @@ const RETIRED_FIGURES = ["۱٬۲۴۸", "۱۲۵٫۴", "۱۲۵٬۴۳۰٬۰۰۰", "
  * in as the seeded administrator; EMPTY as the bootstrap account.
  */
 async function renderDashboard() {
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({
     email: isDemoEnvironment() ? "admin@demo.local" : BOOTSTRAP_ADMIN_EMAIL,
     password: DEMO_PASSPHRASE,

@@ -13,7 +13,7 @@ import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { OrganizationRepository } from "./repository";
 import { validateOrganizationInput, withRuleDefaults, type OrganizationSettings, type UpdateOrganizationInput } from "./types";
 
-export class DemoOrganizationRepository implements OrganizationRepository {
+export class LocalOrganizationRepository implements OrganizationRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async get(): Promise<OrganizationSettings> {

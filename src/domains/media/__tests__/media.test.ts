@@ -6,14 +6,14 @@
  * cross-check, the size ceiling and filename sanitization.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoMediaRepository, sanitizeFilename } from "../demoRepository";
+import { LocalMediaRepository, sanitizeFilename } from "../localRepository";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { MAX_IMAGE_BYTES } from "../types";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoMediaRepository;
+let repo: LocalMediaRepository;
 
 /** A minimal but structurally valid PNG header. */
 function pngBytes(size = 64): ArrayBuffer {
@@ -31,7 +31,7 @@ function jpegBytes(size = 64): ArrayBuffer {
 beforeEach(() => {
   resetToDemoEnvironment();
   setBlobStore(createMemoryBlobStore());
-  repo = new DemoMediaRepository();
+  repo = new LocalMediaRepository();
 });
 
 async function fieldsOf(promise: Promise<unknown>): Promise<Record<string, string[]> | undefined> {

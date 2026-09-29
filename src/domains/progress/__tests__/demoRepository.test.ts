@@ -6,17 +6,17 @@
  * that could silently rewrite history is a correctness bug, not a UX one.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoProgressRepository } from "../demoRepository";
+import { LocalProgressRepository } from "../localRepository";
 import { MASTERY_SCALE, TEMPO_BOUNDS } from "../types";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoProgressRepository;
+let repo: LocalProgressRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoProgressRepository();
+  repo = new LocalProgressRepository();
 });
 
 /** Resolves an ApiError code, or "OK" when the promise succeeds. */

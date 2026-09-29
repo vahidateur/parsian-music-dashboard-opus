@@ -39,9 +39,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { Toasts } from "@/components/overlays/ActionSheet";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -73,9 +73,9 @@ function toastHtml(): string {
 }
 
 async function signInAs(email: string) {
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email, password: DEMO_PASSPHRASE });
 }
 

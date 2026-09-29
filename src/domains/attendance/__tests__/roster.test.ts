@@ -158,7 +158,7 @@ describe("failing closed", () => {
    *     is corrupt, and we cannot show a student is enrolled — exclude.
    *
    *   - `endDate` is OPTIONAL (`endDate?: string`) and is written by exactly
-   *     one production path: `DemoEnrollmentRepository.withdraw()`, which
+   *     one production path: `LocalEnrollmentRepository.withdraw()`, which
    *     sets `{ status: "cancelled", endDate: "امروز" }`. `"امروز"` ("today")
    *     is a DISPLAY string that `jalaliToIso` correctly returns null for.
    *

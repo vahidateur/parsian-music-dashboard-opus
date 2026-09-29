@@ -25,7 +25,7 @@ import {
   type DemoBackup,
   type ValidationIssue,
 } from "./backup";
-import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY } from "@/domains/auth/localAuthRepository";
 import {
   DemoDisabledError,
   DEMO_DISABLED_MESSAGE,
@@ -291,7 +291,7 @@ export class DemoDataManager {
     setInstrumentCatalog(dataset.instruments);
 
     // The signed-in user may no longer exist in the new dataset. Dropping the
-    // session reference is safe: DemoAuthRepository re-validates on restore and
+    // session reference is safe: LocalAuthRepository re-validates on restore and
     // signs the user out if their account is gone or disabled.
     this.invalidateSessionIfUserMissing();
 

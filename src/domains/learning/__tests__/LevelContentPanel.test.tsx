@@ -30,7 +30,7 @@ import { Toasts } from "@/components/overlays/ActionSheet";
 import { getLearningRepository, resetRegistry, setLearningRepository } from "@/domains/registry";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs, type Stubs } from "@/test/repositoryStubs";
-import { DemoLearningRepository } from "../demoRepository";
+import { LocalLearningRepository } from "../localRepository";
 import { LevelContentPanel } from "../LevelContentPanel";
 import type { LearningRepository } from "../repository";
 import type { LearningContent, LearningLevel } from "../types";
@@ -222,7 +222,7 @@ function recordingRepository() {
  * than the thing being stubbed.
  */
 function truth(): LearningRepository {
-  return new DemoLearningRepository();
+  return new LocalLearningRepository();
 }
 
 /** Waits for the surface to show the repository's own rows for this level. */

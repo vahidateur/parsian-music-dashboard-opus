@@ -3,7 +3,7 @@ import type { CreateStudentInput, Student, StudentListParams, UpdateStudentInput
 
 /**
  * Business-facing contract for student persistence.
- * Implementations: DemoStudentRepository (#1) and ApiStudentRepository (#2).
+ * Implementations: LocalStudentRepository (#1) and ApiStudentRepository (#2).
  *
  * Methods speak in domain ids ("st1"), never in URLs or storage keys.
  * Failures are always `ApiError` instances (see `@/api/errors`).

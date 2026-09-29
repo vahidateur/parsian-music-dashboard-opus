@@ -7,8 +7,8 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoEnrollmentRepository } from "@/domains/enrollments/demoRepository";
-import { DemoClassRepository } from "@/domains/classes/demoRepository";
+import { LocalEnrollmentRepository } from "@/domains/enrollments/localRepository";
+import { LocalClassRepository } from "@/domains/classes/localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -21,14 +21,14 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected the promise to reject");
 }
 
-describe("DemoEnrollmentRepository", () => {
-  let repo: DemoEnrollmentRepository;
-  let classes: DemoClassRepository;
+describe("LocalEnrollmentRepository", () => {
+  let repo: LocalEnrollmentRepository;
+  let classes: LocalClassRepository;
 
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoEnrollmentRepository();
-    classes = new DemoClassRepository();
+    repo = new LocalEnrollmentRepository();
+    classes = new LocalClassRepository();
   });
 
   it("rejects an unknown student", async () => {

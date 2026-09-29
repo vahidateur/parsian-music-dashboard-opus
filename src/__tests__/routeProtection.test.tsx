@@ -2,10 +2,10 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "@/App";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { demoDataManager } from "@/domains/demo";
 import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -13,9 +13,9 @@ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 /** Uses the real component tree; only the session storage is isolated. */
 function useIsolatedAuth() {
   const sessionStore = memoryStorage();
-  const repo = new DemoAuthRepository(demoStore, sessionStore);
+  const repo = new LocalAuthRepository(demoStore, sessionStore);
   setAuthRepository(repo);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   return repo;
 }
 

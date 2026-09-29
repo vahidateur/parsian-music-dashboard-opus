@@ -27,10 +27,10 @@ import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { getLibraryRepository, getMediaRepository, resetRegistry, setLibraryRepository, setMediaRepository } from "@/domains/registry";
-import { DemoLibraryRepository } from "@/domains/library/demoRepository";
+import { LocalLibraryRepository } from "@/domains/library/localRepository";
 import { ensureDemoLibraryFile } from "@/domains/library/demoContent";
 import type { LibraryRepository } from "@/domains/library/repository";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { setMediaReleaseFailureReporter } from "@/domains/media/release";
 import { withStubs } from "@/test/repositoryStubs";
 import { createEmptyDataset } from "@/domains/demo/seed";
@@ -110,7 +110,7 @@ function deferred<T>() {
  * forced to fail, so the cleanup-failure hand-off can be observed.
  */
 function spyingMedia(onDelete?: (id: string) => Promise<void>) {
-  const real = new DemoMediaRepository();
+  const real = new LocalMediaRepository();
   const deleted: string[] = [];
   setMediaRepository(
     withStubs(real, {
@@ -431,7 +431,7 @@ describe("a failed catalogue write releases the staged upload", () => {
   it("frees nothing while the row write is pending, then releases the staged upload", async () => {
     const gate = deferred<never>();
     setLibraryRepository(
-      withStubs(new DemoLibraryRepository(), {
+      withStubs(new LocalLibraryRepository(), {
         create: () => gate.promise,
       }),
     );
@@ -468,7 +468,7 @@ describe("a failed catalogue write releases the staged upload", () => {
     });
     spyingMedia(() => Promise.reject(deletion));
     setLibraryRepository(
-      withStubs(new DemoLibraryRepository(), {
+      withStubs(new LocalLibraryRepository(), {
         create: () => Promise.reject(new ApiError({ kind: "server", status: 500, message: "کتابخانه پاسخ نداد." })),
       }),
     );

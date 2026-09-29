@@ -13,7 +13,7 @@ import { isHexColor, isPersianFont, type BrandingSettings, type UpdateBrandingIn
 const MAX_NAME = 80;
 const MAX_TAGLINE = 120;
 
-export class DemoBrandingRepository implements BrandingRepository {
+export class LocalBrandingRepository implements BrandingRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async get(): Promise<BrandingSettings> {

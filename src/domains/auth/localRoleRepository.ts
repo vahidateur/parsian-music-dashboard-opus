@@ -3,7 +3,7 @@
  *
  * Moved verbatim out of `./roleRepository` so the SHARED file (the interface,
  * the shipped defaults and the REST implementation) no longer imports the demo
- * store — the same bundle-boundary reason as `./demoUserRepository`: a
+ * store — the same bundle-boundary reason as `./localUserRepository`: a
  * co-located demo class with a module-scope store singleton dragged the whole
  * demo persistence graph into the CLIENT build.
  *
@@ -33,7 +33,7 @@ import {
 } from "./roleRepository";
 
 /** Demo implementation — the roles collection of the one dataset. */
-export class DemoRoleRepository implements RoleRepository {
+export class LocalRoleRepository implements RoleRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async list(): Promise<Page<RolePolicyRecord>> {

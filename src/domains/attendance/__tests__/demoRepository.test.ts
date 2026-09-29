@@ -7,23 +7,23 @@
  * ever grows.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoAttendanceRepository } from "../demoRepository";
+import { LocalAttendanceRepository } from "../localRepository";
 import { ATTENDANCE_ERRORS } from "../types";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoAttendanceRepository;
-let scheduling: DemoSchedulingRepository;
+let repo: LocalAttendanceRepository;
+let scheduling: LocalSchedulingRepository;
 
 const RECORDER = "usr_admin";
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoAttendanceRepository();
+  repo = new LocalAttendanceRepository();
   // Presence provider wired so scheduling can delete freely in setup.
-  scheduling = new DemoSchedulingRepository(demoStore, () => repo.sessionIdsWithAttendanceSync());
+  scheduling = new LocalSchedulingRepository(demoStore, () => repo.sessionIdsWithAttendanceSync());
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {

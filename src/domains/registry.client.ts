@@ -11,8 +11,9 @@
  *     for this composition (the mirror of the demo composition's
  *     `DEMO_SERVED_DOMAINS`).
  *
- * This file must never import a `demoRepository`, the demo store, the seed, or
- * demo credentials — asserted by `src/domains/__tests__/registryClient.test.ts`
+ * This file must never import a `demoRepository` or a `localRepository`, the
+ * demo/local store, the seed, or demo credentials — asserted by
+ * `src/domains/__tests__/registryClient.test.ts`
  * and by the bundle boundary test that scans the real client build output.
  *
  * Shared plumbing (ApiClient, token, override seams, reset) comes from

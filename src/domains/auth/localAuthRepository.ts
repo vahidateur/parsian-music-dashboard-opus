@@ -106,7 +106,7 @@ export function listDemoAccounts(limit = 5, store: DemoStore = demoStore): AuthU
     .slice(0, limit);
 }
 
-export class DemoAuthRepository implements AuthRepository {
+export class LocalAuthRepository implements AuthRepository {
   constructor(
     private readonly store: DemoStore = demoStore,
     private readonly storage: SessionStorageLike = browserStorage() ?? memory(),

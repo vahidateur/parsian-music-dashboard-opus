@@ -5,8 +5,8 @@
  * WHAT IS REAL HERE
  *
  * The upload path is exercised end to end against the real repositories: the
- * real `DemoMediaRepository` validates (allow-list, size, magic bytes), the real
- * memory blob store keeps the bytes, and the real `DemoChatRepository` writes the
+ * real `LocalMediaRepository` validates (allow-list, size, magic bytes), the real
+ * memory blob store keeps the bytes, and the real `LocalChatRepository` writes the
  * message that references them. Nothing in this file seeds an attachment, and no
  * fixture carries one — every attachment in every case below was created by the
  * flow under test.
@@ -34,9 +34,9 @@ import { AppProvider } from "@/context/AppContext";
 import { MessagesView } from "@/views/Messages";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { ApiError } from "@/api/errors";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
 import type { ChatMessage, SendMessageInput } from "@/domains/chat/types";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { MAX_IMAGE_BYTES, type CreateMediaInput, type MediaAsset } from "@/domains/media/types";
 import { getChatRepository, getMediaRepository, resetRegistry, setChatRepository, setMediaRepository } from "@/domains/registry";
@@ -141,7 +141,7 @@ function pngFile(name = "score.png", size = 64): File {
 
 /** A counting media repository: the real one, with the writes tallied. */
 function stubMedia(create?: (input: CreateMediaInput) => Promise<MediaAsset>) {
-  const real = new DemoMediaRepository();
+  const real = new LocalMediaRepository();
   const calls = { create: 0, delete: 0, created: [] as string[] };
   setMediaRepository(
     withStubs(real, {
@@ -162,7 +162,7 @@ function stubMedia(create?: (input: CreateMediaInput) => Promise<MediaAsset>) {
 
 /** A counting chat repository: the real one, with `sendMessage` tallied. */
 function stubChat(sendMessage?: (input: SendMessageInput) => Promise<ChatMessage>) {
-  const real = new DemoChatRepository();
+  const real = new LocalChatRepository();
   const calls = { send: 0, inputs: [] as SendMessageInput[] };
   setChatRepository(
     withStubs(real, {
@@ -474,7 +474,7 @@ describe("failures", () => {
       if (failing) {
         return Promise.reject(new ApiError({ kind: "server", status: 500, message: "سرور گفتگوها پاسخ نداد." }));
       }
-      return new DemoChatRepository().sendMessage(input);
+      return new LocalChatRepository().sendMessage(input);
     });
     await openThread();
 
@@ -572,7 +572,7 @@ describe("the staged upload is released through the media domain", () => {
       code: "MEDIA_STORAGE_FAILED",
       message: "ذخیره‌سازی پاسخ نداد.",
     });
-    const real = new DemoMediaRepository();
+    const real = new LocalMediaRepository();
     setMediaRepository(
       withStubs(real, {
         delete: async () => {
@@ -715,7 +715,7 @@ describe("the pending attachment belongs to one conversation", () => {
 
   it("does not let a slow send clear the new conversation's draft or attachment", async () => {
     // The upload for A is held open, so the send resolves after the switch.
-    const realAsset = await new DemoMediaRepository().create({
+    const realAsset = await new LocalMediaRepository().create({
       kind: "image",
       filename: "a.png",
       mimeType: "image/png",
