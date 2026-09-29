@@ -54,7 +54,9 @@ describe("source boundary — no demo capability in the client composition", () 
   it("never imports a demo repository, the demo store, a seed, or demo credentials", () => {
     const imports = importLines().join("\n");
     expect(imports).not.toMatch(/demoRepository|demoUserRepository|demoRoleRepository/);
-    expect(imports).not.toMatch(/demoStore|demoCredentials|demoAuthRepository/);
+    expect(imports).not.toMatch(/demoStore|localStore|demoCredentials|demoAuthRepository/);
+    // Non-vacuous: the rename to localStore must not slip past this gate.
+    expect(/demoStore|localStore/.test('import { localStore } from "@/services/localStore";')).toBe(true);
     expect(imports).not.toMatch(/\/seed|gallerySeed|academySeed|createSeedDataset/);
     // and not through the shared barrel either — the client resolves the
     // unavailable stubs, never a demo module.

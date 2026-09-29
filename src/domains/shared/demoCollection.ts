@@ -1,74 +1,18 @@
 /**
- * Shared demo-repository plumbing.
+ * Compatibility re-export.
  *
- * Every demo repository needs the same five things: paging, not-found errors,
- * conflict errors, validation errors and authorization errors. Implementing that
- * once keeps the domain repositories to their actual business rules.
- *
- * This owns no persistence — the DemoStore is still the only writer.
+ * The canonical module is `repositoryPlumbing.ts` (W3). Import paths that still
+ * say `demoCollection` resolve here so this wave does not rewrite every
+ * repository — those files are W4's. The two modules are not two implementations.
  */
-import { ApiError } from "@/api/errors";
-import type { Page } from "@/api/types";
-
-export const DEFAULT_PER_PAGE = 25;
-
-export interface PageRequest {
-  page?: number;
-  per_page?: number;
-}
-
-/** Slices an already-filtered list into the `Page` envelope the API also returns. */
-export function paginate<T>(rows: readonly T[], params: PageRequest = {}): Page<T> {
-  const page = Math.max(1, Math.trunc(params.page ?? 1));
-  const perPage = Math.max(1, Math.trunc(params.per_page ?? DEFAULT_PER_PAGE));
-  const start = (page - 1) * perPage;
-  return {
-    data: rows.slice(start, start + perPage) as T[],
-    meta: { page, per_page: perPage, total: rows.length },
-  };
-}
-
-export function notFound(code: string, message: string): ApiError {
-  return new ApiError({ kind: "not_found", code, message });
-}
-
-export function conflict(code: string, message: string, fields?: Record<string, string[]>): ApiError {
-  return new ApiError({ kind: "conflict", code, message, ...(fields ? { fields } : {}) });
-}
-
-export function validationError(code: string, message: string, fields: Record<string, string[]>): ApiError {
-  return new ApiError({ kind: "validation", code, message, fields });
-}
-
-/**
- * A refused protected operation.
- *
- * `authorization` is the taxonomy's existing 403 kind, so a domain that gates a
- * verb on a permission reports the same error a server would return — the caller
- * pattern-matches on the kind rather than on a per-domain convention.
- */
-export function forbidden(code: string, message: string): ApiError {
-  return new ApiError({ kind: "authorization", code, message });
-}
-
-/** Case/space-insensitive contains, used by every demo `search` param. */
-export function matchesQuery(haystack: readonly (string | undefined)[], query?: string): boolean {
-  const q = query?.trim();
-  if (!q) return true;
-  return haystack.some((field) => (field ?? "").includes(q));
-}
-
-/**
- * Sorts a copy by a comparable key. Demo-only convenience: a real backend sorts
- * in SQL, so the contract exposes `sort`/`dir` rather than a comparator.
- */
-export function sortRows<T>(rows: readonly T[], key: ((row: T) => string | number) | undefined, dir: "asc" | "desc" = "asc"): T[] {
-  if (!key) return [...rows];
-  const factor = dir === "desc" ? -1 : 1;
-  return [...rows].sort((a, b) => {
-    const av = key(a);
-    const bv = key(b);
-    if (typeof av === "number" && typeof bv === "number") return (av - bv) * factor;
-    return String(av).localeCompare(String(bv), "fa") * factor;
-  });
-}
+export {
+  DEFAULT_PER_PAGE,
+  paginate,
+  notFound,
+  conflict,
+  validationError,
+  forbidden,
+  matchesQuery,
+  sortRows,
+} from "./repositoryPlumbing";
+export type { PageRequest } from "./repositoryPlumbing";

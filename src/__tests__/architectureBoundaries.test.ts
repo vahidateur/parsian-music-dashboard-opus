@@ -53,6 +53,33 @@ describe("views and components stay behind the data layer", () => {
     expect(offenders).toEqual([]);
   });
 
+  /**
+   * W3 — the boundary is the store module, not the class name.
+   *
+   * Renaming `demoStore` to `localStore` must not open a path views can import.
+   * The check reads the raw source (import specifiers survive; `code()` strips
+   * string literals, which is why the case above cannot see a `from "..."` path)
+   * and is non-vacuous: it fires on both module paths and does not fire on the
+   * class name alone.
+   */
+  it("never import the local store module (interface boundary, not the class)", () => {
+    const STORE_IMPORT = /services\/(?:demoStore|localStore)/;
+    const offenders = viewLayer.filter((file) => STORE_IMPORT.test(readFileSync(file, "utf8")));
+    expect(offenders).toEqual([]);
+    expect(STORE_IMPORT.test('import type { LocalDataStore } from "@/services/localStore";')).toBe(true);
+    expect(STORE_IMPORT.test('import { demoStore } from "@/services/demoStore";')).toBe(true);
+    expect(STORE_IMPORT.test("class DemoStoreImpl {}")).toBe(false);
+    expect(STORE_IMPORT.test("class LocalStoreImpl {}")).toBe(false);
+  });
+
+  it("types the media reference check against the store interface, not the class", () => {
+    const source = readFileSync(join(ROOT, "domains", "media", "demoReferences.ts"), "utf8");
+    expect(source).toContain("LocalDataStore");
+    expect(source).toMatch(/mediaStillReferenced\(store:\s*LocalDataStore/);
+    expect(source).not.toMatch(/\bDemoStoreImpl\b/);
+    expect(source).not.toMatch(/import\s+(type\s+)?\{[^}]*\bDemoStore\b/);
+  });
+
   it("never call fetch or hardcode an HTTP URL", () => {
     const offenders = viewLayer.filter((file) => {
       const source = code(readFileSync(file, "utf8"));

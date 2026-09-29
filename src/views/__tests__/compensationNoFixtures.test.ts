@@ -242,6 +242,7 @@ const FIXTURE_IDENTIFIERS = [
 /** Seams a view may not reach through: they are the domains' and the store's. */
 const OWN_SOURCE_PATTERNS: readonly { what: string; pattern: RegExp }[] = [
   { what: "the demo store", pattern: /services\/demoStore/ },
+  { what: "the local store", pattern: /services\/localStore/ },
   { what: "browser storage", pattern: /\blocalStorage\b|\bsessionStorage\b/ },
   { what: "the wall clock instead of the academy clock", pattern: /new Date\(\s*\)/ },
   { what: "the wall clock instead of the academy clock", pattern: /Date\.now\(/ },
@@ -351,7 +352,7 @@ const RULES: readonly Rule[] = [
   {
     id: "own-source-of-truth",
     forbids: "reaches past the domains to the store, browser storage or a clock of its own",
-    probe: 'import { demoStore } from "@/services/demoStore";',
+    probe: 'import { demoStore } from "@/services/demoStore";\nimport { localStore } from "@/services/localStore";',
     probeFile: VIEW,
     find: patterns(OWN_SOURCE_PATTERNS),
   },

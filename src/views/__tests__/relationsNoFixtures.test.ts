@@ -279,6 +279,7 @@ const FABRICATED_FIGURES: readonly Pattern[] = [
 /** Seams a view may not reach through: they are the domains' and the store's. */
 const OWN_SOURCE_PATTERNS: readonly Pattern[] = [
   { pattern: /services\/demoStore/, what: "the demo store", probe: 'import { demoStore } from "@/services/demoStore";' },
+  { pattern: /services\/localStore/, what: "the local store", probe: 'import { localStore } from "@/services/localStore";' },
   { pattern: /\blocalStorage\b|\bsessionStorage\b/, what: "browser storage", probe: 'localStorage.setItem("k", "v");' },
   { pattern: /new Date\(\s*\)/, what: "the wall clock instead of the academy clock", probe: "const now = new Date();" },
   { pattern: /Date\.now\(/, what: "the wall clock instead of the academy clock", probe: "const t = Date.now();" },
@@ -851,6 +852,7 @@ describe("a surface that relapses is caught by the rules it is enforced on", () 
       { what: "the invented trend delta", source: "const stat = { label: 'x', value: 'y', delta: 11 };" },
       { what: "an unwindowed session read", source: "const read = useSessions({ teacherId: teacher.id });" },
       { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the local store", source: 'import { localStore } from "@/services/localStore";' },
       { what: "the wall clock", source: "const today = new Date();" },
     ];
 
@@ -904,6 +906,7 @@ describe("a surface that relapses is caught by the rules it is enforced on", () 
       { what: "the attendance trend delta", source: "const stat = { label: 'میانگین حضور', value: 'x', delta: 2.1 };" },
       { what: "an unwindowed session read", source: "const read = useSessions({ classId: c.id });" },
       { what: "the demo store", source: 'import { demoStore } from "@/services/demoStore";' },
+      { what: "the local store", source: 'import { localStore } from "@/services/localStore";' },
       { what: "the wall clock", source: "const weekStart = new Date();" },
     ]);
   });

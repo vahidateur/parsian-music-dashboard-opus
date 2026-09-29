@@ -44,7 +44,7 @@
  *   so a predicate evaluated after an owner write sees the state that write
  *   produced — which is the ordering `release.ts` depends on.
  */
-import type { DemoStore } from "@/services/demoStore";
+import type { LocalDataStore } from "@/services/localDataStore";
 
 /**
  * The global media-parent check: does any persisted record reference `mediaId`?
@@ -52,7 +52,7 @@ import type { DemoStore } from "@/services/demoStore";
  * An empty (or blank) id is not an asset and never counts as a reference — the
  * same normalization the release funnel applies to the id it is asked to free.
  */
-export function mediaStillReferenced(store: DemoStore, mediaId: string): boolean {
+export function mediaStillReferenced(store: LocalDataStore, mediaId: string): boolean {
   const id = mediaId.trim();
   if (!id) return false;
 
@@ -73,7 +73,7 @@ export function mediaStillReferenced(store: DemoStore, mediaId: string): boolean
  * its own accessor. Both of its media fields are optional, and a cleared field is
  * stored as an empty string — which can never equal the non-empty id asked about.
  */
-function brandingReferences(store: DemoStore, mediaId: string): boolean {
+function brandingReferences(store: LocalDataStore, mediaId: string): boolean {
   const branding = store.branding.get();
   return branding.logoMediaId === mediaId || branding.faviconMediaId === mediaId;
 }
