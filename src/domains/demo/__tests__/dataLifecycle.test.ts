@@ -66,7 +66,7 @@ function writtenKeys(storage: StorageLike): string[] {
 
 beforeEach(() => {
   setBlobStore(createMemoryBlobStore());
-  setRuntimeConfig({ mode: "demo", error: null });
+  setRuntimeConfig({ mode: "local", error: null });
 });
 
 afterEach(() => {

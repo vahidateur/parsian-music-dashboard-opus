@@ -63,7 +63,7 @@ describe("D8 disclosure visibility", () => {
   });
 
   it("is absent in demo mode — the DemoNote family already labels prototype data", () => {
-    setRuntimeConfig({ mode: "demo", error: null });
+    setRuntimeConfig({ mode: "local", error: null });
     render(<DemoBackedNotice />);
     expect(screen.queryByRole("note", { name: "اعلام منبع داده" })).toBeNull();
   });

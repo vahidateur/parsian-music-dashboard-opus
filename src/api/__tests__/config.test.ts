@@ -8,13 +8,13 @@ import { resolveConfig } from "@/api/config";
  * asserts the opposite.
  */
 describe("resolveConfig", () => {
-  it("defaults to demo mode when nothing is configured", () => {
-    expect(resolveConfig({})).toEqual({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
+  it("defaults to local mode when nothing is configured", () => {
+    expect(resolveConfig({})).toEqual({ mode: "local", apiBaseUrl: "/api/v1", error: null });
   });
 
   it("treats an empty value as unset rather than invalid", () => {
     expect(resolveConfig({ VITE_DATA_SOURCE: "   " })).toEqual({
-      mode: "demo",
+      mode: "local",
       apiBaseUrl: "/api/v1",
       error: null,
     });
@@ -43,15 +43,24 @@ describe("resolveConfig", () => {
     expect(config.error).toContain("prodution");
   });
 
-  it("never resolves an unknown value to a usable demo config", () => {
-    // Even though mode is demo (nothing else is renderable), `error` is set so
-    // the boot guard refuses to start the app.
+  it("never resolves an unknown value to a usable config", () => {
+    // The mode field is local only because the union has no third value.
+    // `error` is set so the boot guard refuses to start the app.
     const config = resolveConfig({ VITE_DATA_SOURCE: "typo" });
     expect(config.error).not.toBeNull();
+    expect(config.mode).toBe("local");
   });
 
-  it("keeps an explicit demo selection valid and error-free", () => {
-    expect(resolveConfig({ VITE_DATA_SOURCE: "demo" }).error).toBeNull();
-    expect(resolveConfig({ VITE_DATA_SOURCE: "demo" }).mode).toBe("demo");
+  it("keeps an explicit local selection valid and error-free", () => {
+    expect(resolveConfig({ VITE_DATA_SOURCE: "local" }).error).toBeNull();
+    expect(resolveConfig({ VITE_DATA_SOURCE: "local" }).mode).toBe("local");
+  });
+
+  it("keeps VITE_DATA_SOURCE=demo as a legacy alias of local", () => {
+    expect(resolveConfig({ VITE_DATA_SOURCE: " DEMO " })).toEqual({
+      mode: "local",
+      apiBaseUrl: "/api/v1",
+      error: null,
+    });
   });
 });

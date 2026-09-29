@@ -55,7 +55,7 @@ beforeEach(() => {
   resetRegistry();
   // An EMPTY environment only exists when the data source is demo, so this is
   // the realistic configuration for a customer running the panel locally.
-  setRuntimeConfig({ mode: "demo", error: null });
+  setRuntimeConfig({ mode: "local", error: null });
 });
 
 afterEach(() => {
@@ -69,6 +69,7 @@ describe("an EMPTY environment is not called a demo", () => {
 
     expect(screen.getByText(/دادهٔ محلی — بدون امنیت واقعی/)).toBeTruthy();
     expect(screen.queryByText(/محیط دمو/)).toBeNull();
+    expect(screen.queryByText(/دادهٔ نمونه — بدون امنیت واقعی/)).toBeNull();
   });
 
   it("does not call the visitor's own account a sample account", () => {

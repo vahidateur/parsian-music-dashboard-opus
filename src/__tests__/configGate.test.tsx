@@ -6,7 +6,7 @@ import App from "@/App";
 afterEach(() => { resetRuntimeConfig(); cleanup(); });
 describe("ConfigGate", () => {
   it("blocks the whole app on a config error", () => {
-    setRuntimeConfig({ mode: "demo", error: "VITE_DATA_SOURCE=\"prodution\" is not valid" });
+    setRuntimeConfig({ mode: "local", error: "VITE_DATA_SOURCE=\"prodution\" is not valid" });
     render(<App />);
     expect(screen.getByRole("alert")).toBeTruthy();
     expect(screen.getByText("پیکربندی محیط نامعتبر است")).toBeTruthy();
@@ -14,7 +14,7 @@ describe("ConfigGate", () => {
     expect(screen.queryByText(/ورود/)).toBeNull();
   });
   it("renders the app normally when config is valid", () => {
-    setRuntimeConfig({ mode: "demo", error: null });
+    setRuntimeConfig({ mode: "local", error: null });
     render(<App />);
     expect(screen.queryByText("پیکربندی محیط نامعتبر است")).toBeNull();
   });

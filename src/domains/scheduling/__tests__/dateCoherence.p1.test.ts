@@ -25,7 +25,7 @@ describe("GAP-010 date source coherence", () => {
    * it takes to read it.
    */
   it("academyIsoDate uses academyNow — the wall clock, in demo and in api alike", () => {
-    for (const mode of ["demo", "api"] as const) {
+    for (const mode of ["local", "api"] as const) {
       setRuntimeConfig({ mode, apiBaseUrl: "/api/v1", error: null });
       const now = academyNow();
       const real = new Date();
@@ -66,7 +66,7 @@ describe("GAP-010 date source coherence", () => {
   });
 
   it("faToday(iso) equals isoToJalaliDisplay(iso) with weekday options — canonical path", () => {
-    setRuntimeConfig({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
+    setRuntimeConfig({ mode: "local", apiBaseUrl: "/api/v1", error: null });
     const iso = academyIsoDate();
     const expected = isoToJalaliDisplay(iso, {
       weekday: "long",
@@ -79,7 +79,7 @@ describe("GAP-010 date source coherence", () => {
   });
 
   it("faToday() without arg uses academyIsoDate() — coherent with Dashboard", () => {
-    setRuntimeConfig({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
+    setRuntimeConfig({ mode: "local", apiBaseUrl: "/api/v1", error: null });
     const iso = academyIsoDate();
     const viaBridge = isoToJalaliDisplay(iso, {
       weekday: "long",

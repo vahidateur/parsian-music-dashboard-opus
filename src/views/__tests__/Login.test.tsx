@@ -162,7 +162,7 @@ describe("authentication", () => {
 describe("demo mode", () => {
   it("offers one-tap credential fill", () => {
     renderLogin();
-    const panel = screen.getByText(/محیط دمو/).closest("div")!.parentElement!;
+    const panel = screen.getByText(/دادهٔ نمونه — بدون امنیت واقعی/).closest("div")!.parentElement!;
     const account = within(panel).getAllByRole("button")[0];
 
     fireEvent.click(account);
@@ -184,6 +184,7 @@ describe("production mode", () => {
     const { container } = renderLogin();
 
     expect(screen.queryByText(/محیط دمو/)).toBeNull();
+    expect(screen.queryByText(/دادهٔ نمونه — بدون امنیت واقعی/)).toBeNull();
     expect(screen.queryByText(/بدون امنیت واقعی/)).toBeNull();
     // The shared passphrase must not exist anywhere in the DOM.
     expect(container.textContent).not.toContain(DEMO_PASSPHRASE);

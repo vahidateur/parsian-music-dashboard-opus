@@ -28,7 +28,7 @@ beforeEach(() => {
   localStorage.clear();
   resetToUninitialized();
   resetRegistry();
-  setRuntimeConfig({ mode: "demo", error: null });
+  setRuntimeConfig({ mode: "local", error: null });
 });
 
 afterEach(() => {

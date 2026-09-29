@@ -178,7 +178,7 @@ export function DemoPanel({ open, demoEnvironment, onPick }: { open: boolean; de
     >
       <div className="flex items-center gap-1.5 text-[length:var(--p-text-xs)] font-semibold text-warn-400">
         <TriangleAlert className="size-3.5" aria-hidden />{" "}
-        {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
+        {demoEnvironment ? "دادهٔ نمونه — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
       </div>
       <p className="mt-[calc(var(--form-u)*6)] text-[length:var(--p-text-xs)] leading-relaxed text-ink-300">
         {demoEnvironment
