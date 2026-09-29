@@ -1,7 +1,7 @@
 import type { Page } from "@/api/types";
 import { ApiError } from "@/api/errors";
 import { can } from "@/domains/auth/permissions";
-import { conflict, forbidden, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { conflict, forbidden, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import type { AttendanceRecord } from "@/domains/attendance/types";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";

@@ -15,7 +15,7 @@
  * the production handoff).
  */
 import type { Page } from "@/api/types";
-import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { getBlobStore, type BlobStore } from "./blobStore";
 import type { MediaRepository } from "./repository";

@@ -13,7 +13,7 @@
  * F1: lockedContent added per Level N eligible 1..N, N+1+ locked honest reason.
  */
 import type { Page } from "@/api/types";
-import { conflict, matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { conflict, matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resolveEligibleContent, resolveEligibleStudentIds, resolveLockedContent } from "./eligibility";
 import type { LearningRepository } from "./repository";

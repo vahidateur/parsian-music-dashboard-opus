@@ -17,7 +17,7 @@
  * ownership and authorization stay a backend concern.
  */
 import type { Page } from "@/api/types";
-import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { getMessageProvider } from "./provider";
 import type { ChatRepository } from "./repository";

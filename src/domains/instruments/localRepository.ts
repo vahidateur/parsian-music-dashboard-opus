@@ -6,7 +6,7 @@
  * are convenience; these are the rules.
  */
 import type { Page } from "@/api/types";
-import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
+import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { InstrumentRepository } from "./repository";
 import type {

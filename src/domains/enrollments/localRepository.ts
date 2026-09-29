@@ -1,5 +1,5 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { conflict, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { isClassActive } from "@/domains/classes/localRepository";
 import type { Page } from "@/api/types";
 import type { EnrollmentRepository } from "./repository";

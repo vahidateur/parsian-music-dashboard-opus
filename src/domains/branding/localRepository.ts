@@ -5,7 +5,7 @@
  * custom properties, so an unvalidated string here would be injected into the
  * page's style layer — hence the strict hex test and the font allow-list (§24).
  */
-import { validationError } from "@/domains/shared/demoCollection";
+import { validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { BrandingRepository } from "./repository";
 import { isHexColor, isPersianFont, type BrandingSettings, type UpdateBrandingInput } from "./types";

@@ -1,14 +1,11 @@
 /**
- * W8 — naming gate for the recorded two-composition boundary.
+ * W9 — naming gate for the two authorized Class-H final paths.
  *
- * This is not the W9 rename sweep. Class H stays exempt: the two canonical
- * modules may keep the word demo in their filenames. The gate locks that
- * exemption list and the current Demo*-named production files. A new Demo*
- * architecture file fails. Deleting a Class H file also fails — the exemption
- * is not a licence to delete the logic.
- *
- * The client composition may keep the recorded export-compatible names
- * `DemoNote` and `DemoServedDomain`. A new Demo* export there fails.
+ * W8 locked an exemption for the two misnamed canonical modules. W9 renamed
+ * those modules and nothing else. This gate now requires the final paths,
+ * rejects the old filenames, and still closes the remaining Demo*-named
+ * production set. The client composition may still export only the recorded
+ * names `DemoNote` and `DemoServedDomain`.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -16,15 +13,23 @@ import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
 
-/** Canonical modules whose names are W9's to rename. Not renamed here. */
-const CLASS_H = [
+/** Authorized W9 final paths. Not a licence to add a third module. */
+const CLASS_H_FINAL = [
+  "src/domains/media/mediaReferences.ts",
+  "src/domains/shared/repositoryPlumbing.ts",
+] as const;
+
+/** Old Class-H filenames. Reintroducing either fails. */
+const CLASS_H_REMOVED = [
   "src/domains/media/demoReferences.ts",
   "src/domains/shared/demoCollection.ts",
 ] as const;
 
 /**
  * Production files whose names contain "demo". Tests are not in this set.
- * Growth fails. Shrinkage fails, so a silent deletion is visible.
+ * The two renamed Class-H files are no longer in it. Growth fails. Shrinkage
+ * fails, so a silent deletion is visible. Recreating an old Class-H filename
+ * fails as an extra.
  */
 const DEMO_NAMED_PRODUCTION = [
   "src/components/settings/DemoDataPanel.tsx",
@@ -37,9 +42,7 @@ const DEMO_NAMED_PRODUCTION = [
   "src/domains/gallery/demoContent.ts",
   "src/domains/learning/demoRepository.ts",
   "src/domains/library/demoContent.ts",
-  "src/domains/media/demoReferences.ts",
   "src/domains/progress/demoRepository.ts",
-  "src/domains/shared/demoCollection.ts",
   "src/services/demoStore.ts",
   "src/test/demoEnvironment.ts",
 ] as const;
@@ -85,21 +88,29 @@ function clientDemoExports(files: readonly { path: string; source: string }[]): 
 }
 
 describe("naming gate", () => {
-  it("Class H is exactly the two canonical misnamed modules", () => {
-    expect([...CLASS_H]).toEqual([
+  it("Class H final paths are the renamed media check and the existing plumbing", () => {
+    expect([...CLASS_H_FINAL]).toEqual([
+      "src/domains/media/mediaReferences.ts",
+      "src/domains/shared/repositoryPlumbing.ts",
+    ]);
+    expect([...CLASS_H_REMOVED]).toEqual([
       "src/domains/media/demoReferences.ts",
       "src/domains/shared/demoCollection.ts",
     ]);
-    for (const file of CLASS_H) {
+    for (const file of CLASS_H_FINAL) {
       expect(existsSync(join(ROOT, file)), file).toBe(true);
     }
-    const references = readFileSync(join(ROOT, CLASS_H[0]), "utf8");
-    const collection = readFileSync(join(ROOT, CLASS_H[1]), "utf8");
+    for (const file of CLASS_H_REMOVED) {
+      expect(existsSync(join(ROOT, file)), file).toBe(false);
+    }
+    const references = readFileSync(join(ROOT, CLASS_H_FINAL[0]), "utf8");
+    const plumbing = readFileSync(join(ROOT, CLASS_H_FINAL[1]), "utf8");
     expect(references).toMatch(/export function mediaStillReferenced\(store:\s*LocalDataStore/);
     expect(references).not.toMatch(/\bDemoStoreImpl\b/);
-    expect(collection).toContain('from "./repositoryPlumbing"');
-    expect(collection).toContain("paginate");
-    expect(collection).not.toMatch(/function paginate/);
+    expect(references).not.toMatch(/function paginate/);
+    expect(plumbing).toMatch(/export function paginate/);
+    expect(plumbing).toContain("DEFAULT_PER_PAGE");
+    expect(plumbing).not.toContain('from "./repositoryPlumbing"');
   });
 
   it("does not grow or shrink the Demo*-named production set", () => {
@@ -108,8 +119,11 @@ describe("naming gate", () => {
     expect(namingViolations([...DEMO_NAMED_PRODUCTION, "src/domains/billing/demoBilling.ts"], DEMO_NAMED_PRODUCTION)).toEqual([
       "extra src/domains/billing/demoBilling.ts",
     ]);
-    expect(namingViolations(DEMO_NAMED_PRODUCTION.filter((file) => file !== CLASS_H[0]), DEMO_NAMED_PRODUCTION)).toEqual([
-      `missing ${CLASS_H[0]}`,
+    expect(namingViolations([...DEMO_NAMED_PRODUCTION, CLASS_H_REMOVED[0]], DEMO_NAMED_PRODUCTION)).toEqual([
+      `extra ${CLASS_H_REMOVED[0]}`,
+    ]);
+    expect(namingViolations(DEMO_NAMED_PRODUCTION.filter((file) => file !== "src/services/demoStore.ts"), DEMO_NAMED_PRODUCTION)).toEqual([
+      "missing src/services/demoStore.ts",
     ]);
   });
 

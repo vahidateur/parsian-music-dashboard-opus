@@ -1,6 +1,6 @@
 import type { Page } from "@/api/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { conflict, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { resolveSessionRoster } from "./roster";
 import type { AttendanceRepository } from "./repository";
 import {

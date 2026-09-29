@@ -17,9 +17,9 @@
  */
 import type { Page } from "@/api/types";
 import { faNum } from "@/lib/format";
-import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { LocalMediaRepository } from "@/domains/media/localRepository";
-import { mediaStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/mediaReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import { demoStore, type DemoStore } from "@/services/demoStore";

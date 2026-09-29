@@ -1,7 +1,7 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
+import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/repositoryPlumbing";
 import { LocalMediaRepository } from "@/domains/media/localRepository";
-import { mediaStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/mediaReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import type { Page } from "@/api/types";
@@ -15,7 +15,7 @@ import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput
  *
  * The record→photo ownership transition is the exception, and it is owned here:
  * the photo is part of the record this repository writes, and the shared-photo
- * check needs the dataset (`media/demoReferences.ts`).
+ * check needs the dataset (`media/mediaReferences.ts`).
  */
 export class LocalTeacherRepository implements TeacherRepository {
   constructor(

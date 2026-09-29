@@ -36,7 +36,7 @@ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs } from "@/test/repositoryStubs";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { LocalMediaRepository } from "../localRepository";
-import { mediaStillReferenced } from "../demoReferences";
+import { mediaStillReferenced } from "../mediaReferences";
 import { releaseUnreferencedMedia, setMediaReleaseFailureReporter } from "../release";
 import type { MediaAsset } from "../types";
 
