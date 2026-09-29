@@ -11,26 +11,37 @@ const __dirname = path.dirname(__filename);
 /**
  * Which composition to build.
  *
- *   APP_TARGET=demo   (default) — the demo composition: demo repositories,
- *                      demo provisioning, demo credential panel, delivery UI.
- *   APP_TARGET=client           — the production/client composition: API
- *                      repositories, DOMAIN_UNAVAILABLE for unserved domains,
- *                      and NOT ONE demo module in any chunk.
+ *   APP_TARGET=operator (default; `demo` is the same graph) — fixture,
+ *                      staging, Import/Reset. Demo modules are allowed here.
+ *   APP_TARGET=client           — API/client composition. Same module graph
+ *                      as customer. No demo module, no demo string.
+ *   APP_TARGET=customer         — the delivery artifact. Same module graph
+ *                      as client. D9 measures this output only.
  *
  * Selection is by FILE ALIAS (below), which is what makes the boundary
- * physical: the bundler never resolves a demo target file when building the
- * client — it is not a runtime flag that dead code elimination might miss.
- * `src/domains/registry` is swapped the same way (registry.client.ts is
- * export-compatible, so no application code changes between compositions).
- * Tests (vitest) run with the default demo target unless APP_TARGET says
- * otherwise; `__APP_TARGET__` is defined to match.
+ * physical: the bundler never resolves a demo target file when building
+ * customer or client — it is not a runtime flag that dead code elimination
+ * might miss. `src/domains/registry` is swapped the same way
+ * (registry.client.ts is export-compatible). The two registries are not
+ * merged. Tests run on the operator graph unless APP_TARGET says otherwise.
+ * `__APP_TARGET__` is the canonical name (`operator`, never the `demo` alias)
+ * so `=== "operator"` folds away in the clean builds.
  *
- * Asserted by src/__tests__/bundleBoundary.test.ts against the real
- * `dist/client` and `dist/demo` output — negative AND positive checks.
+ * Asserted by src/__tests__/bundleBoundary.test.ts against `dist/customer`,
+ * `dist/client`, and `dist/operator`.
  */
-const APP_TARGET: "demo" | "client" = process.env.APP_TARGET === "client" ? "client" : "demo";
+type AppTarget = "customer" | "client" | "operator";
+function resolveAppTarget(raw: string | undefined): AppTarget {
+  if (raw === "customer" || raw === "client" || raw === "operator") return raw;
+  if (raw === undefined || raw === "" || raw === "demo") return "operator";
+  throw new Error(
+    `APP_TARGET="${raw}" is not a composition. Use "customer", "client", or "operator".`,
+  );
+}
+const APP_TARGET: AppTarget = resolveAppTarget(process.env.APP_TARGET);
+const CLEAN_GRAPH = APP_TARGET === "customer" || APP_TARGET === "client";
 const targetFile = (base: string, ext: string): string =>
-  path.resolve(__dirname, `src/targets/${base}${APP_TARGET === "client" ? ".client" : ""}.${ext}`);
+  path.resolve(__dirname, `src/targets/${base}${CLEAN_GRAPH ? ".client" : ""}.${ext}`);
 const targetAliases: { find: string; replacement: string }[] = [
   { find: "@/targets/environment", replacement: targetFile("environment", "tsx") },
   { find: "@/targets/libraryProvisioning", replacement: targetFile("libraryProvisioning", "ts") },
@@ -39,10 +50,9 @@ const targetAliases: { find: string; replacement: string }[] = [
   { find: "@/targets/targetFeatures", replacement: targetFile("targetFeatures", "tsx") },
   { find: "@/targets/commandShowcase", replacement: targetFile("commandShowcase", "ts") },
 ];
-const registryAlias: { find: string; replacement: string }[] =
-  APP_TARGET === "client"
-    ? [{ find: "@/domains/registry", replacement: path.resolve(__dirname, "src/domains/registry.client.ts") }]
-    : [];
+const registryAlias: { find: string; replacement: string }[] = CLEAN_GRAPH
+  ? [{ find: "@/domains/registry", replacement: path.resolve(__dirname, "src/domains/registry.client.ts") }]
+  : [];
 
 /**
  * The Content-Security-Policy the edge enforces in production.

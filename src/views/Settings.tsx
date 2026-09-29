@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { notificationServerNote, settingsOperationsHint } from "@/targets/targetCopy";
 import { Building2, Check, FileSpreadsheet, Globe, Palette, Shield, SlidersHorizontal, Bell, History, LayoutGrid } from "lucide-react";
 import {
   THEMES,
@@ -41,7 +42,7 @@ const sections = [
   { id: "appearance", label: "ظاهر", hint: "تم، تراکم، حرکت" },
   { id: "notifications", label: "اعلان‌ها", hint: "کانال‌ها و رویدادها" },
   { id: "localization", label: "بومی‌سازی", hint: "زبان، تقویم، واحد پول" },
-  { id: "operations", label: "عملیات آموزشگاه", hint: "اتاق‌ها، قواعد جلسه، دادهٔ دمو" },
+  { id: "operations", label: "عملیات آموزشگاه", hint: settingsOperationsHint },
   { id: "data", label: "ورود و خروج اطلاعات", hint: "CSV و Excel · هنرجویان، مدرسین، کلاس‌ها" },
 ] as const;
 
@@ -326,7 +327,7 @@ export function SettingsView() {
             <>
               <Panel title="رویدادهایی که به شما اطلاع داده می‌شود" kicker="فقط چیزهایی که نیاز به تصمیم دارند">
                 <Surface className="mb-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
-                  اعلان‌ها نیازمند سرور است — دامنهٔ اعلان‌ها هنوز پیاده‌سازی نشده و این تنظیمات ذخیره نمی‌شود. ارسال واقعی پیامک، ایمیل و اعلان درون‌برنامه‌ای به سرور نیاز دارد و در دمو فعال نیست. این کلیدها صرفاً نمایشی هستند و پس از بارگذاری مجدد بازنشانی می‌شوند.
+                  {notificationServerNote}
                 </Surface>
                 <ul className="space-y-2">
                   {[

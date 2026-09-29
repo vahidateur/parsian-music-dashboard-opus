@@ -39,15 +39,13 @@
  *   JS+CSS+HTML total    gzip 297835  (+2.26% vs baseline, within +5%)
  *   dist total raw       1963240     (−10.3% vs baseline)
  *
- * W7A retargets the production gate onto the client artifact (`dist/client`).
- * The cap number is unchanged. The demo/fixture artifact (`dist/demo`, else
- * the bare `dist/`) is measured with the same `gzip -6 -n` method and reported
- * by name; the production cap is not applied to it.
+ * The production gate measures `dist/customer` only. The cap number is
+ * unchanged. `dist/client` and the operator fixture (`dist/operator`, else
+ * `dist/demo`, else bare `dist/`) are measured with the same `gzip -6 -n`
+ * method and reported by name. The production cap is not applied to them.
  *
- * If `dist/client` is absent the production suite SKIPS rather than silently
- * passing — a green check that ran no assertions is worse than a red one
- * (same convention as cspCompatibility.test.ts). Build it with
- * `npm run build:client`. The fixture report uses `npm run build:demo`.
+ * If `dist/customer` is absent the production suite SKIPS rather than
+ * silently passing. Build it with `npm run build:customer`.
  */
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -55,15 +53,19 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
+const CUSTOMER_DIST = join(ROOT, "dist", "customer");
+const CUSTOMER_ASSETS = join(CUSTOMER_DIST, "assets");
+const CUSTOMER_HTML = join(CUSTOMER_DIST, "index.html");
+const hasCustomerBuild = existsSync(CUSTOMER_HTML);
 const CLIENT_DIST = join(ROOT, "dist", "client");
-const CLIENT_ASSETS = join(CLIENT_DIST, "assets");
-const CLIENT_HTML = join(CLIENT_DIST, "index.html");
-const hasClientBuild = existsSync(CLIENT_HTML);
-const FIXTURE_DIST = existsSync(join(ROOT, "dist", "demo", "index.html"))
-  ? join(ROOT, "dist", "demo")
-  : join(ROOT, "dist");
-const FIXTURE_HTML = join(FIXTURE_DIST, "index.html");
-const hasFixtureBuild = existsSync(FIXTURE_HTML) && FIXTURE_DIST !== CLIENT_DIST;
+const hasClientBuild = existsSync(join(CLIENT_DIST, "index.html"));
+function fixtureRoot(): string {
+  if (existsSync(join(ROOT, "dist", "operator", "index.html"))) return join(ROOT, "dist", "operator");
+  if (existsSync(join(ROOT, "dist", "demo", "index.html"))) return join(ROOT, "dist", "demo");
+  return join(ROOT, "dist");
+}
+const FIXTURE_DIST = fixtureRoot();
+const hasFixtureBuild = existsSync(join(FIXTURE_DIST, "index.html")) && FIXTURE_DIST !== CUSTOMER_DIST && FIXTURE_DIST !== CLIENT_DIST;
 
 /* ---------------- methodology: IDENTICAL to the c16890f baseline -------- */
 
@@ -110,9 +112,9 @@ function artifactGzip(root: string): number {
 
 /* ------------------------------ the budget ------------------------------ */
 
-describe.skipIf(!hasClientBuild)("bundle budget (D9, client/production artifact)", () => {
-  const chunks = hasClientBuild ? jsChunks(CLIENT_ASSETS) : [];
-  const totalGzip = hasClientBuild ? artifactGzip(CLIENT_DIST) : 0;
+describe.skipIf(!hasCustomerBuild)("bundle budget (D9, customer/production artifact)", () => {
+  const chunks = hasCustomerBuild ? jsChunks(CUSTOMER_ASSETS) : [];
+  const totalGzip = hasCustomerBuild ? artifactGzip(CUSTOMER_DIST) : 0;
 
   it("the entry chunk strictly decreased from the recorded 273791", () => {
     const entries = chunks.filter((c) => /^index-[A-Za-z0-9_-]+\.js$/.test(c.file));
@@ -120,7 +122,7 @@ describe.skipIf(!hasClientBuild)("bundle budget (D9, client/production artifact)
     expect(entries[0].gzip).toBeLessThan(ENTRY_GZIP_BASELINE);
   });
 
-  it("production/client gzip (JS+CSS+HTML) stays within the cap 361144", () => {
+  it("production/customer gzip (JS+CSS+HTML) stays within the cap 361144", () => {
     expect(totalGzip).toBeLessThanOrEqual(GZIP_TOTAL_CAP);
   });
 
@@ -131,23 +133,31 @@ describe.skipIf(!hasClientBuild)("bundle budget (D9, client/production artifact)
   });
 
   it("vazirmatn weights 300 and 800 are removed from the build", () => {
-    const assets = readdirSync(CLIENT_ASSETS);
+    const assets = readdirSync(CUSTOMER_ASSETS);
     expect(assets.filter((f) => f.includes("-300-"))).toEqual([]);
     expect(assets.filter((f) => f.includes("-800-"))).toEqual([]);
   });
 });
 
 describe("bundle budget artifact presence", () => {
-  it.skipIf(hasClientBuild)("skipped — dist/client absent (run npm run build:client)", (ctx) => {
+  it.skipIf(hasCustomerBuild)("skipped — dist/customer absent (run npm run build:customer)", (ctx) => {
     ctx.skip();
   });
 });
 
-describe.skipIf(!hasFixtureBuild)("demo fixture measurement (reported, not capped at 361144)", () => {
+describe.skipIf(!hasClientBuild)("client artifact measurement (reported, not capped at 361144)", () => {
+  const clientGzip = hasClientBuild ? artifactGzip(CLIENT_DIST) : 0;
+
+  it(`reports client gzip JS+CSS+HTML as ${clientGzip}; the production cap does not apply`, () => {
+    expect(clientGzip, `client ${CLIENT_DIST} gzip ${clientGzip}`).toBeGreaterThan(0);
+  });
+});
+
+describe.skipIf(!hasFixtureBuild)("operator fixture measurement (reported, not capped at 361144)", () => {
   const fixtureGzip = hasFixtureBuild ? artifactGzip(FIXTURE_DIST) : 0;
 
-  it(`reports demo fixture gzip JS+CSS+HTML as ${fixtureGzip}; the production cap does not apply`, () => {
-    expect(fixtureGzip, `demo fixture ${FIXTURE_DIST} gzip ${fixtureGzip}`).toBeGreaterThan(0);
+  it(`reports operator fixture gzip JS+CSS+HTML as ${fixtureGzip}; the production cap does not apply`, () => {
+    expect(fixtureGzip, `operator fixture ${FIXTURE_DIST} gzip ${fixtureGzip}`).toBeGreaterThan(0);
   });
 });
 
@@ -157,8 +167,14 @@ describe.skipIf(hasFixtureBuild)("demo fixture measurement", () => {
   });
 });
 
-describe.skipIf(!hasClientBuild)("bundle budget split shape (client/production artifact)", () => {
-  const chunks = hasClientBuild ? jsChunks(CLIENT_ASSETS) : [];
+describe.skipIf(hasClientBuild)("client artifact measurement", () => {
+  it("skipped — dist/client absent (run npm run build:client)", (ctx) => {
+    ctx.skip();
+  });
+});
+
+describe.skipIf(!hasCustomerBuild)("bundle budget split shape (customer/production artifact)", () => {
+  const chunks = hasCustomerBuild ? jsChunks(CUSTOMER_ASSETS) : [];
 
   it("the routed views really are split (the entry is not the app)", () => {
     const entry = chunks.find((c) => /^index-[A-Za-z0-9_-]+\.js$/.test(c.file))!;

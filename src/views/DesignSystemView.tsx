@@ -428,7 +428,7 @@ export function DesignSystemView() {
           </div>
         </Spec>
 
-        <Spec title="نمونه‌های وضعیت داده" note="loading · empty · error · demo">
+        <Spec title="نمونه‌های وضعیت داده" note="loading · empty · error · unavailable">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/[0.08] p-4">
               <BreathingWave bars={7} />

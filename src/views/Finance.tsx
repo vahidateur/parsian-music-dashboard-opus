@@ -1,8 +1,8 @@
 import { Download, Info, Plus, Wallet2 } from "lucide-react";
+import { financeDeferredClause, financeDeferredNote, financeExportDetail } from "@/targets/targetCopy";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ds/primitives";
 import { DemoNote } from "@/targets/environment";
-import { financeDeferredNote } from "@/targets/targetCopy";
 import { PageHeader, Panel } from "@/components/ds/patterns";
 
 /* ------------------------------------------------------------------ */
@@ -34,7 +34,7 @@ export function FinanceView() {
         description="فاکتورها، درآمد و اشتراک‌ها به سامانهٔ مالی سرور نیاز دارند (I2)."
         actions={
           <>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی نیازمند سرور است", detail: "تولید PDF/Excel در سرور انجام می‌شود و در دمو فعال نیست." })}>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی نیازمند سرور است", detail: financeExportDetail })}>
               <Download className="size-3.5" /> خروجی
             </Button>
             <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
@@ -52,8 +52,7 @@ export function FinanceView() {
           <div className="min-w-0 space-y-3 text-[13px] leading-relaxed text-ink-200">
             <p>
               نمایش دادهٔ مالی <span className="text-ink-50">نیازمند سرور است</span> (I2). خواندن فاکتورها،
-              تراکنش‌ها و اشتراک‌ها به قرارداد مالی سمت سرور وابسته است که هنوز طراحی نشده — در دمو و محیط خالی
-              چیزی برای نمایش صادقانه وجود ندارد.
+              تراکنش‌ها و اشتراک‌ها به قرارداد مالی سمت سرور وابسته است که هنوز طراحی نشده — {financeDeferredClause}
             </p>
             <p className="flex items-start gap-2 text-[12px] text-ink-400">
               <Info className="mt-0.5 size-3.5 shrink-0 text-ink-400" />

@@ -57,6 +57,7 @@
  * The layout, spacing and design tokens are unchanged from the original view.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { messageBroadcastDetail } from "@/targets/targetCopy";
 import {
   AlertTriangle,
   Archive,
@@ -438,7 +439,7 @@ export function MessagesView() {
                 notify({
                   tone: "info",
                   title: "اعلان عمومی",
-                  detail: "ارسال گروهی به سرویس پیام‌رسان سمت سرور نیاز دارد و در دمو فعال نیست.",
+                  detail: messageBroadcastDetail,
                 })
               }
             >

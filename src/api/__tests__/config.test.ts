@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveConfig } from "@/api/config";
+import { resolveConfig, resolveDeliveryConfig } from "@/api/config";
 
 /**
  * The governing safety rule: production must never silently fall back to demo.
@@ -65,32 +65,40 @@ describe("resolveConfig", () => {
   });
 });
 
-describe("resolveConfig in the client composition", () => {
+describe("resolveDeliveryConfig (customer and client)", () => {
   it("defaults to api when nothing is configured", () => {
-    expect(resolveConfig({}, "client")).toEqual({ mode: "api", apiBaseUrl: "/api/v1", error: null });
+    expect(resolveDeliveryConfig({})).toEqual({ mode: "api", apiBaseUrl: "/api/v1", error: null });
   });
 
   it("treats an empty value as unset api, not as local", () => {
-    expect(resolveConfig({ VITE_DATA_SOURCE: "   " }, "client").mode).toBe("api");
-    expect(resolveConfig({ VITE_DATA_SOURCE: "   " }, "client").error).toBeNull();
+    expect(resolveDeliveryConfig({ VITE_DATA_SOURCE: "   " }).mode).toBe("api");
+    expect(resolveDeliveryConfig({ VITE_DATA_SOURCE: "   " }).error).toBeNull();
   });
 
   it.each(["local", "demo", " DEMO ", "local "])(
     "refuses %s without selecting a local dataset",
     (value) => {
-      const config = resolveConfig({ VITE_DATA_SOURCE: value }, "client");
+      const config = resolveDeliveryConfig({ VITE_DATA_SOURCE: value });
       expect(config.mode).toBe("api");
       expect(config.mode).not.toBe("local");
       expect(config.error).toBeTruthy();
       expect(config.error).toContain("API-only");
+      expect(config.error).not.toContain("VITE_DATA_SOURCE=demo");
     },
   );
 
   it("still accepts an explicit api source", () => {
-    expect(resolveConfig({ VITE_DATA_SOURCE: "api", VITE_API_BASE_URL: "https://x.test/api/v1" }, "client")).toEqual({
+    expect(resolveDeliveryConfig({ VITE_DATA_SOURCE: "api", VITE_API_BASE_URL: "https://x.test/api/v1" })).toEqual({
       mode: "api",
       apiBaseUrl: "https://x.test/api/v1",
       error: null,
     });
+  });
+
+  it("does not mention the operator-only markers", () => {
+    const source = resolveDeliveryConfig.toString();
+    for (const marker of ["ava:demo:", "arena-demo", "DemoDataPanel", "createSeedDataset", "data/dataset/", "loadDatasetArtifact"]) {
+      expect(source).not.toContain(marker);
+    }
   });
 });

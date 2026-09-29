@@ -750,7 +750,7 @@ export function ClassesView() {
             // The dialog awaited a real repository write, so the confirmation
             // may only name it demo data where it is demo data. In an EMPTY
             // environment these are the academy's own classes (H3).
-            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+            detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

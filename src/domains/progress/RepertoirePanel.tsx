@@ -158,7 +158,7 @@ export function RepertoirePanel() {
             // may only call it demo data where it is demo data: in an EMPTY
             // environment this is the academy's own repertoire (H7 — the defect
             // M2 fixed in the five domain views, in Settings too).
-            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+            detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { paymentSheetNote } from "@/targets/targetCopy";
 import { Check, Info, TriangleAlert, X } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import type { QuickActionDef } from "@/lib/viewContracts";
@@ -112,7 +113,7 @@ export function ActionSheet() {
         <div className="space-y-3">
           <p className="flex items-start gap-2 rounded-xl border border-white/[0.05] bg-white/[0.02] p-3 text-[11px] leading-relaxed text-ink-400">
             <Info className="mt-0.5 size-3.5 shrink-0 text-ink-400" />
-            نسخهٔ دمو: ثبت پرداخت به سرویس مالی سمت سرور نیاز دارد. در این نسخه، داده‌های مالی از طریق مخزن خوانده نمی‌شوند و هیچ مبلغی ذخیره نمی‌شود. برای مشاهدهٔ وضعیت فعلی، به بخش مالی بروید.
+            {paymentSheetNote}
           </p>
           <p className="text-[11px] leading-relaxed text-ink-500">
             تصمیم D6 و کار I2 (DECISIONS §۱۹) صراحتاً می‌گویند: هیچ مخزن مالی، هیچ خوانش مالی و هیچ دامنهٔ مالی در M10 ساخته نشده است. این دیالوگ به‌جای ساختن یک مخزن جعلی، وضعیت موکول‌شده را صادقانه بیان می‌کند.
@@ -132,7 +133,7 @@ export function ActionSheet() {
           notify({
             tone: "success",
             title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+            detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />
@@ -151,7 +152,7 @@ export function ActionSheet() {
           notify({
             tone: "success",
             title: mode === "create" ? `${saved.title} ساخته شد` : `${saved.title} به‌روزرسانی شد`,
-            detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+            detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
           })
         }
       />

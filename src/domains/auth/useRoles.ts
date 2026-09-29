@@ -10,6 +10,7 @@
  * cannot rebuild.
  */
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { demoManageLabel } from "@/targets/targetCopy";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getRoleRepository } from "@/domains/registry";
 import { useDataVersion } from "@/domains/shared/dataVersion";
@@ -160,5 +161,5 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "users.read": "مشاهدهٔ کاربران",
   "users.write": "مدیریت کاربران",
   "roles.write": "مدیریت نقش‌ها و دسترسی‌ها",
-  "demo.manage": "مدیریت دادهٔ نمایشی",
+  "demo.manage": demoManageLabel,
 };

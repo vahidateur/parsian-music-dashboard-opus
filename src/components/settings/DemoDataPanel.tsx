@@ -158,6 +158,12 @@ export function DemoDataPanel() {
               </Button>
             </>
           )}
+          <Button size="sm" disabled={!mayManage} data-operator-import onClick={() => ask("import-sample")}>
+            ورود دادهٔ نمونه
+          </Button>
+          <Button size="sm" disabled={!mayManage} data-operator-reset onClick={() => ask("reset-clean")}>
+            <RotateCcw className="size-3.5" /> بازنشانی به محیط خالی
+          </Button>
           <Button size="sm" variant="ghost" disabled={!mayManage} className="text-danger-400 hover:text-danger-400" onClick={() => ask("clear")}>
             <Eraser className="size-3.5" /> پاک‌کردن کامل
           </Button>

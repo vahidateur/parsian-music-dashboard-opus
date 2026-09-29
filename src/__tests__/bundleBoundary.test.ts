@@ -12,17 +12,16 @@
  * if the artifact is absent the case SKIPS rather than silently passing — a
  * green check that ran no assertions is worse than a red one.
  *
- * ARTIFACT LAYOUT. `npm run build:client` → `dist/client`; `npm run
- * build:demo` → `dist/demo`; the bare `npm run build` (the demo target's
- * default) → `dist/` and, being an in-root outDir, EMPTIES `dist/` — which
- * removes `dist/client` and `dist/demo`. So the two composed builds can be
- * inspected side by side. `bundleBudget` measures `dist/client` against the
- * production cap and reports `dist/demo` separately; `cspCompatibility` still
- * expects the bare build at `dist/`. The demo probes below therefore read
- * `dist/demo` when it exists and fall back to `dist/`; the client probes read
- * `dist/client`. Verify with:
+ * ARTIFACT LAYOUT. `npm run build:customer` → `dist/customer`;
+ * `npm run build:client` → `dist/client`; `npm run build:operator` →
+ * `dist/operator`. The bare `npm run build` is the operator graph at `dist/`
+ * and, being an in-root outDir, EMPTIES `dist/` — which removes the composed
+ * outputs. `bundleBudget` applies the production cap to `dist/customer` only
+ * and reports `dist/client` and `dist/operator` separately.
+ * `cspCompatibility` still expects the bare build at `dist/`. Operator probes
+ * read `dist/operator`, else `dist/demo`, else `dist/`. Verify with:
  *
- *   npm run build:client && npm run build:demo && npx vitest run src/__tests__/bundleBoundary.test.ts
+ *   npm run build:customer && npm run build:client && npm run build:operator && npx vitest run src/__tests__/bundleBoundary.test.ts
  *
  * Every probe string is a LITERAL that survives minification (storage keys,
  * Persian copy, seed ids) — identifiers get renamed, strings do not.
@@ -64,11 +63,22 @@ const CLIENT_MUST_ABSENT = [
   "ava:demo:dataset", // demo dataset marker (storage key)
   "ava:demo:credentials", // demo credential store key
   "ava:demo:session", // demo session key
+  "ava:demo:", // any demo storage key
   "@demo.local", // demo account domain
   "arena-demo", // demo passphrase literal / demo backup filename prefix
   "md_gal_hall", // a seed-only record id (proof the seed is not bundled)
   "بدون امنیت واقعی", // demo-only Persian panel copy
   "حذف دادهٔ دمو", // demo-only Persian destructive-action copy
+  "DemoDataPanel",
+  "createSeedDataset",
+  "data/dataset/",
+  "loadDatasetArtifact",
+  "VITE_DATA_SOURCE=demo",
+  "data-operator-import",
+  "data-operator-reset",
+  "Use \"local\" or \"demo\"",
+  "دمو",
+  "دادهٔ نمایشی",
 ] as const;
 
 /** The client MUST disclose unavailable domains — presence probes. */
@@ -83,12 +93,35 @@ const DEMO_MUST_PRESENT = [
   "md_gal_hall",
   "بدون امنیت واقعی",
   "حذف دادهٔ دمو",
+  "data-operator-import",
+  "data-operator-reset",
 ] as const;
 
 /** The demo composition serves everything it offers — no client-only notice. */
 const DEMO_MUST_ABSENT = [
   "هنوز به سامانهٔ سرور متصل نیست",
 ] as const;
+
+describe("customer build (dist/customer) — demo capability absent, disclosure present", () => {
+  const customerHtml = join(ROOT, "dist", "customer", "index.html");
+
+  it.runIf(existsSync(customerHtml))(
+    "emits no demo marker in any chunk and ships the unavailable notice",
+    () => {
+      const bundle = readAssets(join(ROOT, "dist", "customer"));
+      for (const marker of CLIENT_MUST_ABSENT) {
+        expect(bundle.includes(marker), `customer bundle must not contain ${JSON.stringify(marker)}`).toBe(false);
+      }
+      for (const probe of CLIENT_MUST_PRESENT) {
+        expect(bundle.includes(probe), `customer bundle must contain ${JSON.stringify(probe)}`).toBe(true);
+      }
+    },
+  );
+
+  it.runIf(!existsSync(customerHtml))("skipped — dist/customer absent (run npm run build:customer)", () => {
+    expect(existsSync(customerHtml)).toBe(false);
+  });
+});
 
 describe("client build (dist/client) — demo capability absent, disclosure present", () => {
   const clientHtml = join(ROOT, "dist", "client", "index.html");
@@ -117,16 +150,18 @@ describe("client build (dist/client) — demo capability absent, disclosure pres
   });
 });
 
-describe("demo build (dist/demo, else dist/) — demo capability present, no false server claim", () => {
-  const demoRoot = existsSync(join(ROOT, "dist", "demo", "index.html"))
-    ? join(ROOT, "dist", "demo")
-    : join(ROOT, "dist");
+describe("operator build (dist/operator, else dist/demo, else dist/) — demo capability present", () => {
+  const demoRoot = existsSync(join(ROOT, "dist", "operator", "index.html"))
+    ? join(ROOT, "dist", "operator")
+    : existsSync(join(ROOT, "dist", "demo", "index.html"))
+      ? join(ROOT, "dist", "demo")
+      : join(ROOT, "dist");
   const demoHtml = join(demoRoot, "index.html");
 
   it.runIf(existsSync(demoHtml))(
     "ships demo markers/seed and never the client's unavailable wording",
     () => {
-      const bundle = readAssets(demoRoot, ["client", "demo"]);
+      const bundle = readAssets(demoRoot, ["customer", "client", "operator", "demo"]);
       for (const probe of DEMO_MUST_PRESENT) {
         expect(
           bundle.includes(probe),
@@ -142,7 +177,7 @@ describe("demo build (dist/demo, else dist/) — demo capability present, no fal
     },
   );
 
-  it.runIf(!existsSync(demoHtml))("skipped — dist/demo and dist/ absent (run npm run build:demo)", () => {
+  it.runIf(!existsSync(demoHtml))("skipped — dist/operator, dist/demo and dist/ absent (run npm run build:operator)", () => {
     expect(existsSync(demoHtml)).toBe(false);
   });
 });
