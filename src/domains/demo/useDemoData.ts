@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import type { PermissionHolder } from "@/domains/auth/permissions";
 import { backupFileName, type DemoBackup, type ValidationIssue } from "./backup";
 import {
   DemoDataManager,
@@ -130,7 +131,10 @@ function normalizeUninitializeResult(
   };
 }
 
-export function useDemoData(manager: DemoDataManager = demoDataManager): DemoDataState {
+export function useDemoData(
+  manager: DemoDataManager = demoDataManager,
+  actor: PermissionHolder | null = null,
+): DemoDataState {
   const [stats, setStats] = useState<DemoDatasetStats>(() => manager.stats());
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [lastResult, setLastResult] = useState<DemoActionResult | null>(null);
@@ -161,9 +165,9 @@ export function useDemoData(manager: DemoDataManager = demoDataManager): DemoDat
             : pending.action === "clear"
               ? manager.clear(confirmed)
               : pending.action === "import-sample"
-                ? manager.importSample(confirmed)
+                ? manager.importSample(confirmed, actor)
                 : pending.action === "reset-clean"
-                  ? manager.resetToClean(confirmed)
+                  ? await manager.resetToClean(confirmed, actor)
                   : pending.action === "import-seed"
                     ? manager.importSeed(confirmed)
                     : manager.restoreBackup(pending.payload ?? "", confirmed);
@@ -175,7 +179,7 @@ export function useDemoData(manager: DemoDataManager = demoDataManager): DemoDat
     } finally {
       setBusy(false);
     }
-  }, [manager, pending]);
+  }, [actor, manager, pending]);
 
   const downloadBackup = useCallback(() => {
     const backup = manager.exportBackup();

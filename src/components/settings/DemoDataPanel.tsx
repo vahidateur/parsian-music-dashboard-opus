@@ -64,8 +64,8 @@ const COLLECTION_LABELS: Record<(typeof DEMO_COLLECTIONS)[number], string> = {
  */
 export function DemoDataPanel() {
   const { notify } = useApp();
-  const { can } = useAuth();
-  const demo = useDemoData();
+  const { can, permissions } = useAuth();
+  const demo = useDemoData(undefined, { permissions });
   const demoEnvironment = useIsDemoEnvironment();
   const mayManage = can("demo.manage");
   const fileInput = useRef<HTMLInputElement>(null);

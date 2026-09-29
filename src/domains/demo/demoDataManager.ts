@@ -39,8 +39,10 @@ import {
   isDemoCapabilityAvailable,
   isDestructiveOperationAllowed,
 } from "@/api/deploymentLock";
+import { can, type PermissionHolder } from "@/domains/auth/permissions";
 import { setInstrumentCatalog } from "@/domains/instruments/catalog";
-import { evaluateDeliveryOwnership } from "./delivery";
+import { getBlobStore } from "@/domains/media/blobStore";
+import { evaluateDeliveryOwnership, demoOwnedBlobIds } from "./delivery";
 import {
   createEmptyEnvironment,
   initializeDemoEnvironment,
@@ -175,22 +177,56 @@ export class DemoDataManager {
   }
 
   /**
-   * Operator Import. The sample payload is `createSeedDataset()` — the runtime
-   * does not read `data/dataset`. Proven customer ownership and unproven
-   * ownership are left untouched. A demo environment may be replaced with the
-   * seed. An absent environment receives the seed and is marked sample.
+   * Operator Import on the fixture graph.
+   *
+   * The only payload is `createSeedDataset()`, validated before any write.
+   * Uninitialized, a pristine empty envelope, and a proven demo envelope may
+   * receive it. A customer envelope that is no longer the empty contract, and
+   * any unproven envelope, are not written. An empty envelope is not treated
+   * as customer-owned for this refusal.
    */
-  importSample(request: ConfirmedRequest): DemoOperationResult {
-    if (!isDestructiveOperationAllowed()) return this.operationBlocked("import-sample");
-    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-sample");
-    if (!request?.confirm) return this.needsConfirmation("import-sample");
-    const ownership = evaluateDeliveryOwnership(this.store);
-    if (ownership.verdict === "customer" || ownership.verdict === "unproven") {
-      return this.unchanged("import-sample");
+  importSample(request: ConfirmedRequest, actor?: PermissionHolder | null): DemoOperationResult {
+    const refused = this.operatorGate("import-sample", request, actor);
+    if (refused) return refused;
+
+    const dataset = createSeedDataset();
+    const issues = validateDataset(dataset);
+    if (issues.length > 0) {
+      return {
+        ok: false,
+        operation: "import-sample",
+        issues,
+        message: "دادهٔ نمونه معتبر نیست؛ هیچ چیزی نوشته نشد.",
+      };
     }
+
+    if (!this.store.isInitialized()) {
+      try {
+        this.store.initializeEnvironment("sample", dataset);
+      } catch (cause) {
+        if (!this.store.isInitialized()) this.store.clearLifecycleMarker();
+        return this.writeFailed("import-sample", cause);
+      }
+      setInstrumentCatalog(dataset.instruments);
+      return this.success("import-sample", true, "دادهٔ نمونه از سازندهٔ seed وارد شد.");
+    }
+
+    const ownership = evaluateDeliveryOwnership(this.store);
+    if (ownership.verdict === "unproven") return this.unchanged("import-sample");
+    if (ownership.verdict === "customer" && !this.isPristineEmpty()) return this.unchanged("import-sample");
+
+    if (ownership.verdict === "demo" && this.sameRecords(this.store.snapshot(), dataset)) {
+      const raw = this.store.peekLifecycleMarkerValue();
+      if (raw.readable && raw.value === "demo") {
+        markLifecycle("sample", this.store);
+        return this.success("import-sample", true, "نشانگر نمونه به شکل کانونیکال نوشته شد.");
+      }
+      return this.success("import-sample", false, "دادهٔ نمونه از قبل نصب است؛ تغییری انجام نشد.");
+    }
+
     return this.applyDataset(
       "import-sample",
-      createSeedDataset(),
+      dataset,
       request,
       "دادهٔ نمونه از سازندهٔ seed وارد شد.",
       "sample",
@@ -198,26 +234,40 @@ export class DemoDataManager {
   }
 
   /**
-   * Operator Reset. Uses the delivery ownership verdict, and does not weaken it.
+   * Operator Reset. Ownership is `evaluateDeliveryOwnership()` only.
    *
-   *   demo        → empty environment (lifecycle `empty`)
+   *   demo        → delete demo-owned blobs, then empty environment
    *   customer    → no write
    *   unproven    → no write
-   *   empty / uninitialized / no environment → no-op
+   *   pristine empty / uninitialized → no-op
+   *
+   * Blob deletion failure stops before the dataset is touched.
    */
-  resetToClean(request: ConfirmedRequest): DemoOperationResult {
-    if (!isDestructiveOperationAllowed()) return this.operationBlocked("reset-clean");
-    if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset-clean");
-    if (!request?.confirm) return this.needsConfirmation("reset-clean");
+  async resetToClean(request: ConfirmedRequest, actor?: PermissionHolder | null): Promise<DemoOperationResult> {
+    const refused = this.operatorGate("reset-clean", request, actor);
+    if (refused) return refused;
 
-    const state = readLifecycleState(this.store);
-    if (state === "uninitialized" || state === "empty" || !this.store.isInitialized()) {
-      // `empty` is the customer lifecycle mode, with or without records.
-      // Uninitialized has nothing to clear. Neither path writes.
+    if (!this.store.isInitialized() || readLifecycleState(this.store) === "uninitialized") {
       return this.noop("reset-clean");
     }
+    if (this.isPristineEmpty()) return this.noop("reset-clean");
+
     const ownership = evaluateDeliveryOwnership(this.store);
     if (ownership.verdict !== "demo") return this.unchanged("reset-clean");
+
+    const blobs = getBlobStore();
+    for (const id of demoOwnedBlobIds()) {
+      try {
+        await blobs.remove(id);
+      } catch {
+        return {
+          ok: false,
+          operation: "reset-clean",
+          issues: [{ code: "OPERATION_BLOCKED", message: "حذف فایل‌های نمونه کامل نشد؛ دادهٔ محیط دست نخورده ماند." }],
+          message: "حذف فایل‌های نمونه شکست خورد؛ دادهٔ محیط نوشته نشد.",
+        };
+      }
+    }
     return this.applyDataset(
       "reset-clean",
       createEmptyEnvironment(),
@@ -429,6 +479,53 @@ export class DemoDataManager {
       issues: [{ code: "OPERATION_BLOCKED", message: "مالکیت این محیط اجازهٔ این عملیات را نمی‌دهد." }],
       message: "مالکیت این محیط اجازهٔ تغییر نمی‌دهد؛ هیچ چیزی نوشته نشد.",
     };
+  }
+
+  /**
+   * Service-layer authorization. Hiding the button is not this check.
+   * `demo.manage` is the existing permission; no new one is introduced.
+   */
+  private operatorGate(
+    operation: DemoOperation,
+    request: ConfirmedRequest,
+    actor: PermissionHolder | null | undefined,
+  ): DemoOperationFailure | null {
+    if (!can(actor, "demo.manage")) {
+      return {
+        ok: false,
+        operation,
+        issues: [{ code: "OPERATION_BLOCKED", message: "مجوز demo.manage برای این عملیات لازم است." }],
+        message: "مجوز demo.manage برای این عملیات لازم است؛ هیچ چیزی نوشته نشد.",
+      };
+    }
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked(operation);
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled(operation);
+    if (!request?.confirm) return this.needsConfirmation(operation);
+    return null;
+  }
+
+  private writeFailed(operation: DemoOperation, cause: unknown): DemoOperationFailure {
+    return {
+      ok: false,
+      operation,
+      issues: [{ code: "INVALID_COLLECTION", message: cause instanceof Error ? cause.message : "خطای ذخیره‌سازی." }],
+      message: "ذخیرهٔ داده ناموفق بود؛ دادهٔ فعلی تغییر نکرد.",
+    };
+  }
+
+  /** Empty contract, not a customer envelope that has acquired its own records. */
+  private isPristineEmpty(): boolean {
+    if (!this.store.isInitialized() || this.store.readLifecycleMarker() !== "empty") return false;
+    return this.sameRecords(this.store.snapshot(), createEmptyEnvironment());
+  }
+
+  /** Record identity, ignoring the provenance stamp the store adds on write. */
+  private sameRecords(left: DemoDataset, right: DemoDataset): boolean {
+    const view = (dataset: DemoDataset) => {
+      const { provenance: _provenance, ...records } = dataset as DemoDataset & { provenance?: unknown };
+      return JSON.stringify(records);
+    };
+    return view(left) === view(right);
   }
 }
 
