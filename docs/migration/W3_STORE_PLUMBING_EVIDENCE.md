@@ -241,6 +241,21 @@ Parent of the implementation commit: `713d9b3a43d825fb9f3cca01a05878f813ba60bd`.
 
 ---
 
-## 11. Next wave
+## 11. Remote verification of the evidence commit
+
+Appended after the evidence/handoff push, in the verification commit. The implementation push was already recorded in §9.
+
+| Check | Result |
+| --- | --- |
+| Evidence/handoff commit | `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` |
+| `git ls-remote` at that push | equal to that SHA |
+| GitHub API tree | `5cfeef7340e5d418e91db8733f201b35bf74cc6e`, equal to the local tree |
+| `main` / backup | unchanged (SHAs in §9) |
+
+The commit that carries this section is the tip after it is pushed. It cannot quote its own SHA. Verify with `git ls-remote`.
+
+---
+
+## 12. Next wave
 
 **W4 — repositories become the canonical local implementation, batched per domain.** Not started. It depends on this wave's interface, which now exists. It does not require D8 or a build-strategy choice; those remain required before W5.

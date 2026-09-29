@@ -8,6 +8,7 @@
 | Branch | docs/demo-migration-plan (no backticks) |
 | Baseline / parent SHA | `713d9b3a43d825fb9f3cca01a05878f813ba60bd` (the W2 tip) |
 | Implementation commit | `5fadf0769273178bd07c770f907871753f541768` |
+| Evidence/handoff commit | `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` (remote-verified; see §9) |
 | Evidence | `docs/migration/W3_STORE_PLUMBING_EVIDENCE.md` |
 | Rollback | `713d9b3a43d825fb9f3cca01a05878f813ba60bd` — revert is total; no key or env value moved |
 | Next wave | **W4 — repositories become the canonical local implementation.** Do not start it from this session. |
@@ -40,7 +41,7 @@ The independent dataset can feed the store. A test loads the artifact, installs 
 | --- | --- | --- |
 | `main` | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` | unchanged |
 | `backup/pre-f2-2026-09-29` | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` | unchanged |
-| docs/demo-migration-plan | implementation `5fadf0769273178bd07c770f907871753f541768` plus this handoff's commit | remote-verified for the implementation; the handoff commit is verified in §9 |
+| docs/demo-migration-plan | implementation `5fadf07…`, evidence `2cb4b1e…`, then this verification addendum | both pushed SHAs are in §9; the addendum SHA is the tip after its push |
 | protected WIP (`arena/01a0e8ec-…`, HEAD `eb973eb…`) | untouched | recovery source; never write to it |
 
 ## 3. Architectural change, in one paragraph
@@ -89,9 +90,11 @@ The W3/W9 contradiction on when `demoCollection` and `demoReferences` are rename
 * **Demo credentials** — before W7. Untouched.
 * **Optional `demo.manage` rename** — still optional.
 
-## 9. Remote verification of the implementation
+## 9. Remote verification
 
-Recorded after the implementation push, before this handoff commit.
+### 9.1 Implementation push
+
+Recorded after the implementation push, and carried by the evidence/handoff commit.
 
 | Check | Result |
 | --- | --- |
@@ -103,7 +106,19 @@ Recorded after the implementation push, before this handoff commit.
 | Protected WIP | HEAD `eb973eb2758447eff16b60ab4fd4c267f9d85061`, tracked-diff hash unchanged |
 | Push mode | ordinary push of one commit — no force, no rebase, no squash, no merge |
 
-This handoff's own commit cannot quote itself. The addendum after the next push records that SHA. Verify the tip with:
+### 9.2 Evidence/handoff push
+
+Recorded after that commit was pushed, by this addendum.
+
+| Check | Result |
+| --- | --- |
+| `git ls-remote origin refs/heads/docs/demo-migration-plan` | `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` — equal to the local tip at that push |
+| GitHub API branch | same SHA, tree `5cfeef7340e5d418e91db8733f201b35bf74cc6e`, equal to the local tree |
+| `main` | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` — unchanged |
+| `backup/pre-f2-2026-09-29` | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` — unchanged |
+| Push mode | ordinary push — no force, no rebase, no squash, no merge |
+
+This addendum's own commit is the branch tip after its push. Its SHA cannot appear inside itself. Verify with:
 
 ```bash
 git ls-remote origin refs/heads/docs/demo-migration-plan
