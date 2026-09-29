@@ -893,7 +893,7 @@ recovery and the zero-record tests both remaining green.
   `loading === false` and **no in-flight marker of any kind** — measured `role="status"` count 0,
   `aria-busy` count 0, both loading strings absent (**I13**). (2) `LearningPanel.tsx:104` asks for
   `{ per_page: 0 }` before a program is selected, and `paginate`
-  (`src/domains/shared/demoCollection.ts:23`, `Math.max(1, …)`) turns that into **one** row — the
+  (`src/domains/shared/repositoryPlumbing.ts:31`, `Math.max(1, …)`) turns that into **one** row — the
   globally-first level, `lv_violin_1` (**I14**). Together they produce a frame in which the heading
   reads «سطوح «ویولن کلاسیک» — ۱ سطح» over a single row while the store holds fifteen. Measured with
   a 1 ms sampler and a MutationObserver against the real component, from probes in `/tmp` that
@@ -1343,7 +1343,7 @@ recovery and the zero-record tests both remaining green.
   and I14 is untouched.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
-- **What:** `src/domains/shared/demoCollection.ts:23` computes
+- **What:** `src/domains/shared/repositoryPlumbing.ts:31` computes
   `Math.max(1, Math.trunc(params.per_page ?? DEFAULT_PER_PAGE))`. A caller that passes `per_page: 0`
   to mean "there is nothing to fetch yet" gets **one row** back, and since such a call usually has no
   filter either, the row it gets is whatever sorts first across the whole collection.
@@ -1409,7 +1409,7 @@ recovery and the zero-record tests both remaining green.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination
-  UI. `paginate` applies **no upper clamp** (`src/domains/shared/demoCollection.ts:23` computes
+  UI. `paginate` applies **no upper clamp** (`src/domains/shared/repositoryPlumbing.ts:31` computes
   `Math.max(1, Math.trunc(...))`), so 200 is honoured and the 201st record is silently absent from
   the list, from any picker built on it, and from any heading count derived from `items.length`
   rather than `Page.meta.total` (`src/domains/shared/useResource.ts:53`).
@@ -1450,7 +1450,7 @@ recovery and the zero-record tests both remaining green.
   read with an explicit `from`/`to` window (never an unbounded "everything" read); state `per_page`
   explicitly, sized above the window's plausible maximum rather than above today's data; consume
   `Page.meta.total`, which `paginate` sets from the **filtered** row count
-  (`src/domains/shared/demoCollection.ts:27`) and `useResourceList` exposes
+  (`src/domains/shared/repositoryPlumbing.ts:35`) and `useResourceList` exposes
   (`src/domains/shared/useResource.ts:53`); and surface truncation explicitly whenever
   `items.length < total` instead of rendering a calendar that looks complete. **Each clause is now
   met, with the evidence:** the window is derived from the mode the operator chose

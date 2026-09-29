@@ -7,9 +7,9 @@
  * their actual business rules.
  *
  * This owns no persistence and no dataset. The local store is still the only
- * writer. The previous module name demoCollection re-exports this file so
- * existing import paths keep resolving; the name was the misnaming (Class H),
- * not a second implementation.
+ * writer. The previous module name was demoCollection. That shim is gone;
+ * importers resolve here. The name was the misnaming (Class H), not a second
+ * implementation.
  *
  * I16's page-size clamp question belongs here, not to this migration. paginate
  * still does not clamp. The function bodies below are the previous module's,

@@ -18,7 +18,7 @@
  */
 import type { Page } from "@/api/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { notFound, paginate, sortRows, validationError, conflict, matchesQuery } from "@/domains/shared/demoCollection";
+import { notFound, paginate, sortRows, validationError, conflict, matchesQuery } from "@/domains/shared/repositoryPlumbing";
 import { resolveEligibleContent } from "@/domains/learning/eligibility";
 import { classifyProgress, DEFAULT_THRESHOLDS, type ProgressInsight } from "./analytics";
 import { recommendForAssignment, sortRecommendations, type Recommendation } from "./recommendations";

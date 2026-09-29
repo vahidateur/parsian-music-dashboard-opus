@@ -31,7 +31,7 @@ import { ApiError } from "@/api/errors";
 import { LocalMediaRepository } from "../localRepository";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { releaseUnreferencedMedia, setMediaReleaseFailureReporter } from "../release";
-import { mediaStillReferenced } from "../demoReferences";
+import { mediaStillReferenced } from "../mediaReferences";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { LocalStudentRepository } from "@/domains/students/localRepository";
 import { LocalTeacherRepository } from "@/domains/teachers/localRepository";

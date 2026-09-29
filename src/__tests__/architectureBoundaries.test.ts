@@ -73,7 +73,7 @@ describe("views and components stay behind the data layer", () => {
   });
 
   it("types the media reference check against the store interface, not the class", () => {
-    const source = readFileSync(join(ROOT, "domains", "media", "demoReferences.ts"), "utf8");
+    const source = readFileSync(join(ROOT, "domains", "media", "mediaReferences.ts"), "utf8");
     expect(source).toContain("LocalDataStore");
     expect(source).toMatch(/mediaStillReferenced\(store:\s*LocalDataStore/);
     expect(source).not.toMatch(/\bDemoStoreImpl\b/);
@@ -518,7 +518,7 @@ function importSpecifiers(source: string): string[] {
 }
 
 function clientImportForbidden(specifier: string): boolean {
-  return /services\/(?:demoStore|localStore)|domains\/demo(?:\/|$)|(?:^|\/)dataset(?:\/|$)|data\/dataset|demoDataManager|DemoDataPanel|loadDatasetArtifact|demoCredentials|demoReferences|demoCollection/.test(
+  return /services\/(?:demoStore|localStore)|domains\/demo(?:\/|$)|(?:^|\/)dataset(?:\/|$)|data\/dataset|demoDataManager|DemoDataPanel|loadDatasetArtifact|demoCredentials|demoReferences|mediaReferences|demoCollection/.test(
     specifier,
   );
 }
@@ -544,6 +544,9 @@ describe("client composition does not import the fixture graph", () => {
     expect(clientImportForbidden("@/domains/demo/seed")).toBe(true);
     expect(clientImportForbidden("@/dataset/load")).toBe(true);
     expect(clientImportForbidden("@/components/settings/DemoDataPanel")).toBe(true);
+    expect(clientImportForbidden("@/domains/media/mediaReferences")).toBe(true);
+    expect(clientImportForbidden("@/domains/media/demoReferences")).toBe(true);
+    expect(clientImportForbidden("@/domains/shared/demoCollection")).toBe(true);
     expect(clientImportForbidden("lucide-react")).toBe(false);
     expect(importSpecifiers('// would pull demoStore\nimport { PlugZap } from "lucide-react";')).toEqual(["lucide-react"]);
   });

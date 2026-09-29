@@ -1,5 +1,5 @@
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/demoCollection";
+import { conflict, matchesQuery, notFound, paginate, sortRows, validationError } from "@/domains/shared/repositoryPlumbing";
 import { isRoomAssignable } from "@/domains/rooms/localRepository";
 import type { Page } from "@/api/types";
 import type { Room } from "@/domains/rooms/types";

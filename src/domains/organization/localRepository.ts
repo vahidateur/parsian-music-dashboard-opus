@@ -8,7 +8,7 @@
  * `defaultSessionMinutes` of `-30` and every consumer would have to defend
  * itself.
  */
-import { validationError } from "@/domains/shared/demoCollection";
+import { validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { OrganizationRepository } from "./repository";
 import { validateOrganizationInput, withRuleDefaults, type OrganizationSettings, type UpdateOrganizationInput } from "./types";

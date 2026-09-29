@@ -1,6 +1,6 @@
 import type { Page } from "@/api/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
-import { conflict, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { conflict, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { withRuleDefaults } from "@/domains/organization/types";
 import { schedulingRules } from "@/domains/organization/rules";
 import { buildDateIndex, detectConflicts } from "./conflicts";

@@ -21,10 +21,10 @@
  * seed VERIFIED 2 albums 0 images.
  */
 import type { Page } from "@/api/types";
-import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/demoCollection";
+import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { LocalMediaRepository } from "@/domains/media/localRepository";
-import { mediaStillReferenced } from "@/domains/media/demoReferences";
+import { mediaStillReferenced } from "@/domains/media/mediaReferences";
 import { releaseUnreferencedMedia } from "@/domains/media/release";
 import type { MediaRepository } from "@/domains/media/repository";
 import type { GalleryRepository } from "./repository";
