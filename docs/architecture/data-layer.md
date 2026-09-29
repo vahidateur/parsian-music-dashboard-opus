@@ -31,6 +31,17 @@ is not `api`. It is never deleted as part of the API migration — it is simply 
 
 Demo mode stays visibly demo: no simulated "production" behaviour is added.
 
+> **Note (2026-09-29, W1 — vocabulary supersedes the framing above; the commitment below does not change).**
+> The paragraph above is kept verbatim as its record. The demo → data migration boundary
+> ([`docs/migration/W1_DECISION_BOUNDARY.md`](../migration/W1_DECISION_BOUNDARY.md),
+> [DECISIONS.md](../engineering/DECISIONS.md) §25) re-frames it: the implementation this section protects is
+> **never deleted and never silently selected in `api` mode** — it is renamed and re-framed as the
+> product's **local** implementation, and "demo" is reserved for the shipped **sample dataset** (data).
+> The mode value becomes `local` with `demo` kept as a working alias; the `ava:demo:*` storage keys, this
+> document's §37 no-dishonest-fallback rule, and the rule that the local implementation is selected
+> explicitly rather than as a silent downgrade all stand unchanged. No code, test or configuration is
+> changed by that note.
+
 ## ApiClient
 
 ```ts

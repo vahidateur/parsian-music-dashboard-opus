@@ -1959,6 +1959,63 @@ deferred, because `PROJECT_STATE.md` was excluded from this change by the owner 
 deviation §23 records. This entry amends no D-entry, changes no `O-*` or `T-02` status, touches no
 branch or tag, and authorizes no product, dependency, test-weakening, back-end or history change.
 
+## 25. The demo → data migration boundary: local is a name for the implementation, demo is a name for the data
+
+**Decision.** Recorded 2026-09-29, by owner authorization at the migration plan's first checkpoint (W1). Five
+clauses, documentation only — this entry changes no product behaviour.
+
+(1) **One application, one canonical codebase; demo data stays.** The product's on-device implementation is
+categorised as the **local** implementation of each existing domain contract — not a second application and
+not scaffolding. "Demo" survives only where it names **data**: the shipped sample dataset, its bytes, its
+version and its history.
+
+(2) **Canonical vocabulary.** The data-source value becomes `local` (with `demo` kept as a working alias),
+the store becomes `localStore` behind a canonical `LocalDataStore` interface, each `Demo<Domain>Repository`
+becomes the canonical `Local<Domain>Repository` with its logic preserved, and the shipped dataset becomes an
+importable **sample dataset**. Historical documents, handoffs and reports are never retro-edited to match
+the new vocabulary.
+
+(3) **Compatibility is a contract, not a preference.** `VITE_DATA_SOURCE=demo`, the `ava:demo:*` storage
+keys (including the lifecycle marker and its persisted `empty`/`demo` values), the `ava:delivery:*` keys, the
+`demo.manage` permission id and the seed's own identity (`SEED_VERSION`, `SEED_DATE`) must keep working.
+Renaming any of them without a read-both/migrate path is a compatibility decision, not a cleanup, and is
+rejected.
+
+(4) **The owner's decisions stay the owner's.** D8 (including the 11-vs-12 enumeration discrepancy around
+`organization`, and the drift that says "seven getters" where the code has eight), the build strategy
+(B1 two builds as today / B2 one build with a lazy dataset / B3 one build with an eager dataset — with B1
+remaining in force until decided), and whether the shipped dataset keeps usable sign-in material are all
+**recorded as pending**, with deadlines before W5, W5 and W7 respectively. D8's text, its enumeration and
+the organization getter are untouched by this entry.
+
+(5) **The plan is ratified, the implementation is not.** The target architecture
+(`docs/migration/DEMO_TO_DATA_TARGET_ARCHITECTURE.md`) and the W1–W10 wave model
+(`docs/migration/DEMO_MIGRATION_WAVES.md`) are the migration plan of record
+(`docs/migration/W1_DECISION_BOUNDARY.md`). Waves run **one at a time**, each on its own authorization,
+each with its own verification; W1 is the only wave executed at this entry's date and the rest are
+NOT AUTHORIZED.
+
+**Why.** The discovery audit (`docs/migration/DEMO_INVENTORY.md`, 92 classified rows) established that the
+repository's demo surface is five different things at once — data (keep), a second implementation of the
+business layer (rename and keep), presentation, control flow, and build/composition — and that its safety
+work was already done by Phase 2A (a client build with no demo capability, pinned by two gates). Without a
+recorded boundary, every later wave would be free to redefine the vocabulary, resolve D8 by accident, or
+choose a build strategy for convenience — the exact failure this migration must not repeat.
+
+**Enforced by.** `docs/migration/W1_DECISION_BOUNDARY.md` (the boundary and its compatibility register), the
+wave definitions in `docs/migration/DEMO_MIGRATION_WAVES.md` (which carry the D8, D9, security and
+authorization fields per wave), and the gates named for W8 — none of which exist yet. No existing test
+enforces this entry: it is a documentation decision boundary, and its enforcement is review plus the wave
+protocol.
+
+**Status.** ✅ Recorded — 2026-09-29 (W1, `docs/demo-migration-plan`), documentation only. This entry amends
+no D-entry, changes no `O-*` or `T-02` status, moves no D9 constant, resolves no open item (I15, I19, I22 and
+the DOCUMENTATION DRIFT set are untouched), touches no branch, tag or PR, and authorizes no source, test,
+build, back-end, RBAC, D8 or D9 change. It is **not** linked from `PROJECT_STATE.md` §6, on the same
+deliberate deviation §23 and §24 record: `PROJECT_STATE.md` was excluded from this change by the owner.
+
+---
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

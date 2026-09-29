@@ -1,5 +1,15 @@
 # Demo data — seed, backup & restore
 
+> **Note (2026-09-29, W1 — subject re-framed as the local dataset's lifecycle; body unchanged).** This
+> document's subject is the **local dataset**: the shipped sample data, its lifecycle
+> (`uninitialized` / `empty` / `demo` — canonical `sample`), its persistence keys and its management
+> operations. Under the demo → data migration boundary
+> ([`docs/migration/W1_DECISION_BOUNDARY.md`](../migration/W1_DECISION_BOUNDARY.md),
+> [DECISIONS.md](../engineering/DECISIONS.md) §25) the **data** described here is preserved — it becomes an
+> importable, versioned sample dataset — while the vocabulary "demo" is retired from architecture naming.
+> The title and file path are **intentionally left as history until the naming wave (W9)**; every rule,
+> key and invariant below still describes the system faithfully and none of it is changed by this note.
+
 Phase B of the data-layer work. It builds on `data-layer.md` and does not change the
 authoritative flow:
 
