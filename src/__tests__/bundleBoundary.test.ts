@@ -69,6 +69,8 @@ const CLIENT_MUST_ABSENT = [
   "md_gal_hall", // a seed-only record id (proof the seed is not bundled)
   "بدون امنیت واقعی", // demo-only Persian panel copy
   "حذف دادهٔ دمو", // demo-only Persian destructive-action copy
+  "data-operator-import", // W7B Import control; fixture graph only
+  "data-operator-reset", // W7B Reset control; fixture graph only
 ] as const;
 
 /** The client MUST disclose unavailable domains — presence probes. */
@@ -83,6 +85,8 @@ const DEMO_MUST_PRESENT = [
   "md_gal_hall",
   "بدون امنیت واقعی",
   "حذف دادهٔ دمو",
+  "data-operator-import",
+  "data-operator-reset",
 ] as const;
 
 /** The demo composition serves everything it offers — no client-only notice. */

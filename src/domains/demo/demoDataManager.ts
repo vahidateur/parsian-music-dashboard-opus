@@ -9,6 +9,12 @@
  * Operations are deliberately distinct:
  *   initialize    — create the DEMO environment, only when nothing exists yet
  *   resetToSeed   — canonical shipped dataset (destructive) → marks the environment DEMO
+ *   importSample  — operator Import on the fixture graph. Seed comes from
+ *                   `createSeedDataset()`. Customer and unproven ownership are
+ *                   not written. The runtime does not read `data/dataset`.
+ *   resetToClean  — operator Reset on the fixture graph. Proven demo ownership
+ *                   becomes empty. Customer and unproven are not written.
+ *                   Empty and uninitialized are no-ops.
  *   clear         — remove every RECORD, keep the environment and its mode (destructive)
  *   importDataset — replace with a validated dataset (destructive)
  *   restoreBackup — validate a backup file, then replace (destructive, atomic)
@@ -34,7 +40,9 @@ import {
   isDestructiveOperationAllowed,
 } from "@/api/deploymentLock";
 import { setInstrumentCatalog } from "@/domains/instruments/catalog";
+import { evaluateDeliveryOwnership } from "./delivery";
 import {
+  createEmptyEnvironment,
   initializeDemoEnvironment,
   markLifecycle,
   readLifecycleState,
@@ -57,6 +65,8 @@ export type { ConfirmedRequest };
 export type DemoOperation =
   | "initialize"
   | "reset"
+  | "import-sample"
+  | "reset-clean"
   | "clear"
   | "import-seed"
   | "import-dataset"
@@ -162,6 +172,59 @@ export class DemoDataManager {
   resetToSeed(request: ConfirmedRequest): DemoOperationResult {
     if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset");
     return this.applyDataset("reset", createSeedDataset(), request, "دادهٔ دمو به حالت اولیه بازگردانده شد.", "sample");
+  }
+
+  /**
+   * Operator Import. The sample payload is `createSeedDataset()` — the runtime
+   * does not read `data/dataset`. Proven customer ownership and unproven
+   * ownership are left untouched. A demo environment may be replaced with the
+   * seed. An absent environment receives the seed and is marked sample.
+   */
+  importSample(request: ConfirmedRequest): DemoOperationResult {
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked("import-sample");
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-sample");
+    if (!request?.confirm) return this.needsConfirmation("import-sample");
+    const ownership = evaluateDeliveryOwnership(this.store);
+    if (ownership.verdict === "customer" || ownership.verdict === "unproven") {
+      return this.unchanged("import-sample");
+    }
+    return this.applyDataset(
+      "import-sample",
+      createSeedDataset(),
+      request,
+      "دادهٔ نمونه از سازندهٔ seed وارد شد.",
+      "sample",
+    );
+  }
+
+  /**
+   * Operator Reset. Uses the delivery ownership verdict, and does not weaken it.
+   *
+   *   demo        → empty environment (lifecycle `empty`)
+   *   customer    → no write
+   *   unproven    → no write
+   *   empty / uninitialized / no environment → no-op
+   */
+  resetToClean(request: ConfirmedRequest): DemoOperationResult {
+    if (!isDestructiveOperationAllowed()) return this.operationBlocked("reset-clean");
+    if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset-clean");
+    if (!request?.confirm) return this.needsConfirmation("reset-clean");
+
+    const state = readLifecycleState(this.store);
+    if (state === "uninitialized" || state === "empty" || !this.store.isInitialized()) {
+      // `empty` is the customer lifecycle mode, with or without records.
+      // Uninitialized has nothing to clear. Neither path writes.
+      return this.noop("reset-clean");
+    }
+    const ownership = evaluateDeliveryOwnership(this.store);
+    if (ownership.verdict !== "demo") return this.unchanged("reset-clean");
+    return this.applyDataset(
+      "reset-clean",
+      createEmptyEnvironment(),
+      request,
+      "محیط نمونه به محیط خالی بازنشانی شد.",
+      "empty",
+    );
   }
 
   /** Alias with distinct intent: importing the canonical seed. Also marks DEMO. */
@@ -351,6 +414,21 @@ export class DemoDataManager {
 
   private success(operation: DemoOperation, changed: boolean, message: string): DemoOperationSuccess {
     return { ok: true, operation, changed, stats: this.stats(), message };
+  }
+
+  /** Empty or uninitialized Reset: success, no write. */
+  private noop(operation: DemoOperation): DemoOperationSuccess {
+    return this.success(operation, false, "محیط خالی یا مقداردهی‌نشده است؛ هیچ تغییری انجام نشد.");
+  }
+
+  /** Customer or unproven: refusal, no write. */
+  private unchanged(operation: DemoOperation): DemoOperationFailure {
+    return {
+      ok: false,
+      operation,
+      issues: [{ code: "OPERATION_BLOCKED", message: "مالکیت این محیط اجازهٔ این عملیات را نمی‌دهد." }],
+      message: "مالکیت این محیط اجازهٔ تغییر نمی‌دهد؛ هیچ چیزی نوشته نشد.",
+    };
   }
 }
 
