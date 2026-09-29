@@ -59,8 +59,16 @@ function readAssets(dir: string, skipTopDirs: readonly string[] = []): string {
   return out.join("\n");
 }
 
-/** Demo-capability strings that must never appear in the client bundle. */
+/**
+ * Demo-capability strings that must never appear in the client bundle.
+ *
+ * W8 adds the markers the fixture scan already proved absent. Identifiers that
+ * minification erases are still banned: if a future build keeps them as
+ * strings, the client artifact has grown a demo dependency. `دمو` is not in
+ * this list — it is ordinary Persian and is not a demo-capability marker.
+ */
 const CLIENT_MUST_ABSENT = [
+  "ava:demo:", // any demo storage key, including the three named below
   "ava:demo:dataset", // demo dataset marker (storage key)
   "ava:demo:credentials", // demo credential store key
   "ava:demo:session", // demo session key
@@ -71,6 +79,18 @@ const CLIENT_MUST_ABSENT = [
   "حذف دادهٔ دمو", // demo-only Persian destructive-action copy
   "data-operator-import", // W7B Import control; fixture graph only
   "data-operator-reset", // W7B Reset control; fixture graph only
+  "importSample",
+  "resetToClean",
+  "loadDatasetArtifact",
+  "data/dataset/",
+  "DEMO_PASSPHRASE",
+  "createSeedDataset",
+  "DemoDataPanel",
+  "demoDataManager",
+  "DemoBackedNotice",
+  "localStore",
+  "DataLifecycleGate",
+  "VITE_DATA_SOURCE=demo",
 ] as const;
 
 /** The client MUST disclose unavailable domains — presence probes. */
@@ -87,7 +107,31 @@ const DEMO_MUST_PRESENT = [
   "حذف دادهٔ دمو",
   "data-operator-import",
   "data-operator-reset",
+  "importSample",
+  "resetToClean",
 ] as const;
+
+/** One rule for the emitted scan and the synthetic probe. */
+function boundaryViolations(
+  bundle: string,
+  mustAbsent: readonly string[],
+  mustPresent: readonly string[],
+): string[] {
+  const violations: string[] = [];
+  for (const marker of mustAbsent) {
+    if (bundle.includes(marker)) violations.push(`contains ${JSON.stringify(marker)}`);
+  }
+  for (const probe of mustPresent) {
+    if (!bundle.includes(probe)) violations.push(`missing ${JSON.stringify(probe)}`);
+  }
+  return violations;
+}
+
+const FORBIDDEN_THIRD_BUILDS = ["customer", "operator"] as const;
+
+function thirdBuildNames(entries: readonly string[]): string[] {
+  return entries.filter((name) => (FORBIDDEN_THIRD_BUILDS as readonly string[]).includes(name));
+}
 
 /** The demo composition serves everything it offers — no client-only notice. */
 const DEMO_MUST_ABSENT = [
@@ -101,18 +145,7 @@ describe("client build (dist/client) — demo capability absent, disclosure pres
     "emits no demo marker in any chunk and ships the unavailable notice",
     () => {
       const bundle = readAssets(join(ROOT, "dist", "client"));
-      for (const marker of CLIENT_MUST_ABSENT) {
-        expect(
-          bundle.includes(marker),
-          `client bundle must not contain ${JSON.stringify(marker)}`,
-        ).toBe(false);
-      }
-      for (const probe of CLIENT_MUST_PRESENT) {
-        expect(
-          bundle.includes(probe),
-          `client bundle must contain the unavailable disclosure ${JSON.stringify(probe)}`,
-        ).toBe(true);
-      }
+      expect(boundaryViolations(bundle, CLIENT_MUST_ABSENT, CLIENT_MUST_PRESENT)).toEqual([]);
     },
   );
 
@@ -130,23 +163,60 @@ describe("demo build (dist/demo, else dist/) — demo capability present, no fal
   it.runIf(existsSync(demoHtml))(
     "ships demo markers/seed and never the client's unavailable wording",
     () => {
-      const bundle = readAssets(demoRoot, ["client", "demo"]);
-      for (const probe of DEMO_MUST_PRESENT) {
-        expect(
-          bundle.includes(probe),
-          `demo bundle must contain ${JSON.stringify(probe)}`,
-        ).toBe(true);
-      }
-      for (const marker of DEMO_MUST_ABSENT) {
-        expect(
-          bundle.includes(marker),
-          `demo bundle must not claim a missing backend (${JSON.stringify(marker)})`,
-        ).toBe(false);
-      }
+      const bundle = readAssets(demoRoot, ["client", "demo", "customer", "operator"]);
+      expect(boundaryViolations(bundle, DEMO_MUST_ABSENT, DEMO_MUST_PRESENT)).toEqual([]);
     },
   );
 
   it.runIf(!existsSync(demoHtml))("skipped — dist/demo and dist/ absent (run npm run build:demo)", () => {
     expect(existsSync(demoHtml)).toBe(false);
+  });
+});
+
+describe("bundle boundary rules are non-vacuous", () => {
+  it("fires when a client marker is present and when the disclosure is missing", () => {
+    const dirty = `${CLIENT_MUST_ABSENT[0]}\n${CLIENT_MUST_PRESENT.join("\n")}`;
+    expect(boundaryViolations(dirty, CLIENT_MUST_ABSENT, CLIENT_MUST_PRESENT)).toContain(
+      `contains ${JSON.stringify(CLIENT_MUST_ABSENT[0])}`,
+    );
+    expect(boundaryViolations("clean", CLIENT_MUST_ABSENT, CLIENT_MUST_PRESENT)).toContain(
+      `missing ${JSON.stringify(CLIENT_MUST_PRESENT[0])}`,
+    );
+    expect(boundaryViolations(CLIENT_MUST_PRESENT.join("\n"), CLIENT_MUST_ABSENT, CLIENT_MUST_PRESENT)).toEqual([]);
+  });
+
+  it("fires when the fixture bundle lacks a required marker", () => {
+    expect(boundaryViolations("", DEMO_MUST_ABSENT, DEMO_MUST_PRESENT)).toContain(
+      `missing ${JSON.stringify("importSample")}`,
+    );
+    expect(boundaryViolations(DEMO_MUST_PRESENT.join("\n"), DEMO_MUST_ABSENT, DEMO_MUST_PRESENT)).toEqual([]);
+  });
+});
+
+describe("two compositions, no third build", () => {
+  it("dist has no customer or operator artifact", () => {
+    const dist = join(ROOT, "dist");
+    const entries = existsSync(dist) ? readdirSync(dist) : [];
+    expect(thirdBuildNames(entries)).toEqual([]);
+    expect(thirdBuildNames(["client", "demo", "customer"])).toEqual(["customer"]);
+    expect(thirdBuildNames(["operator"])).toEqual(["operator"]);
+    expect(thirdBuildNames(["client", "demo"])).toEqual([]);
+  });
+
+  it("package scripts and tsconfigs name only client and demo", () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { scripts: Record<string, string> };
+    expect(pkg.scripts["build:client"]).toContain("--outDir dist/client");
+    expect(pkg.scripts["build:demo"]).toContain("--outDir dist/demo");
+    expect(pkg.scripts["build:customer"]).toBeUndefined();
+    expect(pkg.scripts["build:operator"]).toBeUndefined();
+    expect(existsSync(join(ROOT, "tsconfig.client.json"))).toBe(true);
+    expect(existsSync(join(ROOT, "tsconfig.demo.json"))).toBe(true);
+    expect(existsSync(join(ROOT, "tsconfig.customer.json"))).toBe(false);
+    expect(existsSync(join(ROOT, "tsconfig.operator.json"))).toBe(false);
+    const vite = readFileSync(join(ROOT, "vite.config.ts"), "utf8");
+    expect(vite).toContain('const APP_TARGET: "demo" | "client"');
+    expect(vite).not.toMatch(/APP_TARGET === "(?:operator|customer)"/);
+    expect(vite).not.toContain("dist/customer");
+    expect(vite).not.toContain("dist/operator");
   });
 });

@@ -20,7 +20,7 @@
  * output, both negative and positive) lives in
  * `src/__tests__/bundleBoundary.test.ts`.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -146,5 +146,30 @@ describe("composition parity — served domains are the real Api classes", () =>
     expect(client.getStudentRepository()).toBeInstanceOf(ApiStudentRepository);
     expect(client.getTeacherRepository()).toBeInstanceOf(ApiTeacherRepository);
     expect(client.getApiClient().baseUrl).toBe("https://backend.test/api/v1");
+  });
+});
+
+describe("the two registries stay separate", () => {
+  const demoRegistry = join(process.cwd(), "src", "domains", "registry.ts");
+  const clientRegistry = join(process.cwd(), "src", "domains", "registry.client.ts");
+
+  it("does not merge registry.ts into registry.client.ts or add a third registry", () => {
+    const demo = readFileSync(demoRegistry, "utf8");
+    const clientSource = readFileSync(clientRegistry, "utf8");
+    expect(demo).not.toBe(clientSource);
+    expect(clientSource).not.toMatch(/export\s+\*\s+from\s+["']\.\/registry["']/);
+    expect(demo).not.toMatch(/export\s+\*\s+from\s+["']\.\/registry\.client["']/);
+    expect(existsSync(join(process.cwd(), "src", "domains", "registry.customer.ts"))).toBe(false);
+    expect(existsSync(join(process.cwd(), "src", "domains", "registry.operator.ts"))).toBe(false);
+    expect(/export\s+\*\s+from\s+["']\.\/registry["']/.test('export * from "./registry";')).toBe(true);
+  });
+
+  it("aliases the client build to registry.client.ts and has no dynamic demo import", () => {
+    const vite = readFileSync(join(process.cwd(), "vite.config.ts"), "utf8");
+    expect(vite).toContain('path.resolve(__dirname, "src/domains/registry.client.ts")');
+    expect(vite).toMatch(/APP_TARGET === "client"/);
+    expect(vite).not.toMatch(/APP_TARGET === "(?:operator|customer)"/);
+    expect(source()).not.toMatch(/\bimport\s*\(/);
+    expect(/\bimport\s*\(/.test('import("@/domains/demo/demoDataManager")')).toBe(true);
   });
 });
