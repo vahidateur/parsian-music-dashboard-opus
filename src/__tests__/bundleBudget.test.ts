@@ -188,6 +188,31 @@ describe("the budget cannot be lifted by configuration", () => {
   });
 });
 
+describe("D9 subject and cap stay the recorded two-composition contract", () => {
+  it("the production cap is exactly 361144 and the subject is dist/client", () => {
+    expect(GZIP_TOTAL_CAP).toBe(361144);
+    expect(GZIP_TOTAL_BASELINE).toBe(343947);
+    expect(ENTRY_GZIP_BASELINE).toBe(273791);
+    expect(CLIENT_DIST).toBe(join(ROOT, "dist", "client"));
+    expect(existsSync(join(ROOT, "dist", "customer"))).toBe(false);
+    expect(existsSync(join(ROOT, "dist", "operator"))).toBe(false);
+  });
+
+  it("the fixture measurement does not apply the production cap", () => {
+    const source = readFileSync(join(ROOT, "src", "__tests__", "bundleBudget.test.ts"), "utf8");
+    const fixtureAt = source.indexOf('describe.skipIf(!hasFixtureBuild)("demo fixture measurement');
+    const fixtureEnd = source.indexOf('describe.skipIf(hasFixtureBuild)("demo fixture measurement');
+    expect(fixtureAt).toBeGreaterThan(0);
+    expect(fixtureEnd).toBeGreaterThan(fixtureAt);
+    const fixture = source.slice(fixtureAt, fixtureEnd);
+    const production = source.slice(0, fixtureAt);
+    expect(production).toContain("toBeLessThanOrEqual(GZIP_TOTAL_CAP)");
+    expect(production).toContain('join(ROOT, "dist", "client")');
+    expect(fixture).toContain("the production cap does not apply");
+    expect(fixture).not.toContain("toBeLessThanOrEqual(GZIP_TOTAL_CAP)");
+  });
+});
+
 describe("the imported weights stay at 400/500/600/700", () => {
   it("no fontsource import for weight 300 or 800 survives in src", () => {
     const indexCss = readFileSync(join(ROOT, "src", "index.css"), "utf8");

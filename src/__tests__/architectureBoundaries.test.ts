@@ -6,7 +6,7 @@
  * change that reaches past the repository seam fails CI instead of quietly
  * landing.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -503,5 +503,77 @@ describe("F9 — Mobile client contract — same backend no second API bearer se
     expect(source).toContain("ROLES");
     expect(source).toContain("PERMISSIONS");
     expect(source).toContain("rolePermissions");
+  });
+});
+
+/**
+ * W8 — the client composition files must not import the fixture graph.
+ * Comments may name those modules. Import specifiers may not.
+ */
+function importSpecifiers(source: string): string[] {
+  const out: string[] = [];
+  for (const match of source.matchAll(/\bfrom\s*["']([^"']+)["']/g)) out.push(match[1]);
+  for (const match of source.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g)) out.push(match[1]);
+  return out;
+}
+
+function clientImportForbidden(specifier: string): boolean {
+  return /services\/(?:demoStore|localStore)|domains\/demo(?:\/|$)|(?:^|\/)dataset(?:\/|$)|data\/dataset|demoDataManager|DemoDataPanel|loadDatasetArtifact|demoCredentials|demoReferences|demoCollection/.test(
+    specifier,
+  );
+}
+
+function clientCompositionFiles(): string[] {
+  const targets = join(ROOT, "targets");
+  const files = sourceFiles(targets).filter((file) => /\.client\.tsx?$/.test(file));
+  files.push(join(ROOT, "domains", "registry.client.ts"));
+  return files;
+}
+
+describe("client composition does not import the fixture graph", () => {
+  it("never imports the store, the seed, the dataset artifact, or a demo panel", () => {
+    const offenders: string[] = [];
+    for (const file of clientCompositionFiles()) {
+      for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
+        if (clientImportForbidden(specifier)) offenders.push(`${file} → ${specifier}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(clientImportForbidden("@/services/localStore")).toBe(true);
+    expect(clientImportForbidden("@/services/demoStore")).toBe(true);
+    expect(clientImportForbidden("@/domains/demo/seed")).toBe(true);
+    expect(clientImportForbidden("@/dataset/load")).toBe(true);
+    expect(clientImportForbidden("@/components/settings/DemoDataPanel")).toBe(true);
+    expect(clientImportForbidden("lucide-react")).toBe(false);
+    expect(importSpecifiers('// would pull demoStore\nimport { PlugZap } from "lucide-react";')).toEqual(["lucide-react"]);
+  });
+});
+
+describe("kept fixture gates are still present", () => {
+  const KEPT = [
+    "src/__tests__/m10Boundary.test.ts",
+    "src/views/__tests__/attendanceNoFixtures.test.ts",
+    "src/views/__tests__/compensationNoFixtures.test.ts",
+    "src/views/__tests__/messagesNoFixtures.test.ts",
+    "src/views/__tests__/relationsNoFixtures.test.ts",
+    "src/views/__tests__/schedulingNoFixtures.test.ts",
+  ];
+
+  function missingKept(files: readonly { path: string; text: string | null }[]): string[] {
+    return files.flatMap((file) => (file.text === null || file.text.length < 200 ? [file.path] : []));
+  }
+
+  it("m10Boundary and the five NoFixtures gates were not deleted", () => {
+    const files = KEPT.map((path) => ({
+      path,
+      text: existsSync(join(process.cwd(), path)) ? readFileSync(join(process.cwd(), path), "utf8") : null,
+    }));
+    expect(missingKept(files)).toEqual([]);
+    expect(missingKept([{ path: "src/__tests__/m10Boundary.test.ts", text: null }])).toEqual([
+      "src/__tests__/m10Boundary.test.ts",
+    ]);
+    const m10 = files[0].text ?? "";
+    expect(m10).toContain("data/records");
+    expect(m10).toContain("data/academy");
   });
 });
