@@ -3,7 +3,7 @@
  * D8 — the api-mode disclosure contract.
  *
  * The notice exists because api mode is HYBRID: some domains call the backend,
- * eleven still read the demo store (see `DEMO_SERVED_DOMAINS` in
+ * twelve still read the local store (see `DEMO_SERVED_DOMAINS` in
  * `src/domains/registry.ts`). These tests pin the recorded decision:
  *
  *   1. present in api mode, absent in demo mode;
@@ -30,6 +30,7 @@ import {
   getLearningRepository,
   getLibraryRepository,
   getMediaRepository,
+  getOrganizationRepository,
   getProgressRepository,
   getSchedulingRepository,
   resetRegistry,
@@ -41,6 +42,7 @@ import { LocalChatRepository } from "@/domains/chat/localRepository";
 import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { LocalLibraryRepository } from "@/domains/library/localRepository";
 import { LocalBrandingRepository } from "@/domains/branding/localRepository";
+import { LocalOrganizationRepository } from "@/domains/organization/localRepository";
 import { LocalGalleryRepository } from "@/domains/gallery/localRepository";
 import { LocalProgressRepository } from "@/domains/progress/localRepository";
 import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
@@ -81,8 +83,21 @@ describe("D8 wording derives from the registry's single enumeration", () => {
     for (const domain of DEMO_SERVED_DOMAINS) {
       expect(text, `missing ${domain.id} (${domain.label})`).toContain(domain.label);
     }
-    // All eleven, in one enumeration (the D8 count).
-    expect(DEMO_SERVED_DOMAINS).toHaveLength(11);
+    // D8-A: twelve, including organization. The count is the enumeration, not a banner copy.
+    expect(DEMO_SERVED_DOMAINS.map((domain) => domain.id)).toEqual([
+      "instruments",
+      "learning",
+      "chat",
+      "media",
+      "library",
+      "branding",
+      "organization",
+      "gallery",
+      "progress",
+      "scheduling",
+      "attendance",
+      "compensation",
+    ]);
   });
 
   it("claims nothing about backend health or a server response", () => {
@@ -108,6 +123,7 @@ describe("the D8 enumeration is still true", () => {
       LocalMediaRepository,
       LocalLibraryRepository,
       LocalBrandingRepository,
+      LocalOrganizationRepository,
       LocalGalleryRepository,
       LocalProgressRepository,
       LocalSchedulingRepository,
@@ -121,6 +137,7 @@ describe("the D8 enumeration is still true", () => {
       getMediaRepository(),
       getLibraryRepository(),
       getBrandingRepository(),
+      getOrganizationRepository(),
       getGalleryRepository(),
       getProgressRepository(),
       getSchedulingRepository(),

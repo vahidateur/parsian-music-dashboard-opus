@@ -6,7 +6,7 @@ import { cn } from "@/utils/cn";
 /**
  * D8 — the api-mode "served by local data" disclosure.
  *
- * The panel runs against a real backend in `api` mode, yet eleven domains
+ * The panel runs against a real backend in `api` mode, yet twelve domains
  * still resolve to the demo repository on purpose: their REST contracts exist
  * but no server answers them (`src/domains/registry.ts`, §37 of the data-layer
  * doc). A quietly-demo dashboard in api mode would read as "half the academy

@@ -287,6 +287,9 @@ export const DEMO_SERVED_DOMAINS: readonly DemoServedDomain[] = [
   { id: "media", label: "رسانه" },
   { id: "library", label: "کتابخانه" },
   { id: "branding", label: "هویت آموزشگاه" },
+  // D8-A: organization already resolves locally in both modes. The enumeration
+  // includes it, with the same label the client unavailable list uses.
+  { id: "organization", label: "قواعد آموزشگاه" },
   { id: "gallery", label: "گالری" },
   { id: "progress", label: "پیشرفت هنرجویان" },
   { id: "scheduling", label: "برنامه‌ریزی" },
