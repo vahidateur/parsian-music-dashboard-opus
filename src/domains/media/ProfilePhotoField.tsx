@@ -23,7 +23,6 @@
  * uploads that never reach a record are the form's staged assets to free.
  */
 import { useRef, useState } from "react";
-import { profilePhotoStorageNote } from "@/targets/targetCopy";
 import { ImagePlus, Loader2, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ds/primitives";
 import { apiErrorFromThrown } from "@/api/errors";
@@ -140,7 +139,8 @@ export function ProfilePhotoField({
         </div>
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-ink-400">
-          JPEG، PNG یا WebP تا {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت. {profilePhotoStorageNote}
+          JPEG، PNG یا WebP تا {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت. در نسخهٔ دمو تصویر فقط در همین
+          مرورگر ذخیره می‌شود و در پشتیبان قرار نمی‌گیرد.
         </p>
 
         {error && (

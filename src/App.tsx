@@ -202,7 +202,7 @@ function ConfigGate({ children }: { children: React.ReactNode }) {
       <div className="max-w-lg rounded-2xl border border-danger-500/30 bg-danger-500/[0.06] p-6 text-center">
         <h1 className="text-[17px] font-semibold text-danger-400">پیکربندی محیط نامعتبر است</h1>
         <p className="mt-3 text-[13px] leading-relaxed text-ink-200">
-          برنامه اجرا نشد تا دادهٔ نادرست به‌جای دادهٔ واقعی نشان داده نشود.
+          برنامه اجرا نشد تا از نمایش دادهٔ نمایشی به‌جای دادهٔ واقعی جلوگیری شود.
         </p>
         <p dir="ltr" className="mt-4 rounded-xl bg-ink-900/80 p-3 text-left text-[11.5px] leading-relaxed text-ink-300">
           {error}

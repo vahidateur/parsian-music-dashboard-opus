@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { suggestionResultTitle } from "@/targets/targetCopy";
 import { CalendarDays, MessageSquare, Pencil, Plus, Trash2, UserCheck, UserX } from "lucide-react";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
@@ -738,7 +737,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                         tone: "info",
                         // The suggestion writes nothing anywhere; what it says about
                         // itself may only name demo mode where demo mode is what ran.
-                        title: suggestionResultTitle(demoEnvironment),
+                        title: demoEnvironment ? "پیشنهاد فقط در دمو نمایش داده شد" : "ارسال پیشنهاد انجام نشد",
                         detail: "ارسال به برنامه‌ریزی به سرور نیاز دارد.",
                       })
                     }
@@ -1002,7 +1001,7 @@ export function TeachersView() {
       // The write is real in every environment, so the confirmation may only
       // call it demo data where it actually is one. In an EMPTY environment
       // these are the academy's own records (H3).
-      detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
     });
 
   const dialog = (

@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { notificationBellDetail } from "@/targets/targetCopy";
 import { Bell, CalendarDays, LayoutGrid, Menu, Search, Users, Wallet } from "lucide-react";
 import { viewTitles } from "@/lib/navigation";
 import { faNum, faToday } from "@/lib/format";
@@ -130,7 +129,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
             aria-label="اعلان‌ها — ۳ اعلان جدید"
             onClick={() => {
               setNotified(true);
-              notify({ tone: "info", title: "اعلان‌ها نمونهٔ ثابت هستند", detail: notificationBellDetail });
+              notify({ tone: "info", title: "اعلان‌ها نمونهٔ ثابت هستند", detail: "اعلان زندهٔ واقعی به سرور نیاز دارد و در دمو وجود ندارد." });
             }}
             className="relative flex size-10 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-ink-200 transition-colors hover:bg-white/[0.06]"
           >

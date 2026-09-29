@@ -6,10 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:customer": "tsc -p tsconfig.client.json --noEmit && APP_TARGET=customer vite build --mode production --outDir dist/customer",
     "build:client": "tsc -p tsconfig.client.json --noEmit && APP_TARGET=client vite build --mode production --outDir dist/client",
-    "build:operator": "tsc -p tsconfig.demo.json --noEmit && APP_TARGET=operator vite build --mode demo --outDir dist/operator",
-    "build:demo": "npm run build:operator",
+    "build:demo": "tsc -p tsconfig.demo.json --noEmit && APP_TARGET=demo vite build --mode demo --outDir dist/demo",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

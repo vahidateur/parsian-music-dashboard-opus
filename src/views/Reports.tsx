@@ -1,5 +1,4 @@
 import { Download, FileBarChart, Info } from "lucide-react";
-import { reportDeferredClause, reportExportDetail } from "@/targets/targetCopy";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ds/primitives";
 import { DemoNote } from "@/targets/environment";
@@ -31,7 +30,7 @@ export function ReportsView() {
         title="گزارش‌ها"
         description="گزارش‌های تحلیلی به سامانهٔ گزارش‌گیری سرور نیاز دارند (I2)."
         actions={
-          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی گزارش نیازمند سرور است", detail: reportExportDetail })}>
+          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی گزارش نیازمند سرور است", detail: "تولید PDF در سرور انجام می‌شود و در دمو فعال نیست." })}>
             <Download className="size-3.5" /> خروجی
           </Button>
         }
@@ -45,7 +44,8 @@ export function ReportsView() {
           <div className="min-w-0 space-y-3 text-[13px] leading-relaxed text-ink-200">
             <p>
               تولید گزارش تحلیلی <span className="text-ink-50">نیازمند سرور است</span> (I2). پاسخ به «چرا»
-              به تاريخچهٔ طولانی و پردازش سمت سرور وابسته است که هنوز طراحی نشده — {reportDeferredClause}
+              به تاريخچهٔ طولانی و پردازش سمت سرور وابسته است که هنوز طراحی نشده — در دمو و محیط خالی
+              چیزی برای نمایش صادقانه وجود ندارد.
             </p>
             <p>
               تحلیل زندهٔ دادهٔ ثبت‌شده را همین حالا پنل‌های بینش داشبورد ارائه می‌دهند؛ آن‌جا هر عدد از

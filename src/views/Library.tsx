@@ -25,7 +25,6 @@
  * No fabricated data, no new route, no new workflow — publication status uses existing active/visibility semantics.
  */
 import { useMemo, useRef, useState } from "react";
-import { libraryShareDetail } from "@/targets/targetCopy";
 import { Download, FileMusic, FileText, Music2, Pencil, Plus, Video, Lock, Upload, X } from "lucide-react";
 import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import type { InstrumentId } from "@/domains/instruments/types";
@@ -683,7 +682,7 @@ export function LibraryView() {
         footer={
           <>
             <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>بستن</Button>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اشتراک‌گذاری نیازمند سرور است", detail: libraryShareDetail })}>اشتراک با کلاس</Button>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اشتراک‌گذاری نیازمند سرور است", detail: "پیوند اشتراک واقعی با سرور ساخته می‌شود؛ در دمو انجام نشد." })}>اشتراک با کلاس</Button>
             <Button size="sm" variant="primary" onClick={file.download} disabled={file.status !== "ready" || file.downloading}>
               <Download className="size-3.5" /> {file.downloading ? "در حال دریافت…" : "دریافت"}
             </Button>

@@ -6,7 +6,6 @@
  * the success toast only appears after the write resolves (§37).
  */
 import { useEffect, useMemo, useState } from "react";
-import { brandingFileStorageNote } from "@/targets/targetCopy";
 import { Check, Loader2 } from "lucide-react";
 import { Button, Surface } from "@/components/ds/primitives";
 import { Field, Panel, inputCls } from "@/components/ds/patterns";
@@ -131,7 +130,7 @@ export function BrandingPanel() {
       notify({
         tone: "success",
         title: "هویت آموزشگاه ذخیره شد",
-        detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ثبت شد." : "تغییرات در داده‌ها ثبت شد.",
+        detail: demoEnvironment ? "تغییرات در دادهٔ دمو ثبت شد." : "تغییرات در داده‌ها ثبت شد.",
       });
     } catch (cause) {
       const apiError: ApiError = apiErrorFromThrown(cause);
@@ -272,7 +271,8 @@ export function BrandingPanel() {
 
       <Surface className="border-warn-500/20 bg-warn-500/[0.05] p-4">
         <p className="text-[11.5px] leading-relaxed text-ink-200">
-          بارگذاری لوگو و favicon به فضای ذخیره‌سازی فایل نیاز دارد. {brandingFileStorageNote}
+          بارگذاری لوگو و favicon به فضای ذخیره‌سازی فایل نیاز دارد. در نسخهٔ دمو فایل‌ها فقط در همین مرورگر نگهداری
+          می‌شوند و در پشتیبان قرار نمی‌گیرند؛ استقرار عملیاتی به object storage سمت سرور نیاز دارد.
         </p>
       </Surface>
     </>

@@ -1004,7 +1004,7 @@ export function StudentsView() {
     notify({
       tone: "success",
       title: mode === "create" ? `${saved.name} افزوده شد` : `${saved.name} به‌روزرسانی شد`,
-      detail: __APP_TARGET__ === "operator" && demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
+      detail: demoEnvironment ? "تغییرات در دادهٔ دمو ذخیره شد." : "تغییرات در داده‌ها ذخیره شد.",
     });
 
   const list = useMemo(
