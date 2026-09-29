@@ -89,14 +89,18 @@ export function evaluateDeliveryOwnership(store: DemoStore = demoStore): Deliver
 
   const provenance = store.readProvenance();
   if (provenance.kind === "corrupt") return { verdict: "unproven", reason: "provenance-unreadable" };
+  // `sample` is the showcase dataset. Its provenance owner token is still
+  // `"demo"` — that stored field was not renamed. A legacy `"demo"` marker is
+  // already canonicalized to `"sample"` by the store reader.
+  const showcase = marker === "sample";
   if (provenance.kind === "valid") {
-    const expected = marker === "demo" ? "demo" : "customer";
+    const expected = showcase ? "demo" : "customer";
     if (provenance.value.owner !== expected) {
       return { verdict: "unproven", reason: "ownership-conflict" };
     }
   }
 
-  return { verdict: marker === "demo" ? "demo" : "customer" };
+  return { verdict: showcase ? "demo" : "customer" };
 }
 
 /**

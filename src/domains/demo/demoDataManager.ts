@@ -43,7 +43,13 @@ import {
   type UninitializeResult,
 } from "./lifecycle";
 import { createEmptyDataset, createSeedDataset, SEED_VERSION } from "./seed";
-import type { DataLifecycleMode, DataLifecycleState, DemoDataset, DemoDatasetStats } from "./types";
+import {
+  provenanceForLifecycle,
+  type DataLifecycleMode,
+  type DataLifecycleState,
+  type DemoDataset,
+  type DemoDatasetStats,
+} from "./types";
 
 /** Destructive operations require an explicit, typed confirmation. */
 export type { ConfirmedRequest };
@@ -155,13 +161,13 @@ export class DemoDataManager {
    */
   resetToSeed(request: ConfirmedRequest): DemoOperationResult {
     if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset");
-    return this.applyDataset("reset", createSeedDataset(), request, "دادهٔ دمو به حالت اولیه بازگردانده شد.", "demo");
+    return this.applyDataset("reset", createSeedDataset(), request, "دادهٔ دمو به حالت اولیه بازگردانده شد.", "sample");
   }
 
   /** Alias with distinct intent: importing the canonical seed. Also marks DEMO. */
   importSeed(request: ConfirmedRequest): DemoOperationResult {
     if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-seed");
-    return this.applyDataset("import-seed", createSeedDataset(), request, "دیتاست کانونیکال وارد شد.", "demo");
+    return this.applyDataset("import-seed", createSeedDataset(), request, "دیتاست کانونیکال وارد شد.", "sample");
   }
 
   /**
@@ -199,8 +205,10 @@ export class DemoDataManager {
 
   exportBackup(exportedAt: Date = new Date()): DemoBackup {
     // Stamp the envelope with the CURRENT environment: a customer environment
-    // exports as `empty` (restorable after delivery); only a demo environment
-    // exports as `demo` (rejected by a locked deployment on restore).
+    // exports as `empty` (restorable after delivery); a sample environment
+    // exports as `demo`. The envelope token stays `demo` — that is the portable
+    // backup contract (`demo` | `empty`). A locked restore rejects `demo`.
+    // Writing `sample` into the envelope would make the file a foreign backup.
     const environment = this.lifecycleState() === "empty" ? "empty" : "demo";
     return createBackup(this.store.snapshot(), exportedAt, environment);
   }
@@ -270,8 +278,9 @@ export class DemoDataManager {
       // mode's data, so its stamp must land with it — otherwise an EMPTY
       // environment reset to the seed would carry a customer stamp over demo
       // records and delivery would (correctly) refuse to delete them.
+      const stamp = mode ? provenanceForLifecycle(mode) : null;
       this.store.replace(
-        mode ? stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run") : dataset,
+        stamp ? stampDatasetProvenance(dataset, stamp.owner, stamp.origin) : dataset,
       );
     } catch (cause) {
       return {

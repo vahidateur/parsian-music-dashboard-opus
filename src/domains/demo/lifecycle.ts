@@ -145,7 +145,7 @@ export function readLifecycleState(store: DemoStore = demoStore): DataLifecycleS
   // sourced). POST-delivery the same shape must never re-enable demo — the
   // safe direction for unknown-ownership data is `empty`: preserved, with
   // every demo affordance off. (This is the fail-closed twin of adoption.)
-  return isDemoCapabilityAvailable() ? "demo" : "empty";
+  return isDemoCapabilityAvailable() ? "sample" : "empty";
 }
 
 /**
@@ -173,7 +173,7 @@ export function persistLifecycleAdoption(store: DemoStore = demoStore): DataLife
  */
 export function isDemoEnvironment(store: DemoStore = demoStore): boolean {
   if (!isDemoMode()) return false;
-  return readLifecycleState(store) === "demo";
+  return readLifecycleState(store) === "sample";
 }
 
 /* ------------------------------------------------------------------ */
@@ -247,10 +247,10 @@ export function initializeDemoEnvironment(store: DemoStore = demoStore): Lifecyc
     };
   }
   if (store.isInitialized()) return refuseExisting(store);
-  store.initializeEnvironment("demo", createSeedDataset());
+  store.initializeEnvironment("sample", createSeedDataset());
   return {
     ok: true,
-    state: "demo",
+    state: "sample",
     changed: true,
     message: "دادهٔ نمونه بارگذاری شد.",
   };
@@ -263,7 +263,7 @@ export function initializeDemoEnvironment(store: DemoStore = demoStore): Lifecyc
  * that can change an existing environment's data.
  */
 export function markLifecycle(mode: DataLifecycleMode, store: DemoStore = demoStore): void {
-  if (mode === "demo" && !isDemoCapabilityAvailable()) {
+  if (mode === "sample" && !isDemoCapabilityAvailable()) {
     // Callers guard their operations; this throw is the backstop that makes
     // an unguarded path loud instead of silently re-arming demo data.
     throw new DemoDisabledError("markLifecycle");

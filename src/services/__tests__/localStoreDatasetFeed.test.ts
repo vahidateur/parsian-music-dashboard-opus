@@ -66,10 +66,10 @@ describe("W3 store plumbing — the artifact feeds the store", () => {
   it("installs the artifact under the compatibility keys and a repository reads it", async () => {
     const storage = memoryStorage();
     const store = new LocalStoreImpl(storage);
-    store.initializeEnvironment("demo", loaded.dataset);
+    store.initializeEnvironment("sample", loaded.dataset);
 
     expect(storage.getItem(DEMO_STORAGE_KEY)).not.toBeNull();
-    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(storage.getItem("ava:local:dataset")).toBeNull();
 
     const snap = store.snapshot();
@@ -86,9 +86,9 @@ describe("W3 store plumbing — the artifact feeds the store", () => {
 
   it("serves the artifact and the seed as the same canonical dataset once persisted", () => {
     const fromArtifact = new LocalStoreImpl(memoryStorage());
-    fromArtifact.initializeEnvironment("demo", loaded.dataset);
+    fromArtifact.initializeEnvironment("sample", loaded.dataset);
     const fromSeed = new LocalStoreImpl(memoryStorage());
-    fromSeed.initializeEnvironment("demo", createSeedDataset());
+    fromSeed.initializeEnvironment("sample", createSeedDataset());
 
     const artifactJson = canonicalDatasetJson(withoutProvenance(fromArtifact.snapshot()));
     const seedJson = canonicalDatasetJson(withoutProvenance(fromSeed.snapshot()));

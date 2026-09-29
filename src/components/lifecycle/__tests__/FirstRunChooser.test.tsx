@@ -98,7 +98,7 @@ describe("choosing", () => {
 
     fireEvent.click(screen.getByRole("button", { name: DEMO_LABEL }));
 
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
 
     const snapshot = demoStore.snapshot();
     expect(snapshot.students.length).toBeGreaterThan(0);
@@ -116,7 +116,7 @@ describe("choosing", () => {
 
     expect(screen.getByRole("alert").textContent).toContain("از قبل ساخته شده");
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBe(before);
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(demoStore.snapshot().students.length).toBeGreaterThan(0);
   });
 

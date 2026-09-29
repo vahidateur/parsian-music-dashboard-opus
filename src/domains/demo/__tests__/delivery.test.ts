@@ -59,7 +59,7 @@ function datasetPayload(): string | null {
 }
 
 function seedDemoEnv(): void {
-  demoStore.initializeEnvironment("demo", createSeedDataset());
+  demoStore.initializeEnvironment("sample", createSeedDataset());
   localStorage.setItem(DEMO_CREDENTIALS_KEY, '{"demo@example.local":{}}');
   localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ accountId: "a1" }));
 }
@@ -80,7 +80,7 @@ describe("confirm gate", () => {
     }
     expect(readDeliveryState()).toBe("demo_active");
     expect(datasetPayload()).toContain('"students"');
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(localStorage.getItem(DEMO_CREDENTIALS_KEY)).not.toBeNull();
   });
 });
@@ -148,7 +148,7 @@ describe("fail-closed ownership — every case preserves the data", () => {
     const outcome = await deliverProduction(CONFIRM);
     expect(outcome).toMatchObject({ ok: false, pending: true, reason: "dataset-unreadable", state: "removing" });
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBe(garbage);
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(readDeliveryPending()?.reason).toBe("dataset-unreadable");
     // fail closed at the service layer while pending
     expect(() => assertDemoOperationAllowed("reset")).toThrow(DemoDisabledError);
@@ -178,7 +178,17 @@ describe("fail-closed ownership — every case preserves the data", () => {
     const outcome = await deliverProduction(CONFIRM);
     expect(outcome).toMatchObject({ ok: false, pending: true, reason: "ownership-conflict" });
     expect(localStorage.getItem(DEMO_STORAGE_KEY)).toBe(before);
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
+  });
+
+  it("a legacy demo marker is still showcase-owned and deletable", async () => {
+    seedDemoEnv();
+    localStorage.setItem(LIFECYCLE_STORAGE_KEY, "demo");
+
+    const outcome = await deliverProduction(CONFIRM);
+
+    expect(outcome).toMatchObject({ ok: true, state: "locked", ownership: "demo" });
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("empty");
   });
 
   it("legacy demo payload without provenance → the marker governs (deletable)", async () => {

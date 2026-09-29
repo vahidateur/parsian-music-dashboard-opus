@@ -41,14 +41,14 @@ export function useDataLifecycle(): DataLifecycleController {
     return demoStore.subscribe(() => setState(readLifecycleState()));
   }, []);
 
-  const choose = useCallback((mode: "empty" | "demo") => {
+  const choose = useCallback((mode: "empty" | "sample") => {
     const result = mode === "empty" ? initializeEmptyEnvironment() : initializeDemoEnvironment();
     setNotice(result.ok ? null : result.message);
     setState(readLifecycleState());
   }, []);
 
   const chooseEmpty = useCallback(() => choose("empty"), [choose]);
-  const chooseDemo = useCallback(() => choose("demo"), [choose]);
+  const chooseDemo = useCallback(() => choose("sample"), [choose]);
 
   return { state, notice, chooseEmpty, chooseDemo };
 }

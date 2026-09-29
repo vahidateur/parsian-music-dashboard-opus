@@ -30,7 +30,8 @@ import type { CollectionAccessor, LocalDataStore } from "@/services/localDataSto
 import { stripPrototypeKeys } from "@/domains/demo/backup";
 import {
   DEMO_COLLECTIONS,
-  LIFECYCLE_MODES,
+  canonicalLifecycleMarker,
+  provenanceForLifecycle,
   type DataLifecycleMode,
   type DemoCollectionName,
   type DemoDataset,
@@ -42,7 +43,8 @@ import { withRuleDefaults, type OrganizationSettings } from "@/domains/organizat
 
 export const DEMO_STORAGE_KEY = "ava:demo:dataset";
 /**
- * The environment's lifecycle marker (`"empty"` | `"demo"`).
+ * The environment's lifecycle marker (`"empty"` | `"sample"`).
+ * A stored `"demo"` is the legacy alias for `"sample"` and is not rewritten by a read.
  *
  * A separate key from the dataset on purpose: the mode is a property of the
  * ENVIRONMENT, not academy data. Keeping it out of `DemoDataset` means it is
@@ -425,9 +427,8 @@ export class LocalStoreImpl implements LocalDataStore {
     // The only interruptible intermediate is marker-only (UNINITIALIZED
     // recovery) — safe for delivery, which treats a marker without a dataset
     // as "nothing to delete".
-    this.write(
-      stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run"),
-    );
+    const stamp = provenanceForLifecycle(mode);
+    this.write(stampDatasetProvenance(dataset, stamp.owner, stamp.origin));
     this.emit();
   }
 
@@ -507,11 +508,9 @@ export class LocalStoreImpl implements LocalDataStore {
   /** The persisted marker, or `null` when no lifecycle choice has been made. */
   readLifecycleMarker(): DataLifecycleMode | null {
     // Never trust storage contents: an unrecognised value means "no choice",
-    // which the lifecycle boundary resolves explicitly.
-    const raw = this.storage.getItem(LIFECYCLE_STORAGE_KEY);
-    return raw !== null && (LIFECYCLE_MODES as readonly string[]).includes(raw)
-      ? (raw as DataLifecycleMode)
-      : null;
+    // which the lifecycle boundary resolves explicitly. `"demo"` is the legacy
+    // alias and is returned as `"sample"`; this read does not rewrite the key.
+    return canonicalLifecycleMarker(this.storage.getItem(LIFECYCLE_STORAGE_KEY));
   }
 
   /**
@@ -524,7 +523,9 @@ export class LocalStoreImpl implements LocalDataStore {
    * where the dataset is being written anyway.
    */
   writeLifecycleMarker(mode: DataLifecycleMode): void {
-    if (this.readLifecycleMarker() === mode) return;
+    // Compare the raw key, not the canonical read. A legacy `"demo"` marker
+    // reads as `"sample"`; an explicit write of `"sample"` must still replace it.
+    if (this.storage.getItem(LIFECYCLE_STORAGE_KEY) === mode) return;
     this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
     this.emit();
   }

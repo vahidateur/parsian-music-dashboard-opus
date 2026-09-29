@@ -270,15 +270,47 @@ export interface DemoDatasetStats {
  *
  * `empty` — a real/customer environment: a valid dataset with zero academy
  * records, ready for the customer's own data.
- * `demo`  — the explicit showcase/QA dataset (`createSeedDataset()`).
+ * `sample` — the explicit showcase/QA dataset (`createSeedDataset()`), imported
+ * for preview. It is not a permanent mode of the product.
  *
  * The mode is a persisted FACT about the environment, never a guess from how
  * many rows it happens to hold: an EMPTY academy with zero students is still
- * EMPTY, and a DEMO dataset emptied during testing is still DEMO.
+ * EMPTY, and a SAMPLE dataset emptied during testing is still SAMPLE.
+ *
+ * Builds before this wave wrote the marker `"demo"`. That string is a read
+ * alias for `sample` and is never written again. The storage key stays
+ * `ava:demo:lifecycle`.
  */
-export const LIFECYCLE_MODES = ["empty", "demo"] as const;
+export const LIFECYCLE_MODES = ["empty", "sample"] as const;
 
 export type DataLifecycleMode = (typeof LIFECYCLE_MODES)[number];
+
+/** Persisted marker from earlier builds. Read as `sample`. Never written. */
+export const LEGACY_SAMPLE_MARKER = "demo";
+
+/** Canonical kind, or `null` when the stored string is not a known marker. */
+export function canonicalLifecycleMarker(raw: string | null): DataLifecycleMode | null {
+  if (raw === "empty" || raw === "sample") return raw;
+  if (raw === LEGACY_SAMPLE_MARKER) return "sample";
+  return null;
+}
+
+/**
+ * Provenance stamp for a lifecycle write.
+ *
+ * The stored owner token stays `"demo" | "customer"`. Renaming that field is a
+ * separate compatibility decision. A `sample` environment is still the showcase
+ * dataset, so it keeps the existing `"demo"` owner stamp; delivery relies on that
+ * match. `empty` stays `"customer"`.
+ */
+export function provenanceForLifecycle(mode: DataLifecycleMode): {
+  owner: "demo" | "customer";
+  origin: "seed" | "first-run";
+} {
+  return mode === "sample"
+    ? { owner: "demo", origin: "seed" }
+    : { owner: "customer", origin: "first-run" };
+}
 
 /**
  * `uninitialized` — no lifecycle choice has been made yet, so nothing has been

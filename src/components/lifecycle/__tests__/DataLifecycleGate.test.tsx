@@ -164,7 +164,7 @@ describe("the choice, taken through the gate", () => {
     fireEvent.click(screen.getByRole("button", { name: DEMO_LABEL }));
 
     expect(appMounted()).toBe(true);
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(demoStore.snapshot().students.length).toBeGreaterThan(0);
   });
 });
@@ -182,7 +182,7 @@ describe("a dataset that predates the lifecycle marker", () => {
     // options would replace or erase it.
     expect(appMounted()).toBe(true);
     expect(choiceOffered()).toBe(false);
-    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(localStorage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(demoStore.snapshot().students[0].name).toBe("هنرجوی موجود کاربر");
     expect(demoStore.snapshot().students).toHaveLength(seeded.students.length);
   });
@@ -210,7 +210,7 @@ describe("lockout recovery outside the signed-in shell", () => {
 
   it.each([
     ["EMPTY", "empty", EMPTY_LABEL],
-    ["DEMO", "demo", DEMO_LABEL],
+    ["DEMO", "sample", DEMO_LABEL],
   ] as const)("returns from lockout to the %s chooser path", async (_label, expectedState, choiceLabel) => {
     lockOutLocalEnvironment("empty");
     renderBoot();
