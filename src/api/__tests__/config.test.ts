@@ -64,3 +64,33 @@ describe("resolveConfig", () => {
     });
   });
 });
+
+describe("resolveConfig in the client composition", () => {
+  it("defaults to api when nothing is configured", () => {
+    expect(resolveConfig({}, "client")).toEqual({ mode: "api", apiBaseUrl: "/api/v1", error: null });
+  });
+
+  it("treats an empty value as unset api, not as local", () => {
+    expect(resolveConfig({ VITE_DATA_SOURCE: "   " }, "client").mode).toBe("api");
+    expect(resolveConfig({ VITE_DATA_SOURCE: "   " }, "client").error).toBeNull();
+  });
+
+  it.each(["local", "demo", " DEMO ", "local "])(
+    "refuses %s without selecting a local dataset",
+    (value) => {
+      const config = resolveConfig({ VITE_DATA_SOURCE: value }, "client");
+      expect(config.mode).toBe("api");
+      expect(config.mode).not.toBe("local");
+      expect(config.error).toBeTruthy();
+      expect(config.error).toContain("API-only");
+    },
+  );
+
+  it("still accepts an explicit api source", () => {
+    expect(resolveConfig({ VITE_DATA_SOURCE: "api", VITE_API_BASE_URL: "https://x.test/api/v1" }, "client")).toEqual({
+      mode: "api",
+      apiBaseUrl: "https://x.test/api/v1",
+      error: null,
+    });
+  });
+});

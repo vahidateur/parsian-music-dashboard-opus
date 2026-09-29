@@ -1,8 +1,9 @@
 /**
  * Data-source configuration.
  *
- * `local` — the on-device implementation. `VITE_DATA_SOURCE=demo` is the legacy
- * alias and resolves to the same mode. It is not a second application.
+ * `local` — the on-device implementation of the demo/fixture composition.
+ * `VITE_DATA_SOURCE=demo` is the legacy alias and resolves to the same mode
+ * there. It is not a second application, and it is not a client data source.
  * `api`  — repositories talk to a real REST backend at VITE_API_BASE_URL.
  *
  * SAFETY RULE (see docs/architecture/environments.md):
@@ -43,22 +44,27 @@ function readEnv(): RawEnv {
   }
 }
 
-export function resolveConfig(env: RawEnv = readEnv()): RuntimeConfig {
+/**
+ * Resolves the data source for one composition.
+ *
+ * The second argument exists so tests can prove the client rule without a
+ * second Vitest project. Production code omits it: the build injects
+ * `__APP_TARGET__`, and the aliases — not this string — keep demo modules out
+ * of the client bundle.
+ */
+export function resolveConfig(env: RawEnv = readEnv(), target: "demo" | "client" = __APP_TARGET__): RuntimeConfig {
   const raw = (env.VITE_DATA_SOURCE ?? "").trim().toLowerCase();
   const apiBaseUrl = (env.VITE_API_BASE_URL ?? "").trim() || DEFAULT_BASE_URL;
+  const supplied = env.VITE_DATA_SOURCE;
 
-  // Unset → local… but ONLY in the demo composition. The client build has no
-  // local dataset capability (its target files and local repositories are not
-  // in the bundle), so an unset data source there means the API — falling back
-  // to local here would be exactly the silent downgrade this module exists to
-  // prevent, and could not work anyway.
-  if (raw === "") {
-    if (__APP_TARGET__ === "client") return { mode: "api", apiBaseUrl, error: null };
-    return { mode: "local", apiBaseUrl, error: null };
-  }
+  // The client composition has no local store and no demo fixture. `local` and
+  // the legacy `demo` alias must not become a hidden path back into one.
+  // Unset still means the API. Any other non-API value sets `error` so boot
+  // refuses; `mode` stays `api` only so a missed guard cannot select local.
+  if (target === "client") return resolveClientConfig(raw, apiBaseUrl, supplied);
 
-  // `demo` is the legacy env value. It is the same mode as `local`, not a
-  // second source and not a production alias.
+  // Demo/fixture composition. W6: `demo` aliases to `local`. Unset is local.
+  if (raw === "") return { mode: "local", apiBaseUrl, error: null };
   if (raw === "local" || raw === "demo") return { mode: "local", apiBaseUrl, error: null };
 
   if ((PRODUCTION_ALIASES as readonly string[]).includes(raw)) {
@@ -71,9 +77,23 @@ export function resolveConfig(env: RawEnv = readEnv()): RuntimeConfig {
     mode: "local",
     apiBaseUrl,
     error:
-      `VITE_DATA_SOURCE="${env.VITE_DATA_SOURCE ?? ""}" is not a valid data source. ` +
+      `VITE_DATA_SOURCE="${supplied ?? ""}" is not a valid data source. ` +
       `Use "local" or "demo", or one of: ${PRODUCTION_ALIASES.join(", ")}. ` +
       `Refusing to start: falling back to local data here could present fabricated records as real.`,
+  };
+}
+
+function resolveClientConfig(raw: string, apiBaseUrl: string, supplied: string | undefined): RuntimeConfig {
+  if (raw === "" || (PRODUCTION_ALIASES as readonly string[]).includes(raw)) {
+    return { mode: "api", apiBaseUrl, error: null };
+  }
+  return {
+    mode: "api",
+    apiBaseUrl,
+    error:
+      `VITE_DATA_SOURCE="${supplied ?? raw}" is not available in the client composition. ` +
+      `This build is API-only and has no local dataset. ` +
+      `Use one of: ${PRODUCTION_ALIASES.join(", ")}. Refusing to start.`,
   };
 }
 

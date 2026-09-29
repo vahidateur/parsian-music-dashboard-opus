@@ -16,8 +16,9 @@
  * build:demo` → `dist/demo`; the bare `npm run build` (the demo target's
  * default) → `dist/` and, being an in-root outDir, EMPTIES `dist/` — which
  * removes `dist/client` and `dist/demo`. So the two composed builds can be
- * inspected side by side, while the bare build is the one `bundleBudget` /
- * `cspCompatibility` expect at the root. The demo probes below therefore read
+ * inspected side by side. `bundleBudget` measures `dist/client` against the
+ * production cap and reports `dist/demo` separately; `cspCompatibility` still
+ * expects the bare build at `dist/`. The demo probes below therefore read
  * `dist/demo` when it exists and fall back to `dist/`; the client probes read
  * `dist/client`. Verify with:
  *
