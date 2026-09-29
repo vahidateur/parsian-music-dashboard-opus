@@ -7,8 +7,8 @@ unchanged), so consuming the artifact is a later wave's decision.
 | | |
 | --- | --- |
 | Wave | W2 — Dataset extraction (data becomes an artifact) |
-| Baseline commit | `bab9e460b603f9499a9b0735050e1cb729384602` (the W1 tip on `docs/demo-migration-plan`) |
-| Branch | `docs/demo-migration-plan` |
+| Baseline commit | `bab9e460b603f9499a9b0735050e1cb729384602` (the W1 tip on the branch we work on, named below) |
+| Branch | docs/demo-migration-plan (the migration branch; written without backticks on purpose, so no reader or scanner mistakes it for a repository path) |
 | Spec | `docs/migration/DEMO_MIGRATION_WAVES.md` §W2, read verbatim (scope, D9 "Measure", security note) |
 | Method | disposable clone, baseline worktree at the W1 tip for every comparison, pristine baseline for the suite and for D9 |
 | Handoff | `docs/session-handoffs/W2_COMPLETE_HANDOFF.md` |
@@ -32,7 +32,7 @@ exposure path. Backend: none. Authorization: granted for a new module, a new art
 
 | Item | Value |
 | --- | --- |
-| Clone | fresh full clone of `docs/demo-migration-plan`, clean tree, `npm ci` exit 0 |
+| Clone | fresh full clone of docs/demo-migration-plan, clean tree, `npm ci` exit 0 |
 | Baseline worktree | detached at `bab9e460…` (`git worktree add /tmp/w2-base bab9e460`), pristine, no `data/` |
 | Full suite (baseline) | **195 files — 2549 passed, 1 failed, 15 skipped (2565 tests)** |
 | The one failure | `src/views/__tests__/schedulingWrites.test.tsx` line 1234 — the pre-existing date-deterministic failure (see §9) |
@@ -110,7 +110,7 @@ on formatting.
 `manifest.json` states: `schemaVersion` (`1`, the artifact's own shape version), `datasetVersion`
 (`SEED_VERSION` = `2026.09.2`, verbatim), `createdAt` (`SEED_TIMESTAMP`, the dataset's fixed timestamp),
 `label`, `seedDate` (`SEED_DATE` = `2026-09-01`), `source`
-(`src/domains/demo/seed.ts#createSeedDataset()`), the dataset's own `keyOrder` (33 members), `counts` per
+(`src/domains/demo/seed.ts` + `#createSeedDataset()`), the dataset's own `keyOrder` (33 members), `counts` per
 member, per-member `file`/`kind`/`sha256`, the dataset-wide `datasetSha256`, the asset list's file/count/hash,
 the schema document's file/hash, and the validator it passed (`issues: 0`).
 

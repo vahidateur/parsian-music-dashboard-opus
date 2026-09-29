@@ -5,9 +5,10 @@
 | | |
 | --- | --- |
 | Wave | **W2 — Dataset extraction (data becomes an artifact)** |
-| Branch | `docs/demo-migration-plan` |
+| Branch | docs/demo-migration-plan (the migration branch; no backticks, so it cannot be mistaken for a repository path) |
 | Baseline commit | `bab9e460b603f9499a9b0735050e1cb729384602` (the W1 tip) |
-| W2 implementation commit | _recorded by the remote-verification commit below_ |
+| W2 implementation commit | `25b432a` — 48 files: the artifact, the tooling, the suites, the schema split |
+| W2 evidence/handoff commit | `d954ba95c4299d5df852cfd398a2c0cb1f805987` — this wave's content tip (remote-verified below) |
 | Evidence | `docs/migration/W2_DATASET_EXTRACTION_EVIDENCE.md` (every number in this handoff is measured there) |
 | Rollback | the baseline commit; the artifact is not consumed, so a revert is total |
 | Next authorized wave | **W3 — store and shared plumbing become canonical**. Do not start it from this session. |
@@ -44,7 +45,7 @@ untouched seed *before* any W2 code existed.
 | `main` | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` | unchanged by W2 |
 | `backup/pre-f2-2026-09-29` | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` | unchanged by W2 |
 | `arena/phase2a-landing` | `2df607e…` | unchanged by W2 |
-| `docs/demo-migration-plan` | W1 tip `bab9e460…` + the W2 commits | this wave |
+| docs/demo-migration-plan | W1 tip `bab9e460…` + the W2 commits | this wave |
 | protected WIP checkout (`arena/01a0e8ec-…`, HEAD `eb973eb…`) | untouched — re-verified before and after | recovery source; never write to it |
 
 ## 3. Verification summary (measured, both sides of the comparison in one session)
@@ -128,3 +129,32 @@ in the repository, which is the point.
 
 **W3 — store and shared plumbing become canonical.** Per the standing checkpoint rule: one wave at a time,
 implementation commit + verification/handoff commit, remote SHA verified and recorded, then stop.
+
+---
+
+## 9. Remote verification record (appended after the push)
+
+Recorded after the branch was pushed, exactly as the checkpoint rule requires: verify through GitHub, then
+record the exact SHA. Two independent reads of the remote were taken.
+
+| Check | Result |
+| --- | --- |
+| `git ls-remote origin refs/heads/docs/demo-migration-plan` | **`d954ba95c4299d5df852cfd398a2c0cb1f805987`** — equal to the local tip at push time ✔ |
+| GitHub API `repos/…/branches/docs/demo-migration-plan` | `sha = d954ba95c4299d5df852cfd398a2c0cb1f805987`, tree `3b6695a…` — **equal to the local tree**, so every committed byte that was verified locally is what landed ✔ |
+| GitHub API `repos/…/contents/data/dataset` | 36 top-level entries plus `assets/` — the artifact is in the remote tree ✔ |
+| `main` after the push | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` — **unchanged** ✔ |
+| `backup/pre-f2-2026-09-29` after the push | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` — **unchanged** ✔ |
+| `arena/phase2a-landing` after the push | `2df607eff5f1ea1fe85e86381b9b0398fec81d18` — **unchanged** ✔ |
+| Protected WIP checkout | HEAD `eb973eb2758447eff16b60ab4fd4c267f9d85061`, 78 modified / 28 untracked / 0 staged, tracked-diff hash unchanged — **untouched, before and after the wave** ✔ |
+| Push mode | ordinary `git push` of two new commits onto the branch — no force, no rebase, no squash, no merge, no `main` change ✔ |
+
+W2's commits, in order: `25b432a` (implementation) → `d954ba95c4299d5df852cfd398a2c0cb1f805987`
+(evidence + handoff) → the commit carrying this addendum.
+
+**This addendum's own commit is the branch tip after the second push**, and its SHA cannot appear inside
+itself (the repository forbids a document quoting the commit that carries it — `projectState.test.ts` rule
+4, `DECISIONS.md` §21). It is recorded in the wave's report instead; verify with:
+
+```bash
+git ls-remote origin refs/heads/docs/demo-migration-plan
+```
