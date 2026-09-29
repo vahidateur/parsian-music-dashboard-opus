@@ -1,3 +1,410 @@
+# SESSION HANDOFF
+
+> **LIVE POINTER — 2026-09-30. This supersedes every older pointer in this file.**
+> Git cleanup is **NOT complete**. History has **not** been rewritten. `main` has **not** moved.
+> W7A, W7B, W8, W9, and W10 are **closed**. Do **not** re-run them. Do **not** start backend, Telegram, or push work from this file.
+>
+> Sibling historical records, still present and not deleted:
+> [PROJECT_STATE.md](PROJECT_STATE.md) · [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
+> [OPEN_ITEMS.md](OPEN_ITEMS.md) · [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md) ·
+> [PRE_CLEANUP_HANDOFF.md](PRE_CLEANUP_HANDOFF.md) ·
+> [../session-handoffs/DEMO_MIGRATION_CONTINUATION_HANDOFF.md](../session-handoffs/DEMO_MIGRATION_CONTINUATION_HANDOFF.md) ·
+> [../migration/W10_ERADICATION_AUDIT.md](../migration/W10_ERADICATION_AUDIT.md)
+>
+> The body below this live pointer, beginning at “HISTORICAL BODY”, is the previous text of this file.
+> Its SHAs are preserved on purpose. None of that body is a live work order. In particular, do **not**
+> merge PR #16 or PR #18, do **not** treat `6ca25be` as HEAD, and do **not** start F2 from that body.
+
+**Recorded:** 2026-09-30 · **Nature:** documentation-only recovery checkpoint. This commit does not
+rewrite history, does not merge, and does not authorize backend implementation.
+
+**Rule this file exists to enforce:** Git cleanup without this handoff is unsafe. A later rewrite
+must update this same file with the complete old-SHA → new-SHA mapping before anyone may declare
+cleanup complete. Old SHAs in this file must not be deleted.
+
+---
+
+## SESSION RECOVERY
+
+```text
+Current branch:     docs/demo-migration-plan
+Current HEAD:       the commit that introduces this 2026-09-30 live pointer
+                    parent MUST be 13599bbfc4fdce42de975ef28d104a8264bf88bf
+                    until an owner-authorized rewrite
+                    verify: git ls-remote origin refs/heads/docs/demo-migration-plan
+Remote HEAD:        same ref, same parent requirement; do not trust a local clone over ls-remote
+Main:               15775ea9486cb57fbfb8fefa3268658cbe7eb669
+                    tree 6eb78338ec19880adf5f97735f61de32e11cbf20
+Backup:             backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
+Archive:            archive/gallery-library-storage-eb973eb @ eb973eb2758447eff16b60ab4fd4c267f9d85061
+                    archive/frontend-session-handoff-94d32de @ 94d32de3220cee314606c0c4705e20e0fdcfb2af
+                    archive/palette-focus-251af96 @ 251af96f405df5935ee17ddc9ba6b490f7989c2d
+                    archive/mountain-sanctuary-bb275d6 @ bb275d6c8063a3ca34eb3a24c0539e43ea991182
+                    archive/premium-academy-login-afe6b02 @ afe6b0278c7aed447552eec76ee2caf0f6a7e616
+                    archive/project-state-gate-7180082 @ 7180082fac85f4451ac8e7d2ed1312a26bcfb486
+
+Last completed operation:
+  Read-only history inventory of main..docs/demo-migration-plan, then this handoff commit.
+  No ref was moved except the fast-forward of docs/demo-migration-plan by this documentation commit.
+
+Last verified operation:
+  git ls-remote on 2026-09-30, before this commit:
+    main = 15775ea9486cb57fbfb8fefa3268658cbe7eb669
+    docs/demo-migration-plan = 13599bbfc4fdce42de975ef28d104a8264bf88bf
+  GitHub compare 15775ea...13599bb: ahead_by 32, behind_by 0, 237 files.
+  GitHub compare 039b9c82...22cbd26: ahead_by 3, files = 0.
+  That zero-file compare was not a rebase. Replay has not been tested.
+
+Pending operation:
+  Owner confirmation of the cleanup choice in §11. Nothing else.
+
+Safe to continue from:
+  This file, on docs/demo-migration-plan, after ls-remote confirms the parent chain above.
+  Do not continue from chat memory. Do not continue from the historical body below.
+
+Do NOT repeat:
+  W7A, W7B, W8, W9, W10.
+  The rejected three-artifact attempt (1eb6366, 10c8154) or its revert (22cbd26).
+  Any claim that migration is unstarted, or that a Laravel app already exists.
+
+Do NOT modify:
+  main, backup/pre-f2-2026-09-29, any archive tag.
+  The protected dirty WIP at /home/user/parsian-music-dashboard-opus
+    branch arena/01a0e8ec-parsian-music-dashboard-opus
+    HEAD eb973eb2758447eff16b60ab4fd4c267f9d85061
+    78 tracked modifications, 28 untracked porcelain entries, 0 staged.
+  APP_TARGET behavior, vite.config.ts, the two registries, the D9 cap, SEED_DATE,
+  SEED_VERSION, ava:demo: keys, schedulingWrites.test.tsx.
+
+Next exact step:
+  Stop. Wait for a written owner choice between:
+    (A) keep all 32 pre-handoff commits and fast-forward main later, or
+    (B) authorize a new branch that drops only the net-zero dead-end trio,
+        then prove the rewritten tree equals afba3b8e48f4668459b2b0930522590dcc23a756.
+  Do not rewrite, force-push, merge, or start backend before that choice.
+```
+
+This file cannot contain its own commit SHA. After the push, the live migration tip is the child of
+`13599bbfc4fdce42de975ef28d104a8264bf88bf` whose subject is
+`docs(engineering): record the pre-cleanup session recovery handoff`.
+If that is not what `git ls-remote` shows, stop.
+
+---
+
+## 1. Current remote refs
+
+Verified with `git ls-remote` on 2026-09-30, before this handoff commit. Re-verify before any later
+action. Do not treat a shallow or single-branch clone as the full ref list.
+
+| Ref | SHA at verification | Role |
+| --- | --- | --- |
+| `main` | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` | Untouched. Tree `6eb78338ec19880adf5f97735f61de32e11cbf20`. |
+| `docs/demo-migration-plan` | `13599bbfc4fdce42de975ef28d104a8264bf88bf` | Pre-handoff tip. This commit's parent. |
+| `backup/pre-f2-2026-09-29` | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` | Backup. Do not move. |
+| `archive/gallery-library-storage-eb973eb` | `eb973eb2758447eff16b60ab4fd4c267f9d85061` | Archive tag. Do not move. |
+| `archive/frontend-session-handoff-94d32de` | `94d32de3220cee314606c0c4705e20e0fdcfb2af` | Archive tag. Do not move. |
+| `archive/palette-focus-251af96` | `251af96f405df5935ee17ddc9ba6b490f7989c2d` | Archive tag. Also an `arena/` branch tip. Do not move. |
+| `archive/mountain-sanctuary-bb275d6` | `bb275d6c8063a3ca34eb3a24c0539e43ea991182` | Archive tag. Do not move. |
+| `archive/premium-academy-login-afe6b02` | `afe6b0278c7aed447552eec76ee2caf0f6a7e616` | Archive tag. Do not move. |
+| `archive/project-state-gate-7180082` | `7180082fac85f4451ac8e7d2ed1312a26bcfb486` | Archive tag. Do not move. |
+
+Other `arena/*` branches exist on the remote. They are not the migration line and are not backup.
+The protected WIP branch `arena/01a0e8ec-parsian-music-dashboard-opus` was local-only at verification
+and must not be pushed, reset, or cleaned.
+
+`docs/demo-migration-plan` at `13599bb` was 32 commits ahead of `main` and 0 behind. A fast-forward
+of `main` was possible and was **not** performed.
+
+## 2. Exact pre-cleanup HEAD
+
+`13599bbfc4fdce42de975ef28d104a8264bf88bf`
+
+| Field | Value |
+| --- | --- |
+| Subject | `docs(migration): W10 eradication audit` |
+| Parent | `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` |
+| Tree | `afba3b8e48f4668459b2b0930522590dcc23a756` |
+
+This is the pre-cleanup tip. Any later cleaned history must preserve this tree, then add this
+handoff. The tree that must be preserved through a rewrite of the 32 commits is `afba3b8e`. The
+tree of the branch after this handoff commit is that tree plus this documentation change only.
+
+## 3. Exact post-cleanup HEAD
+
+**DOES NOT EXIST.**
+
+No rewrite has been performed. No replacement SHA has been created. Do not invent one. Do not
+declare Git cleanup complete.
+
+## 4. Complete commit mapping
+
+There is no old → new SHA mapping because no rewrite has been performed. Every new-SHA cell is
+`not created`. Purposes below are the commit subjects. Proposed fate is a recommendation, not an
+executed squash.
+
+| Old SHA | Purpose | Proposed fate | New SHA |
+| --- | --- | --- | --- |
+| `85345c932c4ac510b1e74c9e16fa329c4c7f82cd` | W1 discovery plan | keep | not created |
+| `379076f63915e46f34e73236041bd95725ffefa8` | W1 decision boundary | keep | not created |
+| `c5ba4a96e554bf59d8d7fde2695f6cede350efa2` | W1 handoff and document-reference fix | keep | not created |
+| `bab9e460b603f9499a9b0735050e1cb729384602` | W1 remote-verification note | keep, or squash into the W1 handoff without deleting its text | not created |
+| `25b432a4f3ed5c7cb924878477fceaf93b54fa85` | W2 dataset extraction | keep | not created |
+| `d954ba95c4299d5df852cfd398a2c0cb1f805987` | W2 evidence | keep | not created |
+| `713d9b3a43d825fb9f3cca01a05878f813ba60bd` | W2 remote-verification note | keep, or squash into the W2 evidence without deleting its text | not created |
+| `5fadf0769273178bd07c770f907871753f541768` | W3 local store canonical | keep | not created |
+| `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` | W3 evidence | keep | not created |
+| `6fed2a34b979384a2b94870559391d3a7d304315` | W3 remote-verification note | keep, or squash into the W3 evidence without deleting its text | not created |
+| `59929196888410483b320c6ee883eb8e8316c43a` | W4 local repositories canonical | keep | not created |
+| `8bd4981c0472d766d3196e1f354368a8413d6d0e` | W4 evidence | keep | not created |
+| `500d30f151a637ddfd41e60d454210ef406ef908` | W5 organization in the locally-served enumeration | keep | not created |
+| `6cd44e2460ed16f5a5e59ff8be9af38ae8db46ac` | W5 evidence | keep | not created |
+| `bfddc30bce1288f25135f313758bf5fa3bb26949` | W6 lifecycle marker | keep | not created |
+| `934a6d62f2d6edc4b06ccb29de118679dc9b038a` | W6 lifecycle evidence | keep | not created |
+| `896fddd2531d7d72dc9c23f63b3a7657a5035ad7` | W6 `demo` env alias to local | keep | not created |
+| `b3d417e287afda009c12d03ee88e9bfa078f224f` | W6 alias evidence | keep | not created |
+| `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | W7A client refuses local and demo sources | keep | not created |
+| `039b9c827d54aabbec9e90557c3efb49eb37678a` | W7A evidence | keep | not created |
+| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | rejected three-artifact build | drop from a future lineage only | not created |
+| `10c815412f4e951b8f05323de4e50927f116ab05` | rejected three-artifact evidence | drop from a future lineage only | not created |
+| `22cbd26f17009bdd695cf6900d07f743806f2030` | revert of that rejected attempt | drop from a future lineage only | not created |
+| `9357704a62b3c8b0d341c77a7d0390c7d28358d3` | W7B Import and Reset | keep | not created |
+| `619c2bb3efc07308568c0c646e683a0e3a1182d4` | W7B first evidence | keep | not created |
+| `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | W7B contract close | keep | not created |
+| `186f3b7b14f6283834fb391c7cd6dcd8d254b432` | W7B contract evidence | keep | not created |
+| `318c0f2ea2d68a62f2273797c547a584546a3a5d` | W8 two-composition gates | keep | not created |
+| `bc5f1cfa67170ff106f8811cee476ea241d140d4` | W8 evidence | keep | not created |
+| `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | W9 two Class-H renames | keep | not created |
+| `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` | W9 evidence | keep | not created |
+| `13599bbfc4fdce42de975ef28d104a8264bf88bf` | W10 eradication audit | keep | not created |
+
+This handoff commit is not in that table. It is additional documentation on top of `13599bb`.
+A later cleanup must keep it, or squash it only into a documentation commit that still contains
+this text. It must not be dropped.
+
+No implementation commit has been squashed. The three remote-verification commits are
+content-bearing documentation, not duplicates to delete. Squashing them is optional and only
+legal if their text survives.
+
+## 5. Commits intentionally removed
+
+**None.** No commit has been removed from the repository.
+
+The only removal candidates, and only from a future rewritten lineage, are:
+
+| SHA | Class | Reason it may later leave the lineage |
+| --- | --- | --- |
+| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | rejected architecture attempt | Introduced a third customer/client/operator artifact. Owner rejected it. |
+| `10c815412f4e951b8f05323de4e50927f116ab05` | evidence of that rejected attempt | Documents the rejected three-artifact build. The evidence file is not in the tip tree. |
+| `22cbd26f17009bdd695cf6900d07f743806f2030` | revert of that experiment | Restored the two-composition W7A boundary. |
+
+Reason the trio is a candidate: GitHub compare `039b9c827d54aabbec9e90557c3efb49eb37678a...22cbd26f17009bdd695cf6900d07f743806f2030` reports **zero files**. Their net tree effect is empty. W7B and everything after it was built on the restored tree, not on the three-artifact tree. Dropping them is safe only if a later replay onto `039b9c82` still produces tree `afba3b8e48f4668459b2b0930522590dcc23a756`. That replay has **not** been run.
+
+Do not drop evidence commits, verification notes, or either W7B batch. They have surviving text or behavior.
+
+## 6. Final tree contract
+
+Required tree of the pre-handoff tip: `afba3b8e48f4668459b2b0930522590dcc23a756`.
+
+What remains, relative to `main`:
+
+- Versioned dataset extraction and local store as the persistence authority.
+- Local repositories as the canonical demo/local implementation.
+- The 12-id locally-served enumeration, including `organization`, in both lists.
+- Lifecycle marker and the `demo` env alias to local.
+- Client composition refusal of local and demo sources.
+- Fixture-only Import and Reset.
+- W8 boundary gates.
+- W9 renames: `demoReferences.ts` → `mediaReferences.ts`; `demoCollection.ts` removed and importers pointed at `repositoryPlumbing.ts`.
+- W10 audit at `docs/migration/W10_ERADICATION_AUDIT.md`.
+- This handoff, after this commit.
+
+What was removed from the tip tree and must stay removed:
+
+- A third composition.
+- `dist/customer` and `dist/operator` as build outputs.
+- `docs/migration/W7_THREE_TARGET_EVIDENCE.md`.
+
+What was renamed and must stay renamed:
+
+- `src` reference module `demoReferences.ts` → `mediaReferences.ts`.
+- Class-H collection import path away from `demoCollection.ts` onto `repositoryPlumbing.ts`.
+
+What must not be touched:
+
+- `main`, the backup branch, archive tags, and the dirty WIP.
+- `vite.config.ts` and `APP_TARGET` selection.
+- Registry split: `registry.ts`, `registry.client.ts`, `registryCore.ts`. No merge. No third composition.
+- D9 subject `dist/client`, cap exactly `361144`, recorded size `306416`. Fixture `362149` is not under that cap.
+- `SEED_DATE`, `SEED_VERSION`, `ava:demo:` storage keys, Import/Reset credentials, dataset schema.
+- `src/views/__tests__/schedulingWrites.test.tsx`.
+- `src/__tests__/projectState.test.ts`. Do not weaken it to hide clone-only failures.
+
+## 7. Demo migration state
+
+| Wave | Closure | Implementation SHA | Evidence SHA |
+| --- | --- | --- | --- |
+| W7A | closed | `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | `039b9c827d54aabbec9e90557c3efb49eb37678a` |
+| W7B | closed, two authorized batches | `9357704a62b3c8b0d341c77a7d0390c7d28358d3`, then `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | `619c2bb3efc07308568c0c646e683a0e3a1182d4`, then `186f3b7b14f6283834fb391c7cd6dcd8d254b432` |
+| W8 | closed | `318c0f2ea2d68a62f2273797c547a584546a3a5d` | `bc5f1cfa67170ff106f8811cee476ea241d140d4` |
+| W9 | closed | `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` |
+| W10 | closed as a read-only audit, not an implementation | none | `13599bbfc4fdce42de975ef28d104a8264bf88bf` |
+
+W10 records `Migration Complete = NOT PROVEN`. That sentence is still true. Closed waves are not a license to repeat them. The rejected three-artifact line is not a closure state. It was reverted.
+
+W1 still records the membership decision as pending in `docs/migration/W1_DECISION_BOUNDARY.md`. W5 code put `organization` in the 12-id lists. Do not “resolve” that record in a cleanup. Do not confuse it with `DECISIONS.md` D8. Those are different namespaces.
+
+## 8. Current known failures
+
+Not re-run in the handoff turn. Do not mark them fixed.
+
+| Failure | State |
+| --- | --- |
+| I19 | `src/views/__tests__/schedulingWrites.test.tsx:1234`, extra id `ses_cl2_20260929_1400`. Pre-existing frontend seed-date failure. Not a backend contract. Do not edit the test to make it pass. |
+| `projectState` on a shallow or single-branch clone | Missing historical objects, including tip `251af96f405df5935ee17ddc9ba6b490f7989c2d`, and missing `origin/main` in a clone that only has the migration branch. Environmental. Do not edit `src/__tests__/projectState.test.ts` or the engineering docs to hide them. |
+| Newly discovered in this handoff turn | None. Tests and builds were not run. |
+
+## 9. Current architecture
+
+Two compositions only.
+
+| Fact | Contract |
+| --- | --- |
+| Client build | `build:client` → `dist/client` |
+| Demo build | `build:demo` → `dist/demo` |
+| Registries | `src/app/registry.ts`, `src/app/registry.client.ts`, `src/app/registryCore.ts`. Do not merge them. |
+| `APP_TARGET=client` | Selects the client composition. |
+| `APP_TARGET=demo`, empty, or any unknown value, including `operator` and `customer` | Selects demo. This is recorded behavior, not a defect to fix in cleanup. |
+| Client isolation | The client graph does not import the demo store, seed, credentials, or local repositories. Twelve domains are `DOMAIN_UNAVAILABLE` in the client composition. |
+| D9 | Subject is `dist/client` only. Cap is exactly `361144`. Recorded gzip size is `306416`. Do not quote a new measurement. No rebuild was run for this handoff. |
+| Migration membership list | Two mirrored 12-id lists, both including `organization`. The W1 owner decision record is still pending. |
+| Remaining demo compatibility surface | `demoStore.ts`, four `demoRepository.ts` shims, `demoCredentials.ts`, `DemoDataPanel`, `DemoBackedNotice`, `DemoNote`, `DemoServedDomain`, and `ava:demo:` keys. Do not rename or remove them in cleanup. |
+
+“One application” means the client composition is the application boundary. It does not authorize merging compositions.
+
+## 10. Backend readiness
+
+No Laravel, PHP, `composer.json`, or `artisan` exists in this repository. An `apiRepository.ts` is a frontend client contract, not a running server.
+
+Client base is `/api/v1`. `ApiClient` is JSON-only (`get`, `post`, `patch`, `delete`, `getPage`), unwraps `{ data }` or `{ data, meta }`, and sends `Authorization: Bearer`. It cannot carry a binary body. Timeout is `15000`.
+
+### Wired client contracts — server absent
+
+The client composition can call these. Building them does not require inventing paths.
+
+| Domain | Contract present in source |
+| --- | --- |
+| Authentication | `POST auth/login` body `{ email, password }` → `{ data: { user, permissions, token, expires_at } }`; `POST auth/logout`; `GET auth/me`. Server is the identity and authorization authority. |
+| Users | `GET/POST users`, `GET/PATCH/DELETE users/{id}`, `POST users/{id}/password` `{ password }`, `GET users/{id}/password` → `{ has_password }`. |
+| Roles | `GET roles`, `GET/PATCH roles/{id}`, `POST roles/{id}/reset`. |
+| Students | `students` CRUD. Query: `search`, `status`, `instrument`, `payment`, `teacher_id`, `sort`, `page`, `per_page`. Wire DTO mapping is explicitly deferred in the client file. |
+| Teachers | `teachers` CRUD plus `POST teachers/{id}/deactivate`. Query also has `assignable` and `dir`. |
+| Rooms | `rooms` CRUD plus `POST rooms/{id}/deactivate`. |
+| Classes | `classes` CRUD plus `POST classes/{id}/archive`. |
+| Enrollments | `enrollments` CRUD plus `POST enrollments/{id}/withdraw`. Capacity and duplicates are server-side. |
+
+### Contract present, not registered
+
+The client composition returns `DOMAIN_UNAVAILABLE`. Do not wire these during cleanup.
+
+| Domain | Named contract | Gap |
+| --- | --- | --- |
+| Library | `resources` CRUD. Query adds `kind`, `level`, `visibility`. | `POST /uploads` and `GET /resources/{id}/download` are named and not called. Download is not implemented. |
+| Organization | `GET /organization`, `PATCH /organization` | Not selected. Writes name `settings.read` / `settings.write` and require server validation. |
+| Progress | pieces and piece-assignments CRUD; `GET/POST progress-events`; `GET students/{id}/progress-overview` | Events are append-only. No PATCH or DELETE on events. |
+| Scheduling | sessions CRUD, `cancel`, `reschedule`, `POST sessions/generate?preview=1`, `POST sessions/check-conflicts`, `GET sessions/{id}/roster` | Conflicts must be rechecked in the write transaction. Preview is read-only. Roster is enrollment-backed and caller-scoped. |
+| Attendance | listed GET/POST routes including `bulk`, `{id}/correct`, corrections, session attendance reads, `sessions/with-attendance` | No PATCH or DELETE. `UNIQUE(session_id, student_id)`. Bulk is one transaction. Corrections are append-only. Actor ids come from the session, not the body. |
+
+### CONTRACT MISSING — OWNER DECISION REQUIRED
+
+No HTTP class exists. Do not invent endpoints.
+
+- Instruments
+- Learning
+- Chat
+- Media (`getBlob` only; bytes are local blobs)
+- Branding
+- Gallery
+- Compensation (`list`, `get`, `register`, `schedule`, `complete`; source says there is deliberately no API class)
+
+Finance, reports, messaging, and notifications are not empty directories, but they have no API repository. Export and student import are frontend file tools.
+
+### Security
+
+`docs/security.md` §8 is identified and not implemented. Required before a production backend can be called ready: server password hashing, authorization on every endpoint, rate limiting, server session revocation, CSRF if cookies are used, tenant isolation, IDOR checks, an append-only progress log, audit logging, breached-password checks, admin MFA, the upload pipeline, and encrypted backups.
+
+`organization_id` is a type comment on several domain types, not a field on the auth wire session. Do not assume the current JSON body carries it.
+
+Frontend RBAC is UX only. Named permissions used by the client include `students`, `teachers`, `classes`, `schedule`, `attendance`, `finance`, `messages`, and `library` read/write, plus `reports.read`, `settings.read`, `settings.write`, and `demo.manage`. Do not invent a permission count. `demo.manage` is the fixture Import/Reset gate, not a production API contract. `T-02` remains the live governance decision in `GOVERNANCE_CHECKPOINT.md` (accepted, assigned-only). Do not reopen it. Server enforcement of that decision does not exist yet.
+
+### Telegram, Bale, and push
+
+Required product capabilities, contract now, backend later. Source: `docs/frontend-completion/16-telegram-bale-backup-integration.md`. No Telegram Bot API implementation in React. Current backup is the local JSON envelope in `src/domains/demo/backup.ts`. Chat provider labels include `telegram` and `bale` and report unavailable without a backend. No web-push or service-worker implementation was found in `src` at this tip. Do not start that work from this handoff.
+
+### Required backend work, not authorized now
+
+First slice the current client composition can call, after an explicit owner authorization that is separate from cleanup: authentication, then users and roles, then teachers, rooms, and students, then classes, then enrollments. Students stay field-incomplete until the deferred wire mapping is decided. The twelve unavailable domains are not in that slice.
+
+## 11. Git cleanup decision
+
+**Not executed. `main` is still untouched.**
+
+Target final history, if the owner later chooses a rewrite:
+
+- Preserve tree `afba3b8e48f4668459b2b0930522590dcc23a756`, plus this handoff.
+- Drop only `1eb6366`, `10c8154`, and `22cbd26` from the lineage.
+- Keep every other commit in §4, including evidence.
+- Optional, not required: squash each remote-verification note into the previous evidence commit, text preserved.
+- Do not squash implementation into evidence. The audit trail is the point.
+- Resulting count if only the trio is dropped: 29 pre-handoff commits, plus this handoff. Not 4.
+
+Intended squash groups, none created:
+
+| Group | Commits | Rule |
+| --- | --- | --- |
+| Dead-end drop | `1eb6366`, `10c8154`, `22cbd26` | Omit from lineage. Do not omit their SHAs from this file. |
+| Optional doc squash | `bab9e460` into W1 handoff; `713d9b3` into W2 evidence; `6fed2a3` into W3 evidence | Text must survive. |
+| Not a squash | W7B's two implementation commits and two evidence commits | Separate authorized batches. Keep. |
+| This handoff | the commit that introduces this live pointer | Must remain in the cleaned history. |
+
+Merge strategy:
+
+- Do not merge to `main` until the owner chooses.
+- Choice A: fast-forward `main` from `15775ea` to the migration tip. No force-push. The rejected trio remains visible. This is the only merge that does not rewrite.
+- Choice B: create a **new** branch. Replay `9357704` onward onto `039b9c82`. Prove the tree matches `afba3b8e` plus this handoff. Run tests there. Open a PR. Do not force-push `main`, the backup, archive tags, or the migration branch until that proof exists and the owner accepts it.
+- Either choice must update this file with the real old → new mapping before cleanup is declared complete.
+
+## 12. Exact next action
+
+Wait for a written owner choice between A and B in §11.
+
+Do not:
+
+- rewrite, rebase, filter, or force-push
+- merge or fast-forward `main`
+- move backup or archive refs
+- touch the protected WIP
+- re-run W7A, W7B, W8, W9, or W10
+- fix I19
+- change D9, `APP_TARGET`, registries, seeds, or storage keys
+- invent API endpoints
+- start backend, Telegram, Bale, or push implementation
+- declare Git cleanup complete
+
+Completion condition, not yet met:
+
+> Before declaring Git cleanup complete, update and commit the canonical session handoff with the complete cleanup audit, commit mapping, final refs, preserved decisions, known failures, final tree contract, and exact next-step recovery instructions. The handoff itself must be included in the final cleaned history.
+
+This commit satisfies the pre-cleanup half of that condition. It does not satisfy the post-cleanup half. Post-cleanup HEAD is still absent. The old → new mapping is still `not created`.
+
+---
+
+## HISTORICAL BODY — preserved, not a live work order
+
+> The following text is the previous contents of `docs/engineering/SESSION_HANDOFF.md` at
+> `13599bbfc4fdce42de975ef28d104a8264bf88bf`. It is preserved so its SHAs are not deleted.
+> Do not execute its next-action lines. The live pointer at the top of this file supersedes them.
+
+
 # SESSION HANDOFF — post-consolidation
 
 > This file is the recovery document for the next agent session. Conversation memory is not
