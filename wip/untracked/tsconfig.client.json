@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Mirror of the vite aliases for APP_TARGET=client: typecheck the code
+       the CLIENT bundle actually resolves — API repositories, target-neutral
+       (.client) seams, registry.client. The demo variants of those files stay
+       in `include` (they still must compile) but are no one's import target. */
+    "paths": {
+      "@/targets/environment": ["src/targets/environment.client.tsx"],
+      "@/targets/libraryProvisioning": ["src/targets/libraryProvisioning.client.ts"],
+      "@/targets/galleryProvisioning": ["src/targets/galleryProvisioning.client.ts"],
+      "@/targets/targetCopy": ["src/targets/targetCopy.client.ts"],
+      "@/targets/targetFeatures": ["src/targets/targetFeatures.client.tsx"],
+      "@/targets/commandShowcase": ["src/targets/commandShowcase.client.ts"],
+      "@/domains/registry": ["src/domains/registry.client.ts"],
+      "@/*": ["src/*"]
+    }
+  }
+}

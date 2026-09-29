@@ -1,0 +1,103 @@
+ M package.json
+ M src/App.tsx
+ M src/__tests__/architectureBoundaries.test.ts
+ M src/__tests__/routeProtection.test.tsx
+ M src/api/__tests__/mobileContract.test.ts
+ M src/api/config.ts
+ M src/components/ds/states.tsx
+ M src/components/lifecycle/FirstRunChooser.tsx
+ M src/components/overlays/ActionSheet.tsx
+ M src/components/overlays/commands.ts
+ M src/components/settings/DemoDataPanel.tsx
+ M src/components/settings/UsersPanel.tsx
+ M src/components/settings/__tests__/DemoDataPanel.test.tsx
+ M src/domains/auth/AuthContext.tsx
+ M src/domains/auth/__tests__/rolePolicy.test.ts
+ M src/domains/auth/__tests__/userRepository.test.ts
+ M src/domains/auth/demoAuthRepository.ts
+ M src/domains/auth/demoCredentials.ts
+ M src/domains/auth/roleRepository.ts
+ M src/domains/auth/userRepository.ts
+ M src/domains/branding/BrandingPanel.tsx
+ M src/domains/branding/__tests__/brandingApplication.test.tsx
+ M src/domains/classes/useClasses.ts
+ M src/domains/compensation/useCompensations.ts
+ M src/domains/demo/__tests__/authIntegration.test.ts
+ M src/domains/demo/backup.ts
+ M src/domains/demo/demoDataManager.ts
+ M src/domains/demo/gallerySeed.ts
+ M src/domains/demo/lifecycle.ts
+ M src/domains/enrollments/useEnrollments.ts
+ M src/domains/export/EntityExportButton.tsx
+ M src/domains/export/definitions.ts
+ M src/domains/export/exportService.ts
+ M src/domains/gallery/GalleryPanel.tsx
+ M src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx
+ M src/domains/gallery/demoContent.ts
+ M src/domains/gallery/useGallery.ts
+ M src/domains/import/ImportExportCenter.tsx
+ M src/domains/index.ts
+ M src/domains/instruments/InstrumentsPanel.tsx
+ M src/domains/library/__tests__/useLibrary.test.tsx
+ M src/domains/library/demoContent.ts
+ M src/domains/library/useLibrary.ts
+ M src/domains/organization/SessionRulesPanel.tsx
+ M src/domains/organization/WorkingHoursPanel.tsx
+ M src/domains/progress/RepertoirePanel.tsx
+ M src/domains/registry.ts
+ M src/domains/rooms/RoomsPanel.tsx
+ M src/domains/rooms/useRooms.ts
+ M src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx
+ M src/domains/shared/dataVersion.ts
+ M src/domains/students/index.ts
+ M src/domains/teachers/useTeachers.ts
+ M src/env.d.ts
+ M src/services/demoStore.ts
+ M src/test/setup.ts
+ M src/views/Classes.tsx
+ M src/views/Dashboard.tsx
+ M src/views/DesignSystemView.tsx
+ M src/views/Finance.tsx
+ M src/views/Gallery.tsx
+ M src/views/Login.tsx
+ M src/views/Reports.tsx
+ M src/views/Scheduling.tsx
+ M src/views/Settings.tsx
+ M src/views/Students.tsx
+ M src/views/Teachers.tsx
+ M src/views/__tests__/attendanceWrites.test.tsx
+ M src/views/__tests__/compensationUi.test.tsx
+ M src/views/__tests__/dashboardInsightsLive.test.tsx
+ M src/views/__tests__/emptyEnvironment.test.tsx
+ M src/views/__tests__/honestWriteCopy.test.tsx
+ M src/views/__tests__/navigationCounts.test.tsx
+ M src/views/__tests__/noSuccessWithoutWrite.test.tsx
+ M src/views/__tests__/settingsHonesty.test.tsx
+ M src/views/__tests__/studentsDeepLinkIdor.test.tsx
+ M src/views/__tests__/studentsScopeLeak.p1.test.tsx
+ M vite.config.ts
+?? PHASE_2A_AUDIT_REPORT.md
+?? PHASE_2A_DECISION_AUDIT.md
+?? PHASE_2A_FINAL_REPORT.md
+?? PHASE_2A_LANDING_ANALYSIS.md
+?? PHASE_2B_DISCOVERY_AUDIT.md
+?? phase2a-landing-artifacts/
+?? phase2a-wip-backup/
+?? src/__tests__/bundleBoundary.test.ts
+?? src/api/__tests__/deploymentLock.test.ts
+?? src/api/deploymentLock.ts
+?? src/components/settings/ProductionDeliveryGate.tsx
+?? src/domains/__tests__/registryClient.test.ts
+?? src/domains/auth/demoRoleRepository.ts
+?? src/domains/auth/demoUserRepository.ts
+?? src/domains/auth/passphrase.ts
+?? src/domains/auth/session.ts
+?? src/domains/demo/__tests__/delivery.test.ts
+?? src/domains/demo/delivery.ts
+?? src/domains/registry.client.ts
+?? src/domains/registryCore.ts
+?? src/domains/shared/unavailableDomains.ts
+?? src/domains/shared/unavailableRepository.ts
+?? src/targets/
+?? tsconfig.client.json
+?? tsconfig.demo.json

@@ -1,0 +1,103 @@
+1 .M N... 100644 100644 100644 3e0027053a13edb5a3eafde5261ee9c5b371d0e1 3e0027053a13edb5a3eafde5261ee9c5b371d0e1 package.json
+1 .M N... 100644 100644 100644 2a4228ccd8547d4065a1a9b69af6c4d7ebfe68f6 2a4228ccd8547d4065a1a9b69af6c4d7ebfe68f6 src/App.tsx
+1 .M N... 100644 100644 100644 4e08089e9184412cafadf97df029c7016bd1d223 4e08089e9184412cafadf97df029c7016bd1d223 src/__tests__/architectureBoundaries.test.ts
+1 .M N... 100644 100644 100644 9dd8c64ab12a4f98f410dcd9f0acc7af00e41b84 9dd8c64ab12a4f98f410dcd9f0acc7af00e41b84 src/__tests__/routeProtection.test.tsx
+1 .M N... 100644 100644 100644 2b92026dcf12a2bf13c555aac86c339a038ee7d4 2b92026dcf12a2bf13c555aac86c339a038ee7d4 src/api/__tests__/mobileContract.test.ts
+1 .M N... 100644 100644 100644 821a3fe5b1e43f30fc9a69e22373cb9d0e1a504c 821a3fe5b1e43f30fc9a69e22373cb9d0e1a504c src/api/config.ts
+1 .M N... 100644 100644 100644 7f5893be9d58514488e6fa6bda3fd5843b0b8cdd 7f5893be9d58514488e6fa6bda3fd5843b0b8cdd src/components/ds/states.tsx
+1 .M N... 100644 100644 100644 ecb4fad3b6bbf535e04c1bc94509d61930564c56 ecb4fad3b6bbf535e04c1bc94509d61930564c56 src/components/lifecycle/FirstRunChooser.tsx
+1 .M N... 100644 100644 100644 3b7dcaf3c69a9202f40b09f88a1e4f5f7ab7e65f 3b7dcaf3c69a9202f40b09f88a1e4f5f7ab7e65f src/components/overlays/ActionSheet.tsx
+1 .M N... 100644 100644 100644 ec2203ea9766342b38ed51313dd8034ab82be402 ec2203ea9766342b38ed51313dd8034ab82be402 src/components/overlays/commands.ts
+1 .M N... 100644 100644 100644 324b2c0010e6c3e58cbafb69f3615221532b5f73 324b2c0010e6c3e58cbafb69f3615221532b5f73 src/components/settings/DemoDataPanel.tsx
+1 .M N... 100644 100644 100644 6d295d3c6febaebd2be8e9e8d24ef86bd607485c 6d295d3c6febaebd2be8e9e8d24ef86bd607485c src/components/settings/UsersPanel.tsx
+1 .M N... 100644 100644 100644 5f0860101c648859ae543c1403c319b7924a0e58 5f0860101c648859ae543c1403c319b7924a0e58 src/components/settings/__tests__/DemoDataPanel.test.tsx
+1 .M N... 100644 100644 100644 c04479e3062361056fa9cd48dadb8e46fb9b8e3d c04479e3062361056fa9cd48dadb8e46fb9b8e3d src/domains/auth/AuthContext.tsx
+1 .M N... 100644 100644 100644 1f9971009f1c79c012e5f51c22518ab72e61fa5c 1f9971009f1c79c012e5f51c22518ab72e61fa5c src/domains/auth/__tests__/rolePolicy.test.ts
+1 .M N... 100644 100644 100644 e81ae43eeb86f8e375030ba8ddca6b5f118f0d20 e81ae43eeb86f8e375030ba8ddca6b5f118f0d20 src/domains/auth/__tests__/userRepository.test.ts
+1 .M N... 100644 100644 100644 3a44be846a88a7566137cab71729f18815dd0924 3a44be846a88a7566137cab71729f18815dd0924 src/domains/auth/demoAuthRepository.ts
+1 .M N... 100644 100644 100644 1d4df32832dc451d1f46da6f5cab51181d42d6d3 1d4df32832dc451d1f46da6f5cab51181d42d6d3 src/domains/auth/demoCredentials.ts
+1 .M N... 100644 100644 100644 f6158f7c0799d00739ccadaaa27f3afe0cba6da2 f6158f7c0799d00739ccadaaa27f3afe0cba6da2 src/domains/auth/roleRepository.ts
+1 .M N... 100644 100644 100644 8cf1a2ea33ccc2a1dea19326febc6c79af6b5117 8cf1a2ea33ccc2a1dea19326febc6c79af6b5117 src/domains/auth/userRepository.ts
+1 .M N... 100644 100644 100644 a57ca6215ad29e5f839fc32d1b4835b656dd1f34 a57ca6215ad29e5f839fc32d1b4835b656dd1f34 src/domains/branding/BrandingPanel.tsx
+1 .M N... 100644 100644 100644 9d0348f745599b69302c238d195d0e38d1ee9ab1 9d0348f745599b69302c238d195d0e38d1ee9ab1 src/domains/branding/__tests__/brandingApplication.test.tsx
+1 .M N... 100644 100644 100644 6a3cd2982d17a27627f99ff37f47574413e94d9f 6a3cd2982d17a27627f99ff37f47574413e94d9f src/domains/classes/useClasses.ts
+1 .M N... 100644 100644 100644 64cc313a5a4294df57c67cbdec1c10ec8bdbdc6e 64cc313a5a4294df57c67cbdec1c10ec8bdbdc6e src/domains/compensation/useCompensations.ts
+1 .M N... 100644 100644 100644 978f61a3a8c27452c269fb02b13971e7afbae88e 978f61a3a8c27452c269fb02b13971e7afbae88e src/domains/demo/__tests__/authIntegration.test.ts
+1 .M N... 100644 100644 100644 e296d68499c9a73f8a6e7fa58f0a93dddd253447 e296d68499c9a73f8a6e7fa58f0a93dddd253447 src/domains/demo/backup.ts
+1 .M N... 100644 100644 100644 d30bd16cb1a6aaeba056b31e3565ba8fadb359c6 d30bd16cb1a6aaeba056b31e3565ba8fadb359c6 src/domains/demo/demoDataManager.ts
+1 .M N... 100644 100644 100644 47aa654c3f18a400a672020aac62cf1191c072c9 47aa654c3f18a400a672020aac62cf1191c072c9 src/domains/demo/gallerySeed.ts
+1 .M N... 100644 100644 100644 c25cdbb23d973e5036080baf09d58ec176b7ba0d c25cdbb23d973e5036080baf09d58ec176b7ba0d src/domains/demo/lifecycle.ts
+1 .M N... 100644 100644 100644 17b33d0d9669dbd2816e3b0fd43a46baa319ea51 17b33d0d9669dbd2816e3b0fd43a46baa319ea51 src/domains/enrollments/useEnrollments.ts
+1 .M N... 100644 100644 100644 83c4d4cf1a871e6d5dd6397efefb3887d1ddea01 83c4d4cf1a871e6d5dd6397efefb3887d1ddea01 src/domains/export/EntityExportButton.tsx
+1 .M N... 100644 100644 100644 3f11c455d2736d08049f4965c58a1eee6d115f5d 3f11c455d2736d08049f4965c58a1eee6d115f5d src/domains/export/definitions.ts
+1 .M N... 100644 100644 100644 35cf8d814440e3d69fff08963bb31e1fe0a9ec7b 35cf8d814440e3d69fff08963bb31e1fe0a9ec7b src/domains/export/exportService.ts
+1 .M N... 100644 100644 100644 2050718b27988155013ca0ff4437c21603930a26 2050718b27988155013ca0ff4437c21603930a26 src/domains/gallery/GalleryPanel.tsx
+1 .M N... 100644 100644 100644 f65c52a06d4ecdb12a907d0c4bc66e849f6af955 f65c52a06d4ecdb12a907d0c4bc66e849f6af955 src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx
+1 .M N... 100644 100644 100644 d5508368bb3fd9fcb2a85830c5e71cad8c43e5ee d5508368bb3fd9fcb2a85830c5e71cad8c43e5ee src/domains/gallery/demoContent.ts
+1 .M N... 100644 100644 100644 1281e73f431c7acd241c36f098732d06a5cd9e9c 1281e73f431c7acd241c36f098732d06a5cd9e9c src/domains/gallery/useGallery.ts
+1 .M N... 100644 100644 100644 582a72017d60c3e9cf397fd7c7035c9b6635f3ea 582a72017d60c3e9cf397fd7c7035c9b6635f3ea src/domains/import/ImportExportCenter.tsx
+1 .M N... 100644 100644 100644 520d3f4faa5cb85588c6826aebcbb6d5721d0915 520d3f4faa5cb85588c6826aebcbb6d5721d0915 src/domains/index.ts
+1 .M N... 100644 100644 100644 93fec0fb9ceb65d3d03e08493847b7c0bcb6f0c0 93fec0fb9ceb65d3d03e08493847b7c0bcb6f0c0 src/domains/instruments/InstrumentsPanel.tsx
+1 .M N... 100644 100644 100644 9188cad6bd867d49ebc59c302fb9aabbd1059f50 9188cad6bd867d49ebc59c302fb9aabbd1059f50 src/domains/library/__tests__/useLibrary.test.tsx
+1 .M N... 100644 100644 100644 311db17033a5e6773fb037b821e39c5be479c948 311db17033a5e6773fb037b821e39c5be479c948 src/domains/library/demoContent.ts
+1 .M N... 100644 100644 100644 02166592cbf70d499a510d6ddbdbeda791ea361a 02166592cbf70d499a510d6ddbdbeda791ea361a src/domains/library/useLibrary.ts
+1 .M N... 100644 100644 100644 274fdbc11110b7de130e0929131c9a775f6e2cc1 274fdbc11110b7de130e0929131c9a775f6e2cc1 src/domains/organization/SessionRulesPanel.tsx
+1 .M N... 100644 100644 100644 ecef39c5788aca63f2daec68e88e05c31aad2875 ecef39c5788aca63f2daec68e88e05c31aad2875 src/domains/organization/WorkingHoursPanel.tsx
+1 .M N... 100644 100644 100644 7ca121e9826d67561c799404f1db3421de023770 7ca121e9826d67561c799404f1db3421de023770 src/domains/progress/RepertoirePanel.tsx
+1 .M N... 100644 100644 100644 392f09f814340fb59cbf3384e86b68d1d9b9c192 392f09f814340fb59cbf3384e86b68d1d9b9c192 src/domains/registry.ts
+1 .M N... 100644 100644 100644 082310dce26a9ffdfe49ddbd08d462154460f82c 082310dce26a9ffdfe49ddbd08d462154460f82c src/domains/rooms/RoomsPanel.tsx
+1 .M N... 100644 100644 100644 f153715d5df33d130f5ff81e2c366b4a3f783a54 f153715d5df33d130f5ff81e2c366b4a3f783a54 src/domains/rooms/useRooms.ts
+1 .M N... 100644 100644 100644 379a369f32f342ba4b8d1170cd967fa186620024 379a369f32f342ba4b8d1170cd967fa186620024 src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx
+1 .M N... 100644 100644 100644 382493eed98c64fd440af7d3fc3c4b94779daa8c 382493eed98c64fd440af7d3fc3c4b94779daa8c src/domains/shared/dataVersion.ts
+1 .M N... 100644 100644 100644 4c4ebb9aadb3c190fe39f53e4b0d44f59a7b9262 4c4ebb9aadb3c190fe39f53e4b0d44f59a7b9262 src/domains/students/index.ts
+1 .M N... 100644 100644 100644 c62078bf06e56c1e471afcd5267c8bdad4bfdfec c62078bf06e56c1e471afcd5267c8bdad4bfdfec src/domains/teachers/useTeachers.ts
+1 .M N... 100644 100644 100644 c86e2b085b89f1251a7b6e6a2a104c7af27c7f86 c86e2b085b89f1251a7b6e6a2a104c7af27c7f86 src/env.d.ts
+1 .M N... 100644 100644 100644 0410a03673d5e6bdde2233f300da0e58574f5fcf 0410a03673d5e6bdde2233f300da0e58574f5fcf src/services/demoStore.ts
+1 .M N... 100644 100644 100644 0a70da428099e2f04f2ffd47b2bb46db1a5b8f54 0a70da428099e2f04f2ffd47b2bb46db1a5b8f54 src/test/setup.ts
+1 .M N... 100644 100644 100644 84b8999eb73b9efcf850fcb01ed60dc792959e71 84b8999eb73b9efcf850fcb01ed60dc792959e71 src/views/Classes.tsx
+1 .M N... 100644 100644 100644 275b92709ea438fddb0a3825b403838e97d9d4db 275b92709ea438fddb0a3825b403838e97d9d4db src/views/Dashboard.tsx
+1 .M N... 100644 100644 100644 2770cf2c2cf114989ecaeaabd456b4df9c1d5764 2770cf2c2cf114989ecaeaabd456b4df9c1d5764 src/views/DesignSystemView.tsx
+1 .M N... 100644 100644 100644 99aa43ebb0481b61c51d54d2dd965e2e48512387 99aa43ebb0481b61c51d54d2dd965e2e48512387 src/views/Finance.tsx
+1 .M N... 100644 100644 100644 87f0622a187d7b0c6d3486ecfa095213305cc85f 87f0622a187d7b0c6d3486ecfa095213305cc85f src/views/Gallery.tsx
+1 .M N... 100644 100644 100644 9c1ada405d82783d8b5dddbacd1d72af3114ef92 9c1ada405d82783d8b5dddbacd1d72af3114ef92 src/views/Login.tsx
+1 .M N... 100644 100644 100644 9228c7b250265808e9886c4d68a8418026222202 9228c7b250265808e9886c4d68a8418026222202 src/views/Reports.tsx
+1 .M N... 100644 100644 100644 3284be879201937328ec6e7d110f02b0fe8dec4b 3284be879201937328ec6e7d110f02b0fe8dec4b src/views/Scheduling.tsx
+1 .M N... 100644 100644 100644 2bea9f122cdbb927df7dad340871e5dd1729020b 2bea9f122cdbb927df7dad340871e5dd1729020b src/views/Settings.tsx
+1 .M N... 100644 100644 100644 6bb8db8e5d47289756b6eef99d2b977c2fe2ae46 6bb8db8e5d47289756b6eef99d2b977c2fe2ae46 src/views/Students.tsx
+1 .M N... 100644 100644 100644 b77b77b10d301a88b5299852a3633187e00956f3 b77b77b10d301a88b5299852a3633187e00956f3 src/views/Teachers.tsx
+1 .M N... 100644 100644 100644 aa18664b6b3125d57551654c14807311d2d74d94 aa18664b6b3125d57551654c14807311d2d74d94 src/views/__tests__/attendanceWrites.test.tsx
+1 .M N... 100644 100644 100644 5b6320c5bb4ea57c390ca521c329f9c8159348f3 5b6320c5bb4ea57c390ca521c329f9c8159348f3 src/views/__tests__/compensationUi.test.tsx
+1 .M N... 100644 100644 100644 282302be19d724ea4450fa8930b46786326589f4 282302be19d724ea4450fa8930b46786326589f4 src/views/__tests__/dashboardInsightsLive.test.tsx
+1 .M N... 100644 100644 100644 2882a67a7e482605d34cee76302281a691f39eb2 2882a67a7e482605d34cee76302281a691f39eb2 src/views/__tests__/emptyEnvironment.test.tsx
+1 .M N... 100644 100644 100644 1c77bcc247e8d5edfd59bb6c6ebb600703ca4af1 1c77bcc247e8d5edfd59bb6c6ebb600703ca4af1 src/views/__tests__/honestWriteCopy.test.tsx
+1 .M N... 100644 100644 100644 d859559dc0d4db045d9b02915e5fb334fd599dbe d859559dc0d4db045d9b02915e5fb334fd599dbe src/views/__tests__/navigationCounts.test.tsx
+1 .M N... 100644 100644 100644 443529ed3af6394e4b229c3c3633de4ab6b2f440 443529ed3af6394e4b229c3c3633de4ab6b2f440 src/views/__tests__/noSuccessWithoutWrite.test.tsx
+1 .M N... 100644 100644 100644 149aa831393e9396d8a3bbeea4b31fb1eac380a5 149aa831393e9396d8a3bbeea4b31fb1eac380a5 src/views/__tests__/settingsHonesty.test.tsx
+1 .M N... 100644 100644 100644 0fd7fc5be96d1f3c26f001af3da8044b0054cb76 0fd7fc5be96d1f3c26f001af3da8044b0054cb76 src/views/__tests__/studentsDeepLinkIdor.test.tsx
+1 .M N... 100644 100644 100644 7d7ab43f4f295cc7e3c2f9d1872f39f052e9d55f 7d7ab43f4f295cc7e3c2f9d1872f39f052e9d55f src/views/__tests__/studentsScopeLeak.p1.test.tsx
+1 .M N... 100644 100644 100644 5c65432c73087ccdcda2295729bca2ba7f8070e5 5c65432c73087ccdcda2295729bca2ba7f8070e5 vite.config.ts
+? PHASE_2A_AUDIT_REPORT.md
+? PHASE_2A_DECISION_AUDIT.md
+? PHASE_2A_FINAL_REPORT.md
+? PHASE_2A_LANDING_ANALYSIS.md
+? PHASE_2B_DISCOVERY_AUDIT.md
+? phase2a-landing-artifacts/
+? phase2a-wip-backup/
+? src/__tests__/bundleBoundary.test.ts
+? src/api/__tests__/deploymentLock.test.ts
+? src/api/deploymentLock.ts
+? src/components/settings/ProductionDeliveryGate.tsx
+? src/domains/__tests__/registryClient.test.ts
+? src/domains/auth/demoRoleRepository.ts
+? src/domains/auth/demoUserRepository.ts
+? src/domains/auth/passphrase.ts
+? src/domains/auth/session.ts
+? src/domains/demo/__tests__/delivery.test.ts
+? src/domains/demo/delivery.ts
+? src/domains/registry.client.ts
+? src/domains/registryCore.ts
+? src/domains/shared/unavailableDomains.ts
+? src/domains/shared/unavailableRepository.ts
+? src/targets/
+? tsconfig.client.json
+? tsconfig.demo.json

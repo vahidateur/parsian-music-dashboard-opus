@@ -1,0 +1,2 @@
+origin	https://github.com/vahidateur/parsian-music-dashboard-opus.git (fetch)
+origin	https://github.com/vahidateur/parsian-music-dashboard-opus.git (push)

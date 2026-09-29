@@ -1,0 +1,11 @@
+arena/01a0b059-parsian-music-dashboard-opus|251af96f405df5935ee17ddc9ba6b490f7989c2d|2026-09-18 23:19:17 +0000|fix: return focus from the command palette to its opener
+arena/01a0c480-parsian-music-dashboard-opus|afe6b0278c7aed447552eec76ee2caf0f6a7e616|2026-09-22 07:08:00 +0000|fix: fit premium login across desktop viewports
+arena/01a0c8a7-parsian-music-dashboard-opus|7180082fac85f4451ac8e7d2ed1312a26bcfb486|2026-09-22 14:54:06 +0000|test: harden project state evidence validation
+arena/01a0c8b5-parsian-music-dashboard-opus|bb275d6c8063a3ca34eb3a24c0539e43ea991182|2026-09-22 16:18:37 +0000|Login: redesign as the ancient mountain-sanctuary portal
+arena/01a0cefa-parsian-music-dashboard-opus|eb973eb2758447eff16b60ab4fd4c267f9d85061|2026-09-23 22:49:44 +0000|feat: complete gallery library resource architecture
+arena/01a0e006-parsian-music-dashboard-opus|ef4eb8412e181ba7cf299cb05560731394026240|2026-09-27 09:50:27 +0000|docs: reconcile 06-library-gallery-spec with the G-7 domain model
+arena/01a0e27f-parsian-music-dashboard-opus|455fc1f521ea2307a288b35ff45901c86ef504c1|2026-09-27 16:07:16 +0000|fix(ui): actually paint the login «ورود» button gold (was a dark, invisible bar)
+arena/01a0e3c0-parsian-music-dashboard-opus|25d18a4ca40fb545b362878c4b659eee31c235b6|2026-09-27 17:10:23 +0000|chore(demo): use Parsian branding in demo data
+arena/phase2a-landing|2df607eff5f1ea1fe85e86381b9b0398fec81d18|2026-09-28 22:07:07 +0000|test(phase-2a): boundary, delivery, lock and registry tests
+handoff/arena-frontend-pre-backend|94d32de3220cee314606c0c4705e20e0fdcfb2af|2026-09-18 22:57:17 +0000|docs: checkpoint frontend session handoff
+main|15775ea9486cb57fbfb8fefa3268658cbe7eb669|2026-09-28 23:21:11 +0000|Merge pull request #20 from vahidateur/arena/phase2a-landing

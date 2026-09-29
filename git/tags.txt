@@ -1,0 +1,6 @@
+archive/frontend-session-handoff-94d32de|commit|94d32de3220cee314606c0c4705e20e0fdcfb2af||docs: checkpoint frontend session handoff
+archive/gallery-library-storage-eb973eb|commit|eb973eb2758447eff16b60ab4fd4c267f9d85061||feat: complete gallery library resource architecture
+archive/mountain-sanctuary-bb275d6|commit|bb275d6c8063a3ca34eb3a24c0539e43ea991182||Login: redesign as the ancient mountain-sanctuary portal
+archive/palette-focus-251af96|commit|251af96f405df5935ee17ddc9ba6b490f7989c2d||fix: return focus from the command palette to its opener
+archive/premium-academy-login-afe6b02|commit|afe6b0278c7aed447552eec76ee2caf0f6a7e616||fix: fit premium login across desktop viewports
+archive/project-state-gate-7180082|commit|7180082fac85f4451ac8e7d2ed1312a26bcfb486||test: harden project state evidence validation

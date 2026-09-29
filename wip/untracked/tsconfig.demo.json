@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Mirror of the vite aliases for APP_TARGET=demo (the default): demo
+       target files and the demo composition root. Written out explicitly so
+       `npm run build:demo` proves the composition it claims to build, even if
+       a future change tilts the default. */
+    "paths": {
+      "@/targets/environment": ["src/targets/environment.tsx"],
+      "@/targets/libraryProvisioning": ["src/targets/libraryProvisioning.ts"],
+      "@/targets/galleryProvisioning": ["src/targets/galleryProvisioning.ts"],
+      "@/targets/targetCopy": ["src/targets/targetCopy.ts"],
+      "@/targets/targetFeatures": ["src/targets/targetFeatures.tsx"],
+      "@/targets/commandShowcase": ["src/targets/commandShowcase.ts"],
+      "@/domains/registry": ["src/domains/registry.ts"],
+      "@/*": ["src/*"]
+    }
+  }
+}

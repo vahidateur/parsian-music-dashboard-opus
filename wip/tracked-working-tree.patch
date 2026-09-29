@@ -1,0 +1,2740 @@
+diff --git a/package.json b/package.json
+index 3e00270..1a012c8 100644
+--- a/package.json
++++ b/package.json
+@@ -6,6 +6,8 @@
+   "scripts": {
+     "dev": "vite",
+     "build": "vite build",
++    "build:client": "tsc -p tsconfig.client.json --noEmit && APP_TARGET=client vite build --mode production --outDir dist/client",
++    "build:demo": "tsc -p tsconfig.demo.json --noEmit && APP_TARGET=demo vite build --mode demo --outDir dist/demo",
+     "preview": "vite preview",
+     "typecheck": "tsc --noEmit",
+     "test": "vitest run",
+diff --git a/src/App.tsx b/src/App.tsx
+index 2a4228c..73d16ca 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -5,7 +5,7 @@ import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
+ import { defaultViewFor } from "@/domains/auth/permissions";
+ import { LoginView } from "@/views/Login";
+ import { SessionGuard } from "@/security/SessionGuard";
+-import { DataLifecycleGate } from "@/components/lifecycle/DataLifecycleGate";
++import { DataLifecycleFeature, ShellFeatures } from "@/targets/targetFeatures";
+ import { useApplyBranding, useBranding } from "@/domains/branding/useBranding";
+ import { EmptyState, LoadingState } from "@/components/ds/states";
+ import { cn } from "@/utils/cn";
+@@ -14,9 +14,7 @@ import { BottomNav, TopBar } from "@/components/layout/TopBar";
+ import { CommandPalette } from "@/components/overlays/CommandPalette";
+ import { useInstrumentCatalogSync } from "@/domains/instruments/useInstruments";
+ import { useRolePolicySync } from "@/domains/auth/useRoles";
+-import { useDemoLibraryFile } from "@/domains/library/useLibrary";
+ import { ActionSheet, Toasts } from "@/components/overlays/ActionSheet";
+-import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
+ import { Dashboard } from "@/views/Dashboard";
+ 
+ /*
+@@ -109,16 +107,6 @@ function Shell() {
+   */
+   useRolePolicySync();
+ 
+-  /*
+-    Demo content provisioning — the bytes behind the seeded library file.
+-
+-    Runs inside the shell, i.e. after the access gate and after authentication,
+-    so a visitor who never gets in never touches storage. Idempotent, and the
+-    ONE call site for demo file provisioning: the lifecycle phase gates this
+-    call by environment mode rather than changing the Library domain.
+-  */
+-  useDemoLibraryFile();
+-
+   // Global command shortcut
+   useEffect(() => {
+     const onKey = (e: KeyboardEvent) => {
+@@ -151,8 +139,9 @@ function Shell() {
+       <div className={cn("relative z-10 lg:mr-[var(--rail-w)]", !railCollapsed && "xl:mr-[var(--sidebar-w)]")}>
+         <TopBar onMenu={() => setMenuOpen(true)} />
+         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
+-          {/* D8: in api mode the demo-backed domains are declared, always. */}
+-          <DemoBackedNotice className="mb-5" />
++          {/* Target seam: demo provisioning + the D8 data-source disclosure
++              (demo composition). Empty in the client composition. */}
++          <ShellFeatures />
+ 
+           <div key={`${view}-${filter ?? ""}-${detailId ?? ""}`} className="animate-phrase-in">
+             <ViewOutlet />
+@@ -250,12 +239,12 @@ function BrandingApplication() {
+ export default function App() {
+   return (
+     <ConfigGate>
+-      <DataLifecycleGate>
++      <DataLifecycleFeature>
+         <BrandingApplication />
+         <AuthProvider>
+           <AuthGate />
+         </AuthProvider>
+-      </DataLifecycleGate>
++      </DataLifecycleFeature>
+     </ConfigGate>
+   );
+ }
+diff --git a/src/__tests__/architectureBoundaries.test.ts b/src/__tests__/architectureBoundaries.test.ts
+index 4e08089..ded3694 100644
+--- a/src/__tests__/architectureBoundaries.test.ts
++++ b/src/__tests__/architectureBoundaries.test.ts
+@@ -7,7 +7,7 @@
+  * landing.
+  */
+ import { readdirSync, readFileSync, statSync } from "node:fs";
+-import { join } from "node:path";
++import { join, dirname } from "node:path";
+ import { describe, expect, it } from "vitest";
+ 
+ const ROOT = join(process.cwd(), "src");
+@@ -369,7 +369,13 @@ describe("F8 — Telegram/Bale adapters keep business logic out of bots", () =>
+ describe("F9 — Mobile client contract — same backend no second API bearer secure storage", () => {
+   it("registry has single ApiClient instantiation — no second API", () => {
+     const registryPath = join(ROOT, "domains", "registry.ts");
+-    const source = code(readFileSync(registryPath, "utf8"));
++    // The composition root was split (registry.ts = demo selection,
++    // registryCore.ts = shared plumbing) — the invariant is still EXACTLY ONE
++    // ApiClient instantiation across the composition files, so the scan
++    // covers both halves.
++    const source = code(
++      readFileSync(registryPath, "utf8") + "\n" + readFileSync(join(dirname(registryPath), "registryCore.ts"), "utf8"),
++    );
+     const matches = source.match(/new\s+ApiClient/g) || [];
+     expect(matches).toEqual(["new ApiClient"]);
+   });
+diff --git a/src/__tests__/routeProtection.test.tsx b/src/__tests__/routeProtection.test.tsx
+index 9dd8c64..6d287cf 100644
+--- a/src/__tests__/routeProtection.test.tsx
++++ b/src/__tests__/routeProtection.test.tsx
+@@ -5,7 +5,7 @@ import App from "@/App";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+ import { demoDataManager } from "@/domains/demo";
+ import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { demoStore } from "@/services/demoStore";
+ import { memoryStorage } from "@/services/demoStore";
+ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+diff --git a/src/api/__tests__/mobileContract.test.ts b/src/api/__tests__/mobileContract.test.ts
+index 2b92026..19f8cb0 100644
+--- a/src/api/__tests__/mobileContract.test.ts
++++ b/src/api/__tests__/mobileContract.test.ts
+@@ -12,7 +12,7 @@
+ 
+ import { describe, it, expect } from "vitest";
+ import { readFileSync, readdirSync, statSync } from "node:fs";
+-import { join } from "node:path";
++import { dirname, join } from "node:path";
+ import { ApiClient } from "../client";
+ import {
+   ALLOWED_IMAGE_TYPES,
+@@ -94,9 +94,9 @@ describe("F9 — Mobile client contract — same envelope Collection/Item PageMe
+ 
+ describe("F9 — Mobile client contract — auth bearer secure storage not localStorage", () => {
+   it("ApiClient adds Authorization Bearer header when token present", async () => {
+-    let capturedHeaders: Record<string, string> | null = null;
++    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
+     const mockFetch = async (_url: string, init?: RequestInit) => {
+-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
++      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
+       return new Response(JSON.stringify({ data: { id: "1" } }), {
+         status: 200,
+         headers: { "Content-Type": "application/json" },
+@@ -108,14 +108,14 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
+       fetchImpl: mockFetch as unknown as typeof fetch,
+     });
+     await client.get("/me");
+-    expect(capturedHeaders).not.toBeNull();
+-    expect(capturedHeaders?.Authorization).toBe("Bearer test-bearer-token-123");
++    expect(capturedHeadersRef.value).not.toBeNull();
++    expect(capturedHeadersRef.value?.Authorization).toBe("Bearer test-bearer-token-123");
+   });
+ 
+   it("ApiClient does not add Bearer header when no token", async () => {
+-    let capturedHeaders: Record<string, string> | null = null;
++    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
+     const mockFetch = async (_url: string, init?: RequestInit) => {
+-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
++      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
+       return new Response(JSON.stringify({ data: { id: "1" } }), {
+         status: 200,
+         headers: { "Content-Type": "application/json" },
+@@ -127,13 +127,13 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
+       fetchImpl: mockFetch as unknown as typeof fetch,
+     });
+     await client.get("/me");
+-    expect(capturedHeaders?.Authorization).toBeUndefined();
++    expect(capturedHeadersRef.value?.Authorization).toBeUndefined();
+   });
+ 
+   it("ApiClient supports async getToken (secure storage)", async () => {
+-    let capturedHeaders: Record<string, string> | null = null;
++    const capturedHeadersRef: { value: Record<string, string> | null } = { value: null };
+     const mockFetch = async (_url: string, init?: RequestInit) => {
+-      capturedHeaders = (init?.headers as Record<string, string>) ?? null;
++      capturedHeadersRef.value = (init?.headers as Record<string, string>) ?? null;
+       return new Response(JSON.stringify({ data: { id: "1" } }), {
+         status: 200,
+         headers: { "Content-Type": "application/json" },
+@@ -148,7 +148,7 @@ describe("F9 — Mobile client contract — auth bearer secure storage not local
+       fetchImpl: mockFetch as unknown as typeof fetch,
+     });
+     await client.get("/me");
+-    expect(capturedHeaders?.Authorization).toBe("Bearer secure-storage-token");
++    expect(capturedHeadersRef.value?.Authorization).toBe("Bearer secure-storage-token");
+   });
+ 
+   it("No localStorage for token in src (mobile uses secure storage not localStorage)", () => {
+@@ -216,10 +216,9 @@ describe("F9 — Mobile client contract — media upload same endpoint", () => {
+   it("Same endpoint for web and mobile — MediaRepository via registry same client", () => {
+     const registryPath = join(ROOT, "domains", "registry.ts");
+     const source = readFileSync(registryPath, "utf8");
+-    // Registry should not have second media endpoint
+-    const mediaEndpoints = (source.match(/\/media/g) || []).length;
+-    // At most one reference? Actually registry doesn't hardcode /media — ApiMediaRepository uses client
+-    // So ensure no hardcoded second media URL
++    // The registry must not hardcode a second media URL — ApiMediaRepository
++    // speaks through the single ApiClient, so no absolute media endpoint may
++    // appear at the composition root.
+     expect(source).not.toMatch(/https?:\/\/.*media/);
+   });
+ 
+@@ -243,7 +242,13 @@ describe("F9 — Mobile client contract — media upload same endpoint", () => {
+ describe("F9 — Mobile client contract — no second API", () => {
+   it("Registry has single ApiClient instantiation", () => {
+     const registryPath = join(ROOT, "domains", "registry.ts");
+-    const source = code(readFileSync(registryPath, "utf8"));
++    // The composition root is split (registry.ts = demo selection,
++    // registryCore.ts = shared plumbing): the invariant is still exactly ONE
++    // ApiClient instantiation across the composition files, so the scan
++    // covers both halves.
++    const source = code(
++      readFileSync(registryPath, "utf8") + "\n" + readFileSync(join(dirname(registryPath), "registryCore.ts"), "utf8"),
++    );
+     const matches = source.match(/new\s+ApiClient/g) || [];
+     expect(matches.length).toBe(1);
+   });
+diff --git a/src/api/config.ts b/src/api/config.ts
+index 821a3fe..c188a0d 100644
+--- a/src/api/config.ts
++++ b/src/api/config.ts
+@@ -46,9 +46,15 @@ export function resolveConfig(env: RawEnv = readEnv()): RuntimeConfig {
+   const raw = (env.VITE_DATA_SOURCE ?? "").trim().toLowerCase();
+   const apiBaseUrl = (env.VITE_API_BASE_URL ?? "").trim() || DEFAULT_BASE_URL;
+ 
+-  // Unset → demo. Developer convenience, and unambiguous: nobody who set
+-  // nothing believes they configured production.
+-  if (raw === "") return { mode: "demo", apiBaseUrl, error: null };
++  // Unset → demo… but ONLY in the demo composition. The client build has no
++  // demo capability at all (its target files and demo repositories are not in
++  // the bundle), so an unset data source there means the API — falling back to
++  // demo here would be exactly the silent downgrade this module exists to
++  // prevent, and could not work anyway.
++  if (raw === "") {
++    if (__APP_TARGET__ === "client") return { mode: "api", apiBaseUrl, error: null };
++    return { mode: "demo", apiBaseUrl, error: null };
++  }
+ 
+   if (raw === "demo") return { mode: "demo", apiBaseUrl, error: null };
+ 
+diff --git a/src/components/ds/states.tsx b/src/components/ds/states.tsx
+index 7f5893b..0f7e396 100644
+--- a/src/components/ds/states.tsx
++++ b/src/components/ds/states.tsx
+@@ -1,6 +1,5 @@
+ import type { ReactNode } from "react";
+-import { CircleOff, FlaskConical, Inbox, RotateCcw } from "lucide-react";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { CircleOff, Inbox, RotateCcw } from "lucide-react";
+ import { cn } from "@/utils/cn";
+ import { Button } from "./primitives";
+ 
+@@ -105,29 +104,3 @@ export function ErrorState({
+     </div>
+   );
+ }
+-
+-/* ------------------------------------------------------------------ */
+-/* DemoNote — prototype discipline: never pass demo figures off as     */
+-/* production values.                                                  */
+-/* ------------------------------------------------------------------ */
+-export function DemoNote({ text, className }: { text?: string; className?: string }) {
+-  /*
+-    A claim about where the data came from, so it is only made where it is true.
+-
+-    In an EMPTY environment the records on screen are the customer's own, and in
+-    `api` mode they come from a real backend: rendering "this section is filled
+-    with demo data" there would mislabel real data — the same dishonesty in the
+-    opposite direction. Gated centrally, on the persisted lifecycle state, so no
+-    view has to branch on the environment kind.
+-  */
+-  if (!useIsDemoEnvironment()) return null;
+-
+-  return (
+-    <div role="note" className={cn("flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3.5 py-3", className)}>
+-      <FlaskConical className="mt-0.5 size-3.5 shrink-0 text-ink-400" strokeWidth={1.8} />
+-      <p className="text-[11.5px] leading-relaxed text-ink-400">
+-        {text ?? "این بخش با دادهٔ نمایشی برای پیش‌نمایش پر شده است؛ پس از اتصال به سامانهٔ اصلی، همین ساختار با دادهٔ واقعی تغذیه می‌شود."}
+-      </p>
+-    </div>
+-  );
+-}
+diff --git a/src/components/lifecycle/FirstRunChooser.tsx b/src/components/lifecycle/FirstRunChooser.tsx
+index ecb4fad..16349e9 100644
+--- a/src/components/lifecycle/FirstRunChooser.tsx
++++ b/src/components/lifecycle/FirstRunChooser.tsx
+@@ -1,4 +1,5 @@
+-import { Database, FlaskConical, RotateCcw, TriangleAlert } from "lucide-react";
++import { Database, FlaskConical, LockKeyhole, RotateCcw, TriangleAlert } from "lucide-react";
++import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
+ import { Button, Surface } from "@/components/ds/primitives";
+ import { useDataLifecycle } from "@/domains/demo/useDataLifecycle";
+ import { useLifecycleRecovery } from "./LifecycleRecoveryContext";
+@@ -27,6 +28,11 @@ import { useLifecycleRecovery } from "./LifecycleRecoveryContext";
+ export function FirstRunChooser() {
+   const { notice, chooseEmpty, chooseDemo } = useDataLifecycle();
+   const recovery = useLifecycleRecovery();
++  // Production lock: after delivery the demo option does not exist (the service
++  // would refuse it anyway). Normally unreachable — delivery installs an EMPTY
++  // environment — but a corrupted/reset marker lands here, and the fail-closed
++  // choice is to offer only the honest path.
++  const demoAvailable = isDemoCapabilityAvailable();
+   const recovering = recovery?.busy && recovery.pending?.action === "uninitialize";
+   const recoveryMessage =
+     recovery?.lastResult?.operation === "uninitialize" ? recovery.lastResult.message : null;
+@@ -70,7 +76,10 @@ export function FirstRunChooser() {
+               </Button>
+             </div>
+ 
+-            {/* Secondary: showcase / QA material, labelled as such. */}
++            {/* Secondary: showcase / QA material, labelled as such.
++                Hidden when the production lock is engaged — offering a button
++                the service layer would refuse would be a lie. */}
++            {demoAvailable ? (
+             <div className="flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4">
+               <FlaskConical className="size-5 text-violet-300" strokeWidth={1.7} aria-hidden />
+               <h2 className="mt-3 text-[14px] font-semibold text-ink-50">دادهٔ نمونهٔ نمایشی</h2>
+@@ -82,6 +91,14 @@ export function FirstRunChooser() {
+                 بارگذاری دادهٔ نمونه
+               </Button>
+             </div>
++            ) : (
++              <div className="flex flex-col items-start justify-center rounded-2xl border border-white/[0.06] bg-white/[0.015] p-4">
++                <LockKeyhole className="size-5 text-ink-400" strokeWidth={1.7} aria-hidden />
++                <p className="mt-3 text-[11.5px] leading-relaxed text-ink-400">
++                  پس از تحویل نسخهٔ تولید، دادهٔ نمایشی برای همیشه غیرفعال شده است و فقط محیط خالی در دسترس است.
++                </p>
++              </div>
++            )}
+           </div>
+         )}
+ 
+diff --git a/src/components/overlays/ActionSheet.tsx b/src/components/overlays/ActionSheet.tsx
+index 3b7dcaf..7851b05 100644
+--- a/src/components/overlays/ActionSheet.tsx
++++ b/src/components/overlays/ActionSheet.tsx
+@@ -7,7 +7,7 @@ import { Dialog } from "@/components/ds/patterns";
+ import { cn } from "@/utils/cn";
+ import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
+ import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ 
+ /* ------------------------------------------------------------------ */
+ /* Quick-action definitions (M-1)                                       */
+diff --git a/src/components/overlays/commands.ts b/src/components/overlays/commands.ts
+index ec2203e..4e11e71 100644
+--- a/src/components/overlays/commands.ts
++++ b/src/components/overlays/commands.ts
+@@ -21,7 +21,8 @@
+ /*    They are not product state: the authoritative at-risk measure is   */
+ /*    derived by `useAcademyMetrics` from stored attendance records.     */
+ /* ------------------------------------------------------------------ */
+-import type { Severity, Target } from "@/lib/viewContracts";
++import type { Target } from "@/lib/viewContracts";
++import { nlAnswers, type NlShowcaseAnswer } from "@/targets/commandShowcase";
+ 
+ export interface NLCommand {
+   id: string;
+@@ -29,7 +30,7 @@ export interface NLCommand {
+   keywords: string[];
+   resultTitle: string;
+   summary: string;
+-  rows: { title: string; meta: string; tone?: Severity }[];
++  rows: { title: string; meta: string; tone?: NlShowcaseAnswer["rows"][number]["tone"] }[];
+   target: Target;
+ }
+ 
+@@ -43,40 +44,27 @@ export const commandVerbs: { id: string; label: string; hint: string; target: Ta
+   { id: "cv6", label: "هنرجویان در معرض ریزش", hint: "هنرجویان · در معرض ریزش", target: { view: "students", filter: "at-risk" } },
+ ];
+ 
+-/**
+- * Demo answer rows for the "at-risk students" nl command (n1), relocated
+- * unchanged from the fixture. See the honesty note above.
+- */
+-export const atRiskDemoRows = [
+-  { name: "سارا محمدی", instrument: "پیانو", meta: "۱۵ روز غیبت · ۳ جلسه باقی‌مانده" },
+-  { name: "امیرحسین کریمی", instrument: "گیتار", meta: "۱۸ روز غیبت · ۱ جلسه باقی‌مانده" },
+-  { name: "نیلوفر رستمی", instrument: "آواز", meta: "۱۴ روز غیبت · ۵ جلسه باقی‌مانده" },
+-  { name: "پارسا نادری", instrument: "ویولن", meta: "۲۱ روز غیبت · شهریه پرداخت‌نشده" },
+-  { name: "مهسا قاسمی", instrument: "پیانو", meta: "۱۶ روز غیبت · ۲ جلسه باقی‌مانده" },
+-];
+-
++/*
++  The nl commands' ANSWERS (resultTitle/summary/rows for n1/n2) are the
++  target's showcase material — demo content in the demo composition, honest
++  unavailables in the client composition — and arrive through the
++  `targets/commandShowcase` seam. Phrases, keywords and targets stay here:
++  the QUESTION is product surface; only the demo ANSWER is target-specific.
++  `atRiskDemoRows` now lives in the seam too (it was n1's demo rows).
++*/
+ export const nlCommands: NLCommand[] = [
+   {
+     id: "n1",
+     phrase: "هنرجوهایی که دو هفته غیبت داشته‌اند را نشان بده",
+     keywords: ["غیبت", "دو هفته", "ریزش", "غایب"],
+-    resultTitle: "۵ هنرجو با بیش از دو هفته غیبت",
+-    summary: "همهٔ این هنرجویان جلسات باقی‌مانده دارند؛ تماس امروز احتمال بازگشت را بالا می‌برد.",
+-    rows: atRiskDemoRows.map((s) => ({ title: s.name, meta: `${s.instrument} · ${s.meta}`, tone: "warning" as Severity })),
++    ...nlAnswers.n1,
+     target: { view: "students", filter: "at-risk" },
+   },
+   {
+     id: "n2",
+     phrase: "چه چیزهایی امروز نیاز به توجه دارند؟",
+     keywords: ["توجه", "امروز", "مشکل", "هشدار"],
+-    resultTitle: "۴ مورد نیازمند توجه",
+-    summary: "یک مورد مالی فوری و سه مورد عملیاتی برای امروز و فردا.",
+-    rows: [
+-      { title: "۳ فاکتور سررسید گذشته", meta: "مجموع ۲٬۴۵۰٬۰۰۰ تومان · قدیمی‌ترین ۱۲ روز", tone: "critical" },
+-      { title: "۵ هنرجو در معرض ریزش", meta: "بیش از دو هفته غیبت متوالی", tone: "warning" },
+-      { title: "تعارض اتاق در ساعت ۱۴:۰۰", meta: "اتاق ۱ · ویولن و پیانو پیشرفته هم‌زمان", tone: "warning" },
+-      { title: "غیبت ۲ مدرس در فردا", meta: "۵ کلاس بدون مدرس · نیاز به جایگزین", tone: "warning" },
+-    ],
++    ...nlAnswers.n2,
+     target: { view: "dashboard" },
+   },
+   {
+diff --git a/src/components/settings/DemoDataPanel.tsx b/src/components/settings/DemoDataPanel.tsx
+index 324b2c0..85c0eef 100644
+--- a/src/components/settings/DemoDataPanel.tsx
++++ b/src/components/settings/DemoDataPanel.tsx
+@@ -87,9 +87,11 @@ export function DemoDataPanel() {
+     notify({
+       tone: "success",
+       // In a customer's environment this file holds their own records, so the
+-      // confirmation must not call it a demo backup. (The file envelope itself
+-      // is still stamped `environment: "demo"` — a format change, tracked as a
+-      // known limitation in `docs/architecture/demo-data.md`.)
++      // confirmation must not call it a demo backup — and the envelope agrees
++      // with the confirmation: `exportBackup` stamps `environment` from the
++      // current mode, so a customer environment exports as `empty` (restorable
++      // after delivery) while a demo environment exports as `demo` (rejected by
++      // a locked deployment on restore).
+       title: demoEnvironment ? "پشتیبان دمو ساخته شد" : "پشتیبان داده‌ها ساخته شد",
+       detail: `نسخهٔ ساختار ${backup.schemaVersion}`,
+     });
+diff --git a/src/components/settings/UsersPanel.tsx b/src/components/settings/UsersPanel.tsx
+index 6d295d3..1e9507d 100644
+--- a/src/components/settings/UsersPanel.tsx
++++ b/src/components/settings/UsersPanel.tsx
+@@ -31,7 +31,7 @@ import { PERMISSIONS, ROLES, roleLabel, type Permission, type RoleId } from "@/d
+ import { useUsers } from "@/domains/auth/useUsers";
+ import { PERMISSION_GROUPS, PERMISSION_LABELS, useRoles } from "@/domains/auth/useRoles";
+ import { defaultRoleRecord } from "@/domains/auth/roleRepository";
+-import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/demoCredentials";
++import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/passphrase";
+ import { useTeachers } from "@/domains/teachers/useTeachers";
+ import type { AuthUser } from "@/domains/auth/types";
+ import { faNum } from "@/lib/format";
+@@ -42,7 +42,7 @@ import { Dialog } from "@/components/ds/patterns";
+ import { ConfirmDialog } from "@/components/ds/confirm";
+ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+ import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { cn } from "@/utils/cn";
+ 
+ /** Rows per relation read. Stated, never inherited from the API default. */
+diff --git a/src/components/settings/__tests__/DemoDataPanel.test.tsx b/src/components/settings/__tests__/DemoDataPanel.test.tsx
+index 5f08601..e5f8795 100644
+--- a/src/components/settings/__tests__/DemoDataPanel.test.tsx
++++ b/src/components/settings/__tests__/DemoDataPanel.test.tsx
+@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
+ import { AppProvider } from "@/context/AppContext";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
+ import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+ import { demoStore, memoryStorage } from "@/services/demoStore";
+diff --git a/src/domains/auth/AuthContext.tsx b/src/domains/auth/AuthContext.tsx
+index c04479e..155796c 100644
+--- a/src/domains/auth/AuthContext.tsx
++++ b/src/domains/auth/AuthContext.tsx
+@@ -1,7 +1,7 @@
+ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+ import { ApiError, apiErrorFromThrown } from "@/api/errors";
+ import { clearAttempts, recordFailure } from "@/security/loginThrottle";
+-import { SESSION_TTL_MS } from "@/domains/auth/demoAuthRepository";
++import { SESSION_TTL_MS } from "@/domains/auth/session";
+ import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
+ import { getAuthRepository } from "@/domains/registry";
+ import { can, canAccessView, canAll, canAny, clearRolePolicies, getRolePolicy, type Permission } from "./permissions";
+diff --git a/src/domains/auth/__tests__/rolePolicy.test.ts b/src/domains/auth/__tests__/rolePolicy.test.ts
+index 1f99710..bd22ff1 100644
+--- a/src/domains/auth/__tests__/rolePolicy.test.ts
++++ b/src/domains/auth/__tests__/rolePolicy.test.ts
+@@ -16,7 +16,8 @@
+ import { beforeEach, describe, expect, it, vi } from "vitest";
+ import { ApiError } from "@/api/errors";
+ import { ApiClient } from "@/api/client";
+-import { ApiRoleRepository, DemoRoleRepository, defaultRoleRecord } from "@/domains/auth/roleRepository";
++import { ApiRoleRepository, defaultRoleRecord } from "@/domains/auth/roleRepository";
++import { DemoRoleRepository } from "@/domains/auth/demoRoleRepository";
+ import {
+   PERMISSIONS,
+   ROLES,
+diff --git a/src/domains/auth/__tests__/userRepository.test.ts b/src/domains/auth/__tests__/userRepository.test.ts
+index e81ae43..ed2b370 100644
+--- a/src/domains/auth/__tests__/userRepository.test.ts
++++ b/src/domains/auth/__tests__/userRepository.test.ts
+@@ -1,7 +1,8 @@
+ import { beforeEach, describe, expect, it } from "vitest";
+ import { ApiError } from "@/api/errors";
+ import { ApiClient } from "@/api/client";
+-import { ApiUserRepository, DemoUserRepository, validateUserInput } from "@/domains/auth/userRepository";
++import { ApiUserRepository, validateUserInput } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { DemoDataManager } from "@/domains/demo/demoDataManager";
+ import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
+ import { asFetch, createFetchMock, jsonResponse, requestOf } from "@/test/fetchMock";
+diff --git a/src/domains/auth/demoAuthRepository.ts b/src/domains/auth/demoAuthRepository.ts
+index 3a44be8..94aa78f 100644
+--- a/src/domains/auth/demoAuthRepository.ts
++++ b/src/domains/auth/demoAuthRepository.ts
+@@ -1,4 +1,5 @@
+ import { ApiError } from "@/api/errors";
++import { SESSION_TTL_MS } from "./session";
+ import { isDemoMode } from "@/api/config";
+ import { demoStore, type DemoStore } from "@/services/demoStore";
+ import { demoCredentialStore, type DemoCredentialStore } from "./demoCredentials";
+@@ -30,11 +31,13 @@ export const DEMO_PASSPHRASE = "arena-demo";
+ export const AUTH_SESSION_KEY = "ava:demo:session";
+ 
+ /**
+- * Demo token lifetime. Exported so the client-side session clock can derive
+- * when a restored session actually began, instead of trusting a localStorage
+- * value the user can delete.
++ * Demo token lifetime. Defined in the neutral session module so the shared
++ * auth path (`AuthContext`) never imports this demo implementation — and
++ * re-exported here so this module's public surface is unchanged. The client-
++ * side session clock derives when a restored session actually began from it,
++ * instead of trusting a localStorage value the user can delete.
+  */
+-export const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
++export { SESSION_TTL_MS } from "./session";
+ 
+ interface PersistedSession {
+   userId: string;
+diff --git a/src/domains/auth/demoCredentials.ts b/src/domains/auth/demoCredentials.ts
+index 1d4df32..120d850 100644
+--- a/src/domains/auth/demoCredentials.ts
++++ b/src/domains/auth/demoCredentials.ts
+@@ -22,8 +22,12 @@ import type { StorageLike } from "@/services/demoStore";
+ 
+ export const DEMO_CREDENTIALS_KEY = "ava:demo:credentials";
+ 
+-/** Shortest passphrase the panel accepts. Long enough to not be a formality. */
+-export const MIN_PASSPHRASE_LENGTH = 6;
++/*
++  Passphrase policy lives in its own neutral module so shared consumers
++  (UsersPanel, ApiUserRepository) never have to import this demo store to get
++  it. Re-exported here so the existing surface is unchanged.
++*/
++export { MIN_PASSPHRASE_LENGTH, isAcceptablePassphrase } from "./passphrase";
+ 
+ interface CredentialMap {
+   [userId: string]: string;
+@@ -100,8 +104,3 @@ export function demoCredentialStore(storage: StorageLike = browserStorage() ?? m
+     has: (userId) => read(storage)[userId] !== undefined,
+   };
+ }
+-
+-/** A passphrase must be long enough to be worth calling one. */
+-export function isAcceptablePassphrase(value: string): boolean {
+-  return value.trim().length >= MIN_PASSPHRASE_LENGTH;
+-}
+diff --git a/src/domains/auth/roleRepository.ts b/src/domains/auth/roleRepository.ts
+index f6158f7..624d831 100644
+--- a/src/domains/auth/roleRepository.ts
++++ b/src/domains/auth/roleRepository.ts
+@@ -20,21 +20,24 @@
+ import { ApiError } from "@/api/errors";
+ import type { Page } from "@/api/types";
+ import type { ApiClient } from "@/api/client";
+-import { demoStore, type DemoStore } from "@/services/demoStore";
+ import {
+   isPermission,
+   isRoleId,
+-  permissionsForRole,
+   roleLabels,
+-  ROLES,
+   rolePermissions,
+   type Permission,
+   type RoleId,
+   type RolePolicyRecord,
+ } from "./permissions";
+ 
++/*
++  The DEMO implementation of this interface lives in `./demoRoleRepository` —
++  deliberately NOT co-located: it imports the demo store, and a demo-store
++  import in this shared file leaks the whole demo persistence graph into the
++  client bundle (see demoRoleRepository.ts). */
++
+ /** The scope line each role ships with; an edit replaces it per role. */
+-const DEFAULT_SCOPES: Record<RoleId, string> = {
++export const DEFAULT_SCOPES: Record<RoleId, string> = {
+   administrator: "دسترسی کامل به همهٔ بخش‌ها",
+   manager: "مدیریت آموزشی، برنامه‌ریزی و گزارش‌ها",
+   teacher: "کلاس‌های خود، حضور و غیاب، کتابخانه",
+@@ -68,7 +71,7 @@ export function defaultRoleRecord(id: RoleId): RolePolicyRecord {
+   };
+ }
+ 
+-function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
++export function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
+   const base = rolePermissions[id] ?? [];
+   return (
+     record.label === roleLabels[id] &&
+@@ -78,7 +81,7 @@ function sameAsDefault(id: RoleId, record: RolePolicyRecord): boolean {
+   );
+ }
+ 
+-function validate(id: string, input: UpdateRoleInput): void {
++export function validate(id: string, input: UpdateRoleInput): void {
+   const fields: Record<string, string[]> = {};
+   if (!isRoleId(id)) fields.id = ["نقش نامعتبر است."];
+   if (input.label !== undefined && input.label.trim().length < 2) fields.label = ["نام نقش باید حداقل ۲ نویسه باشد."];
+@@ -100,81 +103,6 @@ function validate(id: string, input: UpdateRoleInput): void {
+   }
+ }
+ 
+-/** Demo implementation — the roles collection of the one dataset. */
+-export class DemoRoleRepository implements RoleRepository {
+-  constructor(private readonly store: DemoStore = demoStore) {}
+-
+-  async list(): Promise<Page<RolePolicyRecord>> {
+-    const data = ROLES.map((id) => this.record(id));
+-    return { data, meta: { page: 1, per_page: data.length, total: data.length } };
+-  }
+-
+-  async get(id: RoleId): Promise<RolePolicyRecord> {
+-    if (!isRoleId(id)) throw notFound(id);
+-    return this.record(id);
+-  }
+-
+-  async update(id: RoleId, input: UpdateRoleInput): Promise<RolePolicyRecord> {
+-    validate(id, input);
+-    const current = this.record(id);
+-    const next: RolePolicyRecord = {
+-      id,
+-      label: (input.label ?? current.label).trim(),
+-      scope: (input.scope ?? current.scope).trim(),
+-      permissions: input.permissions ? [...input.permissions] : current.permissions,
+-      customized: true,
+-      updatedAt: new Date().toISOString(),
+-    };
+-    next.customized = !sameAsDefault(id, next);
+-    this.write(next);
+-    return next;
+-  }
+-
+-  async reset(id: RoleId): Promise<RolePolicyRecord> {
+-    if (!isRoleId(id)) throw notFound(id);
+-    const fresh = defaultRoleRecord(id);
+-    this.write(fresh);
+-    return fresh;
+-  }
+-
+-  /** One row per role, edited values where they exist, defaults elsewhere. */
+-  private record(id: RoleId): RolePolicyRecord {
+-    const row = this.store.roles.find(id);
+-    if (!row) return defaultRoleRecord(id);
+-    const permissions = (row.permissions ?? permissionsForRole(id)).filter(isPermission);
+-    const record: RolePolicyRecord = {
+-      id,
+-      label: row.label?.trim() ? row.label : roleLabels[id],
+-      scope: row.scope?.trim() ? row.scope : DEFAULT_SCOPES[id],
+-      permissions,
+-      customized: Boolean(row.permissions) || row.label !== roleLabels[id] || row.scope !== DEFAULT_SCOPES[id],
+-      ...(row.updatedAt ? { updatedAt: row.updatedAt } : {}),
+-    };
+-    record.customized = !sameAsDefault(id, record);
+-    return record;
+-  }
+-
+-  private write(record: RolePolicyRecord): void {
+-    const existing = this.store.roles.find(record.id);
+-    if (existing) {
+-      this.store.roles.update(record.id, {
+-        label: record.label,
+-        scope: record.scope,
+-        permissions: record.customized ? record.permissions : undefined,
+-        updatedAt: record.updatedAt,
+-      });
+-      return;
+-    }
+-    this.store.roles.create({
+-      id: record.id,
+-      label: record.label,
+-      scope: record.scope,
+-      ...(record.customized ? { permissions: record.permissions } : {}),
+-      ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
+-    });
+-  }
+-}
+-
+ /** REST implementation. BACKEND REQUIRED — the server owns authorization. */
+ export class ApiRoleRepository implements RoleRepository {
+   constructor(private readonly client: ApiClient) {}
+@@ -205,6 +133,6 @@ export class ApiRoleRepository implements RoleRepository {
+   }
+ }
+ 
+-function notFound(id: string): ApiError {
++export function notFound(id: string): ApiError {
+   return new ApiError({ kind: "not_found", code: "ROLE_NOT_FOUND", message: `نقش «${id}» وجود ندارد.` });
+ }
+diff --git a/src/domains/auth/userRepository.ts b/src/domains/auth/userRepository.ts
+index 8cf1a2e..570d796 100644
+--- a/src/domains/auth/userRepository.ts
++++ b/src/domains/auth/userRepository.ts
+@@ -1,12 +1,17 @@
+ import { ApiError } from "@/api/errors";
+ import type { Page, QueryParams } from "@/api/types";
+ import type { ApiClient } from "@/api/client";
+-import { demoStore, type DemoStore } from "@/services/demoStore";
+-import { demoCredentialStore, isAcceptablePassphrase, type DemoCredentialStore } from "./demoCredentials";
++import { isAcceptablePassphrase } from "./passphrase";
+ import { isRoleId } from "./permissions";
+ import type { UserRepository } from "./repository";
+ import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
+ 
++/*
++  The DEMO implementation of this interface lives in `./demoUserRepository` —
++  deliberately NOT co-located: it imports the demo store and the credential
++  store, and those imports in this shared file leak the demo persistence graph
++  into the client bundle (see demoUserRepository.ts). */
++
+ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+ /** Persian and Latin digits, spaces, `+`, `-` — a contact number, loosely. */
+ const PHONE_RE = /^[0-9۰-۹+\-\s()]{6,20}$/;
+@@ -30,98 +35,6 @@ export function validateUserInput(input: Partial<CreateUserInput>, required: boo
+   return new ApiError({ kind: "validation", code: "USER_INVALID", message: "اطلاعات کاربر معتبر نیست.", fields });
+ }
+ 
+-/** Demo implementation — delegates persistence to the single DemoStore. */
+-export class DemoUserRepository implements UserRepository {
+-  constructor(
+-    private readonly store: DemoStore = demoStore,
+-    private readonly credentials: DemoCredentialStore = demoCredentialStore(),
+-  ) {}
+-
+-  async list(): Promise<Page<AuthUser>> {
+-    const data = this.store.users.all();
+-    return { data, meta: { page: 1, per_page: data.length || 25, total: data.length } };
+-  }
+-
+-  async get(id: string): Promise<AuthUser> {
+-    const found = this.store.users.find(id);
+-    if (!found) throw notFound(id);
+-    return found;
+-  }
+-
+-  async create(input: CreateUserInput): Promise<AuthUser> {
+-    const invalid = validateUserInput(input, true);
+-    if (invalid) throw invalid;
+-    if (this.emailTaken(input.email)) throw emailTaken();
+-    return this.store.users.create({
+-      name: input.name.trim(),
+-      email: input.email.trim().toLowerCase(),
+-      role: input.role,
+-      ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
+-      status: input.status ?? "active",
+-    });
+-  }
+-
+-  async update(id: string, input: UpdateUserInput): Promise<AuthUser> {
+-    const invalid = validateUserInput(input, false);
+-    if (invalid) throw invalid;
+-    if (input.email && this.emailTaken(input.email, id)) throw emailTaken();
+-    const updated = this.store.users.update(id, {
+-      ...input,
+-      ...(input.email ? { email: input.email.trim().toLowerCase() } : {}),
+-      ...(input.name ? { name: input.name.trim() } : {}),
+-      ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
+-    });
+-    if (!updated) throw notFound(id);
+-    this.syncTeacher(updated);
+-    return updated;
+-  }
+-
+-  async delete(id: string): Promise<void> {
+-    if (!this.store.users.remove(id)) throw notFound(id);
+-    // A credential must not outlive the account it belonged to.
+-    this.credentials.clear(id);
+-  }
+-
+-  async setPassword(id: string, passphrase: string): Promise<void> {
+-    if (!this.store.users.find(id)) throw notFound(id);
+-    if (passphrase === "") {
+-      this.credentials.clear(id);
+-      return;
+-    }
+-    if (!isAcceptablePassphrase(passphrase)) throw weakPassphrase();
+-    this.credentials.set(id, passphrase.trim());
+-  }
+-
+-  async hasOwnPassword(id: string): Promise<boolean> {
+-    return this.credentials.has(id);
+-  }
+-
+-  /**
+-   * ONE PERSON, ONE NAME.
+-   *
+-   * An account linked to a teacher record (`teacherId`) is the same human the
+-   * teachers view edits. Renaming one and not the other is what made the panel
+-   * look unsynchronized — Settings showed the old name next to the new one — so
+-   * the write propagates here, in the repository, where every caller passes
+-   * through. The API implementation leaves this to the server, which owns both
+-   * tables.
+-   */
+-  private syncTeacher(user: AuthUser): void {
+-    if (!user.teacherId) return;
+-    const teacher = this.store.teachers.find(user.teacherId);
+-    if (!teacher) return;
+-    const patch: { name?: string; phone?: string } = {};
+-    if (user.name && teacher.name !== user.name) patch.name = user.name;
+-    if (user.phone && teacher.phone !== user.phone) patch.phone = user.phone;
+-    if (Object.keys(patch).length > 0) this.store.teachers.update(teacher.id, patch);
+-  }
+-
+-  private emailTaken(email: string, exceptId?: string): boolean {
+-    const target = email.trim().toLowerCase();
+-    return this.store.users.all().some((u) => u.email.toLowerCase() === target && u.id !== exceptId);
+-  }
+-}
+-
+ /** REST implementation. BACKEND REQUIRED — no server exists yet. */
+ export class ApiUserRepository implements UserRepository {
+   constructor(private readonly client: ApiClient) {}
+@@ -178,7 +91,7 @@ function toWire(input: UpdateUserInput | CreateUserInput): QueryParams {
+   return wire as QueryParams;
+ }
+ 
+-function weakPassphrase(): ApiError {
++export function weakPassphrase(): ApiError {
+   return new ApiError({
+     kind: "validation",
+     code: "USER_PASSWORD_WEAK",
+@@ -187,11 +100,11 @@ function weakPassphrase(): ApiError {
+   });
+ }
+ 
+-function notFound(id: string): ApiError {
++export function notFound(id: string): ApiError {
+   return new ApiError({ kind: "not_found", code: "USER_NOT_FOUND", message: `کاربر با شناسهٔ ${id} یافت نشد.` });
+ }
+ 
+-function emailTaken(): ApiError {
++export function emailTaken(): ApiError {
+   return new ApiError({
+     kind: "conflict",
+     code: "USER_EMAIL_TAKEN",
+diff --git a/src/domains/branding/BrandingPanel.tsx b/src/domains/branding/BrandingPanel.tsx
+index a57ca62..fb1fba9 100644
+--- a/src/domains/branding/BrandingPanel.tsx
++++ b/src/domains/branding/BrandingPanel.tsx
+@@ -12,7 +12,7 @@ import { Field, Panel, inputCls } from "@/components/ds/patterns";
+ import { ErrorState, LoadingState } from "@/components/ds/states";
+ import { useApp } from "@/context/AppContext";
+ import { getBrandingRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { apiErrorFromThrown, type ApiError } from "@/api/errors";
+ import { useBranding } from "./useBranding";
+ import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
+diff --git a/src/domains/branding/__tests__/brandingApplication.test.tsx b/src/domains/branding/__tests__/brandingApplication.test.tsx
+index 9d0348f..cd8e798 100644
+--- a/src/domains/branding/__tests__/brandingApplication.test.tsx
++++ b/src/domains/branding/__tests__/brandingApplication.test.tsx
+@@ -44,7 +44,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
+ import { AppProvider } from "@/context/AppContext";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+ import { demoStore, memoryStorage } from "@/services/demoStore";
+ import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
+diff --git a/src/domains/classes/useClasses.ts b/src/domains/classes/useClasses.ts
+index 6a3cd29..9f27822 100644
+--- a/src/domains/classes/useClasses.ts
++++ b/src/domains/classes/useClasses.ts
+@@ -1,6 +1,6 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { ApiError, apiErrorFromThrown } from "@/api/errors";
+-import { getClassRepository } from "../registry";
++import { getClassRepository } from "@/domains/registry";
+ import { useDataVersion } from "../shared/dataVersion";
+ import { useResourceList } from "../shared/useResource";
+ import type { AcademyClass, ClassListParams, CreateClassInput, UpdateClassInput } from "./types";
+diff --git a/src/domains/compensation/useCompensations.ts b/src/domains/compensation/useCompensations.ts
+index 64cc313..50de253 100644
+--- a/src/domains/compensation/useCompensations.ts
++++ b/src/domains/compensation/useCompensations.ts
+@@ -1,5 +1,5 @@
+ import { useCallback, useMemo, useState } from "react";
+-import { getCompensationRepository } from "../registry";
++import { getCompensationRepository } from "@/domains/registry";
+ import { useResourceList } from "../shared/useResource";
+ import type {
+   CompensationListParams,
+diff --git a/src/domains/demo/__tests__/authIntegration.test.ts b/src/domains/demo/__tests__/authIntegration.test.ts
+index 978f61a..43be679 100644
+--- a/src/domains/demo/__tests__/authIntegration.test.ts
++++ b/src/domains/demo/__tests__/authIntegration.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, expect, it } from "vitest";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+ import { ROLES } from "@/domains/auth/permissions";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { createBackup } from "@/domains/demo/backup";
+ import { DemoDataManager } from "@/domains/demo/demoDataManager";
+ import { createSeedDataset } from "@/domains/demo/seed";
+diff --git a/src/domains/demo/backup.ts b/src/domains/demo/backup.ts
+index e296d68..23741b5 100644
+--- a/src/domains/demo/backup.ts
++++ b/src/domains/demo/backup.ts
+@@ -22,6 +22,21 @@ export const BACKUP_LEGACY_VERSION = "1.0";
+ export const BACKUP_SUPPORTED_VERSIONS = [BACKUP_LEGACY_VERSION, BACKUP_SCHEMA_VERSION] as const;
+ export type BackupSchemaVersion = (typeof BACKUP_SUPPORTED_VERSIONS)[number];
+ export const BACKUP_ENVIRONMENT = "demo" as const;
++/**
++ * Which environment a backup was EXPORTED from.
++ *
++ * - `demo`  — a demo environment's envelope (the historical value, still the
++ *   default for callers that never said otherwise; legacy 1.0 files read as
++ *   `demo`). Post-delivery, a `demo`-stamped file is REJECTED on restore —
++ *   shipping demo data back into a locked production deployment fails closed.
++ * - `empty` — a customer (non-demo) environment's envelope. Restoring these is
++ *   a customer operation and stays available after delivery.
++ *
++ * Validation therefore accepts exactly these two; `production` or anything
++ * unknown is a foreign deployment → WRONG_ENVIRONMENT (honest rejection).
++ */
++export type BackupEnvironment = "demo" | "empty";
++export const BACKUP_ENVIRONMENTS: readonly BackupEnvironment[] = ["demo", "empty"];
+ export const BACKUP_KIND = "arena.demo.backup" as const;
+ 
+ /** Optional integrity hash — B CONTRACT NOW BACKEND LATER REQUIRED, frontend can verify if present. */
+@@ -33,7 +48,7 @@ export interface BackupIntegrity {
+ export interface DemoBackup {
+   kind: typeof BACKUP_KIND;
+   schemaVersion: string;
+-  environment: typeof BACKUP_ENVIRONMENT;
++  environment: BackupEnvironment;
+   /** ISO timestamp. The only intentionally non-deterministic field. */
+   exportedAt: string;
+   app: { name: string; seedVersion: string };
+@@ -79,7 +94,7 @@ export function migrateBackupIfNeeded(input: unknown): BackupMigrationResult | n
+     const migrated: DemoBackup = {
+       kind: (candidate.kind as typeof BACKUP_KIND) ?? BACKUP_KIND,
+       schemaVersion: BACKUP_SCHEMA_VERSION,
+-      environment: (candidate.environment as typeof BACKUP_ENVIRONMENT) ?? BACKUP_ENVIRONMENT,
++      environment: ((candidate.environment as BackupEnvironment) ?? BACKUP_ENVIRONMENT) as BackupEnvironment,
+       exportedAt: (candidate.exportedAt as string) ?? new Date().toISOString(),
+       app: (candidate.app as { name: string; seedVersion: string }) ?? {
+         name: "Arena — Ava Music Academy (DEMO)",
+@@ -216,11 +231,15 @@ export function datasetStats(dataset: DemoDataset): DemoDatasetStats {
+   return { seedVersion: SEED_VERSION, counts, total };
+ }
+ 
+-export function createBackup(dataset: DemoDataset, exportedAt: Date = new Date()): DemoBackup {
++export function createBackup(
++  dataset: DemoDataset,
++  exportedAt: Date = new Date(),
++  environment: BackupEnvironment = BACKUP_ENVIRONMENT,
++): DemoBackup {
+   return {
+     kind: BACKUP_KIND,
+     schemaVersion: BACKUP_SCHEMA_VERSION,
+-    environment: BACKUP_ENVIRONMENT,
++    environment,
+     exportedAt: exportedAt.toISOString(),
+     app: { name: "Arena — Ava Music Academy (DEMO)", seedVersion: SEED_VERSION },
+     stats: datasetStats(dataset),
+@@ -242,6 +261,8 @@ export type ValidationCode =
+   | "NOT_AN_OBJECT"
+   | "UNSUPPORTED_SCHEMA_VERSION"
+   | "WRONG_ENVIRONMENT"
++  | "DEMO_DISABLED"
++  | "OPERATION_BLOCKED"
+   | "MISSING_COLLECTION"
+   | "INVALID_COLLECTION"
+   | "MISSING_ID"
+@@ -290,8 +311,14 @@ export function validateBackup(input: unknown): ValidationResult {
+       ),
+     );
+   }
+-  if (candidate.environment !== BACKUP_ENVIRONMENT) {
+-    issues.push(issue("WRONG_ENVIRONMENT", "این فایل متعلق به محیط دمو نیست.", "environment"));
++  if (!(BACKUP_ENVIRONMENTS as readonly string[]).includes(candidate.environment as string)) {
++    issues.push(
++      issue(
++        "WRONG_ENVIRONMENT",
++        "environment باید یکی از demo (دمو) یا empty باشد؛ این فایل متعلق به یک استقرار دیگر است.",
++        "environment",
++      ),
++    );
+   }
+ 
+   const data = candidate.data;
+diff --git a/src/domains/demo/demoDataManager.ts b/src/domains/demo/demoDataManager.ts
+index d30bd16..30cd7cb 100644
+--- a/src/domains/demo/demoDataManager.ts
++++ b/src/domains/demo/demoDataManager.ts
+@@ -15,7 +15,7 @@
+  *   uninitialize  — remove the environment itself (destructive; see lifecycle.ts)
+  *   exportBackup  — versioned envelope of the current state
+  */
+-import { demoStore, type DemoStore } from "@/services/demoStore";
++import { demoStore, stampDatasetProvenance, type DemoStore } from "@/services/demoStore";
+ import {
+   BACKUP_SCHEMA_VERSION,
+   createBackup,
+@@ -26,6 +26,13 @@ import {
+   type ValidationIssue,
+ } from "./backup";
+ import { AUTH_SESSION_KEY } from "@/domains/auth/demoAuthRepository";
++import {
++  DemoDisabledError,
++  DEMO_DISABLED_MESSAGE,
++  DELIVERY_PENDING_MESSAGE,
++  isDemoCapabilityAvailable,
++  isDestructiveOperationAllowed,
++} from "@/api/deploymentLock";
+ import { setInstrumentCatalog } from "@/domains/instruments/catalog";
+ import {
+   initializeDemoEnvironment,
+@@ -116,6 +123,12 @@ export class DemoDataManager {
+    */
+   initialize(): DemoOperationSuccess {
+     const result = initializeDemoEnvironment(this.store);
++    if (!result.ok && result.reason === "demo-disabled") {
++      // The contract of this method is "created or already there"; after the
++      // production lock neither holds, so the call itself is rejected — loudly,
++      // with the stable code, rather than reported as a no-op success.
++      throw new DemoDisabledError("initialize");
++    }
+     return this.success(
+       "initialize",
+       result.changed,
+@@ -141,11 +154,13 @@ export class DemoDataManager {
+    * hide demo records behind a "real data" label.
+    */
+   resetToSeed(request: ConfirmedRequest): DemoOperationResult {
++    if (!isDemoCapabilityAvailable()) return this.demoDisabled("reset");
+     return this.applyDataset("reset", createSeedDataset(), request, "دادهٔ دمو به حالت اولیه بازگردانده شد.", "demo");
+   }
+ 
+   /** Alias with distinct intent: importing the canonical seed. Also marks DEMO. */
+   importSeed(request: ConfirmedRequest): DemoOperationResult {
++    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-seed");
+     return this.applyDataset("import-seed", createSeedDataset(), request, "دیتاست کانونیکال وارد شد.", "demo");
+   }
+ 
+@@ -158,18 +173,36 @@ export class DemoDataManager {
+    * inferred from how many rows are left.
+    */
+   clear(request: ConfirmedRequest): DemoOperationResult {
++    // While a delivery attempt is pending, EVERY destructive operation is
++    // frozen: recovery must observe a stable dataset. After delivery `clear`
++    // remains a customer operation (it empties the customer's own records) —
++    // it is not "Clear Demo", which no longer exists.
++    if (!isDestructiveOperationAllowed()) return this.operationBlocked("clear");
+     return this.applyDataset("clear", createEmptyDataset(), request, "همهٔ رکوردهای دمو حذف شد.");
+   }
+ 
+-  /** Replaces the demo state with an externally supplied dataset. */
++  /**
++   * Replaces the demo state with an externally supplied dataset.
++   *
++   * Post-delivery this is rejected: an externally supplied payload has no
++   * provable ownership, and installing an unprovable dataset into a locked
++   * deployment violates the same fail-closed rule that keeps delivery from
++   * deleting one. Pre-delivery it behaves exactly as before.
++   */
+   importDataset(dataset: DemoDataset, request: ConfirmedRequest): DemoOperationResult {
++    if (!isDestructiveOperationAllowed()) return this.operationBlocked("import-dataset");
++    if (!isDemoCapabilityAvailable()) return this.demoDisabled("import-dataset");
+     return this.applyDataset("import-dataset", dataset, request, "دیتاست وارد شد.");
+   }
+ 
+   /* ---------------- backup / restore ---------------- */
+ 
+   exportBackup(exportedAt: Date = new Date()): DemoBackup {
+-    return createBackup(this.store.snapshot(), exportedAt);
++    // Stamp the envelope with the CURRENT environment: a customer environment
++    // exports as `empty` (restorable after delivery); only a demo environment
++    // exports as `demo` (rejected by a locked deployment on restore).
++    const environment = this.lifecycleState() === "empty" ? "empty" : "demo";
++    return createBackup(this.store.snapshot(), exportedAt, environment);
+   }
+ 
+   exportBackupJson(exportedAt?: Date): string {
+@@ -187,12 +220,23 @@ export class DemoDataManager {
+    * provisioning off), which is the label the visitor chose.
+    */
+   restoreBackup(text: string, request: ConfirmedRequest): DemoOperationResult {
++    if (!isDestructiveOperationAllowed()) return this.operationBlocked("restore-backup");
+     if (!request?.confirm) return this.needsConfirmation("restore-backup");
+ 
+     const parsed = parseBackup(text);
+     if (!parsed.ok) {
+       return { ok: false, operation: "restore-backup", issues: parsed.issues, message: "فایل پشتیبان معتبر نیست؛ دادهٔ فعلی تغییر نکرد." };
+     }
++    if (!isDemoCapabilityAvailable() && parsed.backup.environment === "demo") {
++      // Locked deployments accept customer (`empty`) backups only — a
++      // demo-stamped envelope is demo capability by another name.
++      return {
++        ok: false,
++        operation: "restore-backup",
++        issues: [{ code: "WRONG_ENVIRONMENT", message: DEMO_DISABLED_MESSAGE }],
++        message: DEMO_DISABLED_MESSAGE,
++      };
++    }
+     return this.applyDataset("restore-backup", parsed.backup.data, request, "پشتیبان بازگردانی شد.");
+   }
+ 
+@@ -221,7 +265,14 @@ export class DemoDataManager {
+     const safetyBackup = this.store.isInitialized() ? createBackup(this.store.snapshot()) : undefined;
+ 
+     try {
+-      this.store.replace(dataset);
++      // An operation that records the mode (reset/import of canonical data)
++      // also re-establishes OWNSERSHIP: the payload being installed IS that
++      // mode's data, so its stamp must land with it — otherwise an EMPTY
++      // environment reset to the seed would carry a customer stamp over demo
++      // records and delivery would (correctly) refuse to delete them.
++      this.store.replace(
++        mode ? stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run") : dataset,
++      );
+     } catch (cause) {
+       return {
+         ok: false,
+@@ -262,6 +313,24 @@ export class DemoDataManager {
+     }
+   }
+ 
++  private demoDisabled(operation: DemoOperation): DemoOperationFailure {
++    return {
++      ok: false,
++      operation,
++      issues: [{ code: "DEMO_DISABLED", message: DEMO_DISABLED_MESSAGE }],
++      message: DEMO_DISABLED_MESSAGE,
++    };
++  }
++
++  private operationBlocked(operation: DemoOperation): DemoOperationFailure {
++    return {
++      ok: false,
++      operation,
++      issues: [{ code: "OPERATION_BLOCKED", message: DELIVERY_PENDING_MESSAGE }],
++      message: DELIVERY_PENDING_MESSAGE,
++    };
++  }
++
+   private needsConfirmation(operation: DemoOperation): DemoOperationFailure {
+     return {
+       ok: false,
+diff --git a/src/domains/demo/gallerySeed.ts b/src/domains/demo/gallerySeed.ts
+index 47aa654..62501cd 100644
+--- a/src/domains/demo/gallerySeed.ts
++++ b/src/domains/demo/gallerySeed.ts
+@@ -125,7 +125,7 @@ export const DEMO_GALLERY_PHOTOS: readonly DemoGalleryPhoto[] = [
+ ];
+ 
+ /** The metadata rows for the bundle's photographs — dataset-sized, backup-safe. */
+-export const DEMO_GALLERY_MEDIA: MediaAsset[] = DEMO_GALLERY_PHOTOS.map((photo) => ({
++export const DEMO_GALLERY_MEDIA: MediaAsset[] = /* @__PURE__ */ DEMO_GALLERY_PHOTOS.map((photo) => ({
+   id: photo.mediaId,
+   kind: "image",
+   filename: photo.filename,
+diff --git a/src/domains/demo/lifecycle.ts b/src/domains/demo/lifecycle.ts
+index c25cdbb..5bdb23c 100644
+--- a/src/domains/demo/lifecycle.ts
++++ b/src/domains/demo/lifecycle.ts
+@@ -37,6 +37,11 @@
+  *    `DemoNote`.
+  */
+ import { isDemoMode } from "@/api/config";
++import {
++  DemoDisabledError,
++  DEMO_DISABLED_MESSAGE,
++  isDemoCapabilityAvailable,
++} from "@/api/deploymentLock";
+ import { getBlobStore } from "@/domains/media/blobStore";
+ import type { AuthUser } from "@/domains/auth/types";
+ import { demoStore, type DemoStore } from "@/services/demoStore";
+@@ -134,7 +139,13 @@ export function createEmptyEnvironment(): DemoDataset {
+ export function readLifecycleState(store: DemoStore = demoStore): DataLifecycleState {
+   const marker = store.readLifecycleMarker();
+   if (marker !== null) return store.isInitialized() ? marker : "uninitialized";
+-  return store.isInitialized() ? "demo" : "uninitialized";
++  if (!store.isInitialized()) return "uninitialized";
++  // No marker + a dataset: pre-delivery this is the documented legacy
++  // adoption as DEMO (every payload an older build could write was demo
++  // sourced). POST-delivery the same shape must never re-enable demo — the
++  // safe direction for unknown-ownership data is `empty`: preserved, with
++  // every demo affordance off. (This is the fail-closed twin of adoption.)
++  return isDemoCapabilityAvailable() ? "demo" : "empty";
+ }
+ 
+ /**
+@@ -144,7 +155,10 @@ export function readLifecycleState(store: DemoStore = demoStore): DataLifecycleS
+  */
+ export function persistLifecycleAdoption(store: DemoStore = demoStore): DataLifecycleState {
+   const state = readLifecycleState(store);
+-  if (state !== "uninitialized" && store.readLifecycleMarker() === null) {
++  if (state !== "uninitialized" && store.readLifecycleMarker() === null && isDemoCapabilityAvailable()) {
++    // Marker only — adoption must not modify records (a legacy payload stays
++    // byte-identical; provenance simply remains absent, which delivery reads
++    // as "trust the marker", exactly the pre-provenance contract).
+     store.writeLifecycleMarker(state);
+   }
+   return state;
+@@ -175,8 +189,8 @@ export interface LifecycleChoiceSuccess {
+ 
+ export interface LifecycleChoiceRefused {
+   ok: false;
+-  /** Why nothing was written. Only one reason exists: an environment is there. */
+-  reason: "already-initialized";
++  /** Why nothing was written. */
++  reason: "already-initialized" | "demo-disabled";
+   state: DataLifecycleState;
+   changed: false;
+   message: string;
+@@ -221,6 +235,17 @@ export function initializeEmptyEnvironment(store: DemoStore = demoStore): Lifecy
+  * customer's data.
+  */
+ export function initializeDemoEnvironment(store: DemoStore = demoStore): LifecycleChoiceResult {
++  // Service-level production lock: the first-run choice, a hand-invoked call
++  // or any future caller is rejected here — UI hiding alone is never enough.
++  if (!isDemoCapabilityAvailable()) {
++    return {
++      ok: false,
++      reason: "demo-disabled",
++      state: readLifecycleState(store),
++      changed: false,
++      message: DEMO_DISABLED_MESSAGE,
++    };
++  }
+   if (store.isInitialized()) return refuseExisting(store);
+   store.initializeEnvironment("demo", createSeedDataset());
+   return {
+@@ -238,6 +263,11 @@ export function initializeDemoEnvironment(store: DemoStore = demoStore): Lifecyc
+  * that can change an existing environment's data.
+  */
+ export function markLifecycle(mode: DataLifecycleMode, store: DemoStore = demoStore): void {
++  if (mode === "demo" && !isDemoCapabilityAvailable()) {
++    // Callers guard their operations; this throw is the backstop that makes
++    // an unguarded path loud instead of silently re-arming demo data.
++    throw new DemoDisabledError("markLifecycle");
++  }
+   store.writeLifecycleMarker(mode);
+ }
+ 
+@@ -275,6 +305,18 @@ export async function uninitializeEnvironment(
+     };
+   }
+ 
++  // Post-delivery, tearing the environment down would return the app to the
++  // first-run choice — a demo re-entry path. The lock rejects it here, at the
++  // service layer, regardless of what any UI shows.
++  if (!isDemoCapabilityAvailable()) {
++    return {
++      ok: false,
++      state: readLifecycleState(store),
++      changed: false,
++      message: DEMO_DISABLED_MESSAGE,
++    };
++  }
++
+   const existed = store.isInitialized() || store.readLifecycleMarker() !== null;
+   store.reset();
+ 
+diff --git a/src/domains/enrollments/useEnrollments.ts b/src/domains/enrollments/useEnrollments.ts
+index 17b33d0..0ce8305 100644
+--- a/src/domains/enrollments/useEnrollments.ts
++++ b/src/domains/enrollments/useEnrollments.ts
+@@ -1,5 +1,5 @@
+ import { useCallback, useMemo, useState } from "react";
+-import { getEnrollmentRepository } from "../registry";
++import { getEnrollmentRepository } from "@/domains/registry";
+ import { useResourceList } from "../shared/useResource";
+ import type { CreateEnrollmentInput, Enrollment, EnrollmentListParams, UpdateEnrollmentInput } from "./types";
+ 
+diff --git a/src/domains/export/EntityExportButton.tsx b/src/domains/export/EntityExportButton.tsx
+index 83c4d4c..1f74ed4 100644
+--- a/src/domains/export/EntityExportButton.tsx
++++ b/src/domains/export/EntityExportButton.tsx
+@@ -49,7 +49,7 @@ export function EntityExportButton({
+         ? `${result.count} ردیف از ${result.total} — خروجی به سقف ۱۰۰۰ ردیف محدود شد.`
+         : `${result.count} سطر از ${EXPORT_LABELS[entity]} در قالب ${format.toUpperCase()} دانلود شد.`;
+       notify({
+-        tone: result.truncated ? "warn" : "success",
++        tone: result.truncated ? "warning" : "success",
+         title: result.truncated ? "خروجی با محدودیت" : "خروجی آماده شد",
+         detail,
+       });
+diff --git a/src/domains/export/definitions.ts b/src/domains/export/definitions.ts
+index 3f11c45..62d32a3 100644
+--- a/src/domains/export/definitions.ts
++++ b/src/domains/export/definitions.ts
+@@ -7,15 +7,15 @@
+  */
+ 
+ import { instrumentName } from "@/domains/instruments/catalog";
+-import type { Student, StudentListParams } from "@/domains/students/types";
+-import type { Teacher, TeacherListParams } from "@/domains/teachers/types";
+-import type { AcademyClass, ClassListParams } from "@/domains/classes/types";
+-import type { Enrollment, EnrollmentListParams } from "@/domains/enrollments/types";
+-import type { LibraryItem, LibraryListParams } from "@/domains/library/types";
+-import type { GalleryImage, GalleryImageListParams } from "@/domains/gallery/types";
+-import type { Session, SessionListParams } from "@/domains/scheduling/types";
+-import type { AttendanceRecord, AttendanceListParams } from "@/domains/attendance/types";
+-import type { SessionCompensation, CompensationListParams } from "@/domains/compensation/types";
++import type { Student } from "@/domains/students/types";
++import type { Teacher } from "@/domains/teachers/types";
++import type { AcademyClass } from "@/domains/classes/types";
++import type { Enrollment } from "@/domains/enrollments/types";
++import type { LibraryItem } from "@/domains/library/types";
++import type { GalleryImage } from "@/domains/gallery/types";
++import type { Session } from "@/domains/scheduling/types";
++import type { AttendanceRecord } from "@/domains/attendance/types";
++import type { SessionCompensation } from "@/domains/compensation/types";
+ import type { Page } from "@/api/types";
+ 
+ export interface ExportColumn<T> {
+diff --git a/src/domains/export/exportService.ts b/src/domains/export/exportService.ts
+index 35cf8d8..6a2883f 100644
+--- a/src/domains/export/exportService.ts
++++ b/src/domains/export/exportService.ts
+@@ -11,7 +11,6 @@
+  * column lists rather than `Object.entries(record)`, so a field added later
+  * cannot leak into a file by accident.
+  */
+-import { instrumentName } from "@/domains/instruments/catalog";
+ import {
+   getAttendanceRepository,
+   getClassRepository,
+@@ -25,7 +24,6 @@ import {
+   getTeacherRepository,
+ } from "@/domains/registry";
+ import { safeFilename, toCsv, toXlsx } from "@/domains/import/spreadsheet";
+-import { studentExportRows } from "@/domains/import/studentImport";
+ import type { Permission } from "@/domains/auth/permissions";
+ import {
+   attendanceColumns,
+diff --git a/src/domains/gallery/GalleryPanel.tsx b/src/domains/gallery/GalleryPanel.tsx
+index 2050718..4949206 100644
+--- a/src/domains/gallery/GalleryPanel.tsx
++++ b/src/domains/gallery/GalleryPanel.tsx
+@@ -20,7 +20,7 @@
+  * - no new route, same surface
+  */
+ import { useMemo, useRef, useState } from "react";
+-import { ImagePlus, Search, Trash2 } from "lucide-react";
++import { ImagePlus, Trash2 } from "lucide-react";
+ import { faNum } from "@/lib/format";
+ import { useApp } from "@/context/AppContext";
+ import { Button, Surface } from "@/components/ds/primitives";
+diff --git a/src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx b/src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx
+index f65c52a..342b1bc 100644
+--- a/src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx
++++ b/src/domains/gallery/__tests__/GalleryAlbumSwitch.test.tsx
+@@ -129,7 +129,11 @@ describe("switching albums never arms a delete against the previous album", () =
+     expect(selectedAlbumTitle()).toContain(albumA.title);
+ 
+     // The switch, sampled while the new album's read is still in flight.
+-    fireEvent.click(screen.getByRole("button", { name: (content, element) => content.includes(albumB.title) } as any));
++    fireEvent.click(
++      screen.getByRole("button", {
++        name: (content: string, _element: Element) => content.includes(albumB.title),
++      }),
++    );
+     expect(selectedAlbumTitle()).toContain(albumB.title);
+ 
+     for (let sample = 0; sample < 25; sample += 1) {
+diff --git a/src/domains/gallery/demoContent.ts b/src/domains/gallery/demoContent.ts
+index d550836..12aba18 100644
+--- a/src/domains/gallery/demoContent.ts
++++ b/src/domains/gallery/demoContent.ts
+@@ -14,6 +14,7 @@
+  */
+ import { DEMO_GALLERY_PHOTOS } from "@/domains/demo/gallerySeed";
+ import { getBlobStore, type BlobStore } from "@/domains/media/blobStore";
++import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
+ import { demoStore, type DemoStore } from "@/services/demoStore";
+ 
+ export interface DemoGalleryProvisionResult {
+@@ -28,6 +29,11 @@ export async function ensureDemoGalleryBytes(
+   store: DemoStore = demoStore,
+   blobs: BlobStore = getBlobStore(),
+ ): Promise<DemoGalleryProvisionResult> {
++  // Production lock — see the library counterpart: demo bytes are demo
++  // capability, refused at the service even if a call site forgets to gate.
++  if (!isDemoCapabilityAvailable()) {
++    return { status: "present", written: 0 };
++  }
+   let written = 0;
+   try {
+     for (const photo of DEMO_GALLERY_PHOTOS) {
+diff --git a/src/domains/gallery/useGallery.ts b/src/domains/gallery/useGallery.ts
+index 1281e73..6e0e7e8 100644
+--- a/src/domains/gallery/useGallery.ts
++++ b/src/domains/gallery/useGallery.ts
+@@ -5,9 +5,6 @@
+  * (`@/domains/media/useMedia`), which owns the object-URL lifetime for every
+  * stored file — gallery images, profile photos and library audio alike.
+  */
+-import { useEffect, useState } from "react";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+-import { ensureDemoGalleryBytes } from "./demoContent";
+ import { useResourceList, type ListState } from "@/domains/shared/useResource";
+ import { getGalleryRepository } from "@/domains/registry";
+ import type { AlbumListParams, GalleryAlbum, GalleryImage, GalleryImageListParams } from "./types";
+@@ -25,37 +22,3 @@ export function useGalleryImages(params: GalleryImageListParams = {}): ListState
+     params,
+   );
+ }
+-
+-/**
+- * The demo's showcase photographs, provisioned before the grid paints.
+- *
+- * `ensureDemoGalleryBytes` writes the bundled photos into the blob store; the
+- * grid waits for that ONE step so a tile never mounts against bytes that have
+- * not landed yet (a shimmer that resolves a frame later reads as a broken
+- * image). In API mode there is nothing to provision: the backend already owns
+- * the bytes, so the grid is ready on first paint.
+- */
+-export function useDemoGalleryBytes(): { settled: boolean; unavailable: boolean } {
+-  const demo = useIsDemoEnvironment();
+-  const [state, setState] = useState<{ settled: boolean; unavailable: boolean }>({
+-    settled: !demo,
+-    unavailable: false,
+-  });
+-
+-  useEffect(() => {
+-    if (!demo) return;
+-    let live = true;
+-    void ensureDemoGalleryBytes()
+-      .then((result) => {
+-        if (live) setState({ settled: true, unavailable: result.status === "unavailable" });
+-      })
+-      .catch(() => {
+-        if (live) setState({ settled: true, unavailable: true });
+-      });
+-    return () => {
+-      live = false;
+-    };
+-  }, [demo]);
+-
+-  return state;
+-}
+diff --git a/src/domains/import/ImportExportCenter.tsx b/src/domains/import/ImportExportCenter.tsx
+index 582a720..a23cddf 100644
+--- a/src/domains/import/ImportExportCenter.tsx
++++ b/src/domains/import/ImportExportCenter.tsx
+@@ -151,7 +151,7 @@ export function ImportExportCenter() {
+         ? `${result.count} ردیف از ${result.total} — خروجی به سقف ۱۰۰۰ ردیف محدود شد. برای مجموعه‌های بزرگ، سرور باید صفحه‌بندی کند.`
+         : `${result.count} سطر از ${EXPORT_LABELS[exportEntityName]} در قالب ${exportFormat.toUpperCase()} دانلود شد.`;
+       notify({
+-        tone: result.truncated ? "warn" : "success",
++        tone: result.truncated ? "warning" : "success",
+         title: result.truncated ? "خروجی با محدودیت" : "خروجی آماده شد",
+         detail,
+       });
+diff --git a/src/domains/index.ts b/src/domains/index.ts
+index 520d3f4..b4a9f23 100644
+--- a/src/domains/index.ts
++++ b/src/domains/index.ts
+@@ -1,2 +1,2 @@
+ export { demoDataManager } from "./demo";
+-export { getApiClient, getStudentRepository, resetRegistry, setAuthToken, setStudentRepository } from "./registry";
++export { getApiClient, getStudentRepository, resetRegistry, setAuthToken, setStudentRepository } from "@/domains/registry";
+diff --git a/src/domains/instruments/InstrumentsPanel.tsx b/src/domains/instruments/InstrumentsPanel.tsx
+index 93fec0f..a1a3caa 100644
+--- a/src/domains/instruments/InstrumentsPanel.tsx
++++ b/src/domains/instruments/InstrumentsPanel.tsx
+@@ -15,7 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+ import { ListRow, Panel } from "@/components/ds/patterns";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { getInstrumentRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { InstrumentFormDialog } from "./InstrumentFormDialog";
+ import { useInstruments } from "./useInstruments";
+ import type { InstrumentRecord } from "./types";
+diff --git a/src/domains/library/__tests__/useLibrary.test.tsx b/src/domains/library/__tests__/useLibrary.test.tsx
+index 9188cad..e73d49a 100644
+--- a/src/domains/library/__tests__/useLibrary.test.tsx
++++ b/src/domains/library/__tests__/useLibrary.test.tsx
+@@ -27,7 +27,8 @@ import { demoStore } from "@/services/demoStore";
+ import { ensureDemoLibraryFile } from "../demoContent";
+ import type { LibraryRepository } from "../repository";
+ import type { LibraryListParams } from "../types";
+-import { useDemoLibraryFile, useLibraryFile, useLibraryList } from "../useLibrary";
++import { useLibraryFile, useLibraryList } from "../useLibrary";
++import { useDemoLibraryFile } from "@/targets/libraryProvisioning";
+ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+ 
+ const wrapper = ({ children }: { children: ReactNode }) => <AppProvider>{children}</AppProvider>;
+diff --git a/src/domains/library/demoContent.ts b/src/domains/library/demoContent.ts
+index 311db17..f6560b6 100644
+--- a/src/domains/library/demoContent.ts
++++ b/src/domains/library/demoContent.ts
+@@ -24,6 +24,7 @@ import {
+   demoLibraryFileBytes,
+ } from "@/domains/demo/librarySeed";
+ import { getBlobStore, type BlobStore } from "@/domains/media/blobStore";
++import { isDemoCapabilityAvailable } from "@/api/deploymentLock";
+ import { demoStore, type DemoStore } from "@/services/demoStore";
+ 
+ export interface DemoFileProvisionResult {
+@@ -47,6 +48,12 @@ export async function ensureDemoLibraryFile(
+   store: DemoStore = demoStore,
+   blobs: BlobStore = getBlobStore(),
+ ): Promise<DemoFileProvisionResult> {
++  // Production lock: demo provisioning is a demo capability, not a UI detail.
++  // The environment is empty after delivery, so there is no row to link anyway
++  // — but the guard makes the refusal explicit and independent of that fact.
++  if (!isDemoCapabilityAvailable()) {
++    return { status: "present", bytesWritten: false, metadataWritten: false, linked: false };
++  }
+   let bytesWritten = false;
+   let metadataWritten = false;
+   let linked = false;
+diff --git a/src/domains/library/useLibrary.ts b/src/domains/library/useLibrary.ts
+index 0216659..2d04ef4 100644
+--- a/src/domains/library/useLibrary.ts
++++ b/src/domains/library/useLibrary.ts
+@@ -10,45 +10,10 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { apiErrorFromThrown, type ApiError } from "@/api/errors";
+ import { downloadBlobFile } from "@/lib/download";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+ import { getLibraryRepository, getMediaRepository } from "@/domains/registry";
+ import { useResourceList, type ListState, type Paged } from "@/domains/shared/useResource";
+-import { ensureDemoLibraryFile } from "./demoContent";
+ import type { LibraryFileState, LibraryItem, LibraryListParams } from "./types";
+ 
+-/**
+- * Provisions the demo library file — in a DEMO environment only.
+- *
+- * The dataset can carry the file's metadata but not its bytes (a pure,
+- * synchronous seed cannot write to a blob store), so the bytes are written here,
+- * at bootstrap, by the one function that owns that job.
+- *
+- * THIS IS THE SINGLE DEMO-CONTENT CALL SITE. It is deliberately a hook of its
+- * own rather than a line buried in the view, so the lifecycle boundary decides
+- * *whether* demo content is provisioned at all — the Library domain, the
+- * repository and `Library.tsx` know nothing about environment modes.
+- *
+- * GATED ON THE PERSISTED LIFECYCLE STATE, not on how many rows exist:
+- *  - EMPTY (a real customer environment) never receives `res1`, `md_demo_res1`
+- *    or the demo blob — no demo bytes are written into a customer's browser;
+- *  - `api` mode never receives them either (`isDemoEnvironment()` is false
+- *    whenever the data source is a real backend);
+- *  - DEMO provisions them, and re-provisions if the environment is later reset
+- *    to the canonical dataset, because the hook subscribes to persistence.
+- *
+- * Failures are not thrown and not swallowed silently either: if the blob store
+- * cannot hold the bytes, `useLibraryFile` reports the record as `missing` and
+- * the UI says the file is unavailable, which is the honest outcome.
+- */
+-export function useDemoLibraryFile(): void {
+-  const demo = useIsDemoEnvironment();
+-
+-  useEffect(() => {
+-    if (!demo) return;
+-    void ensureDemoLibraryFile();
+-  }, [demo]);
+-}
+-
+ /** The catalogue list. `per_page` is required at the type level (see `Paged`). */
+ export function useLibraryList(params: Paged<LibraryListParams>): ListState<LibraryItem> {
+   const loader = useCallback(
+diff --git a/src/domains/organization/SessionRulesPanel.tsx b/src/domains/organization/SessionRulesPanel.tsx
+index 274fdbc..78bb4cc 100644
+--- a/src/domains/organization/SessionRulesPanel.tsx
++++ b/src/domains/organization/SessionRulesPanel.tsx
+@@ -26,7 +26,7 @@ import { useEffect, useState } from "react";
+ import { RotateCcw } from "lucide-react";
+ import { useApp } from "@/context/AppContext";
+ import { useCan } from "@/domains/auth/AuthContext";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { Button, StatusBadge } from "@/components/ds/primitives";
+ import { Field, Panel, inputCls } from "@/components/ds/patterns";
+ import { LoadingState, ErrorState } from "@/components/ds/states";
+diff --git a/src/domains/organization/WorkingHoursPanel.tsx b/src/domains/organization/WorkingHoursPanel.tsx
+index ecef39c..14ef52c 100644
+--- a/src/domains/organization/WorkingHoursPanel.tsx
++++ b/src/domains/organization/WorkingHoursPanel.tsx
+@@ -23,7 +23,7 @@ import { useEffect, useState } from "react";
+ import { RotateCcw } from "lucide-react";
+ import { useApp } from "@/context/AppContext";
+ import { useCan } from "@/domains/auth/AuthContext";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { WEEKDAYS, WEEKDAYS_SHORT } from "@/domains/scheduling/weekdays";
+ import { Button, StatusBadge } from "@/components/ds/primitives";
+ import { Field, Panel, inputCls } from "@/components/ds/patterns";
+diff --git a/src/domains/progress/RepertoirePanel.tsx b/src/domains/progress/RepertoirePanel.tsx
+index 7ca121e..09e5ed2 100644
+--- a/src/domains/progress/RepertoirePanel.tsx
++++ b/src/domains/progress/RepertoirePanel.tsx
+@@ -15,7 +15,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+ import { Chip, ListRow, Panel } from "@/components/ds/patterns";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { getProgressRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { instrumentName, useInstrumentCatalog } from "@/domains/instruments/catalog";
+ import { PieceFormDialog } from "./PieceFormDialog";
+ import { usePieces } from "./useProgress";
+diff --git a/src/domains/registry.ts b/src/domains/registry.ts
+index 392f09f..3fd6a95 100644
+--- a/src/domains/registry.ts
++++ b/src/domains/registry.ts
+@@ -1,9 +1,9 @@
+-import { ApiClient } from "@/api/client";
+-import { getRuntimeConfig } from "@/api/config";
+ import { ApiAuthRepository } from "./auth/apiAuthRepository";
+ import { DemoAuthRepository } from "./auth/demoAuthRepository";
+-import { ApiUserRepository, DemoUserRepository } from "./auth/userRepository";
+-import { ApiRoleRepository, DemoRoleRepository } from "./auth/roleRepository";
++import { ApiUserRepository } from "./auth/userRepository";
++import { DemoUserRepository } from "./auth/demoUserRepository";
++import { ApiRoleRepository } from "./auth/roleRepository";
++import { DemoRoleRepository } from "./auth/demoRoleRepository";
+ import type { RoleRepository } from "./auth/roleRepository";
+ import type { AuthRepository, UserRepository } from "./auth/repository";
+ import { ApiStudentRepository } from "./students/apiRepository";
+@@ -52,52 +52,42 @@ import { DemoCompensationRepository } from "@/domains/compensation/demoRepositor
+  * concrete class.
+  */
+ 
+-let client: ApiClient | null = null;
+-let authToken: string | null = null;
+-
+-interface Overrides {
+-  students?: StudentRepository;
+-  teachers?: TeacherRepository;
+-  rooms?: RoomRepository;
+-  classes?: ClassRepository;
+-  enrollments?: EnrollmentRepository;
+-  auth?: AuthRepository;
+-  users?: UserRepository;
+-  roles?: RoleRepository;
+-  instruments?: InstrumentRepository;
+-  learning?: LearningRepository;
+-  chat?: ChatRepository;
+-  media?: MediaRepository;
+-  library?: LibraryRepository;
+-  branding?: BrandingRepository;
+-  organization?: OrganizationRepository;
+-  gallery?: GalleryRepository;
+-  progress?: ProgressRepository;
+-  scheduling?: SchedulingRepository;
+-  attendance?: AttendanceRepository;
+-  compensation?: CompensationRepository;
+-}
+-const overrides: Overrides = {};
+-
+-const isApiMode = (): boolean => getRuntimeConfig().mode === "api";
++/*
++  Composition root — DEMO target.
+ 
+-export function getApiClient(): ApiClient {
+-  if (!client) {
+-    client = new ApiClient({
+-      baseUrl: getRuntimeConfig().apiBaseUrl,
+-      getToken: () => authToken,
+-      onUnauthenticated: () => {
+-        authToken = null;
+-      },
+-    });
+-  }
+-  return client;
+-}
++  The shared half (ApiClient, auth token, override seams, reset) lives in
++  `./registryCore` so the client composition (`./registry.client.ts`) can reuse
++  it WITHOUT inheriting a single demo repository import. This file is the demo
++  composition: selection below may resolve Demo repositories; the client
++  composition never does (no demo fallback — see registry.client.ts).
++*/
++import { coreOverrides as overrides, coreIsApiMode as isApiMode, getApiClient, setAuthToken } from "./registryCore";
+ 
+-/** Auth integration point — called by the auth domain after login/refresh. */
+-export function setAuthToken(token: string | null): void {
+-  authToken = token;
+-}
++export {
++  getApiClient,
++  setAuthToken,
++  setProgressRepository,
++  setSchedulingRepository,
++  setAttendanceRepository,
++  setCompensationRepository,
++  setInstrumentRepository,
++  setLearningRepository,
++  setChatRepository,
++  setMediaRepository,
++  setLibraryRepository,
++  setBrandingRepository,
++  setOrganizationRepository,
++  setGalleryRepository,
++  setStudentRepository,
++  setTeacherRepository,
++  setRoomRepository,
++  setClassRepository,
++  setEnrollmentRepository,
++  setAuthRepository,
++  setUserRepository,
++  setRoleRepository,
++  resetRegistry,
++} from "./registryCore";
+ 
+ export function getStudentRepository(): StudentRepository {
+   if (overrides.students) return overrides.students;
+@@ -328,91 +318,3 @@ function attendancePresence(): ReadonlySet<string> | undefined {
+     return undefined;
+   }
+ }
+-
+-/* Test seams: inject fakes. Pass `undefined` to restore the real selection. */
+-export function setProgressRepository(repository: ProgressRepository | undefined): void {
+-  overrides.progress = repository;
+-}
+-export function setSchedulingRepository(repository: SchedulingRepository | undefined): void {
+-  overrides.scheduling = repository;
+-}
+-export function setAttendanceRepository(repository: AttendanceRepository | undefined): void {
+-  overrides.attendance = repository;
+-}
+-export function setCompensationRepository(repository: CompensationRepository | undefined): void {
+-  overrides.compensation = repository;
+-}
+-export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
+-  overrides.instruments = repository;
+-}
+-export function setLearningRepository(repository: LearningRepository | undefined): void {
+-  overrides.learning = repository;
+-}
+-export function setChatRepository(repository: ChatRepository | undefined): void {
+-  overrides.chat = repository;
+-}
+-export function setMediaRepository(repository: MediaRepository | undefined): void {
+-  overrides.media = repository;
+-}
+-export function setLibraryRepository(repository: LibraryRepository | undefined): void {
+-  overrides.library = repository;
+-}
+-export function setBrandingRepository(repository: BrandingRepository | undefined): void {
+-  overrides.branding = repository;
+-}
+-export function setOrganizationRepository(repository: OrganizationRepository | undefined): void {
+-  overrides.organization = repository;
+-}
+-export function setGalleryRepository(repository: GalleryRepository | undefined): void {
+-  overrides.gallery = repository;
+-}
+-export function setStudentRepository(repository: StudentRepository | undefined): void {
+-  overrides.students = repository;
+-}
+-export function setTeacherRepository(repository: TeacherRepository | undefined): void {
+-  overrides.teachers = repository;
+-}
+-export function setRoomRepository(repository: RoomRepository | undefined): void {
+-  overrides.rooms = repository;
+-}
+-export function setClassRepository(repository: ClassRepository | undefined): void {
+-  overrides.classes = repository;
+-}
+-export function setEnrollmentRepository(repository: EnrollmentRepository | undefined): void {
+-  overrides.enrollments = repository;
+-}
+-export function setAuthRepository(repository: AuthRepository | undefined): void {
+-  overrides.auth = repository;
+-}
+-export function setUserRepository(repository: UserRepository | undefined): void {
+-  overrides.users = repository;
+-}
+-export function setRoleRepository(repository: RoleRepository | undefined): void {
+-  overrides.roles = repository;
+-}
+-
+-/** Drops memoized instances (used after `setRuntimeConfig`). */
+-export function resetRegistry(): void {
+-  client = null;
+-  authToken = null;
+-  overrides.students = undefined;
+-  overrides.teachers = undefined;
+-  overrides.rooms = undefined;
+-  overrides.classes = undefined;
+-  overrides.enrollments = undefined;
+-  overrides.auth = undefined;
+-  overrides.users = undefined;
+-  overrides.roles = undefined;
+-  overrides.instruments = undefined;
+-  overrides.progress = undefined;
+-  overrides.learning = undefined;
+-  overrides.chat = undefined;
+-  overrides.media = undefined;
+-  overrides.library = undefined;
+-  overrides.branding = undefined;
+-  overrides.organization = undefined;
+-  overrides.gallery = undefined;
+-  overrides.scheduling = undefined;
+-  overrides.attendance = undefined;
+-  overrides.compensation = undefined;
+-}
+diff --git a/src/domains/rooms/RoomsPanel.tsx b/src/domains/rooms/RoomsPanel.tsx
+index 082310d..5097274 100644
+--- a/src/domains/rooms/RoomsPanel.tsx
++++ b/src/domains/rooms/RoomsPanel.tsx
+@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+ import { ListRow, Panel } from "@/components/ds/patterns";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { getRoomRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { RoomFormDialog } from "./RoomFormDialog";
+ import { useRooms } from "./useRooms";
+ import type { Room } from "./types";
+diff --git a/src/domains/rooms/useRooms.ts b/src/domains/rooms/useRooms.ts
+index f153715..3221c49 100644
+--- a/src/domains/rooms/useRooms.ts
++++ b/src/domains/rooms/useRooms.ts
+@@ -1,5 +1,5 @@
+ import { useCallback, useMemo, useState } from "react";
+-import { getRoomRepository } from "../registry";
++import { getRoomRepository } from "@/domains/registry";
+ import { useResourceList } from "../shared/useResource";
+ import type { CreateRoomInput, Room, RoomListParams, UpdateRoomInput } from "./types";
+ 
+diff --git a/src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx b/src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx
+index 379a369..5fc8a6d 100644
+--- a/src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx
++++ b/src/domains/shared/__tests__/metricsFailureDisclosure.test.tsx
+@@ -30,7 +30,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
+ import { AppProvider } from "@/context/AppContext";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { demoStore, memoryStorage } from "@/services/demoStore";
+ import {
+   getAttendanceRepository,
+diff --git a/src/domains/shared/dataVersion.ts b/src/domains/shared/dataVersion.ts
+index 382493e..6384828 100644
+--- a/src/domains/shared/dataVersion.ts
++++ b/src/domains/shared/dataVersion.ts
+@@ -12,12 +12,14 @@
+  * future backend makes re-reads expensive, this is the one place to add
+  * per-collection granularity.
+  *
+- * Views never import DemoStore. In demo mode the store's write notification
+- * drives this; in API mode nothing subscribes and mutations bump it directly
+- * via `bumpDataVersion`, so the same hooks work in both environments.
++ * Views never import DemoStore — and neither does THIS module any more: the
++ * demo-store subscription is installed by the target seam
++ * (`src/targets/environment.tsx`) at module scope, so the shared invalidation
++ * primitive stays dependency-free and the client build cannot pull the demo
++ * store in through every list hook. Outside the demo composition, mutations
++ * bump the version directly via `bumpDataVersion`.
+  */
+ import { useSyncExternalStore } from "react";
+-import { demoStore } from "@/services/demoStore";
+ 
+ let version = 0;
+ const listeners = new Set<() => void>();
+@@ -49,10 +51,6 @@ function subscribe(listener: () => void): () => void {
+   };
+ }
+ 
+-// Demo persistence is one source of version bumps. Subscribing once at module
+-// scope keeps the wiring in a single place instead of in every hook.
+-demoStore.subscribe(bumpDataVersion);
+-
+ /**
+  * Re-renders the caller whenever persisted data changes. Pass the result into
+  * a list hook's `revision` argument to make it re-read.
+diff --git a/src/domains/students/index.ts b/src/domains/students/index.ts
+index 4c4ebb9..3475d67 100644
+--- a/src/domains/students/index.ts
++++ b/src/domains/students/index.ts
+@@ -7,7 +7,6 @@ export type {
+   StudentStatus,
+   UpdateStudentInput,
+ } from "./types";
+-export { DemoStudentRepository } from "./demoRepository";
+ export { ApiStudentRepository, toQuery as studentListQuery } from "./apiRepository";
+ export { useStudentList, useStudent } from "./useStudents";
+ export type { StudentListState, StudentDetailState } from "./useStudents";
+diff --git a/src/domains/teachers/useTeachers.ts b/src/domains/teachers/useTeachers.ts
+index c62078b..611b6bd 100644
+--- a/src/domains/teachers/useTeachers.ts
++++ b/src/domains/teachers/useTeachers.ts
+@@ -1,6 +1,6 @@
+ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+ import { ApiError, apiErrorFromThrown } from "@/api/errors";
+-import { getTeacherRepository } from "../registry";
++import { getTeacherRepository } from "@/domains/registry";
+ import { useDataVersion } from "../shared/dataVersion";
+ import { useResourceList } from "../shared/useResource";
+ import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput } from "./types";
+diff --git a/src/env.d.ts b/src/env.d.ts
+index c86e2b0..a97a08d 100644
+--- a/src/env.d.ts
++++ b/src/env.d.ts
+@@ -5,6 +5,16 @@ interface ImportMetaEnv {
+   readonly VITE_API_BASE_URL?: string;
+ }
+ 
++/**
++ * Build-time composition target, injected by `vite.config.ts`
++ * (`APP_TARGET=client` → "client", otherwise "demo"). The ALIASES do the
++ * heavy lifting (which target FILES get bundled); this constant lets runtime
++ * configuration distinguish the compositions too — e.g. an unset data source
++ * means "API" in the client build (no demo fallback exists there) and "demo"
++ * in the demo build/dev server.
++ */
++declare const __APP_TARGET__: "demo" | "client";
++
+ interface ImportMeta {
+   readonly env: ImportMetaEnv;
+ }
+diff --git a/src/services/demoStore.ts b/src/services/demoStore.ts
+index 0410a03..e3fe800 100644
+--- a/src/services/demoStore.ts
++++ b/src/services/demoStore.ts
+@@ -40,6 +40,49 @@ export const DEMO_STORAGE_KEY = "ava:demo:dataset";
+  * from one environment into another by a restore.
+  */
+ export const LIFECYCLE_STORAGE_KEY = "ava:demo:lifecycle";
++/**
++ * Dataset provenance — explicit ownership/identity metadata (Phase 2A).
++ *
++ * The lifecycle marker answers "what KIND of environment is this?"; the
++ * provenance stamp answers "whose records are in this dataset, and which
++ * environment are they?" with a stable `datasetId`. Delivery uses BOTH: they
++ * must AGREE before any dataset is removed (disagreement = ownership conflict
++ * → fail closed, preserve everything, park the delivery in pending/recovery).
++ *
++ * It lives INSIDE the dataset payload as a top-level `provenance` field — not
++ * as a third storage key. The store's persistence contract (asserted by
++ * demoDataManager's "single localStorage key for data" test) is exactly two
++ * keys: the serialized dataset and the mode marker. A sidecar key would break
++ * that invariant for metadata that belongs WITH the dataset anyway: it
++ * travels with restores (round-trips through backups), dies with the dataset
++ * (a deleted dataset cannot claim ownership it no longer holds), and needs no
++ * extra write path. Absence on a legacy payload is reported as absence —
++ * delivery then trusts the marker alone; a present-but-corrupt value is
++ * unproven → preserve.
++ */
++export interface DatasetProvenance {
++  version: 1;
++  /** Stable id minted when the environment was created/adopted. */
++  datasetId: string;
++  owner: "demo" | "customer";
++  origin: "seed" | "first-run" | "adopted" | "import";
++  seedVersion?: string;
++  createdAt: string;
++}
++
++/**
++ * A raw probe result that distinguishes ABSENT (readable, value null) from
++ * UNREADABLE (the read itself failed). Delivery's fail-closed ownership check
++ * treats those differently: absent can mean "nothing to remove", unreadable
++ * always means "cannot prove — preserve".
++ */
++export type StoragePeek = { readable: true; value: string | null } | { readable: false };
++
++export type ProvenanceRead =
++  | { kind: "absent" }
++  | { kind: "valid"; value: DatasetProvenance }
++  | { kind: "corrupt" };
++
+ const STORAGE_PREFIX = "ava:demo:";
+ 
+ export interface StorageLike {
+@@ -80,6 +123,28 @@ export function memoryStorage(): StorageLike {
+  * none to lose. Prototype-polluting keys are stripped before the shape check, so
+  * a hostile payload cannot smuggle inherited properties into the answer.
+  */
++export function isUsableDatasetPayload(raw: string): boolean { return isUsablePayload(raw); }
++
++/** A copy of `dataset` with a provenance stamp (datasetId/createdAt preserved). */
++export function stampDatasetProvenance(
++  dataset: DemoDataset,
++  owner: "demo" | "customer",
++  origin: DatasetProvenance["origin"],
++  existing?: DatasetProvenance,
++): DemoDataset & { provenance: DatasetProvenance } {
++  return {
++    ...dataset,
++    provenance: {
++      version: 1,
++      datasetId: existing?.datasetId ?? nextId("ds_"),
++      owner,
++      origin,
++      ...(existing?.seedVersion ? { seedVersion: existing.seedVersion } : {}),
++      createdAt: existing?.createdAt ?? new Date().toISOString(),
++    },
++  };
++}
++
+ function isUsablePayload(raw: string): boolean {
+   try {
+     const parsed: unknown = stripPrototypeKeys(JSON.parse(raw) as unknown);
+@@ -187,7 +252,32 @@ function hasOrganizationRules(organization: Partial<OrganizationSettings>): bool
+ }
+ 
+ export class DemoStoreImpl {
+-  constructor(private readonly storage: StorageLike = safeStorage() ?? memoryStorage()) {}
++  #injected?: StorageLike;
++  #resolved?: StorageLike;
++
++  /**
++   * Storage is resolved LAZILY, on first access.
++   *
++   * Two reasons, both load-bearing: (1) `safeStorage()` PROBES localStorage —
++   * running that inside the constructor would make every `new` a storage
++   * side effect; (2) the module-scope singleton below must be *constructible
++   * without observable effects* so a build that never binds it (the CLIENT
++   * composition, which imports this module transitively through co-located
++   * Api/Demo files) can drop the whole graph — annotated `/* @__PURE__ *\/`
++   * and honest. The eager constructor was exactly how the demo store, seed and
++   * backup leaked into the client bundle despite every import being unused.
++   *
++   * An explicit storage argument (tests, delivery probes) is still honoured:
++   * it is kept as the injection and resolved on first use.
++   */
++  constructor(storage?: StorageLike) {
++    this.#injected = storage;
++  }
++
++  private get storage(): StorageLike {
++    this.#resolved ??= this.#injected ?? safeStorage() ?? memoryStorage();
++    return this.#resolved;
++  }
+ 
+   /**
+    * Write notification.
+@@ -289,8 +379,19 @@ export class DemoStoreImpl {
+    * writes the marker itself.)
+    */
+   replace(dataset: DemoDataset): void {
+-    if (this.readLifecycleMarker() === null) this.storage.setItem(LIFECYCLE_STORAGE_KEY, "empty");
+-    this.write(dataset);
++    const creating = this.readLifecycleMarker() === null;
++    if (creating) this.storage.setItem(LIFECYCLE_STORAGE_KEY, "empty");
++    // A first write into an unmarked store CREATES a customer environment:
++    // the visitor's own records are customer-owned from the first byte — stamp
++    // that here, when the environment comes into being. Incoming datasets that
++    // already carry provenance (restores, imports) keep theirs untouched, and
++    // a legacy environment without provenance is deliberately left without:
++    // absence is reported as absence, never faked.
++    const stamped =
++      creating && !("provenance" in dataset)
++        ? stampDatasetProvenance(dataset, "customer", "first-run")
++        : dataset;
++    this.write(stamped);
+     this.emit();
+   }
+ 
+@@ -305,10 +406,87 @@ export class DemoStoreImpl {
+    */
+   initializeEnvironment(mode: DataLifecycleMode, dataset: DemoDataset): void {
+     this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
+-    this.write(dataset);
++    // Ownership metadata rides INSIDE the payload (still exactly two keys).
++    // The only interruptible intermediate is marker-only (UNINITIALIZED
++    // recovery) — safe for delivery, which treats a marker without a dataset
++    // as "nothing to delete".
++    this.write(
++      stampDatasetProvenance(dataset, mode === "demo" ? "demo" : "customer", mode === "demo" ? "seed" : "first-run"),
++    );
+     this.emit();
+   }
+ 
++  /* ---------------- raw probes (delivery/ownership) ---------------- */
++
++  /**
++   * The raw persisted dataset string, or null. NEVER writes, never migrates —
++   * delivery's ownership evaluation must observe storage exactly as it is, so
++   * a read path that could repair-and-write (as `snapshot()` may) is unusable
++   * there. Raw bytes are useless until proven readable, which is precisely the
++   * fail-closed question delivery asks.
++   */
++  peekDatasetPayload(): StoragePeek {
++    try {
++      return { readable: true, value: this.storage.getItem(DEMO_STORAGE_KEY) };
++    } catch {
++      return { readable: false };
++    }
++  }
++
++  /** The raw persisted lifecycle marker string, or null. Read-only. */
++  peekLifecycleMarkerValue(): StoragePeek {
++    try {
++      return { readable: true, value: this.storage.getItem(LIFECYCLE_STORAGE_KEY) };
++    } catch {
++      return { readable: false };
++    }
++  }
++
++  /* ---------------- dataset provenance ---------------- */
++
++  /**
++   * Explicit ownership metadata, read from the dataset's top-level field.
++   * Defensive: storage is user-editable, so anything that does not parse into
++   * the exact shape is reported `corrupt` — never coerced into a guess.
++   */
++  readProvenance(): ProvenanceRead {
++    const peek = this.peekDatasetPayload();
++    if (!peek.readable || peek.value === null) return { kind: "absent" };
++    if (!isUsablePayload(peek.value)) return { kind: "corrupt" };
++    try {
++      const parsed = JSON.parse(peek.value) as { provenance?: unknown };
++      const p = parsed.provenance;
++      if (p === undefined || p === null) return { kind: "absent" };
++      if (typeof p !== "object" || Array.isArray(p)) return { kind: "corrupt" };
++      const rec = p as Record<string, unknown>;
++      const ok =
++        rec.version === 1 &&
++        typeof rec.datasetId === "string" &&
++        rec.datasetId.length > 0 &&
++        (rec.owner === "demo" || rec.owner === "customer") &&
++        (rec.origin === "seed" || rec.origin === "first-run" || rec.origin === "adopted" || rec.origin === "import") &&
++        typeof rec.createdAt === "string";
++      if (!ok) return { kind: "corrupt" };
++      return { kind: "valid", value: rec as unknown as DatasetProvenance };
++    } catch {
++      return { kind: "corrupt" };
++    }
++  }
++
++  /**
++   * Stamps provenance onto the CURRENT dataset, keeping `datasetId` and
++   * `createdAt` when one exists. No-op when no readable dataset is present.
++   */
++  syncProvenance(owner: "demo" | "customer", origin: DatasetProvenance["origin"]): void {
++    const peek = this.peekDatasetPayload();
++    if (!peek.readable || peek.value === null || !isUsablePayload(peek.value)) return;
++    const current = this.readProvenance();
++    const existing = current.kind === "valid" ? current.value : undefined;
++    const dataset = JSON.parse(peek.value) as DemoDataset & { provenance?: DatasetProvenance };
++    dataset.provenance = stampDatasetProvenance({} as DemoDataset, owner, origin, existing).provenance;
++    this.write(dataset);
++  }
++
+   /* ---------------- lifecycle marker ---------------- */
+ 
+   /** The persisted marker, or `null` when no lifecycle choice has been made. */
+@@ -321,7 +499,15 @@ export class DemoStoreImpl {
+       : null;
+   }
+ 
+-  /** Records the environment's mode. Notifies, because the app gates on it. */
++  /**
++   * Records the environment's mode. Notifies, because the app gates on it.
++   *
++   * Deliberately does NOT touch the dataset — mode is metadata, and a marker
++   * write must never modify records (contract: dataLifecycle's "records a mode
++   * without touching the dataset"). Ownership stamps are written by the
++   * operations that INSTALL data (`initializeEnvironment`, `applyDataset`),
++   * where the dataset is being written anyway.
++   */
+   writeLifecycleMarker(mode: DataLifecycleMode): void {
+     if (this.readLifecycleMarker() === mode) return;
+     this.storage.setItem(LIFECYCLE_STORAGE_KEY, mode);
+@@ -352,6 +538,8 @@ export class DemoStoreImpl {
+   reset(): void {
+     this.storage.removeItem(DEMO_STORAGE_KEY);
+     this.storage.removeItem(LIFECYCLE_STORAGE_KEY);
++    // Provenance needs no cleanup: it lives inside the payload just deleted —
++    // a removed dataset cannot keep claiming ownership it no longer holds.
+     this.emit();
+   }
+ 
+@@ -578,6 +766,6 @@ type ArrayCollection =
+ 
+ export type StudentDraft = Omit<Student, "id">;
+ 
+-export const demoStore = new DemoStoreImpl();
++export const demoStore = /* @__PURE__ */ new DemoStoreImpl();
+ 
+ export type DemoStore = DemoStoreImpl;
+diff --git a/src/test/setup.ts b/src/test/setup.ts
+index 0a70da4..0ae356c 100644
+--- a/src/test/setup.ts
++++ b/src/test/setup.ts
+@@ -10,6 +10,17 @@
+  */
+ import { beforeEach } from "vitest";
+ 
++/*
++  The demo target's data-version bridge.
++  In the app this subscription is installed by `src/targets/environment.tsx`
++  when the demo composition loads (module scope). Vitest does not render the
++  shell before domain tests write through repositories, so the SAME wiring is
++  installed here — the test environment mirrors the demo composition exactly,
++  and the shared `dataVersion` module stays dependency-free for the client
++  build.
++*/
++import "@/targets/environment";
++
+ beforeEach(() => {
+   if (typeof window !== "undefined") window.history.replaceState(null, "", "/");
+ });
+diff --git a/src/views/Classes.tsx b/src/views/Classes.tsx
+index 84b8999..57dd048 100644
+--- a/src/views/Classes.tsx
++++ b/src/views/Classes.tsx
+@@ -26,7 +26,7 @@ import { useLevels, usePrograms } from "@/domains/learning/useLearning";
+ import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
+ import { EnrollmentDialog } from "@/domains/enrollments/EnrollmentDialog";
+ import { getClassRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDay";
+ import { indexById } from "@/views/relations/indexById";
+@@ -693,9 +693,6 @@ function ClassesRoster({
+ /* ------------------------------------------------------------------ */
+ export function ClassesView() {
+   const { detailId, navigate, notify } = useApp();
+-  let user: any = null;
+-  try { user = useAuth().user; } catch { user = null; }
+-  const canWriteClasses = useCan("classes.write") || !user;
+   const demoEnvironment = useIsDemoEnvironment();
+   // Repository-backed. Archived classes are excluded by the repository unless
+   // explicitly requested.
+diff --git a/src/views/Dashboard.tsx b/src/views/Dashboard.tsx
+index 275b927..08ab445 100644
+--- a/src/views/Dashboard.tsx
++++ b/src/views/Dashboard.tsx
+@@ -16,7 +16,8 @@ import { Attention, QuickActions, TodayFlow } from "@/components/panels/Attentio
+ import { Intelligence } from "@/components/panels/Intelligence";
+ import { BusinessIntelligence, EcosystemStrip } from "@/components/panels/BusinessIntelligence";
+ import { SectionHeader, Surface } from "@/components/ds/primitives";
+-import { DemoNote, ErrorState } from "@/components/ds/states";
++import { ErrorState } from "@/components/ds/states";
++import { DemoNote } from "@/targets/environment";
+ import { EntityExportButton } from "@/domains/export/EntityExportButton";
+ import { Button } from "@/components/ds/primitives";
+ import { Panel, Field, inputCls } from "@/components/ds/patterns";
+diff --git a/src/views/DesignSystemView.tsx b/src/views/DesignSystemView.tsx
+index 2770cf2..f13e6f3 100644
+--- a/src/views/DesignSystemView.tsx
++++ b/src/views/DesignSystemView.tsx
+@@ -14,7 +14,8 @@ import {
+ import { AlertItem, InsightItem, IntelligenceCardView, NavItem, QuickAction, SignalBlock, TimelineEvent } from "@/components/ds/blocks";
+ import { Avatar, Chip, DataTable, Dialog, Drawer, Field, FilterBar, ListRow, Meter, PageHeader, ProgressRing, SearchInput, Segmented, StatStrip, Tabs, Toggle, inputCls } from "@/components/ds/patterns";
+ import { Button, Delta, InstrumentGlyph, Kbd, Sparkline, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
+-import { BreathingWave, DemoNote, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
++import { BreathingWave, EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
++import { DemoNote } from "@/targets/environment";
+ import { CommandSearchTrigger } from "@/components/layout/TopBar";
+ import { useApp } from "@/context/AppContext";
+ import { cn } from "@/utils/cn";
+diff --git a/src/views/Finance.tsx b/src/views/Finance.tsx
+index 99aa43e..998957a 100644
+--- a/src/views/Finance.tsx
++++ b/src/views/Finance.tsx
+@@ -1,7 +1,8 @@
+ import { Download, Info, Plus, Wallet2 } from "lucide-react";
+ import { useApp } from "@/context/AppContext";
+ import { Button } from "@/components/ds/primitives";
+-import { DemoNote } from "@/components/ds/states";
++import { DemoNote } from "@/targets/environment";
++import { financeDeferredNote } from "@/targets/targetCopy";
+ import { PageHeader, Panel } from "@/components/ds/patterns";
+ 
+ /* ------------------------------------------------------------------ */
+@@ -63,7 +64,7 @@ export function FinanceView() {
+         </div>
+       </Panel>
+ 
+-      <DemoNote className="mt-6" text="ثبت پرداخت از اقدام‌های سریع دمو باز می‌شود و داده‌ای ذخیره نمی‌کند؛ نمایش فاکتورها و اشتراک‌ها به قرارداد سرور نیاز دارد." />
++      <DemoNote className="mt-6" text={financeDeferredNote} />
+     </div>
+   );
+ }
+diff --git a/src/views/Gallery.tsx b/src/views/Gallery.tsx
+index 87f0622..2f6b5a4 100644
+--- a/src/views/Gallery.tsx
++++ b/src/views/Gallery.tsx
+@@ -20,7 +20,8 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
+ import { Button } from "@/components/ds/primitives";
+ import { SearchInput, Segmented, inputCls } from "@/components/ds/patterns";
+ import { useCan } from "@/domains/auth/AuthContext";
+-import { useAlbums, useDemoGalleryBytes, useGalleryImages } from "@/domains/gallery/useGallery";
++import { useAlbums, useGalleryImages } from "@/domains/gallery/useGallery";
++import { useDemoGalleryBytes } from "@/targets/galleryProvisioning";
+ import type { GalleryAlbum, GalleryImage } from "@/domains/gallery/types";
+ import { useMediaObjectUrl } from "@/domains/media/useMedia";
+ import { getGalleryRepository } from "@/domains/registry";
+diff --git a/src/views/Login.tsx b/src/views/Login.tsx
+index 9c1ada4..0196185 100644
+--- a/src/views/Login.tsx
++++ b/src/views/Login.tsx
+@@ -2,13 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
+ import { ArrowLeft, Eye, EyeOff, ShieldAlert, TriangleAlert } from "lucide-react";
+ import { useBranding } from "@/domains/branding/useBranding";
+ import { useAuth } from "@/domains/auth/AuthContext";
+-import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
+-import { isDemoMode } from "@/api/config";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
+-import { useLifecycleRecovery } from "@/components/lifecycle/LifecycleRecoveryContext";
+-import { LifecycleRecoveryPanel } from "@/components/lifecycle/LifecycleRecoveryPanel";
+-import { DemoBackedNotice } from "@/components/shell/DemoBackedNotice";
+-import { roleLabel } from "@/domains/auth/permissions";
++import { LoginAssist, LoginSourceNotice } from "@/targets/targetFeatures";
+ import stageImage from "@/assets/login-stage.jpg";
+ import { checkThrottle, describeWait, type ThrottleVerdict } from "@/security/loginThrottle";
+ import { cn } from "@/utils/cn";
+@@ -29,14 +23,14 @@ import { cn } from "@/utils/cn";
+  * `prefers-reduced-motion`. Nothing here fakes progress — the only spinner is
+  * bound to the real `pending` flag from the auth repository.
+  *
+- * HONESTY (§37/§38): the credential panel is rendered strictly behind
+- * `isDemoMode()`, so in api mode the hints, the passphrase and the one-tap fill
+- * buttons do not exist in the DOM at all. Its WORDING is gated one level deeper,
+- * by `isDemoEnvironment()`: in a customer's EMPTY environment the passphrase
+- * must stay reachable — it is the only way into the bootstrap account that
+- * environment creates — but the environment may not be called a demo, nor that
+- * account a sample one. Two axes, two different questions; see
+- * `docs/architecture/environments.md`.
++ * HONESTY (§37/§38): the credential panel and the data-source disclosure are
++ * rendered through the target seams (`LoginAssist` / `LoginSourceNotice`), so
++ * the client composition mounts neither in the DOM at all. The panel's WORDING
++ * is gated one level deeper by the persisted lifecycle: in a customer's EMPTY
++ * environment the passphrase must stay reachable — it is the only way into the
++ * bootstrap account that environment creates — but the environment may not be
++ * called a demo, nor that account a sample one. Two axes, two different
++ * questions; see `docs/architecture/environments.md`.
+  */
+ export function LoginView() {
+   const { login, pending, error, clearError } = useAuth();
+@@ -60,14 +54,6 @@ export function LoginView() {
+   const errorId = useId();
+   const emailErrorId = useId();
+   const passwordErrorId = useId();
+-  const demo = isDemoMode();
+-  // The data source decides WHETHER a credential panel exists at all; the
+-  // persisted lifecycle state decides what that panel may CALL itself. In an
+-  // EMPTY environment the accounts on screen are the visitor's own, so labelling
+-  // them demo data is the same dishonesty in the opposite direction.
+-  const demoEnvironment = useIsDemoEnvironment();
+-  const lifecycleRecovery = useLifecycleRecovery();
+-
+   useEffect(() => {
+     emailRef.current?.focus();
+   }, []);
+@@ -180,7 +166,7 @@ export function LoginView() {
+               </div>
+ 
+               {/* D8: the disclosure precedes authentication, not just follows it. */}
+-              <DemoBackedNotice className="mb-6" />
++              <LoginSourceNotice />
+ 
+               <form onSubmit={onSubmit} noValidate>
+                 <label className="block">
+@@ -313,12 +299,14 @@ export function LoginView() {
+               </form>
+             </div>
+ 
+-            {demo && <DemoPanel demoEnvironment={demoEnvironment} onPick={(nextEmail) => {
+-              setEmail(nextEmail);
+-              setPassword(DEMO_PASSPHRASE);
+-              clearError();
+-            }} />}
+-            {lifecycleRecovery && <LifecycleRecoveryPanel controller={lifecycleRecovery} />}          </div>
++            <LoginAssist
++              onPick={(nextEmail, nextPassphrase) => {
++                setEmail(nextEmail);
++                setPassword(nextPassphrase);
++                clearError();
++              }}
++            />
++          </div>
+         </section>
+       </div>
+     </main>
+@@ -347,52 +335,3 @@ function StageMark() {
+     </span>
+   );
+ }
+-
+-/**
+- * Local credentials.
+- *
+- * Rendered only when the data source is demo; in api mode it is not in the DOM
+- * at all. The wording states plainly that this login has no security — claiming
+- * otherwise about localStorage auth would be dishonest.
+- *
+- * `demoEnvironment` chooses the LABELS only, never the capability: an EMPTY
+- * environment still needs the passphrase on screen, because the bootstrap
+- * account it created is the only way in. What it must not do is call that
+- * customer environment a demo, or that account a sample one.
+- */
+-function DemoPanel({ demoEnvironment, onPick }: { demoEnvironment: boolean; onPick: (email: string) => void }) {
+-  const accounts = listDemoAccounts();
+-  return (
+-    <div className="mt-5 rounded-2xl border border-warn-500/[0.18] bg-warn-500/[0.045] p-4">
+-      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-400">
+-        <TriangleAlert className="size-3.5" aria-hidden />{" "}
+-        {demoEnvironment ? "محیط دمو — بدون امنیت واقعی" : "دادهٔ محلی — بدون امنیت واقعی"}
+-      </div>
+-      <p className="mt-2 text-[11px] leading-relaxed text-ink-300">
+-        {demoEnvironment
+-          ? "این ورود صرفاً نمایشی است و هیچ محافظت امنیتی ندارد. گذرواژهٔ همهٔ حساب‌های نمونه"
+-          : "این ورود روی دادهٔ ذخیره‌شده در همین مرورگر است و هیچ محافظت امنیتی ندارد. گذرواژهٔ حساب دسترسیِ این محیط"}{" "}
+-        <code dir="ltr" className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[10.5px] text-ink-100">
+-          {DEMO_PASSPHRASE}
+-        </code>{" "}
+-        است.
+-      </p>
+-      <ul className="mt-3 space-y-0.5">
+-        {accounts.map((account) => (
+-          <li key={account.id}>
+-            <button
+-              type="button"
+-              onClick={() => onPick(account.email)}
+-              className="flex w-full items-center justify-between gap-2 rounded-xl px-2.5 py-2 text-right text-[11px] text-ink-200 transition-colors hover:bg-white/[0.055] focus-visible:bg-white/[0.055] focus-visible:outline-none"
+-            >
+-              <span dir="ltr" className="truncate text-ink-300">
+-                {account.email}
+-              </span>
+-              <span className="shrink-0 text-ink-400">{roleLabel(account.role)}</span>
+-            </button>
+-          </li>
+-        ))}
+-      </ul>
+-    </div>
+-  );
+-}
+diff --git a/src/views/Reports.tsx b/src/views/Reports.tsx
+index 9228c7b..2541b5d 100644
+--- a/src/views/Reports.tsx
++++ b/src/views/Reports.tsx
+@@ -1,7 +1,7 @@
+ import { Download, FileBarChart, Info } from "lucide-react";
+ import { useApp } from "@/context/AppContext";
+ import { Button } from "@/components/ds/primitives";
+-import { DemoNote } from "@/components/ds/states";
++import { DemoNote } from "@/targets/environment";
+ import { PageHeader, Panel } from "@/components/ds/patterns";
+ 
+ /* ------------------------------------------------------------------ */
+diff --git a/src/views/Scheduling.tsx b/src/views/Scheduling.tsx
+index 3284be8..6b00630 100644
+--- a/src/views/Scheduling.tsx
++++ b/src/views/Scheduling.tsx
+@@ -260,8 +260,13 @@ export function SchedulingView() {
+   // `?filter=conflict` and reading a week only to throw it away and read today
+   // would be a wasted round trip on every entry.
+   const [mode, setMode] = useState<"week" | "day">(isFocusFilter(filter) ? "day" : "week");
+-  /** The date the window is anchored on — a real ISO date, never a weekday index. */
+-  const [anchor, setAnchor] = useState<string>(todayIso);
++  /**
++   * The date the window is anchored on — a real ISO date, never a weekday
++   * index. Seeded straight from `academyNow()` (the same value `todayIso`
++   * computes on mount): the anchor is initial state, so it reads the clock
++   * once and then lives on `setAnchor`.
++   */
++  const [anchor, setAnchor] = useState<string>(() => academyIsoDate(academyNow()));
+   const [roomFilter, setRoomFilter] = useState<string | "all">("all");
+   const [teacherFilter, setTeacherFilter] = useState<string | "all">("all");
+   /**
+diff --git a/src/views/Settings.tsx b/src/views/Settings.tsx
+index 2bea9f1..2b7d9b0 100644
+--- a/src/views/Settings.tsx
++++ b/src/views/Settings.tsx
+@@ -21,7 +21,7 @@ import { LearningPanel } from "@/domains/learning/LearningPanel";
+ import { GalleryPanel } from "@/domains/gallery/GalleryPanel";
+ import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
+ import { ImportExportCenter } from "@/domains/import/ImportExportCenter";
+-import { DemoDataPanel } from "@/components/settings/DemoDataPanel";
++import { SettingsFeatures } from "@/targets/targetFeatures";
+ import { UsersPanel } from "@/components/settings/UsersPanel";
+ import { ManualColorsPanel } from "@/components/settings/ManualColorsPanel";
+ import { SessionRulesPanel } from "@/domains/organization/SessionRulesPanel";
+@@ -422,7 +422,7 @@ export function SettingsView() {
+               <RepertoirePanel />
+               <GalleryPanel />
+               <SessionRulesPanel />
+-              <DemoDataPanel />
++              <SettingsFeatures />
+             </>
+           )}
+ 
+diff --git a/src/views/Students.tsx b/src/views/Students.tsx
+index 6bb8db8..7218e2c 100644
+--- a/src/views/Students.tsx
++++ b/src/views/Students.tsx
+@@ -20,7 +20,7 @@ import { addDays, isoToJalaliDisplay } from "@/domains/scheduling/dateBridge";
+ import { SESSION_STATUS_LABEL, type Session } from "@/domains/scheduling/types";
+ import { useSessions } from "@/domains/scheduling/useScheduling";
+ import { useTeachers } from "@/domains/teachers/useTeachers";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { NO_DATA, faNum, faPercent, faTime, faToman, parseTime } from "@/lib/format";
+ import { useApp } from "@/context/AppContext";
+diff --git a/src/views/Teachers.tsx b/src/views/Teachers.tsx
+index b77b77b..aea58eb 100644
+--- a/src/views/Teachers.tsx
++++ b/src/views/Teachers.tsx
+@@ -27,7 +27,7 @@ import { ErrorState } from "@/components/ds/states";
+ import { useTeachers, useTeacher } from "@/domains/teachers/useTeachers";
+ import { TeacherFormDialog } from "@/domains/teachers/TeacherFormDialog";
+ import { getTeacherRepository } from "@/domains/registry";
+-import { useIsDemoEnvironment } from "@/domains/demo/useDataLifecycle";
++import { useIsDemoEnvironment } from "@/targets/environment";
+ import { apiErrorFromThrown } from "@/api/errors";
+ import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDay";
+ import { indexById } from "@/views/relations/indexById";
+@@ -984,9 +984,6 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
+ /* ------------------------------------------------------------------ */
+ export function TeachersView() {
+   const { detailId, navigate, notify } = useApp();
+-  let user: any = null;
+-  try { user = useAuth().user; } catch { user = null; }
+-  const canWriteTeachers = useCan("teachers.write") || !user;
+   const demoEnvironment = useIsDemoEnvironment();
+   // Repository-backed: loading reflects a real read, not a timer.
+   // I16: list view keeps per_page 200 ceiling; detail/deep-link uses authoritative get(id)
+diff --git a/src/views/__tests__/attendanceWrites.test.tsx b/src/views/__tests__/attendanceWrites.test.tsx
+index aa18664..7477beb 100644
+--- a/src/views/__tests__/attendanceWrites.test.tsx
++++ b/src/views/__tests__/attendanceWrites.test.tsx
+@@ -47,7 +47,7 @@ import { Toasts } from "@/components/overlays/ActionSheet";
+ import { AppProvider } from "@/context/AppContext";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import type { AttendanceRepository } from "@/domains/attendance/repository";
+ import {
+   ATTENDANCE_ERRORS,
+diff --git a/src/views/__tests__/compensationUi.test.tsx b/src/views/__tests__/compensationUi.test.tsx
+index 5b6320c..b20473c 100644
+--- a/src/views/__tests__/compensationUi.test.tsx
++++ b/src/views/__tests__/compensationUi.test.tsx
+@@ -49,7 +49,7 @@ import { navGroups, viewTitles } from "@/lib/navigation";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+ import { canAccessView, permissionsForRole, viewPermissions } from "@/domains/auth/permissions";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import type { CompensationActor, SessionCompensation } from "@/domains/compensation/types";
+ import {
+   getAttendanceRepository,
+diff --git a/src/views/__tests__/dashboardInsightsLive.test.tsx b/src/views/__tests__/dashboardInsightsLive.test.tsx
+index 282302b..62efde0 100644
+--- a/src/views/__tests__/dashboardInsightsLive.test.tsx
++++ b/src/views/__tests__/dashboardInsightsLive.test.tsx
+@@ -33,7 +33,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+ import { AppProvider } from "@/context/AppContext";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { BOOTSTRAP_ADMIN_EMAIL, isDemoEnvironment } from "@/domains/demo/lifecycle";
+ import { getStudentRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+ import { demoStore, memoryStorage } from "@/services/demoStore";
+diff --git a/src/views/__tests__/emptyEnvironment.test.tsx b/src/views/__tests__/emptyEnvironment.test.tsx
+index 2882a67..0e7377a 100644
+--- a/src/views/__tests__/emptyEnvironment.test.tsx
++++ b/src/views/__tests__/emptyEnvironment.test.tsx
+@@ -25,7 +25,7 @@ import { viewTitles } from "@/lib/navigation";
+ import type { ViewId } from "@/lib/viewContracts";
+ import { createSeedDataset } from "@/domains/demo/seed";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
+ import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
+ import { getTeacherRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+diff --git a/src/views/__tests__/honestWriteCopy.test.tsx b/src/views/__tests__/honestWriteCopy.test.tsx
+index 1c77bcc..1db16fe 100644
+--- a/src/views/__tests__/honestWriteCopy.test.tsx
++++ b/src/views/__tests__/honestWriteCopy.test.tsx
+@@ -57,7 +57,7 @@ import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvi
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+ import { demoStore } from "@/services/demoStore";
+ import { memoryStorage } from "@/services/demoStore";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { demoDataManager } from "@/domains/demo";
+ 
+ /** The confirmation for a saved record, per environment. */
+diff --git a/src/views/__tests__/navigationCounts.test.tsx b/src/views/__tests__/navigationCounts.test.tsx
+index d859559..1a7dd52 100644
+--- a/src/views/__tests__/navigationCounts.test.tsx
++++ b/src/views/__tests__/navigationCounts.test.tsx
+@@ -43,7 +43,7 @@ import { navGroups } from "@/lib/navigation";
+ import type { QuickActionDef } from "@/lib/viewContracts";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { getChatRepository, resetRegistry, setAuthRepository, setChatRepository, setUserRepository } from "@/domains/registry";
+ import { demoStore, memoryStorage } from "@/services/demoStore";
+ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+diff --git a/src/views/__tests__/noSuccessWithoutWrite.test.tsx b/src/views/__tests__/noSuccessWithoutWrite.test.tsx
+index 443529e..74bf406 100644
+--- a/src/views/__tests__/noSuccessWithoutWrite.test.tsx
++++ b/src/views/__tests__/noSuccessWithoutWrite.test.tsx
+@@ -36,7 +36,7 @@ import { ApiError } from "@/api/errors";
+ import { AppProvider } from "@/context/AppContext";
+ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+ import { AuthProvider } from "@/domains/auth/AuthContext";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import type { AttendanceRepository } from "@/domains/attendance/repository";
+ import {
+   ATTENDANCE_ERRORS,
+diff --git a/src/views/__tests__/settingsHonesty.test.tsx b/src/views/__tests__/settingsHonesty.test.tsx
+index 149aa83..e90d688 100644
+--- a/src/views/__tests__/settingsHonesty.test.tsx
++++ b/src/views/__tests__/settingsHonesty.test.tsx
+@@ -45,7 +45,7 @@ function renderSettings() {
+ 
+ async function renderSettingsWithAuth() {
+   const { DEMO_PASSPHRASE, DemoAuthRepository } = await import("@/domains/auth/demoAuthRepository");
+-  const { DemoUserRepository } = await import("@/domains/auth/userRepository");
++  const { DemoUserRepository } = await import("@/domains/auth/demoUserRepository");
+   const { setAuthRepository, setUserRepository } = await import("@/domains/registry");
+   const { AuthProvider } = await import("@/domains/auth/AuthContext");
+   const { demoStore, memoryStorage } = await import("@/services/demoStore");
+diff --git a/src/views/__tests__/studentsDeepLinkIdor.test.tsx b/src/views/__tests__/studentsDeepLinkIdor.test.tsx
+index 0fd7fc5..2e8fefb 100644
+--- a/src/views/__tests__/studentsDeepLinkIdor.test.tsx
++++ b/src/views/__tests__/studentsDeepLinkIdor.test.tsx
+@@ -6,7 +6,7 @@ import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepo
+ import { demoStore } from "@/services/demoStore";
+ import { memoryStorage } from "@/services/demoStore";
+ import { resetRegistry, setAuthRepository, setClassRepository, setEnrollmentRepository, setStudentRepository, setTeacherRepository, setUserRepository } from "@/domains/registry";
+-import { DemoUserRepository } from "@/domains/auth/userRepository";
++import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+ import type { Student } from "@/domains/students/types";
+ import type { AcademyClass } from "@/domains/classes/types";
+diff --git a/src/views/__tests__/studentsScopeLeak.p1.test.tsx b/src/views/__tests__/studentsScopeLeak.p1.test.tsx
+index 7d7ab43..68374f6 100644
+--- a/src/views/__tests__/studentsScopeLeak.p1.test.tsx
++++ b/src/views/__tests__/studentsScopeLeak.p1.test.tsx
+@@ -9,7 +9,7 @@ import { assignedStudentIdsForTeacher } from "@/domains/auth/scope";
+ 
+ type Student = { id: string; name: string };
+ type ClassRef = { id: string; teacherId: string };
+-type EnrollmentRef = { studentId: string; classId: string; status: string };
++type EnrollmentRef = { studentId: string; classId: string; status: "active" | "cancelled" | "waitlist" | "completed" };
+ 
+ function filteredStudentsLogic(
+   students: Student[],
+diff --git a/vite.config.ts b/vite.config.ts
+index 5c65432..be590cb 100644
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -8,6 +8,42 @@ import { defineConfig } from "vite";
+ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = path.dirname(__filename);
+ 
++/**
++ * Which composition to build.
++ *
++ *   APP_TARGET=demo   (default) — the demo composition: demo repositories,
++ *                      demo provisioning, demo credential panel, delivery UI.
++ *   APP_TARGET=client           — the production/client composition: API
++ *                      repositories, DOMAIN_UNAVAILABLE for unserved domains,
++ *                      and NOT ONE demo module in any chunk.
++ *
++ * Selection is by FILE ALIAS (below), which is what makes the boundary
++ * physical: the bundler never resolves a demo target file when building the
++ * client — it is not a runtime flag that dead code elimination might miss.
++ * `src/domains/registry` is swapped the same way (registry.client.ts is
++ * export-compatible, so no application code changes between compositions).
++ * Tests (vitest) run with the default demo target unless APP_TARGET says
++ * otherwise; `__APP_TARGET__` is defined to match.
++ *
++ * Asserted by src/__tests__/bundleBoundary.test.ts against the real
++ * `dist/client` and `dist/demo` output — negative AND positive checks.
++ */
++const APP_TARGET: "demo" | "client" = process.env.APP_TARGET === "client" ? "client" : "demo";
++const targetFile = (base: string, ext: string): string =>
++  path.resolve(__dirname, `src/targets/${base}${APP_TARGET === "client" ? ".client" : ""}.${ext}`);
++const targetAliases: { find: string; replacement: string }[] = [
++  { find: "@/targets/environment", replacement: targetFile("environment", "tsx") },
++  { find: "@/targets/libraryProvisioning", replacement: targetFile("libraryProvisioning", "ts") },
++  { find: "@/targets/galleryProvisioning", replacement: targetFile("galleryProvisioning", "ts") },
++  { find: "@/targets/targetCopy", replacement: targetFile("targetCopy", "ts") },
++  { find: "@/targets/targetFeatures", replacement: targetFile("targetFeatures", "tsx") },
++  { find: "@/targets/commandShowcase", replacement: targetFile("commandShowcase", "ts") },
++];
++const registryAlias: { find: string; replacement: string }[] =
++  APP_TARGET === "client"
++    ? [{ find: "@/domains/registry", replacement: path.resolve(__dirname, "src/domains/registry.client.ts") }]
++    : [];
++
+ /**
+  * The Content-Security-Policy the edge enforces in production.
+  *
+@@ -40,6 +76,9 @@ export const PRODUCTION_CSP = [
+ // https://vite.dev/config/
+ export default defineConfig({
+   plugins: [react(), tailwindcss()],
++  define: {
++    __APP_TARGET__: JSON.stringify(APP_TARGET),
++  },
+   build: {
+     /*
+       Hashed, externally-loaded assets — NOT a single inlined file.
+@@ -81,9 +120,8 @@ export default defineConfig({
+     },
+   },
+   resolve: {
+-    alias: {
+-      "@": path.resolve(__dirname, "src"),
+-    },
++    /* Ordered: the specific target/registry swaps win over the generic "@". */
++    alias: [...targetAliases, ...registryAlias, { find: "@", replacement: path.resolve(__dirname, "src") }],
+   },
+   server: {
+     host: true,

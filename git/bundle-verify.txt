@@ -1,0 +1,42 @@
+/tmp/pref2-work/git/bundle/parsian-music-dashboard-full.bundle is okay
+The bundle contains these 38 refs:
+251af96f405df5935ee17ddc9ba6b490f7989c2d refs/heads/arena/01a0b059-parsian-music-dashboard-opus
+afe6b0278c7aed447552eec76ee2caf0f6a7e616 refs/heads/arena/01a0c480-parsian-music-dashboard-opus
+7180082fac85f4451ac8e7d2ed1312a26bcfb486 refs/heads/arena/01a0c8a7-parsian-music-dashboard-opus
+bb275d6c8063a3ca34eb3a24c0539e43ea991182 refs/heads/arena/01a0c8b5-parsian-music-dashboard-opus
+eb973eb2758447eff16b60ab4fd4c267f9d85061 refs/heads/arena/01a0cefa-parsian-music-dashboard-opus
+ef4eb8412e181ba7cf299cb05560731394026240 refs/heads/arena/01a0e006-parsian-music-dashboard-opus
+455fc1f521ea2307a288b35ff45901c86ef504c1 refs/heads/arena/01a0e27f-parsian-music-dashboard-opus
+25d18a4ca40fb545b362878c4b659eee31c235b6 refs/heads/arena/01a0e3c0-parsian-music-dashboard-opus
+2df607eff5f1ea1fe85e86381b9b0398fec81d18 refs/heads/arena/phase2a-landing
+94d32de3220cee314606c0c4705e20e0fdcfb2af refs/heads/handoff/arena-frontend-pre-backend
+15775ea9486cb57fbfb8fefa3268658cbe7eb669 refs/heads/main
+94e0d2af9f2c5a43bd2da523299de81f3f258de4 refs/pull/1/head
+2563b6ed783ca72b031db8f60d09f748cf11bb8c refs/pull/10/head
+7aaf478f8b30c63975edbbe27ee13ce8124b199f refs/pull/11/head
+5eb4efd4d02d538e399b66e12df35cb7b841e45e refs/pull/12/head
+afe6b0278c7aed447552eec76ee2caf0f6a7e616 refs/pull/13/head
+941b1413dcfb03c90d16192373c9f2491399ef53 refs/pull/14/head
+8ec766c2d53a1407fc5606ef5a980e8ea87d3c0d refs/pull/15/head
+4edd0bc6dbb29a50af7aab6cd46fc386d9fd9d50 refs/pull/16/head
+ccb193c0a493e13fc4100c7c8f2089a1cdd96b32 refs/pull/17/head
+ef4eb8412e181ba7cf299cb05560731394026240 refs/pull/18/head
+455fc1f521ea2307a288b35ff45901c86ef504c1 refs/pull/19/head
+9190da02a8ddcc49f7fe1ae010e5a3a9b79c48b9 refs/pull/2/head
+2df607eff5f1ea1fe85e86381b9b0398fec81d18 refs/pull/20/head
+d31cbe9d83ce327d4c1b14e352f2de1b0a6c16b8 refs/pull/3/head
+f00f85e6f817369a32b8921ffb64f58e17ea154e refs/pull/4/head
+112f1160104d375481b930517d08592bb67a0a72 refs/pull/5/head
+2c41de3e5235feff1307a277d9b57b08584e2613 refs/pull/6/head
+0e55de7d27ed169614657e5479e7085d3c690a89 refs/pull/7/head
+b7c247a9448ecf32a171a0b8844a062b2f50c9ab refs/pull/8/head
+0ce60dc1745a06a5d899301343a4730ae294c80c refs/pull/9/head
+94d32de3220cee314606c0c4705e20e0fdcfb2af refs/tags/archive/frontend-session-handoff-94d32de
+eb973eb2758447eff16b60ab4fd4c267f9d85061 refs/tags/archive/gallery-library-storage-eb973eb
+bb275d6c8063a3ca34eb3a24c0539e43ea991182 refs/tags/archive/mountain-sanctuary-bb275d6
+251af96f405df5935ee17ddc9ba6b490f7989c2d refs/tags/archive/palette-focus-251af96
+afe6b0278c7aed447552eec76ee2caf0f6a7e616 refs/tags/archive/premium-academy-login-afe6b02
+7180082fac85f4451ac8e7d2ed1312a26bcfb486 refs/tags/archive/project-state-gate-7180082
+15775ea9486cb57fbfb8fefa3268658cbe7eb669 HEAD
+The bundle records a complete history.
+The bundle uses this hash algorithm: sha1

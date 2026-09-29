@@ -1,0 +1,153 @@
+PHASE 2A LANDING — FINAL MANIFEST
+=================================
+
+Purpose: durable record of the RECREATED Phase 2A landing, captured as a git bundle so it
+survives a sandbox session boundary (the first landing — commits c8734a0/c2bd2f9/c675047 — was
+lost with /home/user/phase2a-landing; this manifest and its bundle are the replacement record).
+
+STATUS: LANDING RECREATED AND VERIFIED — NOT PUSHED, NOT MERGED. Awaiting explicit owner approval.
+
+------------------------------------------------------------------------------
+1. IDENTITY
+------------------------------------------------------------------------------
+Branch name      : arena/phase2a-landing
+Base SHA         : eb5b5598774bdadd0a7aabab01d88e564dcb867d   (== main)
+Base tree SHA    : c70bebef7899c18c1ab1a9ade49f44a15ea581e0   (== main^{tree})
+Final SHA        : 2df607eff5f1ea1fe85e86381b9b0398fec81d18
+Final tree SHA   : 6eb78338ec19880adf5f97735f61de32e11cbf20
+Commits over base: 3
+Diff vs base     : 103 files changed, +3453 / -685
+Governance docs  : 0 changed (git diff --name-only eb5b559..HEAD -- docs/ is empty)
+
+Commit 1 : 1b96db708aa169fc52824453eacd4e0c8495875f  chore(build): Phase 2A build profiles
+Commit 2 : 1c8b83215536cad786c5db766f43948f8f4a48e6  feat(phase-2a): composition seams and production delivery lock
+Commit 3 : 2df607eff5f1ea1fe85e86381b9b0398fec81d18  test(phase-2a): boundary, delivery, lock and registry tests
+
+Author on all three: vahidateur <208361882+vahidateur@users.noreply.github.com>
+(trailer: Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>)
+Commit subjects follow the owner's naming in the recreate instruction; bodies carry the
+documented descriptions.
+
+------------------------------------------------------------------------------
+2. PROVENANCE (what this landing was built from)
+------------------------------------------------------------------------------
+Source of truth   : <repo>/phase2a-wip-backup/phase2a-tracked.patch
+Patch sha256      : aed92770c17177712254a5893a87805277a83dcd607612ceb8cb346c14789a3f  (unchanged)
+Patch size        : 133930 bytes, 78 diff headers
+Untracked archive : <repo>/phase2a-wip-backup/untracked-files.tar
+Archive sha256    : 696e475677ef14faf902a47963bb0a3370d6456c68acdc2fbab2c77a99bee2a4  (32 entries)
+Staged patch      : phase2a-staged.patch, 0 bytes (nothing was staged in the WIP)
+Recreation method : git clone <repo> -> full history fetched from GitHub (read-only) ->
+                    checkout --detach eb5b559 -> checkout -b arena/phase2a-landing ->
+                    git apply --3way --binary <patch> (68 clean + 7 conflicts, exactly as before)
+                    -> untracked-files.tar extracted (PHASE_2A_*.md reports excluded)
+                    -> 7 conflicts resolved per PHASE_2A_LANDING_REPORT.md §2
+                    -> explicit-path staging in three groups -> three commits
+Original WIP      : NOT modified (see §6)
+
+------------------------------------------------------------------------------
+3. VERIFICATION RESULTS (post-commit, on the final tree)
+------------------------------------------------------------------------------
+npm ci                             PASS (clean lockfile install)
+typecheck (tsc --noEmit)           0 errors
+build:client                       PASS  entry dist/client/assets/index-BMhVg0_F.js  261.83 kB (gzip 78.08)
+build:demo                         PASS  entry dist/demo/assets/index-DU355MkG.js    477.50 kB (gzip 135.86)
+build (bare, demo target)          PASS  entry dist/assets/index-ClGxcDcZ.js         477.50 kB (gzip 135.86)
+bundleBoundary (real-build scans)  PASS  2 passed | 2 skipped (the skips are the by-design run-instructions);
+                                         client scan 15 ms, demo scan 16 ms -> both scans RAN
+focused Phase 2A (5 suites)        37/37
+  (deploymentLock, delivery, registryClient, DemoBackedNotice, registry)
+mobileContract (registry split)    24/24
+projectState                       52/52   (full history present in this clone; no test modified)
+full suite (npx vitest run)        195 files / 2563 passed / 2 skipped / 0 failures
+git diff --check                   clean (0)
+git status --porcelain             empty (working tree clean)
+
+Note: the built chunk hashes are byte-identical to the lost first landing
+(index-BMhVg0_F.js client / index-DU355MkG.js demo / index-ClGxcDcZ.js bare), which is
+independent evidence that this recreation reproduces the previous landing exactly.
+
+Independent hand-check of the client boundary (not only via the test):
+  demo literals (ava:demo:dataset, ava:demo:credentials, @demo.local, arena-demo,
+  "بدون امنیت واقعی") -> 0 occurrences in dist/client, >=1 in dist/demo;
+  client unavailable-notice copy -> present in dist/client, absent in dist/demo.
+
+------------------------------------------------------------------------------
+4. D9 BUDGET (unchanged; reported as risk information only)
+------------------------------------------------------------------------------
+Method            : bare npm run build; per-file `gzip -6 -n -c <file> | wc -c`;
+                    total = Σ gzip(JS) + gzip(CSS) + gzip(index.html)
+Recorded baseline : 343947  (main DECISIONS.md §22, in force 2026-09-25)
+Recorded cap      : 361144  (baseline × 1.05, floored)
+Landing total     : 361037  -> PASS (<= 361144), headroom 107 bytes
+Entry chunk       : 135153  (< 273791 anchor)
+Largest chunk     : 135153  (< 400000 ceiling)
+Chunks            : 7
+Main alone        : 356039  (freshly measured in the read-only audit)
+Phase 2A increase : ~ +4998 gzip bytes
+No warning band or stop threshold exists in governance for a passing figure; the gate is binary.
+The cap was NOT changed, the bundle was NOT optimized, the D9 test was NOT modified.
+
+------------------------------------------------------------------------------
+5. ORGANIZATION / D8 (observation only — NOT changed)
+------------------------------------------------------------------------------
+D8 landed 53794d5 (2026-09-16). At that commit exactly 11 demo-in-both getters existed and the
+disclosure list held exactly those 11. The organization domain arrived later (606e95cb,
+2026-09-22) and added a 12th demo-in-both getter without updating D8 or the list. The enforced
+test iterates the list itself and pins its length to 11, so the omission is undetectable.
+
+Classification (read-only audit): undocumented governance inconsistency — benign, product-level
+disclosure gap, not a blocker. THIS LANDING PRESERVES MAIN'S STATE EXACTLY: DEMO_SERVED_DOMAINS is
+byte-identical to main (11 entries), the organization getter is byte-identical to main, and
+DemoBackedNotice.test.tsx is unchanged from main. No 11->12 change, no governance exception added,
+no governance document touched. Organization appears only in the CLIENT composition's
+UNAVAILABLE_DOMAINS (12 entries), which is correct and orthogonal to D8.
+
+------------------------------------------------------------------------------
+6. ORIGINAL WIP CHECKOUT (untouched)
+------------------------------------------------------------------------------
+Path      : /home/user/parsian-music-dashboard-opus
+Branch    : arena/01a0e8ec-parsian-music-dashboard-opus
+HEAD      : eb973eb2758447eff16b60ab4fd4c267f9d85061  (unchanged; no commits added)
+Staged    : 0
+Status    : 78 modified + 22 untracked = 100 lines (the 22nd is the backup dir); plus the
+            read-only audit report and this artifacts directory (untracked, uncommitted)
+Backup    : phase2a-wip-backup/phase2a-tracked.patch sha256 aed92770...  UNCHANGED
+No reset / clean / checkout / rebase / merge / stash / commit was performed in it.
+
+------------------------------------------------------------------------------
+7. BUNDLE + PERSISTENCE ARTIFACTS (this directory)
+------------------------------------------------------------------------------
+phase2a-landing.bundle            4458663 bytes
+  sha256 6e7e51731b96448ab20f59dcdcc246d851fa3274d6acfdff4e5639991f095842
+  contents: complete history; ref refs/heads/arena/phase2a-landing @ 2df607e
+  `git bundle verify` -> "The bundle records a complete history."
+PHASE_2A_LANDING_REPORT.md        recreated landing report (conflict resolutions §2, full evidence)
+PHASE_2A_LANDING_FINAL_MANIFEST.txt   this file
+SHA256SUMS.txt                    hashes of the bundle, the report and this manifest
+
+Independent bundle verification (clone from the bundle alone, /tmp/verify-from-bundle):
+  branch checked out          : arena/phase2a-landing
+  history present             : 3 commits over eb5b559, full chain to the base merge
+  final commit hash matches   : 2df607eff5f1ea1fe85e86381b9b0398fec81d18  YES
+  final tree hash matches     : 6eb78338ec19880adf5f97735f61de32e11cbf20  YES
+  base tree hash matches      : c70bebef7899c18c1ab1a9ade49f44a15ea581e0  YES
+  base is an ancestor of HEAD : YES
+  working tree clean          : YES (0 status lines)
+  source differences          : NONE (diff -r landing vs bundle clone = 0 lines; 586 files each)
+
+------------------------------------------------------------------------------
+8. RECOVERY PROCEDURE (if the working clone is ever lost again)
+------------------------------------------------------------------------------
+From anywhere with this directory available:
+    git clone -b arena/phase2a-landing <this-dir>/phase2a-landing.bundle phase2a-landing
+    cd phase2a-landing && git log --oneline -3      # 2df607e, 1c8b832, 1b96db7
+    git rev-parse HEAD                              # must be 2df607eff5f1ea1fe85e86381b9b0398fec81d18
+    npm ci && npm run typecheck && npm run build:client && npm run build:demo && npx vitest run
+The bundle is self-contained (complete history), so no network or other clone is required.
+
+------------------------------------------------------------------------------
+9. STOP
+------------------------------------------------------------------------------
+Nothing pushed. No PR. No merge. No amend. main untouched. Original WIP untouched.
+Wait for explicit owner approval before any push/PR step.
