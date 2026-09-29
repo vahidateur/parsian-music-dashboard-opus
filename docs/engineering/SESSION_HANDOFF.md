@@ -1,8 +1,10 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-09-30. This supersedes every older pointer in this file.**
-> Git cleanup is **NOT complete**. History has **not** been rewritten. `main` has **not** moved.
+> **LIVE POINTER — 2026-09-30, choice B executed on this branch.** This supersedes every older pointer in this file.
+> Owner decision B is done **only** on `cleanup/demo-migration-lineage`. `main` has **not** moved.
+> `docs/demo-migration-plan` remains the uncleaned lineage and must not be force-updated.
 > W7A, W7B, W8, W9, and W10 are **closed**. Do **not** re-run them. Do **not** start backend, Telegram, or push work from this file.
+> Do **not** merge this branch to `main` until a separate owner authorization.
 >
 > Sibling historical records, still present and not deleted:
 > [PROJECT_STATE.md](PROJECT_STATE.md) · [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
@@ -15,8 +17,9 @@
 > Its SHAs are preserved on purpose. None of that body is a live work order. In particular, do **not**
 > merge PR #16 or PR #18, do **not** treat `6ca25be` as HEAD, and do **not** start F2 from that body.
 
-**Recorded:** 2026-09-30 · **Nature:** documentation-only recovery checkpoint. This commit does not
-rewrite history, does not merge, and does not authorize backend implementation.
+**Recorded:** 2026-09-30 · **Nature:** documentation-only recovery checkpoint. Choice B replayed
+the migration lineage onto `039b9c82` and dropped only the net-zero dead-end. It does not merge
+to `main` and does not authorize backend implementation.
 
 **Rule this file exists to enforce:** Git cleanup without this handoff is unsafe. A later rewrite
 must update this same file with the complete old-SHA → new-SHA mapping before anyone may declare
@@ -27,19 +30,28 @@ cleanup complete. Old SHAs in this file must not be deleted.
 ## SESSION RECOVERY
 
 ```text
-Current branch:     docs/demo-migration-plan
-Handoff content:    ca8afba365e375a9c150fef5441f200f3e9f9dc4
-                    parent 13599bbfc4fdce42de975ef28d104a8264bf88bf
-                    tree  f5198ed4655af85b8ac4884bda4d491ef0c8743f
-                    subject: docs(engineering): record the pre-cleanup session recovery handoff
-Current HEAD:       child of ca8afba365e375a9c150fef5441f200f3e9f9dc4 that only records this SHA
-                    subject: docs(engineering): record the handoff commit SHA
+Current branch:     cleanup/demo-migration-lineage
+Pre-cleanup tip:    1b233362ef391e4b8f31df9e48c56b3687e36222 on docs/demo-migration-plan
+                    that ref is preserved and was not force-updated
+Replay base:        039b9c827d54aabbec9e90557c3efb49eb37678a
+                    tree 4afa9351d3b797e8a4444609c9ab50bd37051ec3
+                    identical to 22cbd26f17009bdd695cf6900d07f743806f2030^{tree}
+Pre-handoff tree:   a89fa7324a9fcab7f8c8477db05abfea11698663
+                    tree afba3b8e48f4668459b2b0930522590dcc23a756
+                    old equivalent 13599bbfc4fdce42de975ef28d104a8264bf88bf
+Rewritten handoff:  98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5
+                    old ca8afba365e375a9c150fef5441f200f3e9f9dc4
+                    same tree f5198ed4655af85b8ac4884bda4d491ef0c8743f
+SHA-record replay:  f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
+                    old 1b233362ef391e4b8f31df9e48c56b3687e36222
+                    same tree d15d1ce02a1472e88664ba98eca5ece22b4fbb3e
+Cleaned tip:        child of f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
+                    subject: docs(engineering): record the cleaned-history mapping
                     this file cannot contain that child SHA; verify with ls-remote
-Remote HEAD:        git ls-remote origin refs/heads/docs/demo-migration-plan
-                    must be that child, or ca8afba if the SHA-record commit was not pushed
-                    do not trust a local clone over ls-remote
+Remote check:       git ls-remote origin refs/heads/cleanup/demo-migration-lineage
+                    parent must be f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
 Main:               15775ea9486cb57fbfb8fefa3268658cbe7eb669
-                    tree 6eb78338ec19880adf5f97735f61de32e11cbf20
+                    UNTOUCHED. Do not merge yet.
 Backup:             backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
 Archive:            archive/gallery-library-storage-eb973eb @ eb973eb2758447eff16b60ab4fd4c267f9d85061
                     archive/frontend-session-handoff-94d32de @ 94d32de3220cee314606c0c4705e20e0fdcfb2af
@@ -49,62 +61,49 @@ Archive:            archive/gallery-library-storage-eb973eb @ eb973eb2758447eff1
                     archive/project-state-gate-7180082 @ 7180082fac85f4451ac8e7d2ed1312a26bcfb486
 
 Last completed operation:
-  Read-only history inventory of main..docs/demo-migration-plan, then this handoff commit.
-  No ref was moved except the fast-forward of docs/demo-migration-plan by this documentation commit.
+  Owner decision B. Rebase --onto 039b9c82 22cbd26 on a new branch only.
+  Eleven commits replayed. Each replayed tree SHA equals the old commit's tree SHA.
+  The three rejected commits are not ancestors of this branch.
 
 Last verified operation:
-  git ls-remote on 2026-09-30, before this commit:
-    main = 15775ea9486cb57fbfb8fefa3268658cbe7eb669
-    docs/demo-migration-plan = 13599bbfc4fdce42de975ef28d104a8264bf88bf
-  GitHub compare 15775ea...13599bb: ahead_by 32, behind_by 0, 237 files.
-  GitHub compare 039b9c82...22cbd26: ahead_by 3, files = 0.
-  That zero-file compare was not a rebase. Replay has not been tested.
+  039b9c82^{tree} == 22cbd26^{tree} == 4afa9351d3b797e8a4444609c9ab50bd37051ec3
+  a89fa732^{tree} == 13599bb^{tree} == afba3b8e48f4668459b2b0930522590dcc23a756
+  git diff 13599bb a89fa732 is empty.
+  Dead-end SHAs are not ancestors of this HEAD.
+  They remain ancestors of local docs/demo-migration-plan at 1b23336.
 
 Pending operation:
-  Owner confirmation of the cleanup choice in §11. Nothing else.
+  None on this branch. Do not merge to main. Do not start backend.
 
 Safe to continue from:
-  This file, on docs/demo-migration-plan, after ls-remote confirms the parent chain above.
-  Do not continue from chat memory. Do not continue from the historical body below.
+  cleanup/demo-migration-lineage after ls-remote matches the tip predicate above.
+  Do not continue from docs/demo-migration-plan if the task is the cleaned lineage.
+  Do not continue from the historical body below.
 
 Do NOT repeat:
   W7A, W7B, W8, W9, W10.
-  The rejected three-artifact attempt (1eb6366, 10c8154) or its revert (22cbd26).
-  Any claim that migration is unstarted, or that a Laravel app already exists.
+  The rejected three-artifact attempt or its revert.
+  This rebase.
 
 Do NOT modify:
-  main, backup/pre-f2-2026-09-29, any archive tag.
+  main, backup/pre-f2-2026-09-29, any archive tag, docs/demo-migration-plan.
   The protected dirty WIP at /home/user/parsian-music-dashboard-opus
     branch arena/01a0e8ec-parsian-music-dashboard-opus
     HEAD eb973eb2758447eff16b60ab4fd4c267f9d85061
-    78 tracked modifications, 28 untracked porcelain entries, 0 staged.
-  APP_TARGET behavior, vite.config.ts, the two registries, the D9 cap, SEED_DATE,
+  APP_TARGET, vite.config.ts, the two registries, the D9 cap, SEED_DATE,
   SEED_VERSION, ava:demo: keys, schedulingWrites.test.tsx.
 
 Next exact step:
-  Stop. Wait for a written owner choice between:
-    (A) keep all 32 pre-handoff commits and fast-forward main later, or
-    (B) authorize a new branch that drops only the net-zero dead-end trio,
-        then prove the rewritten tree equals afba3b8e48f4668459b2b0930522590dcc23a756.
-  Do not rewrite, force-push, merge, or start backend before that choice.
+  Stop. Do not merge to main. Wait for a separate owner authorization before any merge.
 ```
 
-Handoff content commit, already created and not yet the cleanup result:
-`ca8afba365e375a9c150fef5441f200f3e9f9dc4`.
-Parent: `13599bbfc4fdce42de975ef28d104a8264bf88bf`.
-Tree: `f5198ed4655af85b8ac4884bda4d491ef0c8743f`.
-
-The following commit only records that SHA in this recovery section. It is part of the handoff.
-A later cleanup may squash it into `ca8afba` and must not drop the text. It must not be treated as
-a post-cleanup HEAD. If `git ls-remote` does not show `ca8afba` or its SHA-record child as
-`docs/demo-migration-plan`, stop.
+The pre-cleanup handoff content remains `ca8afba365e375a9c150fef5441f200f3e9f9dc4` on `docs/demo-migration-plan`, rewritten here as `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` with the same tree `f5198ed4655af85b8ac4884bda4d491ef0c8743f`. Its SHA-record child is rewritten as `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. Neither text was dropped. The cleaned tip is the child of that rewritten SHA-record commit.
 
 ---
 
 ## 1. Current remote refs
 
-Verified with `git ls-remote` on 2026-09-30, before this handoff commit. Re-verify before any later
-action. Do not treat a shallow or single-branch clone as the full ref list.
+The table below is the pre-cleanup verification. After this commit is pushed, the cleaned ref is `cleanup/demo-migration-lineage`. `main`, backup, archive tags, and `docs/demo-migration-plan` must still match the protected values below. Re-verify with `git ls-remote` before any later action.
 
 | Ref | SHA at verification | Role |
 | --- | --- | --- |
@@ -141,75 +140,75 @@ tree of the branch after this handoff commit is that tree plus this documentatio
 
 ## 3. Exact post-cleanup HEAD
 
-**DOES NOT EXIST.**
+Choice B is executed on `cleanup/demo-migration-lineage` only.
 
-No rewrite has been performed. No replacement SHA has been created. Do not invent one. Do not
-declare Git cleanup complete.
+| Role | SHA |
+| --- | --- |
+| Pre-handoff cleaned commit | `a89fa7324a9fcab7f8c8477db05abfea11698663` |
+| Pre-handoff tree | `afba3b8e48f4668459b2b0930522590dcc23a756` |
+| Rewritten handoff content | `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` |
+| Rewritten SHA-record | `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` |
+| Cleaned tip | child of `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` whose subject is `docs(engineering): record the cleaned-history mapping` |
+
+`main` is not the post-cleanup HEAD. It is still `15775ea9486cb57fbfb8fefa3268658cbe7eb669`.
+`docs/demo-migration-plan` is not the post-cleanup HEAD. It remains the uncleaned lineage.
 
 ## 4. Complete commit mapping
 
-There is no old → new SHA mapping because no rewrite has been performed. Every new-SHA cell is
-`not created`. Purposes below are the commit subjects. Proposed fate is a recommendation, not an
-executed squash.
+Executed on `cleanup/demo-migration-lineage` by `git rebase --onto 039b9c827d54aabbec9e90557c3efb49eb37678a 22cbd26f17009bdd695cf6900d07f743806f2030`. No squash was performed. Unchanged commits keep the same SHA. Rewritten commits keep the same tree SHA as the old commit. Old SHAs below are not deleted from this file, and the three removed commits remain reachable from `docs/demo-migration-plan` at `1b233362ef391e4b8f31df9e48c56b3687e36222`.
 
-| Old SHA | Purpose | Proposed fate | New SHA |
+| Old SHA | Purpose | Fate on this branch | New SHA |
 | --- | --- | --- | --- |
-| `85345c932c4ac510b1e74c9e16fa329c4c7f82cd` | W1 discovery plan | keep | not created |
-| `379076f63915e46f34e73236041bd95725ffefa8` | W1 decision boundary | keep | not created |
-| `c5ba4a96e554bf59d8d7fde2695f6cede350efa2` | W1 handoff and document-reference fix | keep | not created |
-| `bab9e460b603f9499a9b0735050e1cb729384602` | W1 remote-verification note | keep, or squash into the W1 handoff without deleting its text | not created |
-| `25b432a4f3ed5c7cb924878477fceaf93b54fa85` | W2 dataset extraction | keep | not created |
-| `d954ba95c4299d5df852cfd398a2c0cb1f805987` | W2 evidence | keep | not created |
-| `713d9b3a43d825fb9f3cca01a05878f813ba60bd` | W2 remote-verification note | keep, or squash into the W2 evidence without deleting its text | not created |
-| `5fadf0769273178bd07c770f907871753f541768` | W3 local store canonical | keep | not created |
-| `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` | W3 evidence | keep | not created |
-| `6fed2a34b979384a2b94870559391d3a7d304315` | W3 remote-verification note | keep, or squash into the W3 evidence without deleting its text | not created |
-| `59929196888410483b320c6ee883eb8e8316c43a` | W4 local repositories canonical | keep | not created |
-| `8bd4981c0472d766d3196e1f354368a8413d6d0e` | W4 evidence | keep | not created |
-| `500d30f151a637ddfd41e60d454210ef406ef908` | W5 organization in the locally-served enumeration | keep | not created |
-| `6cd44e2460ed16f5a5e59ff8be9af38ae8db46ac` | W5 evidence | keep | not created |
-| `bfddc30bce1288f25135f313758bf5fa3bb26949` | W6 lifecycle marker | keep | not created |
-| `934a6d62f2d6edc4b06ccb29de118679dc9b038a` | W6 lifecycle evidence | keep | not created |
-| `896fddd2531d7d72dc9c23f63b3a7657a5035ad7` | W6 `demo` env alias to local | keep | not created |
-| `b3d417e287afda009c12d03ee88e9bfa078f224f` | W6 alias evidence | keep | not created |
-| `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | W7A client refuses local and demo sources | keep | not created |
-| `039b9c827d54aabbec9e90557c3efb49eb37678a` | W7A evidence | keep | not created |
-| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | rejected three-artifact build | drop from a future lineage only | not created |
-| `10c815412f4e951b8f05323de4e50927f116ab05` | rejected three-artifact evidence | drop from a future lineage only | not created |
-| `22cbd26f17009bdd695cf6900d07f743806f2030` | revert of that rejected attempt | drop from a future lineage only | not created |
-| `9357704a62b3c8b0d341c77a7d0390c7d28358d3` | W7B Import and Reset | keep | not created |
-| `619c2bb3efc07308568c0c646e683a0e3a1182d4` | W7B first evidence | keep | not created |
-| `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | W7B contract close | keep | not created |
-| `186f3b7b14f6283834fb391c7cd6dcd8d254b432` | W7B contract evidence | keep | not created |
-| `318c0f2ea2d68a62f2273797c547a584546a3a5d` | W8 two-composition gates | keep | not created |
-| `bc5f1cfa67170ff106f8811cee476ea241d140d4` | W8 evidence | keep | not created |
-| `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | W9 two Class-H renames | keep | not created |
-| `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` | W9 evidence | keep | not created |
-| `13599bbfc4fdce42de975ef28d104a8264bf88bf` | W10 eradication audit | keep | not created |
+| `85345c932c4ac510b1e74c9e16fa329c4c7f82cd` | W1 discovery plan | unchanged ancestor | `85345c932c4ac510b1e74c9e16fa329c4c7f82cd` |
+| `379076f63915e46f34e73236041bd95725ffefa8` | W1 decision boundary | unchanged ancestor | `379076f63915e46f34e73236041bd95725ffefa8` |
+| `c5ba4a96e554bf59d8d7fde2695f6cede350efa2` | W1 handoff and document-reference fix | unchanged ancestor | `c5ba4a96e554bf59d8d7fde2695f6cede350efa2` |
+| `bab9e460b603f9499a9b0735050e1cb729384602` | W1 remote-verification note | unchanged ancestor; not squashed | `bab9e460b603f9499a9b0735050e1cb729384602` |
+| `25b432a4f3ed5c7cb924878477fceaf93b54fa85` | W2 dataset extraction | unchanged ancestor | `25b432a4f3ed5c7cb924878477fceaf93b54fa85` |
+| `d954ba95c4299d5df852cfd398a2c0cb1f805987` | W2 evidence | unchanged ancestor | `d954ba95c4299d5df852cfd398a2c0cb1f805987` |
+| `713d9b3a43d825fb9f3cca01a05878f813ba60bd` | W2 remote-verification note | unchanged ancestor; not squashed | `713d9b3a43d825fb9f3cca01a05878f813ba60bd` |
+| `5fadf0769273178bd07c770f907871753f541768` | W3 local store canonical | unchanged ancestor | `5fadf0769273178bd07c770f907871753f541768` |
+| `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` | W3 evidence | unchanged ancestor | `2cb4b1e29a83350ca17fa02ddf4786d2546b09ae` |
+| `6fed2a34b979384a2b94870559391d3a7d304315` | W3 remote-verification note | unchanged ancestor; not squashed | `6fed2a34b979384a2b94870559391d3a7d304315` |
+| `59929196888410483b320c6ee883eb8e8316c43a` | W4 local repositories canonical | unchanged ancestor | `59929196888410483b320c6ee883eb8e8316c43a` |
+| `8bd4981c0472d766d3196e1f354368a8413d6d0e` | W4 evidence | unchanged ancestor | `8bd4981c0472d766d3196e1f354368a8413d6d0e` |
+| `500d30f151a637ddfd41e60d454210ef406ef908` | W5 organization in the locally-served enumeration | unchanged ancestor | `500d30f151a637ddfd41e60d454210ef406ef908` |
+| `6cd44e2460ed16f5a5e59ff8be9af38ae8db46ac` | W5 evidence | unchanged ancestor | `6cd44e2460ed16f5a5e59ff8be9af38ae8db46ac` |
+| `bfddc30bce1288f25135f313758bf5fa3bb26949` | W6 lifecycle marker | unchanged ancestor | `bfddc30bce1288f25135f313758bf5fa3bb26949` |
+| `934a6d62f2d6edc4b06ccb29de118679dc9b038a` | W6 lifecycle evidence | unchanged ancestor | `934a6d62f2d6edc4b06ccb29de118679dc9b038a` |
+| `896fddd2531d7d72dc9c23f63b3a7657a5035ad7` | W6 `demo` env alias to local | unchanged ancestor | `896fddd2531d7d72dc9c23f63b3a7657a5035ad7` |
+| `b3d417e287afda009c12d03ee88e9bfa078f224f` | W6 alias evidence | unchanged ancestor | `b3d417e287afda009c12d03ee88e9bfa078f224f` |
+| `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | W7A client refuses local and demo sources | unchanged ancestor | `b8f62877cf50815394e9f1ae26c86fb7da060c7e` |
+| `039b9c827d54aabbec9e90557c3efb49eb37678a` | W7A evidence | unchanged ancestor; replay base | `039b9c827d54aabbec9e90557c3efb49eb37678a` |
+| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | rejected three-artifact build | removed from this lineage only | removed from this lineage |
+| `10c815412f4e951b8f05323de4e50927f116ab05` | rejected three-artifact evidence | removed from this lineage only | removed from this lineage |
+| `22cbd26f17009bdd695cf6900d07f743806f2030` | revert of that rejected attempt | removed from this lineage only | removed from this lineage |
+| `9357704a62b3c8b0d341c77a7d0390c7d28358d3` | W7B Import and Reset | rewritten; same tree `73855a6d9efe8a761b93c7e8c439f6553c12c6a7` | `f3e96a32f5b81151e5aa5475d20cfd6f88d9b524` |
+| `619c2bb3efc07308568c0c646e683a0e3a1182d4` | W7B first evidence | rewritten; same tree `ab2784a8fc823247fea5a08e24b907e287c1b2b0` | `b25e025fb6a239e606b9e6cd9ab67d24235d8562` |
+| `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | W7B contract close | rewritten; same tree `d855475b258eb3ffd6b8c871390a859c85191aea` | `a97235fda962d7ba753789ebffa3b51bf3b395e9` |
+| `186f3b7b14f6283834fb391c7cd6dcd8d254b432` | W7B contract evidence | rewritten; same tree `99ac9f95930effc6e9e08725a2e60526e84e4ae5` | `b9fd0d17a329fa96e80d2009c45dce9d3196e6b9` |
+| `318c0f2ea2d68a62f2273797c547a584546a3a5d` | W8 two-composition gates | rewritten; same tree `35deaae8e0f8f8c2ed4a64847665a6e23a9ad2f3` | `63cd034164bc0c4cbd7c420b16ef9900a16faacf` |
+| `bc5f1cfa67170ff106f8811cee476ea241d140d4` | W8 evidence | rewritten; same tree `72c869963529c180581fb35005cb8c44c16e4aec` | `7477349e5debf140fda55636ad7d2d1356daa31d` |
+| `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | W9 two Class-H renames | rewritten; same tree `6e8dc6b78430821fab03bcf06403c92b648ff655` | `7efa032c450fd180d7158ff217162c24fe2454ff` |
+| `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` | W9 evidence | rewritten; same tree `05b0e72c0ecb254760990398c3ac3029ba335c94` | `7894a9a4a5ec8dd601b5a41a2ccd3fa27f1d5bb3` |
+| `13599bbfc4fdce42de975ef28d104a8264bf88bf` | W10 eradication audit | rewritten; same tree `afba3b8e48f4668459b2b0930522590dcc23a756` | `a89fa7324a9fcab7f8c8477db05abfea11698663` |
+| `ca8afba365e375a9c150fef5441f200f3e9f9dc4` | pre-cleanup handoff content | rewritten; same tree `f5198ed4655af85b8ac4884bda4d491ef0c8743f` | `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` |
+| `1b233362ef391e4b8f31df9e48c56b3687e36222` | handoff SHA-record | rewritten; same tree `d15d1ce02a1472e88664ba98eca5ece22b4fbb3e` | `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` |
 
-`ca8afba365e375a9c150fef5441f200f3e9f9dc4` is not in that table. It is additional documentation on top of `13599bb`.
-The following SHA-record commit is the same handoff. A later cleanup must keep both, or squash
-them only into a documentation commit that still contains this text. Neither may be dropped.
+The commit that introduces this mapping section is the cleaned tip. Its parent is `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. It is not a product commit.
 
-No implementation commit has been squashed. The three remote-verification commits are
-content-bearing documentation, not duplicates to delete. Squashing them is optional and only
-legal if their text survives.
+No implementation commit has been squashed. The three remote-verification commits are content-bearing documentation and were not squashed.
 
 ## 5. Commits intentionally removed
 
-**None.** No commit has been removed from the repository.
+Removed from `cleanup/demo-migration-lineage` only. Not deleted from the repository. Still reachable from `docs/demo-migration-plan` at `1b233362ef391e4b8f31df9e48c56b3687e36222`. Not reachable from this branch.
 
-The only removal candidates, and only from a future rewritten lineage, are:
+| Old SHA | Parent | Tree | Class | Why it left this lineage |
+| --- | --- | --- | --- | --- |
+| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | `039b9c827d54aabbec9e90557c3efb49eb37678a` | `ad250ca5a50a27789f197c389e8b9705574fb362` | rejected architecture attempt | Built customer, client, and operator as three artifacts. Owner rejected it. |
+| `10c815412f4e951b8f05323de4e50927f116ab05` | `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | `281f5b7e24927d67d39511eaad30d535d9d84996` | evidence of that rejected attempt | Added `docs/migration/W7_THREE_TARGET_EVIDENCE.md`. That file is not in the required tree. |
+| `22cbd26f17009bdd695cf6900d07f743806f2030` | `10c815412f4e951b8f05323de4e50927f116ab05` | `4afa9351d3b797e8a4444609c9ab50bd37051ec3` | revert of that experiment | Restored the W7A tree. Its tree equals `039b9c82`. |
 
-| SHA | Class | Reason it may later leave the lineage |
-| --- | --- | --- |
-| `1eb6366d0482c55845e5239ed20a9b44a4e6f68b` | rejected architecture attempt | Introduced a third customer/client/operator artifact. Owner rejected it. |
-| `10c815412f4e951b8f05323de4e50927f116ab05` | evidence of that rejected attempt | Documents the rejected three-artifact build. The evidence file is not in the tip tree. |
-| `22cbd26f17009bdd695cf6900d07f743806f2030` | revert of that experiment | Restored the two-composition W7A boundary. |
-
-Reason the trio is a candidate: GitHub compare `039b9c827d54aabbec9e90557c3efb49eb37678a...22cbd26f17009bdd695cf6900d07f743806f2030` reports **zero files**. Their net tree effect is empty. W7B and everything after it was built on the restored tree, not on the three-artifact tree. Dropping them is safe only if a later replay onto `039b9c82` still produces tree `afba3b8e48f4668459b2b0930522590dcc23a756`. That replay has **not** been run.
-
-Do not drop evidence commits, verification notes, or either W7B batch. They have surviving text or behavior.
+The replay was run. `a89fa7324a9fcab7f8c8477db05abfea11698663` has tree `afba3b8e48f4668459b2b0930522590dcc23a756`, identical to old `13599bb`. Evidence commits, verification notes, and both W7B batches were kept. No other commit was removed.
 
 ## 6. Final tree contract
 
@@ -251,15 +250,21 @@ What must not be touched:
 
 ## 7. Demo migration state
 
-| Wave | Closure | Implementation SHA | Evidence SHA |
+| Wave | Closure | Old SHA | SHA on this branch |
 | --- | --- | --- | --- |
-| W7A | closed | `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | `039b9c827d54aabbec9e90557c3efb49eb37678a` |
-| W7B | closed, two authorized batches | `9357704a62b3c8b0d341c77a7d0390c7d28358d3`, then `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | `619c2bb3efc07308568c0c646e683a0e3a1182d4`, then `186f3b7b14f6283834fb391c7cd6dcd8d254b432` |
-| W8 | closed | `318c0f2ea2d68a62f2273797c547a584546a3a5d` | `bc5f1cfa67170ff106f8811cee476ea241d140d4` |
-| W9 | closed | `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` |
-| W10 | closed as a read-only audit, not an implementation | none | `13599bbfc4fdce42de975ef28d104a8264bf88bf` |
+| W7A implementation | closed | `b8f62877cf50815394e9f1ae26c86fb7da060c7e` | same |
+| W7A evidence | closed | `039b9c827d54aabbec9e90557c3efb49eb37678a` | same |
+| W7B Import/Reset | closed | `9357704a62b3c8b0d341c77a7d0390c7d28358d3` | `f3e96a32f5b81151e5aa5475d20cfd6f88d9b524` |
+| W7B first evidence | closed | `619c2bb3efc07308568c0c646e683a0e3a1182d4` | `b25e025fb6a239e606b9e6cd9ab67d24235d8562` |
+| W7B contract close | closed | `f791f90c6e1d7956bf0c9bfd46cf02ebc3cb9f53` | `a97235fda962d7ba753789ebffa3b51bf3b395e9` |
+| W7B contract evidence | closed | `186f3b7b14f6283834fb391c7cd6dcd8d254b432` | `b9fd0d17a329fa96e80d2009c45dce9d3196e6b9` |
+| W8 gates | closed | `318c0f2ea2d68a62f2273797c547a584546a3a5d` | `63cd034164bc0c4cbd7c420b16ef9900a16faacf` |
+| W8 evidence | closed | `bc5f1cfa67170ff106f8811cee476ea241d140d4` | `7477349e5debf140fda55636ad7d2d1356daa31d` |
+| W9 rename | closed | `14a62fd720878a3bdf5f40cf2d7cbb8c52415a16` | `7efa032c450fd180d7158ff217162c24fe2454ff` |
+| W9 evidence | closed | `c783bec7ae334e30e9b557f6b331ac5a1d9ed556` | `7894a9a4a5ec8dd601b5a41a2ccd3fa27f1d5bb3` |
+| W10 audit | closed as a read-only audit, not an implementation | `13599bbfc4fdce42de975ef28d104a8264bf88bf` | `a89fa7324a9fcab7f8c8477db05abfea11698663` |
 
-W10 records `Migration Complete = NOT PROVEN`. That sentence is still true. Closed waves are not a license to repeat them. The rejected three-artifact line is not a closure state. It was reverted.
+W10 records `Migration Complete = NOT PROVEN`. That sentence is still true. Closed waves are not a license to repeat them. The rejected three-artifact line is not a closure state. It is absent from this branch and still present on `docs/demo-migration-plan`.
 
 W1 still records the membership decision as pending in `docs/migration/W1_DECISION_BOUNDARY.md`. W5 code put `organization` in the 12-id lists. Do not “resolve” that record in a cleanup. Do not confuse it with `DECISIONS.md` D8. Those are different namespaces.
 
@@ -281,7 +286,7 @@ Two compositions only.
 | --- | --- |
 | Client build | `build:client` → `dist/client` |
 | Demo build | `build:demo` → `dist/demo` |
-| Registries | `src/app/registry.ts`, `src/app/registry.client.ts`, `src/app/registryCore.ts`. Do not merge them. |
+| Registries | `src/domains/registry.ts`, `src/domains/registry.client.ts`, `src/domains/registryCore.ts`. Do not merge them. |
 | `APP_TARGET=client` | Selects the client composition. |
 | `APP_TARGET=demo`, empty, or any unknown value, including `operator` and `customer` | Selects demo. This is recorded behavior, not a defect to fix in cleanup. |
 | Client isolation | The client graph does not import the demo store, seed, credentials, or local repositories. Twelve domains are `DOMAIN_UNAVAILABLE` in the client composition. |
@@ -356,55 +361,40 @@ First slice the current client composition can call, after an explicit owner aut
 
 ## 11. Git cleanup decision
 
-**Not executed. `main` is still untouched.**
+**Executed as owner decision B, on `cleanup/demo-migration-lineage` only. `main` is still untouched.**
 
-Target final history, if the owner later chooses a rewrite:
+What was done:
 
-- Preserve tree `afba3b8e48f4668459b2b0930522590dcc23a756`, plus this handoff.
-- Drop only `1eb6366`, `10c8154`, and `22cbd26` from the lineage.
-- Keep every other commit in §4, including evidence.
-- Optional, not required: squash each remote-verification note into the previous evidence commit, text preserved.
-- Do not squash implementation into evidence. The audit trail is the point.
-- Resulting count if only the trio is dropped: 29 pre-handoff commits, plus this handoff. Not 4.
+- New branch, not a force-update of `main`, backup, archive tags, or `docs/demo-migration-plan`.
+- `git rebase --onto 039b9c827d54aabbec9e90557c3efb49eb37678a 22cbd26f17009bdd695cf6900d07f743806f2030`.
+- Dropped only `1eb6366`, `10c8154`, and `22cbd26` from this lineage.
+- Kept every other commit, including evidence and both handoff commits, with identical trees.
+- Did not squash the remote-verification notes.
+- Pre-handoff tree is `afba3b8e48f4668459b2b0930522590dcc23a756`.
 
-Intended squash groups, none created:
+Merge strategy now:
 
-| Group | Commits | Rule |
-| --- | --- | --- |
-| Dead-end drop | `1eb6366`, `10c8154`, `22cbd26` | Omit from lineage. Do not omit their SHAs from this file. |
-| Optional doc squash | `bab9e460` into W1 handoff; `713d9b3` into W2 evidence; `6fed2a3` into W3 evidence | Text must survive. |
-| Not a squash | W7B's two implementation commits and two evidence commits | Separate authorized batches. Keep. |
-| This handoff | `ca8afba365e375a9c150fef5441f200f3e9f9dc4` plus the following SHA-record commit | Must remain in the cleaned history. Squash together is allowed. Dropping the text is not. |
-
-Merge strategy:
-
-- Do not merge to `main` until the owner chooses.
-- Choice A: fast-forward `main` from `15775ea` to the migration tip. No force-push. The rejected trio remains visible. This is the only merge that does not rewrite.
-- Choice B: create a **new** branch. Replay `9357704` onward onto `039b9c82`. Prove the tree matches `afba3b8e` plus this handoff. Run tests there. Open a PR. Do not force-push `main`, the backup, archive tags, or the migration branch until that proof exists and the owner accepts it.
-- Either choice must update this file with the real old → new mapping before cleanup is declared complete.
+- Do not merge to `main` yet.
+- Do not fast-forward `main`.
+- Do not force-push `docs/demo-migration-plan`. The old SHAs must stay reachable there.
+- A later merge requires a separate owner authorization and a PR from this branch. It has not been opened.
 
 ## 12. Exact next action
 
-Wait for a written owner choice between A and B in §11.
+Stop. Do not merge to `main`.
 
 Do not:
 
-- rewrite, rebase, filter, or force-push
-- merge or fast-forward `main`
-- move backup or archive refs
+- rewrite this branch again
+- force-push `main`, backup, archive tags, or `docs/demo-migration-plan`
 - touch the protected WIP
 - re-run W7A, W7B, W8, W9, or W10
 - fix I19
 - change D9, `APP_TARGET`, registries, seeds, or storage keys
 - invent API endpoints
 - start backend, Telegram, Bale, or push implementation
-- declare Git cleanup complete
 
-Completion condition, not yet met:
-
-> Before declaring Git cleanup complete, update and commit the canonical session handoff with the complete cleanup audit, commit mapping, final refs, preserved decisions, known failures, final tree contract, and exact next-step recovery instructions. The handoff itself must be included in the final cleaned history.
-
-This commit satisfies the pre-cleanup half of that condition. It does not satisfy the post-cleanup half. Post-cleanup HEAD is still absent. The old → new mapping is still `not created`.
+Cleanup of this branch is recorded here. Merge to `main` is not done and is not authorized by this commit.
 
 ---
 
