@@ -132,6 +132,31 @@ asset bytes referenced rather than embedded, and **no** behaviour change.
 disposable clone on this same branch, and must carry its own handoff and its own protected-state
 verification. The same rule applies to every later wave (W3–W10).
 
+### 7b. Remote verification record (post-push, appended after the push)
+
+Recorded after the branch was pushed, exactly as the checkpoint rule requires (verify through GitHub, then
+record the exact SHA). Two independent reads of the remote were taken:
+
+| Check | Result |
+| --- | --- |
+| `git ls-remote origin refs/heads/docs/demo-migration-plan` | **`c5ba4a96e554bf59d8d7fde2695f6cede350efa2`** — equal to the local tip at push time ✔ |
+| GitHub API `repos/…/branches/docs/demo-migration-plan` | `sha = c5ba4a96e554bf59d8d7fde2695f6cede350efa2` ✔ |
+| GitHub API `repos/…/commits/c5ba4a96…` | 2 files, parent `379076f63915…`, message *docs(migration): W1 complete handoff and document-reference fix* ✔ |
+| `main` after the push | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` — **unchanged** ✔ |
+| `backup/pre-f2-2026-09-29` after the push | `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6` — **unchanged** ✔ |
+| `arena/phase2a-landing` after the push | `2df607eff5f1ea1fe85e86381b9b0398fec81d18` — **unchanged** ✔ |
+| Push mode | ordinary `git push` of one new branch — no force, no rebase, no squash, no merge, no `main` change ✔ |
+
+**The commit that carries this addendum is the branch tip after the second push.** Its own SHA cannot appear
+inside itself — the repository forbids a document quoting the SHA of the commit that carries it
+(`projectState.test.ts` enforces the ban; `DECISIONS.md` §21 records the rule) — so it is recorded in the
+wave's report instead:
+
+| Field | Value |
+| --- | --- |
+| Remote-verified SHA (first push) | `c5ba4a96e554bf59d8d7fde2695f6cede350efa2` |
+| Addendum commit (branch tip after the second push) | recorded in the wave report; the tip is the only commit whose message is *docs(migration): record the W1 remote verification* |
+
 ## 9. Rollback
 
 **Rollback point = the parent commit of this wave, `15775ea9486cb57fbfb8fefa3268658cbe7eb669` (`main`).**
