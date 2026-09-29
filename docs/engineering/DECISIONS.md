@@ -2008,7 +2008,7 @@ authorization fields per wave), and the gates named for W8 — none of which exi
 enforces this entry: it is a documentation decision boundary, and its enforcement is review plus the wave
 protocol.
 
-**Status.** ✅ Recorded — 2026-09-29 (W1, `docs/demo-migration-plan`), documentation only. This entry amends
+**Status.** ✅ Recorded — 2026-09-29 (W1, on the migration branch docs/demo-migration-plan), documentation only. This entry amends
 no D-entry, changes no `O-*` or `T-02` status, moves no D9 constant, resolves no open item (I15, I19, I22 and
 the DOCUMENTATION DRIFT set are untouched), touches no branch, tag or PR, and authorizes no source, test,
 build, back-end, RBAC, D8 or D9 change. It is **not** linked from `PROJECT_STATE.md` §6, on the same
