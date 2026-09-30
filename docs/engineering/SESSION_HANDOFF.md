@@ -1,6 +1,108 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-09-30, Phase B frontend completion, partial.** This supersedes the history-cleanup pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
+> **LIVE POINTER — 2026-09-30, owner decision A.** This supersedes the Phase B stamp pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
+>
+> ```text
+> OWNER DECISION: A — ACCEPTED
+> 7ff23379bb846798cdabd96be1ba9344792c0e24 is the canonical current baseline.
+> It is the authoritative starting point for work after the history-cleanup stamp.
+> Do not rewind to 33fc21443e0c11a83f2039dd5152130fa1dbcab2.
+> Do not rewrite history. Do not squash W7A–W10. Do not re-run W7A, W7B, W8, W9, or W10.
+> Do not merge to main. Ahead-by is not merge authorization.
+> Do not use docs/demo-migration-plan as a merge source.
+>
+> THIS ACCEPTANCE DOES NOT MEAN PHASE B IS COMPLETE.
+> It only confirms that the four commits after 33fc214 are retained as intentional work:
+>   5e5fa35af30070fa08b1ad6004f2ab29dffc27b0  access guards
+>   88fee2665434647f81b05b0f1560270ab56b86e3  tests
+>   b0f969e38644d3c596d9b592afa25c71f0395700  documentation / owner decisions
+>   7ff23379bb846798cdabd96be1ba9344792c0e24  Phase B tip stamp
+> Those four commits do not close GAP, UNKNOWN, BACKEND-ONLY, OWNER DECISION REQUIRED, or PRE-EXISTING FAILURE.
+>
+> CURRENT BRANCH:
+> cleanup/demo-migration-lineage
+> This is the baseline branch. Do not move this work onto arena/01a0e8ec-parsian-music-dashboard-opus.
+>
+> CURRENT HEAD:
+> the commit that contains this paragraph
+> parent: 7ff23379bb846798cdabd96be1ba9344792c0e24
+> subject: docs(engineering): record owner decision A
+> This commit does not contain its own SHA.
+> Read the tip with: git ls-remote origin refs/heads/cleanup/demo-migration-lineage
+> Match parent and subject.
+> 7ff2337 remains the accepted baseline and an ancestor. Do not reset the branch to it after this commit is the tip. Do not rewind past it.
+>
+> MAIN:
+> 15775ea9486cb57fbfb8fefa3268658cbe7eb669
+> UNTOUCHED. Do not merge.
+>
+> OLD MIGRATION BRANCH:
+> docs/demo-migration-plan
+> 1b233362ef391e4b8f31df9e48c56b3687e36222
+> DO NOT MERGE
+>
+> PROTECTED WIP:
+> arena/01a0e8ec-parsian-music-dashboard-opus
+> local only, HEAD eb973eb2758447eff16b60ab4fd4c267f9d85061
+> Do not push, reset, or clean it.
+>
+> BACKUP:
+> backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
+> UNTOUCHED.
+>
+> ARCHIVE TAG:
+> archive/gallery-library-storage-eb973eb @ eb973eb2758447eff16b60ab4fd4c267f9d85061
+> UNTOUCHED.
+>
+> BACKEND: NOT STARTED
+> TELEGRAM: NOT STARTED
+> PUSH: NOT STARTED
+> STUDENT PORTAL UI: NOT STARTED. D1: no student role in this panel.
+> SEPARATE MANAGEMENT APP: NOT STARTED. This repository remains the current panel.
+>
+> CURRENT PHASE:
+> Phase B — PARTIAL, not complete
+> Canonical working baseline: 7ff23379bb846798cdabd96be1ba9344792c0e24
+>
+> DOCUMENTATION STATE at acceptance. Recorded here. Not repaired in other files:
+> - This file is the only live recovery pointer. Do not create a second handoff.
+> - OPEN_ITEMS.md is the canonical location of PB-1..PB-5. It names 5e5fa35 and 88fee26 on I22. It does not name 7ff2337. GAP. Not rewritten.
+> - PHASE_B_FRONTEND_GAP_MATRIX.md is the gap record, not the handoff. It names 5e5fa35 and 88fee26, not 7ff2337. GAP. Not rewritten.
+> - PROJECT_STATE.md and PHASES.md still describe older tips, including main at f63ebaab37096fcb25063aca51c713e26d3b3da7. HISTORICAL. Not rewritten. This pointer is authoritative for the current tip.
+> - DECISIONS.md has no Phase B baseline row. Do not add decision A there. D1–D20 stay unchanged.
+> - GOVERNANCE_CHECKPOINT.md remains live law for T-02 / O-*. T-02 stays ACCEPTED / ASSIGNED-ONLY. Not amended.
+> - docs/frontend-completion/13-open-decisions.md remains a historical snapshot. Do not rewrite its O-01..O-20 rows.
+> - docs/frontend-completion/15-student-portal-architecture.md still calls the missing-teacherId fallback honest. That conflict is PB-1, not a decision.
+> - docs/gap-matrix.md remains the Phase 0 snapshot. Not rewritten.
+> - docs/frontend-completion/10-integration-architecture.md Phase B boundary names no new HTTP path. Telegram and Push are not started.
+>
+> Known failure, not touched: I19 src/views/__tests__/schedulingWrites.test.tsx:1234, extra id ses_cl2_20260929_1400.
+> The full suite was not rerun for this record. Not rerun is neither pass nor fail.
+> Two compositions only. Registry paths remain src/domains/registry.ts, src/domains/registry.client.ts, and src/domains/registryCore.ts.
+>
+> NEXT, NOT AUTHORIZED BY THIS COMMIT:
+> PB-1 through PB-5 remain OWNER DECISION REQUIRED in OPEN_ITEMS.md.
+> Do not implement those decisions.
+> Do not invent permissions, endpoints, tenancy, or policy.
+> Do not start backend, Telegram, Push, the student app, or the management app.
+> Do not merge to main. Do not delete any branch.
+> Intended order after later, separate authorization — not a start order:
+>   owner decisions PB-1..PB-5
+>   frontend completion
+>   final frontend audit
+>   backend/API
+>   student + management app
+>   Telegram
+>   Push
+>   integration / E2E
+>   final Git cleanup
+>   merge to main
+> None of those steps is authorized by decision A or by this commit.
+> ```
+>
+> Decision A retains the four Phase B commits. It does not close them into a finished phase.
+
+> **PHASE B STAMP POINTER — 2026-09-30, Phase B frontend completion, partial. Retained. Not the live work order.** Its predicate still names `7ff23379bb846798cdabd96be1ba9344792c0e24`: parent `b0f969e38644d3c596d9b592afa25c71f0395700`, subject `docs(engineering): stamp the Phase B tip`. Owner decision A accepts that commit as the baseline. It does not delete the history-cleanup pointer, and it does not delete any SHA in this file.
 >
 > ```text
 > CURRENT CLEAN BRANCH:
