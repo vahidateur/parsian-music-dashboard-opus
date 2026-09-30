@@ -10,17 +10,20 @@
  * self vs assigned vs org decisions, so views must not re-derive the same logic
  * with ad-hoc filters.
  *
- * T-02: Teacher → unassigned student is OPEN EVIDENCE CONFLICTING.
- * Current observed behavior in rolePermissions: teacher has students.read org-wide
- * (ALLOWED). Desired smallest permission model per F2 goal: assigned-only (DENIED
- * for unassigned). This module implements the smallest model (assigned-only) as
- * `isAssignedStudent` and `canReadStudent` for teacher role, while preserving
- * evidence via `canReadStudentOrgWide` helper that documents the historical
- * ALLOWED behavior. Product decision remains OPEN, but implementation chooses
- * assigned-only as smallest per F2 acceptance.
+ * T-02: ACCEPTED / ASSIGNED-ONLY. Live status is
+ * `docs/engineering/GOVERNANCE_CHECKPOINT.md`. Teacher student-read is an active
+ * enrollment in a class whose `teacherId` is the actor's linked teacher.
+ * `Student.teacherId` is not authorization. `canReadStudentOrgWide` remains only
+ * as the historical ALLOWED helper. The earlier "OPEN EVIDENCE CONFLICTING"
+ * wording is superseded and must not be reopened.
  *
- * O-01: Student level scope per-program vs global — remains OPEN, not resolved
- * here. Scope functions operate per-program where placement exists, not global.
+ * Residue, not a status reopen: a teacher actor with no `teacherId` still falls
+ * through to org-wide below. The checkpoint says fail-closed. The student-portal
+ * contract still calls that fallback honest. That case is OWNER DECISION
+ * REQUIRED. This module does not choose it.
+ *
+ * O-01: DECIDED 2026-09-21 — PER-PROGRAM. These functions do not place levels
+ * and do not reopen that decision.
  */
 
 import type { RoleId, Permission } from "./permissions";
@@ -121,8 +124,9 @@ export function canReadStudentOrgWide(actor: Actor): boolean {
  * Can actor read a student?
  *
  * - administrator / manager / staff with students.read: org-wide ALLOWED (per rolePermissions)
- * - teacher with students.read: assigned-only ALLOWED per smallest model (T-02 DENIED desired)
- *   - if teacherId missing, fallback to org-wide (honest, no fabricated assignment)
+ * - teacher with students.read and teacherId: assigned-only (T-02 ACCEPTED)
+ *   - if teacherId is missing, the org-wide branch below is unchanged pending
+ *     the owner decision recorded in the file header
  * - student self: self ALLOWED, other DENIED
  * - accountant with students.read: org-wide ALLOWED (finance needs roster)
  *
@@ -151,7 +155,8 @@ export function canReadStudent(
   // Student self (future portal)
   if (isSelfStudent(actor, student.id)) return true;
 
-  // Teacher without teacherId linkage: fallback to org-wide (honest, not fabricated DENY)
+  // Teacher without teacherId: unchanged org-wide branch. Fail-closed vs this
+  // fallback is OWNER DECISION REQUIRED; do not treat the branch as a decision.
   if (actor.role === "teacher" && !actor.teacherId) {
     return true;
   }

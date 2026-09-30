@@ -23,6 +23,7 @@ import { useMemo, useRef, useState, type RefObject } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useCan } from "@/domains/auth/AuthContext";
 import { Button, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Field, Panel, inputCls, SearchInput } from "@/components/ds/patterns";
@@ -40,7 +41,17 @@ function partialNote(name: string, shown: number, total: number): string | null 
 }
 
 /** One thumbnail. Object-URL lifetime is owned by `useMediaObjectUrl` — F1 one-frame fix applied there. */
-function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; onRemove: () => void }) {
+function Thumb({
+  image,
+  busy,
+  mayWrite,
+  onRemove,
+}: {
+  image: GalleryImage;
+  busy: boolean;
+  mayWrite: boolean;
+  onRemove: () => void;
+}) {
   const url = useMediaObjectUrl(image.mediaId);
 
   return (
@@ -56,16 +67,18 @@ function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; 
         <p className="truncate text-[11px] text-ink-200">{image.caption}</p>
         <p className="truncate text-[10px] text-ink-500">{image.alt}</p>
       </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        aria-label={`حذف ${image.caption}`}
-        disabled={busy}
-        className="absolute left-1.5 top-1.5 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
-        onClick={onRemove}
-      >
-        <Trash2 className="size-3.5" />
-      </Button>
+      {mayWrite && (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`حذف ${image.caption}`}
+          disabled={busy}
+          className="absolute left-1.5 top-1.5 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
+          onClick={onRemove}
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      )}
     </li>
   );
 }
@@ -83,6 +96,7 @@ function Thumb({ image, busy, onRemove }: { image: GalleryImage; busy: boolean; 
 function AlbumImages({
   album,
   busy,
+  mayWrite,
   caption,
   onCaption,
   onUpload,
@@ -91,6 +105,7 @@ function AlbumImages({
 }: {
   album: GalleryAlbum;
   busy: boolean;
+  mayWrite: boolean;
   caption: string;
   onCaption: (value: string) => void;
   onUpload: (file: File) => void;
@@ -103,6 +118,7 @@ function AlbumImages({
 
   return (
     <>
+      {mayWrite && (
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <Field label="توضیح تصویر (متن جایگزین — alt الزامی)" className="min-w-[200px] flex-1">
           {(control) => <input {...control} className={inputCls} placeholder="برای دسترس‌پذیری الزامی است" value={caption} disabled={busy} onChange={(e) => onCaption(e.target.value)} />}
@@ -111,19 +127,25 @@ function AlbumImages({
         <Button size="sm" variant="primary" className="mb-[2px]" disabled={busy} onClick={() => fileInput.current?.click()}>
           <ImagePlus className="size-3.5" /> {busy ? "در حال افزودن…" : "افزودن تصویر"}
         </Button>
-        {imagesNote && <span className="text-[11px] text-ink-400">{imagesNote}</span>}
       </div>
+      )}
+      {imagesNote && <p className="mb-3 text-[11px] text-ink-400">{imagesNote}</p>}
 
       {imagesError ? (
         <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" description={imagesError.message} onRetry={reloadImages} />
       ) : imagesLoading ? (
         <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
       ) : images.length === 0 ? (
-        <EmptyState title="تصویری نیست" description="این آلبوم خالی است — اولین تصویر را اضافه کنید." />
+        <EmptyState
+          title="تصویری نیست"
+          description={mayWrite ? "این آلبوم خالی است — اولین تصویر را اضافه کنید." : "این آلبوم خالی است."}
+        />
       ) : (
         <>
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {images.map((image) => <Thumb key={image.id} image={image} busy={busy} onRemove={() => onRemove(image)} />)}
+            {images.map((image) => (
+              <Thumb key={image.id} image={image} busy={busy} mayWrite={mayWrite} onRemove={() => onRemove(image)} />
+            ))}
           </ul>
 
           <Surface className="mt-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
@@ -137,6 +159,8 @@ function AlbumImages({
 
 export function GalleryPanel() {
   const { notify } = useApp();
+  // X-02: gallery writes borrow library.write. Reading albums does not.
+  const mayWrite = useCan("library.write");
   const [albumSearch, setAlbumSearch] = useState("");
   const { items: albums, total: albumsTotal, loading, error, reload } = useAlbums({ per_page: 100, search: albumSearch || undefined });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -153,6 +177,7 @@ export function GalleryPanel() {
   const albumsNote = partialNote("آلبوم‌ها", albums.length, albumsTotal);
 
   const createAlbum = async () => {
+    if (!mayWrite) return;
     const title = albumTitle.trim();
     if (!title) return;
     setBusy(true);
@@ -169,7 +194,7 @@ export function GalleryPanel() {
   };
 
   const upload = async (file: File) => {
-    if (!selected) return;
+    if (!mayWrite || !selected) return;
     const alt = caption.trim() || file.name;
     setBusy(true);
     /*
@@ -208,6 +233,7 @@ export function GalleryPanel() {
   };
 
   const removeImage = async (image: GalleryImage) => {
+    if (!mayWrite) return;
     setBusy(true);
     try {
       await getGalleryRepository().removeImage(image.id);
@@ -257,12 +283,14 @@ export function GalleryPanel() {
           )}
           {albumsNote && <p className="mt-2 text-[11px] text-ink-400">{albumsNote} — honest truncation disclosure</p>}
 
+          {mayWrite && (
           <form className="mt-3 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); void createAlbum(); }}>
             <Field label="آلبوم جدید" className="flex-1">
               {(control) => <input {...control} className={inputCls} placeholder="مثلاً کنسرت بهار" value={albumTitle} disabled={busy} onChange={(e) => setAlbumTitle(e.target.value)} />}
             </Field>
             <Button type="submit" size="sm" variant="subtle" className="mb-[2px]" disabled={busy || !albumTitle.trim()}>افزودن</Button>
           </form>
+          )}
         </div>
 
         <div>
@@ -270,6 +298,7 @@ export function GalleryPanel() {
             <AlbumImages
               album={selected}
               busy={busy}
+              mayWrite={mayWrite}
               caption={caption}
               onCaption={setCaption}
               onUpload={upload}

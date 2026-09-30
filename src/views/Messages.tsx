@@ -71,6 +71,7 @@ import {
 import { messageTemplates } from "./messages/composerTemplates";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useCan } from "@/domains/auth/AuthContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
@@ -153,6 +154,9 @@ function MessageBubble({ message, index }: { message: ChatMessage; index: number
 
 export function MessagesView() {
   const { notify } = useApp();
+  // X-04: messages.write hides send, create, and conversation management.
+  // Reading a thread, including its export, stays on messages.read.
+  const canWriteMessages = useCan("messages.write");
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<ChatParticipantRole | "all">("all");
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -275,6 +279,7 @@ export function MessagesView() {
    * on entry, so a double Enter or a second click cannot start a second upload.
    */
   const send = useCallback(async () => {
+    if (!canWriteMessages) return;
     const body = draft.trim();
     if (!body || !activeId || sending) return;
     // Captured before the await: the write targets the conversation the
@@ -342,9 +347,10 @@ export function MessagesView() {
     } finally {
       setSending(false);
     }
-  }, [draft, activeId, sending, notify, composer]);
+  }, [canWriteMessages, draft, activeId, sending, notify, composer]);
 
   const createConversation = useCallback(async () => {
+    if (!canWriteMessages) return;
     try {
       const created = await getChatRepository().createConversation({
         name: "گفتگوی جدید",
@@ -365,7 +371,7 @@ export function MessagesView() {
         detail: apiErrorFromThrown(cause).message,
       });
     }
-  }, [notify]);
+  }, [canWriteMessages, notify]);
 
   /**
    * Exports the conversation that is selected RIGHT NOW.
@@ -444,9 +450,11 @@ export function MessagesView() {
             >
               <Megaphone className="size-3.5" /> اطلاعیهٔ عمومی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => void createConversation()}>
-              گفتگوی جدید
-            </Button>
+            {canWriteMessages && (
+              <Button size="sm" variant="primary" onClick={() => void createConversation()}>
+                گفتگوی جدید
+              </Button>
+            )}
           </>
         }
         meta={
@@ -562,15 +570,17 @@ export function MessagesView() {
                 >
                   <Download className="size-3.5" /> {exporting ? "در حال تهیه…" : "خروجی"}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  className="shrink-0"
-                  onClick={() => setManagerOpen(true)}
-                  aria-label="مدیریت گفتگو"
-                >
-                  <Settings2 className="size-3.5" /> مدیریت
-                </Button>
+                {canWriteMessages && (
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    className="shrink-0"
+                    onClick={() => setManagerOpen(true)}
+                    aria-label="مدیریت گفتگو"
+                  >
+                    <Settings2 className="size-3.5" /> مدیریت
+                  </Button>
+                )}
               </header>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -599,6 +609,7 @@ export function MessagesView() {
                 )}
               </div>
 
+              {canWriteMessages ? (
               <div className="border-t border-white/[0.06] p-3">
                 <div className="flex items-end gap-2">
                   {/*
@@ -643,6 +654,11 @@ export function MessagesView() {
                 />
                 <p className="mt-2 text-[10.5px] text-ink-500">Enter برای ارسال · Shift + Enter برای خط جدید</p>
               </div>
+              ) : (
+                <p className="border-t border-white/[0.06] p-3 text-[12px] text-ink-400">
+                  ارسال پیام برای این نقش فعال نیست.
+                </p>
+              )}
             </>
           ) : selectionHidden ? (
             /*
@@ -692,6 +708,7 @@ export function MessagesView() {
 
         {/* Context rail */}
         <div className="hidden space-y-4 lg:block">
+          {canWriteMessages && (
           <Panel title="قالب‌های آماده" kicker="پیام‌های پرتکرار آموزشگاه">
             <ul className="space-y-2">
               {messageTemplates.map((t) => (
@@ -708,6 +725,7 @@ export function MessagesView() {
               ))}
             </ul>
           </Panel>
+          )}
           <Panel title="مسیرهای ارسال" kicker="وضعیت واقعی هر کانال">
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3.5">
               <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-violet-300">
@@ -727,7 +745,7 @@ export function MessagesView() {
         is always the right record's (H6). Success is reported only from the
         callbacks, both of which run after the repository's promise resolved.
       */}
-      {active && (
+      {active && canWriteMessages && (
         <ConversationManagerDialog
           open={managerOpen}
           conversation={active}

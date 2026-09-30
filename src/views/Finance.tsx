@@ -1,5 +1,6 @@
 import { Download, Info, Plus, Wallet2 } from "lucide-react";
 import { useApp } from "@/context/AppContext";
+import { useCan } from "@/domains/auth/AuthContext";
 import { Button } from "@/components/ds/primitives";
 import { DemoNote } from "@/targets/environment";
 import { financeDeferredNote } from "@/targets/targetCopy";
@@ -25,6 +26,9 @@ import { PageHeader, Panel } from "@/components/ds/patterns";
 /* ------------------------------------------------------------------ */
 export function FinanceView() {
   const { notify, openSheet } = useApp();
+  // M-02: finance.write is the write gate. The export control only discloses
+  // that a server export does not exist; it does not record a payment.
+  const canRecordPayment = useCan("finance.write");
 
   return (
     <div>
@@ -37,9 +41,11 @@ export function FinanceView() {
             <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "گزارش مالی نیازمند سرور است", detail: "تولید PDF/Excel در سرور انجام می‌شود و در دمو فعال نیست." })}>
               <Download className="size-3.5" /> خروجی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
-              <Plus className="size-3.5" /> ثبت پرداخت
-            </Button>
+            {canRecordPayment && (
+              <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
+                <Plus className="size-3.5" /> ثبت پرداخت
+              </Button>
+            )}
           </>
         }
       />
