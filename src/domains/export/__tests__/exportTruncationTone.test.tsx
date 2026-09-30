@@ -29,11 +29,11 @@
  * demo seed does not carry; the stub replaces the far side of the click, never
  * the surface under test.
  *
- * SCOPE NOTE — the same literal was corrected in `ImportExportCenter.tsx:154`,
- * but that surface cannot be exercised from here: its permission guard can never
- * answer true, so the export half of the panel renders for no role at all
- * (recorded as OPEN_ITEMS I22; to be fixed in its own slice). Until then this
- * file covers the surface a regression test can actually reach.
+ * SCOPE NOTE — the same literal was corrected in `ImportExportCenter`. That
+ * panel's export half used to call `can()` with the session user, which cannot
+ * carry permissions (OPEN_ITEMS I22). The holder fix and its regression live in
+ * `src/views/__tests__/phaseBMutationGuards.test.tsx`. This file still covers
+ * the list export button, not that settings panel.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
