@@ -7,14 +7,15 @@
 > cleanup/demo-migration-lineage
 >
 > CURRENT HEAD:
-> the commit whose parent is this documentation commit and whose subject is
-> docs(engineering): stamp the Phase B tip
-> This documentation commit cannot name itself. The stamp commit cannot name itself either.
+> the commit that contains this paragraph
+> parent: b0f969e38644d3c596d9b592afa25c71f0395700
+> subject: docs(engineering): stamp the Phase B tip
+> This commit does not contain its own SHA.
 > Read the tip with: git ls-remote origin refs/heads/cleanup/demo-migration-lineage
 > Match parent and subject. Do not rewind to 33fc214 or to 689de032.
 >
 > PARENT OF THE STAMP:
-> this documentation commit, once the stamp exists
+> b0f969e38644d3c596d9b592afa25c71f0395700
 >
 > MAIN:
 > 15775ea9486cb57fbfb8fefa3268658cbe7eb669
@@ -49,7 +50,7 @@
 > Do not merge to main.
 > ```
 >
-> Phase B commits already on this branch, parents of this documentation commit:
+> Phase B commits already on this branch, before this stamp:
 > - `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0` — gate writes the matrix already names
 > - `88fee2665434647f81b05b0f1560270ab56b86e3` — tests for those gates
 >
