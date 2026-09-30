@@ -6,6 +6,18 @@
 > W7A, W7B, W8, W9, and W10 are **closed**. Do **not** re-run them. Do **not** start backend, Telegram, or push work from this file.
 > Do **not** merge this branch to `main` until a separate owner authorization.
 >
+> **Cleanup checklist**
+> 1. Current cleaned tip is the child of `689de032b658a2eebf50a2b54d184d855336f54d` whose subject is `docs(engineering): record the cleaned tip SHA`. The stamp commit after it writes that SHA into this file.
+> 2. Previous tip: `1b233362ef391e4b8f31df9e48c56b3687e36222` on `docs/demo-migration-plan`. That ref was not force-updated.
+> 3. Old→new mapping is §4. No squash.
+> 4. Removed from this lineage only: `1eb6366d0482c55845e5239ed20a9b44a4e6f68b`, `10c815412f4e951b8f05323de4e50927f116ab05`, `22cbd26f17009bdd695cf6900d07f743806f2030`. No other lineage was removed.
+> 5. Protected refs must remain `main` `15775ea9486cb57fbfb8fefa3268658cbe7eb669`, `backup/pre-f2-2026-09-29` `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6`, archive tag `eb973eb2758447eff16b60ab4fd4c267f9d85061`. WIP was not touched.
+> 6. W7A–W10 evidence remains reachable. See §7.
+> 7. Two compositions only. Registry paths are `src/domains/registry.ts`, `src/domains/registry.client.ts`, and `src/domains/registryCore.ts`. Not `src/app/`.
+> 8. Frontend/API readiness is §10. No server exists in this repository.
+> 9. Backend implementation has NOT started.
+> 10. The next authorized phase is separate from this history cleanup. Do not merge to `main`. Do not start backend. Migration and product completion are NOT proven.
+>
 > Sibling historical records, still present and not deleted:
 > [PROJECT_STATE.md](PROJECT_STATE.md) · [PHASES.md](PHASES.md) · [DECISIONS.md](DECISIONS.md) ·
 > [OPEN_ITEMS.md](OPEN_ITEMS.md) · [GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md) ·
@@ -45,11 +57,13 @@ Rewritten handoff:  98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5
 SHA-record replay:  f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
                     old 1b233362ef391e4b8f31df9e48c56b3687e36222
                     same tree d15d1ce02a1472e88664ba98eca5ece22b4fbb3e
-Cleaned tip:        child of f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
+Mapping tip:        689de032b658a2eebf50a2b54d184d855336f54d
+                    parent f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
                     subject: docs(engineering): record the cleaned-history mapping
-                    this file cannot contain that child SHA; verify with ls-remote
+Current cleaned tip: child of 689de032b658a2eebf50a2b54d184d855336f54d
+                    subject: docs(engineering): record the cleaned tip SHA
+                    the following stamp commit writes that child SHA into this file
 Remote check:       git ls-remote origin refs/heads/cleanup/demo-migration-lineage
-                    parent must be f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
 Main:               15775ea9486cb57fbfb8fefa3268658cbe7eb669
                     UNTOUCHED. Do not merge yet.
 Backup:             backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
@@ -97,7 +111,7 @@ Next exact step:
   Stop. Do not merge to main. Wait for a separate owner authorization before any merge.
 ```
 
-The pre-cleanup handoff content remains `ca8afba365e375a9c150fef5441f200f3e9f9dc4` on `docs/demo-migration-plan`, rewritten here as `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` with the same tree `f5198ed4655af85b8ac4884bda4d491ef0c8743f`. Its SHA-record child is rewritten as `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. Neither text was dropped. The cleaned tip is the child of that rewritten SHA-record commit.
+The pre-cleanup handoff content remains `ca8afba365e375a9c150fef5441f200f3e9f9dc4` on `docs/demo-migration-plan`, rewritten here as `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` with the same tree `f5198ed4655af85b8ac4884bda4d491ef0c8743f`. Its SHA-record child is rewritten as `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. Neither text was dropped. The mapping commit is `689de032b658a2eebf50a2b54d184d855336f54d`. The current cleaned tip is its child.
 
 ---
 
@@ -148,7 +162,8 @@ Choice B is executed on `cleanup/demo-migration-lineage` only.
 | Pre-handoff tree | `afba3b8e48f4668459b2b0930522590dcc23a756` |
 | Rewritten handoff content | `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` |
 | Rewritten SHA-record | `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` |
-| Cleaned tip | child of `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` whose subject is `docs(engineering): record the cleaned-history mapping` |
+| Mapping tip | `689de032b658a2eebf50a2b54d184d855336f54d` |
+| Current cleaned tip | child of `689de032b658a2eebf50a2b54d184d855336f54d` whose subject is `docs(engineering): record the cleaned tip SHA` |
 
 `main` is not the post-cleanup HEAD. It is still `15775ea9486cb57fbfb8fefa3268658cbe7eb669`.
 `docs/demo-migration-plan` is not the post-cleanup HEAD. It remains the uncleaned lineage.
@@ -194,7 +209,7 @@ Executed on `cleanup/demo-migration-lineage` by `git rebase --onto 039b9c827d54a
 | `ca8afba365e375a9c150fef5441f200f3e9f9dc4` | pre-cleanup handoff content | rewritten; same tree `f5198ed4655af85b8ac4884bda4d491ef0c8743f` | `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` |
 | `1b233362ef391e4b8f31df9e48c56b3687e36222` | handoff SHA-record | rewritten; same tree `d15d1ce02a1472e88664ba98eca5ece22b4fbb3e` | `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` |
 
-The commit that introduces this mapping section is the cleaned tip. Its parent is `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. It is not a product commit.
+The mapping commit is `689de032b658a2eebf50a2b54d184d855336f54d`. Its parent is `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8`. It is not a product commit. The current cleaned tip is the following documentation commit.
 
 No implementation commit has been squashed. The three remote-verification commits are content-bearing documentation and were not squashed.
 
