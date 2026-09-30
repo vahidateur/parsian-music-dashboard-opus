@@ -1,6 +1,61 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-09-30, owner decision A.** This supersedes the Phase B stamp pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
+> **LIVE POINTER — 2026-09-30, lineage pointer synchronization.** This supersedes the Decision A pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
+>
+> ```text
+> ACCEPTED BASELINE:
+> 7ff23379bb846798cdabd96be1ba9344792c0e24
+> Not the current HEAD. Do not reset to it. Do not rewrite history to make it the tip.
+>
+> DECISION A RECORD:
+> c4e60d1475a90ca0fd93cf88d18c3053d42191f6
+> parent: 7ff23379bb846798cdabd96be1ba9344792c0e24
+> subject: docs(engineering): record owner decision A
+> Ancestor of this commit. Not the current HEAD.
+>
+> CURRENT BRANCH:
+> cleanup/demo-migration-lineage
+>
+> CURRENT HEAD:
+> the commit that contains this paragraph
+> parent: c4e60d1475a90ca0fd93cf88d18c3053d42191f6
+> subject: docs(engineering): synchronize Phase B lineage pointers
+> This commit does not contain its own SHA.
+> Read the tip with: git ls-remote origin refs/heads/cleanup/demo-migration-lineage
+> Match parent and subject. Do not rewind to c4e60d1 or to 7ff2337.
+>
+> PHASE B:
+> PARTIAL, not complete
+> PB-1..PB-5 remain OWNER DECISION REQUIRED in OPEN_ITEMS.md.
+> This pass investigated them and did not choose them.
+> Current product behavior was preserved.
+> Live governance did not silently override a recorded conflict.
+>
+> BACKEND: NOT STARTED
+> TELEGRAM: NOT STARTED
+> PUSH: NOT STARTED
+> STUDENT PORTAL: NOT STARTED
+>
+> MAIN:
+> 15775ea9486cb57fbfb8fefa3268658cbe7eb669
+> UNTOUCHED. Do not merge. Ahead-by is not merge authorization.
+>
+> DO NOT MERGE:
+> docs/demo-migration-plan
+> 1b233362ef391e4b8f31df9e48c56b3687e36222
+>
+> PROTECTED:
+> backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
+> archive tags
+> local WIP arena/01a0e8ec-parsian-music-dashboard-opus @ eb973eb2758447eff16b60ab4fd4c267f9d85061
+> Do not push, reset, or clean the WIP.
+> Do not delete any branch or tag.
+> I19 remains unresolved. Not rerun is neither pass nor fail.
+> ```
+>
+> Pointer synchronization only. It does not close GAP, UNKNOWN, BACKEND-ONLY, OWNER DECISION REQUIRED, or PRE-EXISTING FAILURE.
+
+> **DECISION A POINTER — 2026-09-30, owner decision A. Retained. Not the live work order.** Its predicate still names `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`: parent `7ff23379bb846798cdabd96be1ba9344792c0e24`, subject `docs(engineering): record owner decision A`. The sentence below that `OPEN_ITEMS.md` and the gap matrix do not name `7ff2337` was true at that commit. This later pointer names those SHAs. It does not delete the Phase B stamp pointer, and it does not delete any SHA in this file.
 >
 > ```text
 > OWNER DECISION: A — ACCEPTED

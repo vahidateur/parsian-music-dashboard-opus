@@ -1680,6 +1680,8 @@ recovery and the zero-record tests both remaining green.
 
 These are not implementation choices. Each one was left unchanged because the live documents do not agree, or because no document names the rule.
 
+Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb846798cdabd96be1ba9344792c0e24`. Decision A record: `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`. The live tip is the commit whose parent is that record and whose subject is `docs(engineering): synchronize Phase B lineage pointers`, named in [SESSION_HANDOFF.md](SESSION_HANDOFF.md). This paragraph does not contain that commit's own SHA. Naming these SHAs does not resolve PB-1..PB-5.
+
 ### PB-1. Teacher with no `teacherId` — fail-closed or org-wide
 
 - **What:** `src/domains/auth/scope.ts` denies an unassigned student when the teacher actor has `teacherId`. A teacher actor with no `teacherId` still returns org-wide from `canReadStudent`.

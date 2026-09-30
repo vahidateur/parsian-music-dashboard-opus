@@ -4,6 +4,9 @@
 **Audited and implemented on:** `cleanup/demo-migration-lineage`  
 **Implementation commit:** `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0`  
 **Test commit:** `88fee2665434647f81b05b0f1560270ab56b86e3`  
+**Accepted baseline:** `7ff23379bb846798cdabd96be1ba9344792c0e24`  
+**Decision A record:** `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`  
+**Live tip:** parent `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`, subject `docs(engineering): synchronize Phase B lineage pointers`. See [SESSION_HANDOFF.md](SESSION_HANDOFF.md). This file does not name that commit's own SHA.  
 **Not a merge source:** `docs/demo-migration-plan`  
 **Not rewritten:** `docs/gap-matrix.md` (Phase 0 snapshot; OPEN_ITEMS documentation drift)
 
@@ -40,4 +43,4 @@ Frontend checks are UX. None of the IMPLEMENTED rows is server authorization.
 | Y | Student portal | MISSING | Contract is `docs/frontend-completion/15-student-portal-architecture.md`. D1: no student role in this panel, no portal UI. | O-13 credential factor remains OPEN. No fake portal backend. |
 | Z | Academy management | PARTIAL | Settings shell, users, roles, branding, hours, and session rules exist. Rooms, instruments, and learning writes are ungated. | PB-2 and PB-3 before more settings writes are hidden. |
 
-Phase B did not start Laravel, Telegram, or push. It did not merge to `main`.
+Phase B did not start Laravel, Telegram, or push. It did not merge to `main`. The SHA pointer above does not change any row and does not make Phase B complete.
