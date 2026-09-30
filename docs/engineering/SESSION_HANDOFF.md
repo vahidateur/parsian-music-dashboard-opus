@@ -1,6 +1,89 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-09-30, choice B executed on this branch.** This supersedes every older pointer in this file.
+> **LIVE POINTER — 2026-09-30, Phase B frontend completion, partial.** This supersedes the history-cleanup pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
+>
+> ```text
+> CURRENT CLEAN BRANCH:
+> cleanup/demo-migration-lineage
+>
+> CURRENT HEAD:
+> the commit whose parent is this documentation commit and whose subject is
+> docs(engineering): stamp the Phase B tip
+> This documentation commit cannot name itself. The stamp commit cannot name itself either.
+> Read the tip with: git ls-remote origin refs/heads/cleanup/demo-migration-lineage
+> Match parent and subject. Do not rewind to 33fc214 or to 689de032.
+>
+> PARENT OF THE STAMP:
+> this documentation commit, once the stamp exists
+>
+> MAIN:
+> 15775ea9486cb57fbfb8fefa3268658cbe7eb669
+> UNTOUCHED. Do not merge.
+>
+> OLD MIGRATION BRANCH:
+> docs/demo-migration-plan
+> 1b233362ef391e4b8f31df9e48c56b3687e36222
+> DO NOT MERGE
+>
+> PROTECTED WIP:
+> arena/01a0e8ec-parsian-music-dashboard-opus
+> local only, HEAD eb973eb2758447eff16b60ab4fd4c267f9d85061
+> Do not push, reset, or clean it.
+>
+> BACKEND:
+> NOT STARTED
+>
+> TELEGRAM:
+> NOT STARTED
+>
+> PUSH:
+> NOT STARTED
+>
+> CURRENT PHASE:
+> Phase B — PARTIAL, not complete
+>
+> NEXT PHASE:
+> Owner decisions PB-1 through PB-5 in OPEN_ITEMS.md.
+> Do not implement those decisions.
+> Do not start backend, Telegram, or push.
+> Do not merge to main.
+> ```
+>
+> Phase B commits already on this branch, parents of this documentation commit:
+> - `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0` — gate writes the matrix already names
+> - `88fee2665434647f81b05b0f1560270ab56b86e3` — tests for those gates
+>
+> Completed in those commits, and only that:
+> - `finance.write` hides «ثبت پرداخت» on the deferred finance view
+> - `messages.write` hides send, create, templates, and conversation management
+> - `settings.write` hides branding edit and save
+> - `library.write` hides gallery panel writes
+> - settings export uses the session permission holder (I22 frontend half)
+> - student import is hidden without `students.write`
+> - T-02 comment in `src/domains/auth/scope.ts` now says ACCEPTED / ASSIGNED-ONLY
+>
+> Not completed, and not chosen:
+> - PB-1 teacher with no `teacherId`
+> - PB-2 privileged account identity, including current-password proof
+> - PB-3 room, instrument, learning, and progress write permission
+> - PB-4 `useCan(...) || !user`
+> - PB-5 notifications domain versus later delivery
+> - student portal UI (D1: no student role in this panel)
+> - `organization_id` on the session (not added)
+>
+> Known failure, not touched: I19 `src/views/__tests__/schedulingWrites.test.tsx:1234`, extra id `ses_cl2_20260929_1400`.
+>
+> Gap matrix: [PHASE_B_FRONTEND_GAP_MATRIX.md](PHASE_B_FRONTEND_GAP_MATRIX.md).
+> Owner decisions: [OPEN_ITEMS.md](OPEN_ITEMS.md) PB-1..PB-5.
+> Chat / Telegram / notifications / push boundary, no new paths: [../frontend-completion/10-integration-architecture.md](../frontend-completion/10-integration-architecture.md) Phase B boundary.
+>
+> Protected refs must remain `main` `15775ea9486cb57fbfb8fefa3268658cbe7eb669`, `backup/pre-f2-2026-09-29` `62deb84dfbbd9d7ad27002196569d0c7ef4c87f6`, archive tag `eb973eb2758447eff16b60ab4fd4c267f9d85061`.
+> Two compositions only. Registry paths remain `src/domains/registry.ts`, `src/domains/registry.client.ts`, and `src/domains/registryCore.ts`.
+> `PROJECT_STATE.md` was not rewritten. Its tests pin an older checkpoint. This pointer is the live Phase B record.
+>
+> History-cleanup tip before Phase B: `33fc21443e0c11a83f2039dd5152130fa1dbcab2`, parent `0b5b38f771cc3f82afe9c46883ef5372dcd701ce`, subject `docs(engineering): stamp the cleaned tip SHA`. That commit remains an ancestor. Do not reset to it.
+
+> **HISTORY-CLEANUP POINTER — 2026-09-30, choice B executed on this branch.** Kept verbatim below this heading. It is not the live work order.
 > Owner decision B is done **only** on `cleanup/demo-migration-lineage`. `main` has **not** moved.
 > `docs/demo-migration-plan` remains the uncleaned lineage and must not be force-updated.
 > W7A, W7B, W8, W9, and W10 are **closed**. Do **not** re-run them. Do **not** start backend, Telegram, or push work from this file.

@@ -1543,7 +1543,7 @@ recovery and the zero-record tests both remaining green.
   test renders the panel as a permitted role and reaches «دانلود خروجی» end to end, and a role with
   no export permission still sees the honest empty state. The fix must land **separately from S5-A**:
   a product behaviour change must not ride on a type-fix commit.
-- **Status:** recorded 2026-09-25, **not authorized, not started**.
+- **Status:** recorded 2026-09-25 as not started. **Frontend holder fixed 2026-09-30** in `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0`; regression `88fee2665434647f81b05b0f1560270ab56b86e3` reaches «دانلود خروجی» for an administrator and the honest empty state when the issued set has no export permission. The item is **not removed**: a downloaded file is still not a server authorization, and export remains BACKEND-ONLY.
 
 ---
 
@@ -1675,6 +1675,45 @@ recovery and the zero-record tests both remaining green.
   are recorded in [DECISIONS.md](DECISIONS.md) §21 and were verified by re-running the gate
   afterwards; the two `projectState` reds this item described are gone from the suite's red list,
   and the conflict stays in this file as the record of why the exception exists.
+
+## PHASE B OWNER DECISIONS — 2026-09-30
+
+These are not implementation choices. Each one was left unchanged because the live documents do not agree, or because no document names the rule.
+
+### PB-1. Teacher with no `teacherId` — fail-closed or org-wide
+
+- **What:** `src/domains/auth/scope.ts` denies an unassigned student when the teacher actor has `teacherId`. A teacher actor with no `teacherId` still returns org-wide from `canReadStudent`.
+- **Evidence:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` says T-02 is fail-closed and must not be revisited. `docs/frontend-completion/15-student-portal-architecture.md` still calls the missing-`teacherId` fallback honest. The status comment in `scope.ts` was aligned to ACCEPTED / ASSIGNED-ONLY. The branch was not changed.
+- **Decision required:** Does a teacher account with no linked teacher id see no students, or every student?
+- **Status:** OWNER DECISION REQUIRED. Not chosen.
+
+### PB-2. Privileged account identity
+
+- **What:** No product document answers whether `name` stays one field, whether one administrator may edit another, whether a manager may edit an administrator, whether a privileged email may change, or whether that change requires the target account's current password.
+- **Evidence:** `src/components/settings/UsersPanel.tsx` uses one field labeled «نام و نام خانوادگی». `users.write` shows role and email controls for every row, including self. Delete is hidden for self. `src/domains/auth/userRepository.ts` posts `{ password }` to `users/{id}/password` and does not send a current password. A manager lacks `users.write`, so those controls are not rendered.
+- **Decision required:** Answer each question above before any account-form change.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. Not implemented.
+
+### PB-3. Writes that have no permission id
+
+- **What:** Room, instrument, learning-curriculum, and progress mutations render without `useCan`. No `rooms.write`, `instruments.write`, `learning.write`, or `progress.write` exists. Inventing one would change the 22-permission vocabulary.
+- **Evidence:** `src/domains/rooms/RoomsPanel.tsx`, `src/domains/instruments/InstrumentsPanel.tsx`, `src/domains/learning/LearningPanel.tsx`, `src/domains/progress/StudentProgressPanel.tsx`, `src/domains/progress/RepertoirePanel.tsx`. `StudentProgressPanel` also branches on `role === "teacher"`.
+- **Decision required:** Which existing permission, if any, hides each of those writes? `settings.write` and `library.write` are already used by other panels and must not be assumed.
+- **Status:** OWNER DECISION REQUIRED. Not chosen.
+
+### PB-4. `useCan(...) || !user`
+
+- **What:** Student, class, and schedule write flags are true when `user` is null. `useCan` itself returns true outside `AuthProvider`, by an explicit comment, so legacy view tests keep their controls.
+- **Evidence:** `src/views/Classes.tsx`, `src/views/Students.tsx`, `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`. The RBAC contract says no control when the permission is absent. The class comment says the idiom is required so the controls are not dropped.
+- **Decision required:** Remove the idiom, or keep it as a test seam? Inside the signed-in shell `AuthGate` does not render these views with a null user.
+- **Status:** OWNER DECISION REQUIRED. Not chosen.
+
+### PB-5. Notifications domain versus later delivery
+
+- **What:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` O-17 says no notifications domain in v1. `docs/frontend-completion/10-integration-architecture.md` still classifies Telegram/Bale/SMS/email notification delivery as a required later capability.
+- **Evidence:** both files. Settings notification toggles already say they do not save.
+- **Decision required:** Is v1 allowed to have a notifications domain, or only a later adapter with no inbox table?
+- **Status:** OWNER DECISION REQUIRED. Push was not started.
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 

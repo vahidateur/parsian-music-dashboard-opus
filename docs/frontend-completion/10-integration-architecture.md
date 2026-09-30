@@ -187,3 +187,18 @@ Student Portal SPA (or Mobile)
 - Student portal architecture profile/classes/schedule/level/resources/progress/attendance/tickets/messages/files demo vs backend identity documented
 - Tickets/chat/files topology auth ownership unread/read scope validation storage documented
 - Telegram backup retention/integrity/restore/encryption/failure marked OPEN with research tasks
+
+## Phase B boundary — 2026-09-30 — documentation only
+
+This section does not implement Chat, Telegram, notifications, or push, and it does not name a new HTTP path. Where a path is not already in source, the contract is missing.
+
+| Layer | Chat | Telegram / Bale | Notifications | Push |
+| --- | --- | --- | --- | --- |
+| Frontend interface | `MessagesView` reads and writes through `ChatRepository`. `messages.write` hides send, create, and management. | Settings and the messages rail say the channel needs a server. No bot token in the SPA. | Settings toggles are disabled and say they do not save. | No service worker, no permission prompt, no device-token field. |
+| Provider abstraction | `src/domains/chat/provider.ts` `MessageProviderAdapter`. `in_app` delivers. Telegram and Bale adapters return unavailable. | Adapters are not authorization. Governance: `chat_id` binds to user and org. Uniqueness and linking UX remain OPEN. | No notifications provider in `src/`. | None. |
+| Server contract | CONTRACT MISSING as a shipped route list. Do not invent one. | CONTRACT MISSING. Tokens stay on the server. | O-17: no notifications domain in v1. The table above this section still calls later delivery required. That conflict is PB-5 in `docs/engineering/OPEN_ITEMS.md`. | CONTRACT MISSING. |
+| Delivery | In-app row is stored. Other transports must not claim a send. | Not started. | Not started. | Not started. |
+| Device registration | Not applicable to the web thread list. | Linking UX is OPEN. No client registration call was added. | None. | None. Do not add a service worker until a contract names it. |
+| Token lifecycle | Demo session is not a push credential. | Bot token never in the frontend. | None. | None. |
+| Retry / failure | A failed in-app write keeps the draft and reports the repository message. | Not implemented. A future adapter must report failure rather than claim delivery. | Not implemented. | Not implemented. |
+| Tenant isolation | Not on the client session. O-14: tenant comes from the server token. | Same. An adapter is not an authorization boundary. | Same. | Same. |
