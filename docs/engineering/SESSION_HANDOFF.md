@@ -7,7 +7,7 @@
 > Do **not** merge this branch to `main` until a separate owner authorization.
 >
 > **Cleanup checklist**
-> 1. Current cleaned tip is the child of `689de032b658a2eebf50a2b54d184d855336f54d` whose subject is `docs(engineering): record the cleaned tip SHA`. The stamp commit after it writes that SHA into this file.
+> 1. Current cleaned tip is the commit that contains this checklist and whose parent is `0b5b38f771cc3f82afe9c46883ef5372dcd701ce`. Subject: `docs(engineering): stamp the cleaned tip SHA`. That parent is the handoff correction. Its own SHA cannot be stored inside itself.
 > 2. Previous tip: `1b233362ef391e4b8f31df9e48c56b3687e36222` on `docs/demo-migration-plan`. That ref was not force-updated.
 > 3. Old→new mapping is §4. No squash.
 > 4. Removed from this lineage only: `1eb6366d0482c55845e5239ed20a9b44a4e6f68b`, `10c815412f4e951b8f05323de4e50927f116ab05`, `22cbd26f17009bdd695cf6900d07f743806f2030`. No other lineage was removed.
@@ -60,9 +60,12 @@ SHA-record replay:  f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
 Mapping tip:        689de032b658a2eebf50a2b54d184d855336f54d
                     parent f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8
                     subject: docs(engineering): record the cleaned-history mapping
-Current cleaned tip: child of 689de032b658a2eebf50a2b54d184d855336f54d
+Handoff correction: 0b5b38f771cc3f82afe9c46883ef5372dcd701ce
+                    parent 689de032b658a2eebf50a2b54d184d855336f54d
                     subject: docs(engineering): record the cleaned tip SHA
-                    the following stamp commit writes that child SHA into this file
+Current cleaned tip: this stamp commit
+                    parent must be 0b5b38f771cc3f82afe9c46883ef5372dcd701ce
+                    subject: docs(engineering): stamp the cleaned tip SHA
 Remote check:       git ls-remote origin refs/heads/cleanup/demo-migration-lineage
 Main:               15775ea9486cb57fbfb8fefa3268658cbe7eb669
                     UNTOUCHED. Do not merge yet.
@@ -163,7 +166,8 @@ Choice B is executed on `cleanup/demo-migration-lineage` only.
 | Rewritten handoff content | `98842129c75e5f8e5ecd128f8276e6c8e1f5e1b5` |
 | Rewritten SHA-record | `f06fdc707d0d212fe9d2ee29c4bf7f6def458ac8` |
 | Mapping tip | `689de032b658a2eebf50a2b54d184d855336f54d` |
-| Current cleaned tip | child of `689de032b658a2eebf50a2b54d184d855336f54d` whose subject is `docs(engineering): record the cleaned tip SHA` |
+| Handoff correction | `0b5b38f771cc3f82afe9c46883ef5372dcd701ce` |
+| Current cleaned tip | this stamp commit; parent `0b5b38f771cc3f82afe9c46883ef5372dcd701ce`; subject `docs(engineering): stamp the cleaned tip SHA` |
 
 `main` is not the post-cleanup HEAD. It is still `15775ea9486cb57fbfb8fefa3268658cbe7eb669`.
 `docs/demo-migration-plan` is not the post-cleanup HEAD. It remains the uncleaned lineage.
