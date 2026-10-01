@@ -122,16 +122,13 @@ final class AttendanceService
                 );
             }
 
-            AttendanceCorrection::query()->create([
-                'id' => 'cor_'.strtolower((string) Str::ulid()),
-                'record_id' => $record->id,
-                'session_id' => $record->session_id,
-                'student_id' => $record->student_id,
-                'previous_status' => $previous,
-                'new_status' => $input['status'],
-                'reason' => $input['reason'],
-                'changed_by_user_id' => $actor->id,
-            ]);
+            $this->appendCorrection(
+                $record,
+                $previous,
+                (string) $input['status'],
+                (string) $input['reason'],
+                $actor,
+            );
 
             $record->status = $input['status'];
             $record->recorded_by_user_id = $actor->id;
@@ -253,15 +250,26 @@ final class AttendanceService
 
         if ($record === null) {
             try {
-                return tap(AttendanceRecord::query()->create([
-                    'id' => 'att_'.strtolower((string) Str::ulid()),
-                    'session_id' => $session->id,
-                    'student_id' => $studentId,
-                    'status' => $status,
-                    'notes' => $notes === null ? null : (string) $notes,
-                    'recorded_by_user_id' => $actor->id,
-                ]), fn (AttendanceRecord $r) => $r->load('recorder'));
+                // Assigned field by field, not mass-assigned: `id` is not in
+                // $fillable, and a dropped id would hit the NOT NULL primary key.
+                $fresh = new AttendanceRecord;
+                $fresh->id = 'att_'.strtolower((string) Str::ulid());
+                $fresh->session_id = $session->id;
+                $fresh->student_id = $studentId;
+                $fresh->status = $status;
+                $fresh->notes = $notes === null ? null : (string) $notes;
+                $fresh->recorded_by_user_id = $actor->id;
+                $fresh->save();
+
+                return $fresh->load('recorder');
             } catch (QueryException $e) {
+                // Only a unique-constraint violation means "already recorded".
+                // Anything else is a different fault and must NOT be reported as
+                // a duplicate, so it is rethrown unchanged.
+                if (! $this->isUniqueViolation($e)) {
+                    throw $e;
+                }
+
                 // The UNIQUE(session_id, student_id) constraint is the real
                 // guard; a race surfaces here as an integrity violation.
                 throw ApiException::conflict(
@@ -273,16 +281,13 @@ final class AttendanceService
         }
 
         if ($record->status !== $status) {
-            AttendanceCorrection::query()->create([
-                'id' => 'cor_'.strtolower((string) Str::ulid()),
-                'record_id' => $record->id,
-                'session_id' => $record->session_id,
-                'student_id' => $record->student_id,
-                'previous_status' => $record->status,
-                'new_status' => $status,
-                'reason' => 'ثبت مجدد حضور و غیاب گروهی',
-                'changed_by_user_id' => $actor->id,
-            ]);
+            $this->appendCorrection(
+                $record,
+                $record->status,
+                $status,
+                'ثبت مجدد حضور و غیاب گروهی',
+                $actor,
+            );
         }
 
         $record->status = $status;
@@ -291,6 +296,40 @@ final class AttendanceService
         $record->save();
 
         return $record->refresh()->load('recorder');
+    }
+
+    /**
+     * Append a correction. This is the ONLY way a correction row is written —
+     * there is no update or delete path anywhere in the service.
+     */
+    private function appendCorrection(
+        AttendanceRecord $record,
+        string $previousStatus,
+        string $newStatus,
+        string $reason,
+        User $actor,
+    ): AttendanceCorrection {
+        $correction = new AttendanceCorrection;
+        $correction->id = 'cor_'.strtolower((string) Str::ulid());
+        $correction->record_id = $record->id;
+        $correction->session_id = $record->session_id;
+        $correction->student_id = $record->student_id;
+        $correction->previous_status = $previousStatus;
+        $correction->new_status = $newStatus;
+        $correction->reason = $reason;
+        $correction->changed_by_user_id = $actor->id;
+        $correction->save();
+
+        return $correction;
+    }
+
+    private function isUniqueViolation(QueryException $e): bool
+    {
+        $message = strtolower($e->getMessage());
+
+        return str_contains($message, 'unique constraint failed')
+            || str_contains($message, 'duplicate entry')
+            || str_contains($message, 'unique violation');
     }
 
     public function find(string $id, User $actor, bool $lock = false): AttendanceRecord

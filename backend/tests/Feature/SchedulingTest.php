@@ -343,7 +343,10 @@ class SchedulingTest extends TestCase
             'to' => $to->toDateString(),
         ])->assertOk();
 
-        $this->assertSame(7, $response->json('plan.creates') === null ? 0 : count($response->json('plan.creates')));
+        // A preview returns the plan AS the item (`{ data: GenerationPlan }`),
+        // matching ApiSchedulingRepository.previewGeneration().
+        $this->assertCount(7, $response->json('data.creates'));
+        $this->assertSame([], $response->json('data.skips'));
         $this->assertDatabaseCount('class_sessions', 0);   // preview is strictly read-only
     }
 

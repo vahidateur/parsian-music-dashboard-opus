@@ -294,6 +294,9 @@ final class SessionService
     public function checkConflicts(User $actor, array $candidate): ConflictReport
     {
         $this->policy->authorizeRead($actor);
+        // The scope applies here too: the plan requires PB-1 to fail closed on
+        // EVERY session endpoint, and a conflict check is a session read.
+        $this->policy->teacherScope($actor);
         $this->requireClass((string) $candidate['classId']);
 
         return $this->conflicts->check($candidate);
