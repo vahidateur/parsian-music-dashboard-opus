@@ -109,7 +109,7 @@ jobs:
       # The Actions console log is not reachable from every environment this
       # repository is worked on from, so the tally is republished as a check run
       # where the REST API can read it back.
-      - name: Publish test tally
+      - name: Publish tally as a check run
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -125,3 +125,207 @@ jobs:
             -f 'output[title]=php artisan test' \
             -f "output[summary]=$summary" \
             --silent
+
+  # ---------------------------------------------------------------------------
+  # HTTP smoke — the durable form of the manual smoke run the first slice was
+  # verified with. It asserts the load-bearing governance rules *over HTTP*,
+  # against the committed demo dataset, with expectations computed from the
+  # seeded rows rather than hard-coded:
+  #
+  #   T-02  a teacher sees exactly the students with an ACTIVE enrollment in a
+  #         class taught by that teacher  (and NOT the students whose
+  #         `students.teacher_id` happens to point at them — that column is
+  #         never an authorization source)
+  #   PB-1  a teacher account with no linked teacherId is 403
+  #         OWNER_DECISION_REQUIRED_PB1 — fail-closed, not empty, not org-wide
+  #   PB-3  every rooms endpoint is 403 OWNER_DECISION_REQUIRED_PB3 for every
+  #         role, administrator included
+  #
+  # DEMO_SEED_PASSWORD below is a throwaway value for an ephemeral CI sqlite
+  # file. It is not a credential for any real system and nothing it protects
+  # outlives the job.
+  # ---------------------------------------------------------------------------
+  smoke:
+    name: HTTP smoke — T-02 / PB-1 / PB-3
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: local
+      DEMO_SEED_PASSWORD: ci-throwaway-not-a-credential
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          composer dump-autoload --optimize
+          touch database/database.sqlite
+
+      - name: Migrate and seed the demo dataset
+        run: php artisan migrate:fresh --seed --force
+
+      - name: Serve the API
+        run: |
+          setsid nohup php artisan serve --host=127.0.0.1 --port=8080 > /tmp/serve.log 2>&1 < /dev/null &
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/up > /dev/null && exit 0
+            sleep 0.5
+          done
+          echo "server did not come up"; cat /tmp/serve.log; exit 1
+
+      - name: T-02 — teacher student scope, over HTTP
+        run: |
+          set -euo pipefail
+          API=http://127.0.0.1:8080/api/v1
+
+          token() {
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"$1\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          }
+
+          T1="$(token teacher1@demo.local)"
+          ADMIN="$(token admin@demo.local)"
+          if [ -z "$T1" ] || [ "$T1" = "null" ] || [ -z "$ADMIN" ] || [ "$ADMIN" = "null" ]; then
+            echo "::error::login failed for teacher1 or admin"; exit 1
+          fi
+
+          # Expectation computed from the seeded rows: students with an ACTIVE
+          # enrollment in a class whose teacher_id is t1.
+          expected="$(
+            sqlite3 database/database.sqlite "
+              select distinct e.student_id
+                from enrollments e
+                join classes c on c.id = e.class_id
+               where e.status = 'active' and c.teacher_id = 't1'
+               order by e.student_id;" | LC_ALL=C sort
+          )"
+
+          actual="$(
+            curl -sS "$API/students?per_page=100" -H "Authorization: Bearer $T1" |
+              jq -r '.data[].id' | LC_ALL=C sort
+          )"
+
+          # What the FORBIDDEN source would have produced: students whose own
+          # teacher_id column points at t1. T-02 says this is never the scope.
+          wrong_source="$(
+            sqlite3 database/database.sqlite "
+              select id from students where teacher_id = 't1' order by id;" | LC_ALL=C sort
+          )"
+
+          expected_count="$(printf '%s\n' "$expected" | grep -c . || true)"
+          total_students="$(sqlite3 database/database.sqlite 'select count(*) from students;')"
+          admin_total="$(
+            curl -sS "$API/students?per_page=1" -H "Authorization: Bearer $ADMIN" |
+              jq -r '.meta.total'
+          )"
+
+          echo "T-02 expected (active enrollment ∩ classes.teacher_id = t1):"
+          echo "$expected"
+          echo "T-02 actual (GET /api/v1/students as teacher1):"
+          echo "$actual"
+          echo "students.teacher_id = t1 (NOT the scope):"
+          echo "$wrong_source"
+          echo "org total: db=$total_students admin_http=$admin_total"
+
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::T-02 scope over HTTP does not match the enrollment-derived expectation"
+            exit 1
+          fi
+          if [ -n "$expected" ] && [ "$expected" = "$wrong_source" ]; then
+            echo "::error::teacher scope coincides with students.teacher_id — T-02 is not the operative rule"
+            exit 1
+          fi
+          if [ "$expected_count" = "0" ] || [ "$expected_count" = "$admin_total" ]; then
+            echo "::error::teacher scope is empty or org-wide ($expected_count of $admin_total) — expected a strict subset"
+            exit 1
+          fi
+          if [ "$admin_total" != "$total_students" ]; then
+            echo "::error::administrator does not see the whole organization ($admin_total != $total_students)"
+            exit 1
+          fi
+          echo "T-02 OK"
+
+      - name: PB-1 — teacher with no teacherId fails closed
+        run: |
+          set -euo pipefail
+          API=http://127.0.0.1:8080/api/v1
+
+          # Every seeded teacher has a teacherId, so detach one to exercise PB-1.
+          sqlite3 database/database.sqlite \
+            "update users set teacher_id = null where email = 'teacher6@demo.local';"
+
+          TOKEN="$(
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"teacher6@demo.local\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          )"
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::login failed for teacher6"; exit 1
+          fi
+
+          body="$(curl -sS -w '\n%{http_code}' "$API/students" -H "Authorization: Bearer $TOKEN")"
+          status="$(printf '%s' "$body" | tail -n1)"
+          code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
+
+          echo "PB-1: HTTP $status $code"
+          if [ "$status" != "403" ] || [ "$code" != "OWNER_DECISION_REQUIRED_PB1" ]; then
+            echo "::error::PB-1 is not fail-closed (expected 403 OWNER_DECISION_REQUIRED_PB1)"
+            exit 1
+          fi
+          echo "PB-1 OK"
+
+      - name: PB-3 — rooms stay blocked for every role
+        run: |
+          set -euo pipefail
+          API=http://127.0.0.1:8080/api/v1
+
+          ADMIN_TOKEN="$(
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"admin@demo.local\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          )"
+
+          for path in rooms rooms/rm_1; do
+            body="$(curl -sS -w '\n%{http_code}' "$API/$path" -H "Authorization: Bearer $ADMIN_TOKEN")"
+            status="$(printf '%s' "$body" | tail -n1)"
+            code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
+            echo "PB-3 GET /$path as administrator: HTTP $status $code"
+            if [ "$status" != "403" ] || [ "$code" != "OWNER_DECISION_REQUIRED_PB3" ]; then
+              echo "::error::PB-3 room reads are not blocked for the administrator"
+              exit 1
+            fi
+          done
+          echo "PB-3 OK"
+
+      - name: Unauthenticated requests are 401
+        run: |
+          set -euo pipefail
+          status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/students)"
+          echo "no token: HTTP $status"
+          [ "$status" = "401" ] || { echo "::error::expected 401"; exit 1; }
