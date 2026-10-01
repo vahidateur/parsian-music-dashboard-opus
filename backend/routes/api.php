@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\RoomController;
+use App\Http\Controllers\Api\V1\StudentController;
+use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,4 +34,25 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::get('roles/{id}', [RoleController::class, 'show']);
     Route::patch('roles/{id}', [RoleController::class, 'update']);
     Route::post('roles/{id}/reset', [RoleController::class, 'reset']);
+
+    Route::get('teachers', [TeacherController::class, 'index']);
+    Route::post('teachers', [TeacherController::class, 'store']);
+    Route::get('teachers/{id}', [TeacherController::class, 'show']);
+    Route::patch('teachers/{id}', [TeacherController::class, 'update']);
+    Route::delete('teachers/{id}', [TeacherController::class, 'destroy']);
+    Route::post('teachers/{id}/deactivate', [TeacherController::class, 'deactivate']);
+
+    // PB-3: routed and implemented, but RoomPolicy blocks every actor (403).
+    Route::get('rooms', [RoomController::class, 'index']);
+    Route::post('rooms', [RoomController::class, 'store']);
+    Route::get('rooms/{id}', [RoomController::class, 'show']);
+    Route::patch('rooms/{id}', [RoomController::class, 'update']);
+    Route::delete('rooms/{id}', [RoomController::class, 'destroy']);
+    Route::post('rooms/{id}/deactivate', [RoomController::class, 'deactivate']);
+
+    Route::get('students', [StudentController::class, 'index']);
+    Route::post('students', [StudentController::class, 'store']);
+    Route::get('students/{id}', [StudentController::class, 'show']);
+    Route::patch('students/{id}', [StudentController::class, 'update']);
+    Route::delete('students/{id}', [StudentController::class, 'destroy']);
 });

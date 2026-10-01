@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Domain\Students\StudentService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +18,7 @@ use RuntimeException;
  * non-empty; otherwise their
  * password is null and they cannot sign in.
  *
- * One method per collection; later slices add teachers, rooms, students,
- * classes and enrollments in dataset order.
+ * One method per collection, inserted in foreign-key order.
  */
 class DemoDatasetSeeder extends Seeder
 {
@@ -32,9 +32,145 @@ class DemoDatasetSeeder extends Seeder
 
         DB::transaction(function (): void {
             $this->seedOrganization();
+            $this->seedTeachers();
             $this->seedUsers();
             $this->seedRoles();
+            $this->seedRooms();
+            $this->seedStudents();
+            $this->seedClasses();
+            $this->seedEnrollments();
         });
+    }
+
+    protected function seedTeachers(): void
+    {
+        foreach ($this->dataset('teachers') as $teacher) {
+            DB::table('teachers')->insert([
+                'id' => (string) $teacher['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'name' => (string) $teacher['name'],
+                'photo_media_id' => $teacher['photoMediaId'] ?? null,
+                'instrument' => (string) $teacher['instrument'],
+                'title' => (string) $teacher['title'],
+                'students' => (int) ($teacher['students'] ?? 0),
+                'utilization' => (int) ($teacher['utilization'] ?? 0),
+                'weekly_hours' => (int) ($teacher['weeklyHours'] ?? 0),
+                'contract_hours' => (int) ($teacher['contractHours'] ?? 0),
+                'attendance_rate' => (int) ($teacher['attendanceRate'] ?? 0),
+                'retention' => (int) ($teacher['retention'] ?? 0),
+                'today_classes' => json_encode($teacher['todayClasses'] ?? [], JSON_UNESCAPED_UNICODE),
+                'availability' => json_encode($teacher['availability'] ?? []),
+                'since' => (string) $teacher['since'],
+                'phone' => (string) $teacher['phone'],
+                'status' => (string) $teacher['status'],
+                'bio' => (string) ($teacher['bio'] ?? ''),
+                'created_at' => $this->timestamp($teacher['createdAt'] ?? null),
+                'updated_at' => $this->timestamp($teacher['updatedAt'] ?? null),
+            ]);
+        }
+    }
+
+    protected function seedRooms(): void
+    {
+        foreach ($this->dataset('rooms') as $room) {
+            DB::table('rooms')->insert([
+                'id' => (string) $room['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'name' => (string) $room['name'],
+                'kind' => (string) $room['kind'],
+                'capacity' => (int) $room['capacity'],
+                'occupancy' => (int) ($room['occupancy'] ?? 0),
+                // The dataset omits `active` for assignable rooms.
+                'active' => ($room['active'] ?? true) !== false,
+                'created_at' => $this->timestamp(null),
+                'updated_at' => $this->timestamp(null),
+            ]);
+        }
+    }
+
+    protected function seedStudents(): void
+    {
+        $deferredKeys = [
+            ...array_keys(StudentService::DEFERRED_DEFAULTS),
+            ...StudentService::DEFERRED_OPTIONAL,
+        ];
+
+        foreach ($this->dataset('students') as $student) {
+            $deferred = [];
+            foreach ($deferredKeys as $key) {
+                if (array_key_exists($key, $student)) {
+                    $deferred[$key] = $student[$key];
+                }
+            }
+
+            DB::table('students')->insert([
+                'id' => (string) $student['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'national_id' => (string) $student['nationalId'],
+                'name' => (string) $student['name'],
+                'instrument' => (string) $student['instrument'],
+                'teacher_id' => ($student['teacherId'] ?? '') !== '' ? (string) $student['teacherId'] : null,
+                'level' => (string) $student['level'],
+                'level_step' => (int) $student['levelStep'],
+                'status' => (string) $student['status'],
+                'payment' => (string) $student['payment'],
+                'age' => (int) $student['age'],
+                'phone' => (string) $student['phone'],
+                'guardian' => $student['guardian'] ?? null,
+                'since' => (string) $student['since'],
+                'deferred' => json_encode($deferred, JSON_UNESCAPED_UNICODE),
+                'created_at' => $this->timestamp($student['createdAt'] ?? null),
+                'updated_at' => $this->timestamp($student['updatedAt'] ?? null),
+            ]);
+        }
+    }
+
+    /** `enrolled`, `waitlist` and `studentIds` are derived from enrollments, not stored. */
+    protected function seedClasses(): void
+    {
+        foreach ($this->dataset('classes') as $class) {
+            DB::table('classes')->insert([
+                'id' => (string) $class['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'title' => (string) $class['title'],
+                'instrument' => (string) $class['instrument'],
+                'teacher_id' => (string) $class['teacherId'],
+                'room_id' => (string) $class['roomId'],
+                'kind' => (string) $class['kind'],
+                'level' => (string) $class['level'],
+                'program_id' => $class['programId'] ?? null,
+                'level_id' => $class['levelId'] ?? null,
+                'days' => json_encode($class['days'] ?? []),
+                'time' => (string) $class['time'],
+                'duration' => (int) $class['duration'],
+                'capacity' => (int) $class['capacity'],
+                'attendance_avg' => (int) ($class['attendanceAvg'] ?? 0),
+                'tuition' => (int) $class['tuition'],
+                'term_progress' => (int) ($class['termProgress'] ?? 0),
+                'status' => (string) ($class['status'] ?? 'active'),
+                'created_at' => $this->timestamp(null),
+                'updated_at' => $this->timestamp(null),
+            ]);
+        }
+    }
+
+    protected function seedEnrollments(): void
+    {
+        foreach ($this->dataset('enrollments') as $enrollment) {
+            DB::table('enrollments')->insert([
+                'id' => (string) $enrollment['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'student_id' => (string) $enrollment['studentId'],
+                'class_id' => (string) $enrollment['classId'],
+                'status' => (string) $enrollment['status'],
+                'start_date' => (string) $enrollment['startDate'],
+                'end_date' => $enrollment['endDate'] ?? null,
+                'pricing_label' => (string) ($enrollment['pricingPlan']['label'] ?? ''),
+                'pricing_amount' => (int) ($enrollment['pricingPlan']['amount'] ?? 0),
+                'created_at' => $this->timestamp(null),
+                'updated_at' => $this->timestamp(null),
+            ]);
+        }
     }
 
     protected function seedOrganization(): void
