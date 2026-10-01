@@ -109,13 +109,32 @@ jobs:
       # The Actions console log is not reachable from every environment this
       # repository is worked on from, so the tally is republished as a check run
       # where the REST API can read it back.
+      # The Actions log blob is not reachable from every environment this
+      # repository is worked on from. On failure, republish the PHPUnit detail
+      # as a check run so the diagnosis stays readable through the REST API.
+      - name: Publish failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="$(tail -n 200 artisan-test.log 2>/dev/null || echo 'no artisan-test.log was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-test-failure-digest (PHP ${{ matrix.php }})' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion=failure \
+            -f 'output[title]=php artisan test - failure detail' \
+            -f "output[summary]=$body" \
+            --silent
+
       - name: Publish tally as a check run
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          summary="$(grep -E 'Tests:|OK \(|Duration:|FAILURES|ERRORS|WARNINGS' artisan-test.log | tail -8)"
+          summary="$(grep -E 'Tests:|OK \(|Duration:|FAILURES|ERRORS|WARNINGS' artisan-test.log | tail -8 || true)"
           [ -n "$summary" ] || summary="no PHPUnit tally line was produced"
           gh api "repos/${{ github.repository }}/check-runs" \
             -f name='backend-test-tally (PHP ${{ matrix.php }})' \
@@ -185,7 +204,28 @@ jobs:
           touch database/database.sqlite
 
       - name: Migrate and seed the demo dataset
-        run: php artisan migrate:fresh --seed --force
+        run: |
+          set -o pipefail
+          php artisan migrate:fresh --seed --force 2>&1 | tee /tmp/seed.log
+
+      # Same reason as the digest above: the Actions log blob is not reachable
+      # from every environment, so a migrate/seed failure is republished as a
+      # check run where the REST API can read it.
+      - name: Publish seed failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="$(tail -n 200 /tmp/seed.log 2>/dev/null || echo 'no seed log was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-seed-failure-digest' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion=failure \
+            -f 'output[title]=migrate:fresh --seed - failure detail' \
+            -f "output[summary]=$body" \
+            --silent
 
       - name: Serve the API
         run: |
