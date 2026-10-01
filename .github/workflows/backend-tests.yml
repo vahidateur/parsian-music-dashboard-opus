@@ -198,6 +198,7 @@ jobs:
       - name: T-02 — teacher student scope, over HTTP
         run: |
           set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
           API=http://127.0.0.1:8080/api/v1
 
           token() {
@@ -272,6 +273,7 @@ jobs:
       - name: PB-1 — teacher with no teacherId fails closed
         run: |
           set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
           API=http://127.0.0.1:8080/api/v1
 
           # Every seeded teacher has a teacherId, so detach one to exercise PB-1.
@@ -302,6 +304,7 @@ jobs:
       - name: PB-3 — rooms stay blocked for every role
         run: |
           set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
           API=http://127.0.0.1:8080/api/v1
 
           ADMIN_TOKEN="$(
@@ -311,7 +314,7 @@ jobs:
               jq -r '.data.token'
           )"
 
-          for path in rooms rooms/rm_1; do
+          for path in rooms rooms/r1; do
             body="$(curl -sS -w '\n%{http_code}' "$API/$path" -H "Authorization: Bearer $ADMIN_TOKEN")"
             status="$(printf '%s' "$body" | tail -n1)"
             code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
@@ -326,6 +329,26 @@ jobs:
       - name: Unauthenticated requests are 401
         run: |
           set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
           status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/students)"
           echo "no token: HTTP $status"
           [ "$status" = "401" ] || { echo "::error::expected 401"; exit 1; }
+
+      - name: Publish smoke report as a check run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Give the `tee` process substitutions of the previous steps a moment
+          # to flush before the report file is read.
+          sleep 2
+          body="$(cat /tmp/smoke-report.md 2>/dev/null || echo 'no smoke report was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-http-smoke' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion="${{ job.status == 'success' && 'success' || 'failure' }}" \
+            -f 'output[title]=HTTP smoke — T-02 / PB-1 / PB-3' \
+            -f "output[summary]=$body" \
+            --silent
