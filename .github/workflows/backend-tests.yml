@@ -32,6 +32,9 @@ on:
 
 permissions:
   contents: read
+  # Used only by the "Publish test tally" step below, so the PHPUnit tally is
+  # readable through the REST API instead of only through the Actions log UI.
+  checks: write
 
 concurrency:
   group: backend-tests-${{ github.ref }}
@@ -99,4 +102,26 @@ jobs:
       - name: Test suite (php artisan test)
         env:
           APP_ENV: testing
-        run: php artisan test --colors=never
+        run: |
+          set -o pipefail
+          php artisan test --colors=never 2>&1 | tee artisan-test.log
+
+      # The Actions console log is not reachable from every environment this
+      # repository is worked on from, so the tally is republished as a check run
+      # where the REST API can read it back.
+      - name: Publish test tally
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          summary="$(grep -E 'Tests:|OK \(|Duration:|FAILURES|ERRORS|WARNINGS' artisan-test.log | tail -8)"
+          [ -n "$summary" ] || summary="no PHPUnit tally line was produced"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-test-tally (PHP ${{ matrix.php }})' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion="${{ job.status == 'success' && 'success' || 'failure' }}" \
+            -f 'output[title]=php artisan test' \
+            -f "output[summary]=$summary" \
+            --silent
