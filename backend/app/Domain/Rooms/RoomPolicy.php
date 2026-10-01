@@ -17,7 +17,7 @@ use App\Support\Authorization\OwnerDecisionRequired;
  */
 final class RoomPolicy
 {
-    private const DETAIL = 'No room read/write permission exists in the vocabulary; owner decision PB-3 required.';
+    private const DETAIL = 'No room read/write permission exists in the vocabulary; PB-3 resolved 2026-10-02 as option A (keep blocked, invent no permission id).';
 
     public function authorizeRead(User $actor): never
     {

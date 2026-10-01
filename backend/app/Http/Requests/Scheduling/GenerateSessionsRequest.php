@@ -20,6 +20,11 @@ final class GenerateSessionsRequest extends ApiFormRequest
     {
         // Preview is read-only, so schedule.read is enough; the commit path
         // re-authorizes with schedule.write inside the service.
+        // PB-1 (resolved 2026-10-02, option A) is a scope question and is
+        // answered BEFORE the permission check, so a teacher with no linked
+        // teacherId gets OWNER_DECISION_REQUIRED_PB1 rather than a bare
+        // FORBIDDEN. Same precedence the shipped students slice uses.
+        app(SessionPolicy::class)->assertTeacherLinked($this->user());
         app(SessionPolicy::class)->authorizeRead($this->user());
     }
 

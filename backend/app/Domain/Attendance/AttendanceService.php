@@ -358,7 +358,7 @@ final class AttendanceService
             if ($teacherId === '') {
                 throw new OwnerDecisionRequired(
                     'PB-1',
-                    'Teacher account has no linked teacherId; attendance scope is owner decision PB-1.',
+                    'Teacher account has no linked teacherId; PB-1 resolved as fail-closed.',
                 );
             }
             $query->where('teacher_id', $teacherId);

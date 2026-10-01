@@ -17,10 +17,21 @@ use App\Support\Tenancy\TenantContext;
  * the current schedule on every call, and re-run inside the write transaction
  * so two operators cannot book the same room simultaneously.
  *
- * Deliberately NOT implemented, because the academy has no server-side
- * working-hours domain: `SESSION_OUTSIDE_WORKING_HOURS` and
- * `SESSION_TIGHT_TURNAROUND`. Both are advisory rules configured in Settings →
- * قواعد جلسه; inventing them here would be inventing a requirement.
+ * Deliberately NOT implemented: `SESSION_OUTSIDE_WORKING_HOURS` and
+ * `SESSION_TIGHT_TURNAROUND`.
+ *
+ * The rules those two kinds need DO exist, in the frontend organization domain
+ * (src/domains/organization/rules.ts: `workingDayStart`, `workingDayEnd`,
+ * `closedWeekdays`, and the derived `isInsideWorkingHours`). What does not exist
+ * yet is the server's copy of them: `ApiOrganizationRepository` is written and
+ * marked BACKEND REQUIRED for `GET /organization` and `PATCH /organization`, but
+ * no endpoint serves it, so the registry still selects the local repository.
+ *
+ * Evaluating those two kinds server-side therefore means first building the
+ * Organization settings slice that owns `settings.read` / `settings.write`.
+ * Reading the client's notion of the rules instead — or inventing a server-side
+ * default — would be inventing a requirement, so the kinds are omitted and the
+ * omission is recorded in docs/engineering/BACKEND_STATUS.md.
  */
 final class ConflictDetector
 {

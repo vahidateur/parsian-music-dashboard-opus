@@ -130,6 +130,80 @@ class SchedulingTest extends TestCase
             ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
     }
 
+    /**
+     * PB-1 was resolved on 2026-10-02 as option A — fail-closed — and it must
+     * close EVERY session endpoint for a teacher with no teacherId, not only the
+     * reads. Generation and the write verbs did not enforce it before: the
+     * preview was reachable through schedule.read, and the writes answered a
+     * bare FORBIDDEN instead.
+     */
+    public function test_pb1_closes_generation_and_every_session_write(): void
+    {
+        $class = $this->klass();
+        $sessionId = $this->makeSession()->id;
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $body = [
+            'classId' => $class->id,
+            'from' => Carbon::today()->addDay()->toDateString(),
+            'to' => Carbon::today()->addDays(2)->toDateString(),
+        ];
+
+        $this->postJson('/api/v1/sessions/generate?preview=1', $body)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson('/api/v1/sessions/generate', $body)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+
+        // Scope is answered before the permission check, so these report PB-1
+        // rather than a bare FORBIDDEN — the precedence the students slice uses.
+        $this->postJson('/api/v1/sessions', $this->payload())
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->patchJson("/api/v1/sessions/{$sessionId}", ['notes' => 'x'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson("/api/v1/sessions/{$sessionId}/cancel", ['reason' => 'دلیل'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson("/api/v1/sessions/{$sessionId}/reschedule", [
+            'date' => Carbon::today()->addDays(9)->toDateString(),
+            'startTime' => '08:00', 'endTime' => '09:00', 'reason' => 'دلیل',
+        ])->assertStatus(403)->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->deleteJson("/api/v1/sessions/{$sessionId}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+
+        // Nothing was written and nothing was cancelled.
+        $this->assertDatabaseCount('class_sessions', 1);
+        $this->assertDatabaseHas('class_sessions', ['id' => $sessionId, 'status' => 'scheduled']);
+    }
+
+    /** The PB-1 guard must be a no-op for a teacher WITH a linked teacherId. */
+    public function test_teacher_with_teacher_id_is_unaffected_by_the_pb1_guard(): void
+    {
+        $sessionId = $this->makeSession(['teacher_id' => 't1'])->id;
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->getJson('/api/v1/sessions')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->postJson('/api/v1/sessions/generate?preview=1', [
+            'classId' => $this->klass()->id,
+            'from' => Carbon::today()->addDay()->toDateString(),
+            'to' => Carbon::today()->addDays(2)->toDateString(),
+        ])->assertOk();
+        // schedule.write is still what blocks the write, not PB-1.
+        $this->postJson('/api/v1/sessions', $this->payload())
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.permission', 'schedule.write');
+        $this->deleteJson("/api/v1/sessions/{$sessionId}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        unset($sessionId);
+    }
+
     /** T-02 extension: sessions the actor does not teach are invisible, not 403. */
     public function test_teacher_sees_only_own_sessions(): void
     {

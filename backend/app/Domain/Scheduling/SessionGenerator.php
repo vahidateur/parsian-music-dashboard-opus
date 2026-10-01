@@ -40,6 +40,9 @@ final class SessionGenerator
     public function preview(User $actor, array $input): array
     {
         $this->policy->authorizeRead($actor);
+        // PB-1: generation is a session endpoint too, and a teacher reaches the
+        // preview through schedule.read.
+        $this->policy->assertTeacherLinked($actor);
 
         return $this->plan($input, $actor);
     }
@@ -50,6 +53,7 @@ final class SessionGenerator
     public function apply(User $actor, array $input): array
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherLinked($actor);
 
         return DB::transaction(function () use ($input, $actor): array {
             $plan = $this->plan($input, $actor);

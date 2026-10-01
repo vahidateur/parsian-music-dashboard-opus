@@ -82,6 +82,9 @@ final class SessionService
     public function create(User $actor, array $input): ClassSession
     {
         $this->policy->authorizeWrite($actor);
+        // PB-1 precedes the write: a teacher with no teacherId is refused, so
+        // the error is OWNER_DECISION_REQUIRED_PB1 and not a silent 403.
+        $this->policy->assertTeacherLinked($actor);
 
         $class = $this->requireClass((string) $input['classId']);
 
@@ -122,6 +125,7 @@ final class SessionService
     public function update(User $actor, string $id, array $input): ClassSession
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherLinked($actor);
 
         return DB::transaction(function () use ($actor, $id, $input): ClassSession {
             $session = $this->find($id, $actor, lock: true);
@@ -158,6 +162,7 @@ final class SessionService
     public function cancel(User $actor, string $id, string $reason): ClassSession
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherLinked($actor);
 
         return DB::transaction(function () use ($actor, $id, $reason): ClassSession {
             $session = $this->find($id, $actor, lock: true);
@@ -189,6 +194,7 @@ final class SessionService
     public function reschedule(User $actor, string $id, array $input): ClassSession
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherLinked($actor);
 
         return DB::transaction(function () use ($actor, $id, $input): ClassSession {
             $original = $this->find($id, $actor, lock: true);
@@ -234,6 +240,7 @@ final class SessionService
     public function delete(User $actor, string $id): void
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherLinked($actor);
 
         DB::transaction(function () use ($actor, $id): void {
             $session = $this->find($id, $actor, lock: true);

@@ -17,6 +17,11 @@ final class CancelSessionRequest extends ApiFormRequest
 
     protected function authorizeBeforeValidation(): void
     {
+        // PB-1 (resolved 2026-10-02, option A) is a scope question and is
+        // answered BEFORE the permission check, so a teacher with no linked
+        // teacherId gets OWNER_DECISION_REQUIRED_PB1 rather than a bare
+        // FORBIDDEN. Same precedence the shipped students slice uses.
+        app(SessionPolicy::class)->assertTeacherLinked($this->user());
         app(SessionPolicy::class)->authorizeWrite($this->user());
     }
 

@@ -15,9 +15,12 @@ use App\Support\Authorization\PermissionGate;
  * Row scope is the T-02 extension the plan names:
  *   - role teacher WITH teacher_id → only sessions whose `teacher_id` is the
  *     actor's, enforced in SQL (`scopeQuery`).
- *   - role teacher WITHOUT teacher_id → PB-1, unresolved: 403
- *     OWNER_DECISION_REQUIRED_PB1. Neither empty nor org-wide — the same
+ *   - role teacher WITHOUT teacher_id → 403 OWNER_DECISION_REQUIRED_PB1.
+ *     PB-1 is RESOLVED (2026-10-02, option A): fail-closed is the chosen policy, not a placeholder. Neither empty nor org-wide — the same
  *     fail-closed rule `StudentAccessPolicy` applies to students.
+ *
+ * Every session endpoint calls `teacherScope()`/`assertTeacherLinked()`, so the
+ * refusal cannot be bypassed by reaching a verb that does not select rows.
  *   - every other role → the whole organization.
  */
 final class SessionPolicy
@@ -32,6 +35,16 @@ final class SessionPolicy
     public function authorizeWrite(User $actor): void
     {
         $this->gate->authorize($actor, 'schedule.write');
+    }
+
+    /**
+     * PB-1 (resolved 2026-10-02, option A) — refuse a teacher account with no
+     * linked teacherId. Retained deliberately: fail-closed was the behaviour
+     * before the decision and is the behaviour the owner chose.
+     */
+    public function assertTeacherLinked(User $actor): void
+    {
+        $this->teacherScope($actor);
     }
 
     /** @return list<string>|null  null = organization-wide; a list = teacher scope */
