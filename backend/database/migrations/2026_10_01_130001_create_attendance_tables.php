@@ -33,7 +33,7 @@ return new class extends Migration
             $table->string('organization_id');
             $table->foreign('organization_id')->references('id')->on('organizations')->cascadeOnDelete();
             $table->string('session_id');
-            $table->foreign('session_id')->references('id')->on('sessions')->cascadeOnDelete();
+            $table->foreign('session_id')->references('id')->on('class_sessions')->cascadeOnDelete();
             $table->string('student_id');
             $table->foreign('student_id')->references('id')->on('students')->cascadeOnDelete();
             $table->string('status');                     // present|absent|late|excused

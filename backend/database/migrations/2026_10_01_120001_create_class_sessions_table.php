@@ -19,12 +19,19 @@ use Illuminate\Support\Facades\Schema;
  *
  * No `students` column: the roster is derived from active enrollments at the
  * session's date, so a student who joins in week 6 never appears on week 2.
+ *
+ * The table is `class_sessions`, not `sessions`: the framework's own session
+ * store already owns `sessions` (created by the base
+ * `0001_01_01_000000_create_users_table` migration, which carries the
+ * `session:table` stub). Same reason `AcademyClass` lives on `classes` — the
+ * domain name collides with something the framework or the SQL dialect
+ * reserves, so the table is named for the model.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('sessions', function (Blueprint $table) {
+        Schema::create('class_sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('organization_id');
             $table->foreign('organization_id')->references('id')->on('organizations')->cascadeOnDelete();
@@ -53,6 +60,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('sessions');
+        Schema::dropIfExists('class_sessions');
     }
 };

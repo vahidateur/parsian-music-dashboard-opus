@@ -326,7 +326,7 @@ final class SessionService
             return $query;
         }
 
-        return $query->where('sessions.teacher_id', $teacherId);
+        return $query->where('class_sessions.teacher_id', $teacherId);
     }
 
     private function requireClass(string $classId): AcademyClass

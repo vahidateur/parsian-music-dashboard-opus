@@ -50,7 +50,7 @@ class SchedulingTest extends TestCase
     }
 
     /** @param  array<string, mixed>  $attributes */
-    private function session(array $attributes = []): ClassSession
+    private function makeSession(array $attributes = []): ClassSession
     {
         return ClassSession::factory()->create([
             'organization_id' => $this->defaultOrganization()->id,
@@ -88,7 +88,7 @@ class SchedulingTest extends TestCase
 
     public function test_teacher_reads_schedule_but_cannot_write_it(): void
     {
-        $id = $this->session()->id;
+        $id = $this->makeSession()->id;
         $this->actingAsRole('teacher', ['teacher_id' => 't1']);
 
         $this->getJson('/api/v1/sessions')->assertOk()->assertJsonPath('meta.total', 1);
@@ -117,7 +117,7 @@ class SchedulingTest extends TestCase
     /** PB-1: a teacher with no teacherId fails closed — neither empty nor org-wide. */
     public function test_teacher_without_teacher_id_is_pb1_403(): void
     {
-        $this->session();
+        $this->makeSession();
         $this->actingAsRole('teacher', ['teacher_id' => null]);
 
         $this->getJson('/api/v1/sessions')
@@ -133,8 +133,8 @@ class SchedulingTest extends TestCase
     /** T-02 extension: sessions the actor does not teach are invisible, not 403. */
     public function test_teacher_sees_only_own_sessions(): void
     {
-        $mine = $this->session(['teacher_id' => 't1', 'room_id' => 'r1'])->id;
-        $theirs = $this->session(['teacher_id' => 't9', 'room_id' => 'r2'])->id;
+        $mine = $this->makeSession(['teacher_id' => 't1', 'room_id' => 'r1'])->id;
+        $theirs = $this->makeSession(['teacher_id' => 't9', 'room_id' => 'r2'])->id;
 
         $this->actingAsRole('teacher', ['teacher_id' => 't1']);
 
@@ -166,7 +166,7 @@ class SchedulingTest extends TestCase
     /** A second booking of the same room at an overlapping time is HARD. */
     public function test_overlapping_room_booking_is_a_hard_conflict(): void
     {
-        $this->session([
+        $this->makeSession([
             'date' => $date = Carbon::today()->addDays(3)->toDateString(),
             'start_time' => '14:00',
             'end_time' => '15:00',
@@ -186,7 +186,7 @@ class SchedulingTest extends TestCase
 
     public function test_adjacent_slot_is_not_a_conflict(): void
     {
-        $this->session([
+        $this->makeSession([
             'date' => Carbon::today()->addDays(3)->toDateString(),
             'start_time' => '13:00',
             'end_time' => '14:00',   // exclusive end: touches, does not overlap
@@ -214,7 +214,7 @@ class SchedulingTest extends TestCase
 
     public function test_check_conflicts_reports_hard_teacher_clash(): void
     {
-        $this->session([
+        $this->makeSession([
             'date' => Carbon::today()->addDays(3)->toDateString(),
             'start_time' => '14:30',
             'end_time' => '15:30',
@@ -235,7 +235,7 @@ class SchedulingTest extends TestCase
 
     public function test_cancel_requires_a_reason_and_records_it(): void
     {
-        $id = $this->session()->id;
+        $id = $this->makeSession()->id;
         $this->actingAsRole('manager');
 
         $this->postJson("/api/v1/sessions/$id/cancel", [])
@@ -255,7 +255,7 @@ class SchedulingTest extends TestCase
     /** Reschedule keeps the original and links both ways: history survives. */
     public function test_reschedule_links_original_and_replacement(): void
     {
-        $original = $this->session()->id;
+        $original = $this->makeSession()->id;
         $this->actingAsRole('manager');
 
         $new = $this->postJson("/api/v1/sessions/$original/reschedule", [
@@ -276,7 +276,7 @@ class SchedulingTest extends TestCase
 
     public function test_delete_is_refused_once_attendance_exists(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $org = $this->defaultOrganization()->id;
         $student = Student::factory()->create(['organization_id' => $org]);
         AttendanceRecord::factory()->create([
@@ -290,16 +290,16 @@ class SchedulingTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'SESSION_HAS_ATTENDANCE');
 
-        $this->assertDatabaseHas('sessions', ['id' => $session->id]);
+        $this->assertDatabaseHas('class_sessions', ['id' => $session->id]);
     }
 
     public function test_delete_succeeds_without_attendance(): void
     {
-        $id = $this->session()->id;
+        $id = $this->makeSession()->id;
         $this->actingAsRole('manager');
 
         $this->deleteJson("/api/v1/sessions/$id")->assertStatus(204);
-        $this->assertDatabaseMissing('sessions', ['id' => $id]);
+        $this->assertDatabaseMissing('class_sessions', ['id' => $id]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -309,7 +309,7 @@ class SchedulingTest extends TestCase
     /** The roster is derived from active enrollment, never stored. */
     public function test_roster_excludes_withdrawn_students(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $org = $this->defaultOrganization()->id;
 
         $staying = Student::factory()->create(['organization_id' => $org, 'name' => 'مانا']);
@@ -344,7 +344,7 @@ class SchedulingTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(7, $response->json('plan.creates') === null ? 0 : count($response->json('plan.creates')));
-        $this->assertDatabaseCount('sessions', 0);   // preview is strictly read-only
+        $this->assertDatabaseCount('class_sessions', 0);   // preview is strictly read-only
     }
 
     public function test_generate_applies_deterministic_slot_ids(): void
@@ -375,7 +375,7 @@ class SchedulingTest extends TestCase
             'to' => Carbon::today()->addDays(200)->toDateString(),
         ])->assertStatus(422)->assertJsonPath('error.code', 'SESSION_GENERATION_WINDOW_INVALID');
 
-        $this->assertDatabaseCount('sessions', 0);
+        $this->assertDatabaseCount('class_sessions', 0);
     }
 
     public function test_teacher_may_preview_generation_but_not_commit_it(): void
@@ -392,7 +392,7 @@ class SchedulingTest extends TestCase
         $this->postJson('/api/v1/sessions/generate', $body)
             ->assertStatus(403)
             ->assertJsonPath('error.permission', 'schedule.write');
-        $this->assertDatabaseCount('sessions', 0);
+        $this->assertDatabaseCount('class_sessions', 0);
     }
 
     /* ------------------------------------------------------------------ */

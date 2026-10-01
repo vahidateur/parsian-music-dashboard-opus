@@ -406,7 +406,7 @@ jobs:
           echo "teacher1 -> $T1_TEACHER"
 
           # ---- the seeded schedule is readable ------------------------------
-          seeded="$(sqlite3 "$DB" 'select count(*) from sessions;')"
+          seeded="$(sqlite3 "$DB" 'select count(*) from class_sessions;')"
           admin_total="$(curl -sS "$API/sessions?per_page=1" -H "Authorization: Bearer $ADMIN" | jq -r '.meta.total')"
           echo "sessions: db=$seeded admin_http=$admin_total"
           [ "$seeded" = "$admin_total" ] || { echo "::error::administrator does not see every session"; exit 1; }
@@ -414,7 +414,7 @@ jobs:
 
           # ---- T-02, session form -------------------------------------------
           expected="$(
-            sqlite3 "$DB" "select id from sessions where teacher_id = '$T1_TEACHER' order by id;" | LC_ALL=C sort
+            sqlite3 "$DB" "select id from class_sessions where teacher_id = '$T1_TEACHER' order by id;" | LC_ALL=C sort
           )"
           actual="$(
             curl -sS "$API/sessions?per_page=500" -H "Authorization: Bearer $T1" |
@@ -449,7 +449,7 @@ jobs:
           echo "POST /sessions/generate?preview=1: HTTP $pstatus"
           [ "$pstatus" = "200" ] || { echo "::error::generate preview is unreachable (static route shadowed?)"; exit 1; }
           # ...and a preview writes nothing.
-          [ "$(sqlite3 "$DB" 'select count(*) from sessions;')" = "$seeded" ] ||
+          [ "$(sqlite3 "$DB" 'select count(*) from class_sessions;')" = "$seeded" ] ||
             { echo "::error::preview was not read-only"; exit 1; }
 
           # ---- create / roster / cancel -------------------------------------
@@ -479,14 +479,14 @@ jobs:
 
           # ---- attendance: record, re-record, correct -----------------------
           TSESSION="$(sqlite3 "$DB" "
-            select s.id from sessions s
+            select s.id from class_sessions s
               join enrollments e on e.class_id = s.class_id and e.status = 'active'
              where s.teacher_id = '$T1_TEACHER' and s.id != '$SID'
              order by s.id limit 1;")"
           STU="$(sqlite3 "$DB" "
             select e.student_id from enrollments e
              where e.status = 'active'
-               and e.class_id = (select class_id from sessions where id = '$TSESSION')
+               and e.class_id = (select class_id from class_sessions where id = '$TSESSION')
              limit 1;")"
           echo "teacher1 session=$TSESSION student=$STU"
           [ -n "$TSESSION" ] && [ -n "$STU" ] || { echo "::error::no teacher session with an enrolled student"; exit 1; }

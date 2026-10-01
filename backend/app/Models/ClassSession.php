@@ -40,7 +40,8 @@ class ClassSession extends Model
 
     public const ORIGINS = ['generated', 'manual'];
 
-    protected $table = 'sessions';
+    /** Not `sessions`: that table belongs to the framework's session store. */
+    protected $table = 'class_sessions';
 
     public $incrementing = false;
 

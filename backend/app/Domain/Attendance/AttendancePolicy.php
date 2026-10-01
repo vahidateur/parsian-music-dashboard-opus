@@ -52,7 +52,7 @@ final class AttendancePolicy
         }
 
         return $query->whereIn($sessionColumn, function ($sub) use ($teacherId) {
-            $sub->from('sessions')->select('id')
+            $sub->from('class_sessions')->select('id')
                 ->where('organization_id', app(TenantContext::class)->organizationId())
                 ->where('teacher_id', $teacherId);
         });

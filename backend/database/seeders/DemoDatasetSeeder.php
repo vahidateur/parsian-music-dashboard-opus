@@ -246,7 +246,7 @@ class DemoDatasetSeeder extends Seeder
                 continue;
             }
 
-            DB::table('sessions')->insert([
+            DB::table('class_sessions')->insert([
                 'id' => (string) $session['id'],
                 'organization_id' => self::ORGANIZATION_ID,
                 'class_id' => (string) $session['classId'],

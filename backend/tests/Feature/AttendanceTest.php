@@ -40,7 +40,7 @@ class AttendanceTest extends TestCase
         Room::factory()->create(['organization_id' => $org, 'id' => 'r1', 'active' => true]);
     }
 
-    private function session(array $attributes = []): ClassSession
+    private function makeSession(array $attributes = []): ClassSession
     {
         $class = AcademyClass::factory()->create([
             'organization_id' => $this->defaultOrganization()->id,
@@ -85,7 +85,7 @@ class AttendanceTest extends TestCase
 
     public function test_staff_reads_attendance_but_cannot_record_it(): void
     {
-        $this->session();
+        $this->makeSession();
         $this->actingAsRole('staff');
 
         $this->getJson('/api/v1/attendance')->assertOk();
@@ -100,7 +100,7 @@ class AttendanceTest extends TestCase
 
     public function test_teacher_can_record_attendance_for_own_session(): void
     {
-        $session = $this->session(['teacher_id' => 't1']);
+        $session = $this->makeSession(['teacher_id' => 't1']);
         $student = $this->enrolled($session);
         $this->actingAsRole('teacher', ['teacher_id' => 't1', 'name' => 'مدرس تست']);
 
@@ -115,7 +115,7 @@ class AttendanceTest extends TestCase
     /** PB-1: fail closed, neither an empty roster nor an org-wide one. */
     public function test_teacher_without_teacher_id_is_pb1_403(): void
     {
-        $this->session();
+        $this->makeSession();
         $this->actingAsRole('teacher', ['teacher_id' => null]);
 
         $this->getJson('/api/v1/attendance')
@@ -131,7 +131,7 @@ class AttendanceTest extends TestCase
     /** T-02 extension: another teacher's session is out of reach entirely. */
     public function test_teacher_cannot_record_attendance_for_another_teachers_session(): void
     {
-        $session = $this->session(['teacher_id' => 't9']);
+        $session = $this->makeSession(['teacher_id' => 't9']);
         $student = $this->enrolled($session);
         $this->actingAsRole('teacher', ['teacher_id' => 't1']);
 
@@ -151,7 +151,7 @@ class AttendanceTest extends TestCase
 
     public function test_manager_records_attendance_once(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager', ['name' => 'مدیر تست']);
 
@@ -174,7 +174,7 @@ class AttendanceTest extends TestCase
      */
     public function test_rerecording_updates_in_place_and_appends_a_correction(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 
@@ -197,7 +197,7 @@ class AttendanceTest extends TestCase
 
     public function test_invalid_status_is_422(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 
@@ -212,7 +212,7 @@ class AttendanceTest extends TestCase
 
     public function test_bulk_is_all_or_nothing(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $a = $this->enrolled($session);
         $b = $this->enrolled($session);
         $stranger = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
@@ -247,7 +247,7 @@ class AttendanceTest extends TestCase
     /** The UNIQUE constraint holds even against a direct, non-HTTP write. */
     public function test_unique_session_student_is_enforced_by_the_database(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 
@@ -276,7 +276,7 @@ class AttendanceTest extends TestCase
 
     public function test_correction_appends_audit_row_with_reason_and_actor(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $actor = $this->actingAsRole('manager', ['name' => 'سارا مدیر']);
 
@@ -303,7 +303,7 @@ class AttendanceTest extends TestCase
 
     public function test_correction_requires_a_reason_and_rejects_a_noop(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 
@@ -328,7 +328,7 @@ class AttendanceTest extends TestCase
 
     public function test_session_attendance_returns_records_and_corrections(): void
     {
-        $session = $this->session();
+        $session = $this->makeSession();
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 
@@ -348,8 +348,8 @@ class AttendanceTest extends TestCase
 
     public function test_with_attendance_lists_only_sessions_that_have_records(): void
     {
-        $with = $this->session();
-        $without = $this->session();
+        $with = $this->makeSession();
+        $without = $this->makeSession();
         $student = $this->enrolled($with);
         $this->actingAsRole('manager');
 
@@ -364,7 +364,7 @@ class AttendanceTest extends TestCase
 
     public function test_attendance_filters(): void
     {
-        $session = $this->session(['date' => Carbon::today()->addDays(2)->toDateString()]);
+        $session = $this->makeSession(['date' => Carbon::today()->addDays(2)->toDateString()]);
         $student = $this->enrolled($session);
         $this->actingAsRole('manager');
 

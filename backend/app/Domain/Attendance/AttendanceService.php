@@ -57,10 +57,10 @@ final class AttendanceService
         // `since` / `until` bound the SESSION DATE, not the recording instant:
         // "attendance for the past week" means the week's sessions.
         if (($filters['since'] ?? '') !== '') {
-            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('sessions')->select('id')->where('date', '>=', (string) $filters['since']));
+            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('class_sessions')->select('id')->where('date', '>=', (string) $filters['since']));
         }
         if (($filters['until'] ?? '') !== '') {
-            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('sessions')->select('id')->where('date', '<=', (string) $filters['until']));
+            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('class_sessions')->select('id')->where('date', '<=', (string) $filters['until']));
         }
 
         return $query->orderByDesc('attendance_records.created_at')->orderBy('attendance_records.id')
@@ -199,7 +199,7 @@ final class AttendanceService
         $query = AttendanceRecord::query()->distinct()->select('attendance_records.session_id');
         $this->policy->scope($query, $actor);
         if (($filters['class_id'] ?? '') !== '') {
-            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('sessions')->select('id')->where('class_id', (string) $filters['class_id']));
+            $query->whereIn('attendance_records.session_id', fn ($sub) => $sub->from('class_sessions')->select('id')->where('class_id', (string) $filters['class_id']));
         }
 
         return $query->pluck('session_id')->all();
