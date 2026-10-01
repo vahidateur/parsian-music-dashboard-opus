@@ -1,5 +1,125 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-01, Scheduling + Attendance continuation.** This supersedes the
+> backend first-slice pointer below as the work order. It deletes nothing below it, deletes no
+> SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> STARTING SHA:
+> 7215633c18550c9faf053e8b2bde5ea2e8da08e8  (base both lineages branched from)
+> Branch tips at handoff: 897ca39 (arena/01a0f73f-…) and 86dab3f (cleanup/demo-migration-lineage).
+> The Kiro plan was recovered from the 86dab3f diff and merged into this branch as a
+> two-parent merge (edb21f1) rather than by deleting either lineage.
+> Do not rewind past 7215633c18550c9faf053e8b2bde5ea2e8da08e8.
+>
+> RESULTING SHA: d6098c5  (read the true tip with:
+>   git ls-remote origin refs/heads/arena/01a0f73f-parsian-music-dashboard-opus)
+>
+> SLICE COMMITS, in order:
+>   edb21f1  docs(backend): merge the Kiro session handoff and next-slice plan
+>   4bbbdc4  feat(backend): Scheduling + Attendance slices
+>   c083187  ci: publish failure digests as check runs
+>   23ba401  fix(backend): name the table class_sessions; rename the test session() helper
+>   7605a4c  fix(backend): attendance id assignment, PB-1 on check-conflicts, preview path
+>   d6098c5  fix(backend): deterministic correction ordering
+>
+> WHAT WAS BUILT — the first unfinished planned item, both halves, in the plan's order:
+>   Scheduling: class_sessions table; SessionPolicy; ConflictDetector; SessionService;
+>               SessionGenerator (bounded: 180 days / 500 sessions, ?preview=1 read-only)
+>   Attendance: attendance_records + attendance_corrections tables; AttendancePolicy;
+>               AttendanceService (UNIQUE(session,student); append-only corrections)
+>   36 new tests: tests/Feature/SchedulingTest.php, tests/Feature/AttendanceTest.php
+>
+> PERMISSIONS — only ids already in the shipped vocabulary, nothing invented:
+>   schedule.read, schedule.write, attendance.read, attendance.write
+>   The vocabulary's own asymmetry is honoured and asserted: a teacher has
+>   schedule.read but NOT schedule.write, and has BOTH attendance permissions.
+>
+> TENANCY — TenantContext + BelongsToOrganization, unchanged. No new seam.
+>   T-02 extension: sessions -> class_sessions.teacher_id = actor.teacher_id;
+>   attendance -> through the session.
+>   A teacher with no teacherId is PB-1 and fails closed: 403
+>   OWNER_DECISION_REQUIRED_PB1 on EVERY session and attendance endpoint.
+>
+> EXECUTED, NOT ASSUMED — CI run 36885088076 on d6098c5:
+>   php artisan test  ->  Tests: 158 passed (1090 assertions)
+>                         (was 122 passed / 915 assertions before this slice)
+>   HTTP smoke        ->  T-02 OK, PB-1 OK, PB-3 OK,
+>                         Scheduling + Attendance OK, no-token 401 OK
+>   PHP syntax lint   ->  clean (real php -l in CI)
+> There is no local PHP/Composer toolchain here; the suite runs in GitHub Actions.
+>
+> FRONTEND GATES — no frontend source was changed by this slice:
+>   npm run typecheck -> clean, exit 0
+>   npm test          -> 2648 passed / 4 failed / 18 skipped (2670), 3 of 204 files
+>                        failing. Same four pre-existing failures as the previous
+>                        continuation; no regression, none hidden.
+>
+> PB-1..PB-5: UNCHANGED. OWNER DECISION REQUIRED.
+> Nothing in this slice resolves one. Where a behavior depends on one the server
+> fails closed. PB-3 rooms stay blocked exactly as implemented; no room permission
+> was invented.
+>
+> KNOWN LIMITATIONS (full list in BACKEND_STATUS.md §Slice 3 §14):
+>   1. SESSION_OUTSIDE_WORKING_HOURS and SESSION_TIGHT_TURNAROUND are not
+>      evaluated. The rules exist in src/domains/organization/rules.ts but there
+>      is no server-side store of them yet — ApiOrganizationRepository is marked
+>      BACKEND REQUIRED for GET/PATCH /organization and no endpoint serves it.
+>      Building the Organization settings slice unblocks both.
+>   2. Room/teacher double-booking is enforced transactionally, not by a DB
+>      constraint — an exclusive-end time range cannot be a UNIQUE index.
+>      UNIQUE(session_id, student_id) IS a real constraint.
+>   3. The roster is not date-scoped: Enrollment.startDate is a Jalali display
+>      string in the dataset and is stored verbatim, so it is not a queryable
+>      ISO date. Needs an owner decision on the enrollment date format.
+>   4. SKIP_CLOSED_DAY is never emitted (generation walks class.days only).
+>   5. sessions.json and attendance.json are the legacy demo format and are NOT
+>      seeded; attendanceRecords.json / attendanceCorrections.json are empty
+>      arrays, so attendance test data comes from factories.
+>
+> NOT SEEDED, NOT BUILT, NOT TOUCHED:
+>   tickets, chat, files/media, notifications (PB-5), Telegram/Bale/push,
+>   student portal, finance, reports, library, progress, instruments, learning,
+>   audit events (O-18), MFA, cookie transport (O-12).
+>
+> EXACT NEXT UNFINISHED TASK (not authorized by this commit):
+>   Organization settings — GET /organization and PATCH /organization under
+>   settings.read / settings.write, against the contract already written in
+>   src/domains/organization/apiRepository.ts (marked BACKEND REQUIRED, not yet
+>   selected by the registry). It is first on the plan's own "After" list and it
+>   unblocks limitation 1.
+>   AFTER THAT, AND BLOCKED ON AN OWNER DECISION: progress — its apiRepository
+>   exists but progress.read / progress.write are NOT in the permission
+>   vocabulary. The same is true of instruments.* and learning.*. Library is
+>   unblocked (both permissions exist and its apiRepository is written).
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> Ahead-by is not merge authorization.
+>
+> DO NOT MERGE: docs/demo-migration-plan @ 1b233362ef391e4b8f31df9e48c56b3687e36222
+>
+> PROTECTED: backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6,
+> archive tags, local WIP arena/01a0e8ec-… @ eb973eb2758447eff16b60ab4fd4c267f9d85061.
+> Do not push, reset or clean the WIP. Do not delete any branch or tag.
+>
+> VERIFY WITH:
+>   git ls-remote origin refs/heads/arena/01a0f73f-parsian-music-dashboard-opus
+>   gh run list --workflow=backend-tests.yml --limit 1
+>   gh api repos/vahidateur/parsian-music-dashboard-opus/commits/<sha>/check-runs \
+>     --jq '.check_runs[] | select(.name | startswith("backend-")) | .name + " [" + .conclusion + "]"'
+>   cd backend && composer install && cp .env.example .env && php artisan key:generate
+>   php artisan test
+>   npm ci && npm run typecheck && npm test
+> ```
+>
+> Continuation and evidence only. It does not close GAP, UNKNOWN, BACKEND-ONLY, OWNER DECISION
+> REQUIRED, or PRE-EXISTING FAILURE. Full record: `docs/engineering/BACKEND_STATUS.md` §
+> "Slice 3 — Scheduling + Attendance (BUILT AND VERIFIED)".
+>
+
 > **LIVE POINTER — 2026-10-01, backend first-slice continuation (build-loop + finalize).** This supersedes the lineage-synchronization pointer below as the work order. It does not delete that pointer, it does not delete any SHA in this file, and it does not merge anything to `main`.
 >
 > ```text
