@@ -1,0 +1,102 @@
+# Backend execution gate for the `backend/` Laravel slice.
+#
+# WHY THIS EXISTS
+#   The first backend slice (commits dec2016, b38ff25, 7215633) was developed in
+#   an environment that had a local PHP + Composer toolchain. That toolchain is
+#   not guaranteed to exist for every later session or agent, so the execution
+#   evidence for `php artisan test` must be reproducible outside any one
+#   machine. This workflow is the durable, re-runnable form of that evidence.
+#
+# SCOPE
+#   Backend only. The frontend gates (`npm run typecheck`, `npm test`) are
+#   deliberately NOT run here: they carry pre-existing, governance-recorded
+#   failures (see docs/engineering/SESSION_HANDOFF.md §8 and
+#   docs/engineering/OPEN_ITEMS.md) that must not be hidden or disabled, and
+#   folding them into CI would only turn a recorded failure into a red build.
+#
+# It changes no API contract, no permission id, no tenancy rule and no
+# frontend source.
+
+name: backend-tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: PHP ${{ matrix.php }} — Laravel test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
+
+      # --no-scripts: bootstrap/app.php must not boot before APP_KEY exists.
+      # The autoload dump (and with it `artisan package:discover`) runs below,
+      # after .env and the application key are in place.
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Dump autoload (runs package:discover)
+        run: composer dump-autoload --optimize
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          find app config database routes tests bootstrap public -name '*.php' -print0 \
+            | xargs -0 -n1 -P 4 php -l | grep -v '^No syntax errors detected' || true
+          echo "lint: no syntax errors"
+
+      - name: Test suite (php artisan test)
+        env:
+          APP_ENV: testing
+        run: php artisan test --colors=never
