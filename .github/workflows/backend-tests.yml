@@ -520,8 +520,13 @@ jobs:
           echo "audit rows over HTTP: $(printf '%s' "$audit" | jq -r '.meta.total')"
           [ "$(printf '%s' "$audit" | jq -r '.meta.total')" -ge 2 ] ||
             { echo "::error::corrections are not visible / not append-only"; exit 1; }
-          [ "$(printf '%s' "$audit" | jq -r '.data[0].previousStatus')" = "late" ] ||
-            { echo "::error::the correction lost the previous status"; exit 1; }
+          # Both corrections must survive with their previous values intact.
+          # Compared as sorted sets so the assertion does not depend on the
+          # ordering of two rows written within the same second.
+          [ "$(printf '%s' "$audit" | jq -r '[.data[].previousStatus] | sort | join(",")')" = "late,present" ] ||
+            { echo "::error::a correction lost its previous status"; exit 1; }
+          [ "$(printf '%s' "$audit" | jq -r '[.data[].newStatus] | sort | join(",")')" = "excused,late" ] ||
+            { echo "::error::a correction lost its new status"; exit 1; }
 
           printf '%s\n' "$(curl -sS "$API/sessions/with-attendance" -H "Authorization: Bearer $ADMIN" | jq -r '.data[]')" |
             grep -qx "$TSESSION" || { echo "::error::with-attendance is missing $TSESSION"; exit 1; }

@@ -157,7 +157,9 @@ final class AttendanceService
             }
         }
 
-        return $query->orderByDesc('created_at')->orderBy('id')
+        // Newest first. `id` breaks ties: it is a time-prefixed ULID, so it
+        // sorts by generation order when two rows share a created_at second.
+        return $query->orderByDesc('created_at')->orderByDesc('id')
             ->paginate($pagination->perPage, ['*'], 'page', $pagination->page);
     }
 
@@ -177,6 +179,7 @@ final class AttendanceService
         $corrections = AttendanceCorrection::query()->with('editor')
             ->where('session_id', $session->id)
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get()
             ->all();
 
