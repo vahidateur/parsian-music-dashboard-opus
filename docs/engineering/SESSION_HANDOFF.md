@@ -1,5 +1,80 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-02, Phase B governance resolution (PB-1..PB-5) and PB-1 enforcement.**
+> This supersedes the 2026-10-01 Scheduling + Attendance pointer below as the work order. It deletes
+> nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        66a5e148cef1f1c97ec7608187c47d8f5dd4e79f
+> RESULTING SHA: 86610cf299e6a0484e8ce6907f0722546287024b
+>
+> OWNER DECISION — 2026-10-02 — PB-1..PB-5 ALL RESOLVED, ALL OPTION A
+> (keep the existing restrictive behaviour):
+>   PB-1 = A  A teacher with no teacherId fails closed — never org-wide. Applied
+>             consistently to students, scheduling sessions, attendance, attendance
+>             corrections, related attendance reads and with-attendance.
+>   PB-2 = A  Keep all four privileged-identity restrictions (self-edit, admin->admin,
+>             assigning administrator, privileged email change). The server is NOT
+>             relaxed to match the more permissive frontend panel.
+>   PB-3 = A  rooms/instruments/learning/progress stay blocked. NO rooms.*,
+>             instruments.*, learning.* or progress.* permission is invented;
+>             settings.write and library.write are NOT reinterpreted, and nothing
+>             authorizes on role === "teacher".
+>   PB-4 = A  Keep useCan(...) || !user as the documented test seam. Backend auth is
+>             NOT weakened: 401 without a token is still asserted by the smoke job.
+>   PB-5 = A  No notifications domain, inbox, table, permission or delivery in v1.
+>             Telegram/Bale/SMS/email stay later adapter capabilities only. This
+>             reconciles the O-17 vs integration-architecture conflict: both are read
+>             as "required later capability, not in v1"; neither is rewritten.
+>   Register: docs/engineering/DECISIONS.md §26 (5 records: id, decision, rationale and
+>   evidence, affected scope, implementation consequence, date, owner decision).
+>   Sheets:   docs/engineering/OPEN_ITEMS.md §PB-1..PB-5 (originals preserved verbatim).
+>
+> COMMITS, in order:
+>   a43ac33  fix(backend): enforce PB-1 on every session endpoint; correct stale PB wording
+>   86610cf  fix(scheduling): answer PB-1 before the permission check on session delete
+>
+> WHAT CHANGED — one real gap, closed. The rest is governance documentation.
+>   SessionPolicy::assertTeacherLinked() now runs in all seven scheduling Form
+>   Requests BEFORE the permission check, in SessionGenerator (preview and apply) and
+>   in all five SessionService write methods. Before this, POST sessions/generate
+>   returned a plan to a PB-1 teacher through schedule.read, and the write verbs
+>   answered a bare 403 FORBIDDEN instead of OWNER_DECISION_REQUIRED_PB1.
+>   Destroy is the one session verb with no FormRequest, so its guard order in
+>   SessionService is load-bearing — that is what a43ac33 got wrong and 86610cf fixed.
+>   No schema, contract, permission or TenantContext change. Vocabulary still 23 ids.
+>
+> EXECUTED, NOT ASSUMED — CI run 36929494095 on 86610cf:
+>   php artisan test  ->  Tests: 160 passed (1114 assertions), 0 failed
+>                         (was 158 passed / 1090 assertions at d6098c5)
+>   HTTP smoke        ->  T-02 OK, PB-1 OK, PB-3 OK, Scheduling + Attendance OK,
+>                         no-token 401 OK. backend-test-tally + backend-http-smoke:
+>                         both success.
+>   PHP syntax lint   ->  169 PHP files, 0 syntax errors
+>   npm run typecheck ->  exit 0, clean
+>   npm test          ->  2638 passed / 14 failed / 18 skipped (2670), 5 of 204 files
+>                         failing. No frontend source was changed by these two commits
+>                         (git diff 66a5e14..86610cf touches backend/ only), so this is
+>                         not attributable to them: 9 are projectState.test.ts failing
+>                         on a SHALLOW CLONE (environmental), and 5 are the recorded
+>                         pre-existing frontend failures. No regression, none hidden.
+>   WARNING: a43ac33 alone is RED (1 failed: the delete assertion). Do not stop there.
+>            86610cf is the fix and is green.
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> PROTECTED REFS unchanged: main 15775ea9…, docs/demo-migration-plan 1b233362…,
+>   backup/pre-f2-2026-09-29 62deb84d…. Pushed fast-forward only: no force, no rebase,
+>   no reset, no history rewrite.
+>
+> EXACT NEXT UNFINISHED TASK (still NOT authorized):
+>   Organization settings — GET /organization and PATCH /organization under
+>   settings.read / settings.write. Unchanged from the pointer below; it still
+>   unblocks limitation 1.
+> ```
+
 > **LIVE POINTER — 2026-10-01, Scheduling + Attendance continuation.** This supersedes the
 > backend first-slice pointer below as the work order. It deletes nothing below it, deletes no
 > SHA, and merges nothing to `main`.
@@ -58,6 +133,9 @@
 >                        failing. Same four pre-existing failures as the previous
 >                        continuation; no regression, none hidden.
 >
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1..PB-5: UNCHANGED. OWNER DECISION REQUIRED.
 > Nothing in this slice resolves one. Where a behavior depends on one the server
 > fails closed. PB-3 rooms stay blocked exactly as implemented; no room permission
@@ -166,6 +244,9 @@
 > Full record: docs/engineering/BACKEND_STATUS.md
 > Final report: docs/engineering/backend-slice/FINAL_REPORT.md
 >
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1..PB-5: UNCHANGED. OWNER DECISION REQUIRED.
 > This continuation implemented nothing that resolves one.
 > Where a behavior depends on one, the server fails closed with
@@ -195,6 +276,9 @@
 > Not rerun is neither pass nor fail; not reproducing is not fixed.
 >
 > NEXT ACTION, not authorized by this commit:
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1..PB-5 remain with the owner. Do not implement them.
 > Do not start scheduling, attendance, finance, reports, library,
 > organization settings, progress, instruments, learning, tickets, chat,
@@ -242,6 +326,9 @@
 > TypeScript typecheck: clean (exit 0)
 > vitest: hangs in this Windows sandbox — pre-existing environmental issue (CRLF/workers)
 >
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1..PB-5: ALL remain OWNER DECISION REQUIRED — not resolved.
 >   PB-1: teacher without teacherId → 403 OWNER_DECISION_REQUIRED_PB1 (fail-closed)
 >         teacher WITH teacherId → T-02 SQL scope enforced (active enrollment ∩ class.teacher_id)
@@ -314,6 +401,9 @@
 >
 > PHASE B:
 > PARTIAL, not complete
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1..PB-5 remain OWNER DECISION REQUIRED in OPEN_ITEMS.md.
 > This pass investigated them and did not choose them.
 > Current product behavior was preserved.
@@ -424,6 +514,9 @@
 > Two compositions only. Registry paths remain src/domains/registry.ts, src/domains/registry.client.ts, and src/domains/registryCore.ts.
 >
 > NEXT, NOT AUTHORIZED BY THIS COMMIT:
+> **[SUPERSEDED 2026-10-02 — PB-1..PB-5 are resolved by the owner, all option A.**
+> See the live pointer at the top of this file. The original line below is kept
+> as the historical record of what was true when it was written.]**
 > PB-1 through PB-5 remain OWNER DECISION REQUIRED in OPEN_ITEMS.md.
 > Do not implement those decisions.
 > Do not invent permissions, endpoints, tenancy, or policy.

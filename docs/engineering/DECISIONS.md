@@ -2016,6 +2016,149 @@ deliberate deviation §23 and §24 record: `PROJECT_STATE.md` was excluded from 
 
 ---
 
+## 26. Phase B governance decisions: PB-1 … PB-5 (resolved 2026-10-02)
+
+**Five owner decisions, all option A — keep the existing restrictive behaviour.**
+They close the set recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) §PB-1..PB-5, where the original
+sheets, evidence and reasoning are preserved verbatim.
+
+`PB-*` is its own namespace: it is **not** a `D`-number, **not** an `O-*` id, and it does not amend
+any D-entry. These five entries change **no** `T-02` or `O-*` status. They are recorded here because
+each one is load-bearing for the server and is now enforced by tests rather than by convention.
+
+The governing rule across all five: **fail closed, invent nothing.** Where the live documents
+disagreed or named no rule, the decision is to leave the restrictive behaviour in place rather than
+to widen it, and to refuse rather than to guess. No permission id was created, no existing
+permission was reinterpreted, and `TenantContext` was not touched.
+
+---
+
+### 26.1 PB-1 — Teacher with no `teacherId`: fail-closed
+
+- **Decision id.** PB-1
+- **Decision.** **Option A — fail-closed.** A teacher account with no linked `teacherId` sees **no**
+  records — never organization-wide. The server answers `403 OWNER_DECISION_REQUIRED_PB1`.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-1: *"Does a teacher account with no linked teacher id
+  see no students, or every student?"* `GOVERNANCE_CHECKPOINT.md` states T-02 is fail-closed and
+  must not be revisited. Server and shipped frontend disagreed: `src/domains/auth/scope.ts` fell
+  through to org-wide, the server refused. Option A adopts the server's behaviour as the policy.
+- **Affected scope.** Applied **consistently** to students, scheduling sessions, attendance,
+  attendance corrections and related attendance reads, and `sessions/with-attendance`.
+- **Implementation consequence.** One real gap was found and closed (`a43ac33`): `sessions/generate`
+  (reachable by a teacher through `schedule.read`) and the five session write verbs did not enforce
+  the decision — the preview returned a plan, and the writes answered a bare `403 FORBIDDEN`.
+  `SessionPolicy::assertTeacherLinked()` is now called by all seven scheduling Form Requests, before
+  the permission check, and by the service methods. No schema, contract or permission change.
+  `students.teacher_id` remains a non-authorization column.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (fail-closed, not org-wide)
+
+**Enforced by.** `SchedulingTest::test_pb1_closes_generation_and_every_session_write`,
+`SchedulingTest::test_teacher_without_teacher_id_is_pb1_403`, `StudentScopeTest`,
+`AttendanceTest::test_teacher_without_teacher_id_is_pb1_403`, and the HTTP smoke step
+`PB-1 — teacher with no teacherId fails closed`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.2 PB-2 — Privileged account identity: keep the restrictions
+
+- **Decision id.** PB-2
+- **Decision.** **Option A.** `PrivilegedIdentityPolicy` keeps all four restrictions: (a) self-edit,
+  (b) administrator→administrator edit, (c) assigning `administrator`, (d) privileged email change.
+  The server is **not** relaxed to match the frontend panel.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-2 lists five sub-questions no product document
+  answers (one `name` field? admin→admin? manager→admin? privileged email change? current
+  password?). `UsersPanel.tsx` renders role and email controls for every row including self;
+  `userRepository.ts` posts `{ password }` with no current password. Option A answers all five by
+  keeping today's server behaviour, so the frontend stays the more permissive surface.
+- **Affected scope.** `users.write`, `roles.write`; `UserController`, `PrivilegedIdentityPolicy`.
+- **Implementation consequence.** **No code change.** `OWNER_DECISION_REQUIRED_PB2` continues to be
+  returned; it is now the implemented policy rather than a placeholder. The single `name` field and
+  the absence of a current-password field are retained as current contract.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the restrictions)
+
+**Enforced by.** `PrivilegedIdentityPolicyTest` (all four cases assert
+`403 OWNER_DECISION_REQUIRED_PB2`).
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.3 PB-3 — Writes with no permission id: keep blocked, invent none
+
+- **Decision id.** PB-3
+- **Decision.** **Option A.** Room, instrument, learning-curriculum and progress writes stay
+  blocked. **No** `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-3: *"Which existing permission, if any, hides each of
+  those writes? `settings.write` and `library.write` are already used by other panels and must not
+  be assumed."* Because reuse is explicitly unsupported by the evidence, the only options were
+  "keep blocked" or "name new ids" — and the owner chose to keep blocked.
+- **Affected scope.** `RoomsPanel`, `InstrumentsPanel`, `LearningPanel`, `StudentProgressPanel`,
+  `RepertoirePanel`; `RoomPolicy`, `RoomController`.
+- **Implementation consequence.** **No code change, and no new permission id.** `settings.write`
+  and `library.write` are **not** reinterpreted as covering these domains, and nothing authorizes on
+  `role === "teacher"`. The permission vocabulary remains the **23** ids in
+  `backend/config/permissions.php`. `OWNER_DECISION_REQUIRED_PB3` is still returned on all six rooms
+  endpoints for every role, administrator included.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep blocked, invent no permission id)
+
+**Enforced by.** `RoomsTest` and the HTTP smoke step `PB-3 — rooms stay blocked for every role`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.4 PB-4 — `useCan(...) || !user`: keep the test seam
+
+- **Decision id.** PB-4
+- **Decision.** **Option A — keep the idiom** as the documented test seam. Do not remove it, and do
+  not weaken backend authentication to match it.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-4: `useCan` returns true outside `AuthProvider`
+  *"by an explicit comment, so legacy view tests keep their controls"*, and `AuthGate` never renders
+  those views with a null user. The idiom therefore has no production reach.
+- **Affected scope.** `src/views/Classes.tsx`, `src/views/Students.tsx`,
+  `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`.
+- **Implementation consequence.** **No code change**, frontend or backend. Every route except login
+  still requires a Bearer token and answers `401` without one, so the seam remains frontend-only.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the test seam)
+
+**Enforced by.** The `401` assertion in the HTTP smoke job. No test asserts the idiom itself — it is
+retained deliberately, not pinned.
+
+**Status.** ✅ Resolved — 2026-10-02. Left untouched by design.
+
+---
+
+### 26.5 PB-5 — Notifications: no domain in v1
+
+- **Decision id.** PB-5
+- **Decision.** **Option A.** v1 has **no** notifications domain, inbox, table, permission or
+  delivery implementation. Telegram / Bale / SMS / email remain **later adapter capabilities only**.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-5 records a live conflict: `GOVERNANCE_CHECKPOINT.md`
+  **O-17** says no notifications domain in v1, while
+  `docs/frontend-completion/10-integration-architecture.md` classifies Telegram/Bale/SMS/email
+  delivery as a required later capability.
+- **Affected scope.** Notification settings toggles (which already disclose they do not save); any
+  future adapter work.
+- **Implementation consequence.** **No code change.** The conflict is reconciled by reading **both**
+  documents as *"required later capability, not in v1"*: O-17's v1 exclusion stands, the integration
+  architecture's REQUIRED classification stands as a future-capability claim, and neither document is
+  rewritten. Only the sequencing question was open, and this decision settles it.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (no notifications domain in v1)
+
+**Enforced by.** Absence: no notification table, migration, route, permission or domain exists. Push
+stays not started.
+
+**Status.** ✅ Resolved — 2026-10-02.
+
+---
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

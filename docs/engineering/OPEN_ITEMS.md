@@ -1680,42 +1680,119 @@ recovery and the zero-record tests both remaining green.
 
 These are not implementation choices. Each one was left unchanged because the live documents do not agree, or because no document names the rule.
 
+> ## RESOLVED — 2026-10-02 — OWNER DECISION
+>
+> **PB-1 = A · PB-2 = A · PB-3 = A · PB-4 = A · PB-5 = A.** All five are resolved
+> as option A: keep the existing restrictive behaviour. The five canonical sheets
+> below are **preserved verbatim** — their *What*, *Evidence* and *Decision
+> required* lines are unchanged history — and each now carries a RESOLUTION block
+> recording what was decided. Nothing below was deleted.
+>
+> Full decision records: [DECISIONS.md](DECISIONS.md) §Phase B (PB-1..PB-5).
+> Implementation: `a43ac33`. Status roll-up:
+> [BACKEND_STATUS.md](BACKEND_STATUS.md) §PB-isolation map and §Slice 3 §13.
+
+
 Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb846798cdabd96be1ba9344792c0e24`. Decision A record: `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`. The live tip is the commit whose parent is that record and whose subject is `docs(engineering): synchronize Phase B lineage pointers`, named in [SESSION_HANDOFF.md](SESSION_HANDOFF.md). This paragraph does not contain that commit's own SHA. Naming these SHAs does not resolve PB-1..PB-5.
 
 ### PB-1. Teacher with no `teacherId` — fail-closed or org-wide
 
 - **What:** `src/domains/auth/scope.ts` denies an unassigned student when the teacher actor has `teacherId`. A teacher actor with no `teacherId` still returns org-wide from `canReadStudent`.
 - **Evidence:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` says T-02 is fail-closed and must not be revisited. `docs/frontend-completion/15-student-portal-architecture.md` still calls the missing-`teacherId` fallback honest. The status comment in `scope.ts` was aligned to ACCEPTED / ASSIGNED-ONLY. The branch was not changed.
-- **Decision required:** Does a teacher account with no linked teacher id see no students, or every student?
-- **Status:** OWNER DECISION REQUIRED. Not chosen.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (fail-closed).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> A teacher account with no linked `teacherId` sees **no** records — never
+> organization-wide. Applied consistently to **students, scheduling sessions,
+> attendance, attendance corrections and related attendance reads, and
+> `sessions/with-attendance`**. The server keeps answering
+> `403 OWNER_DECISION_REQUIRED_PB1`.
+>
+> **Scope widened during implementation.** The question above named only
+> students. Auditing the endpoint set found two gaps in the code that already
+> existed: `sessions/generate?preview=1` is reachable by a teacher through
+> `schedule.read` and applied no PB-1 check, and the session write verbs answered
+> a bare `403 FORBIDDEN` because the permission gate ran first. Both now enforce
+> PB-1 (`a43ac33`), so the decision holds on every session endpoint and not only
+> on the reads.
+>
+> **Consequence:** no schema, contract or permission change. `students.teacher_id`
+> remains a non-authorization column, and T-02 stays enforced in SQL.
 
 ### PB-2. Privileged account identity
 
 - **What:** No product document answers whether `name` stays one field, whether one administrator may edit another, whether a manager may edit an administrator, whether a privileged email may change, or whether that change requires the target account's current password.
 - **Evidence:** `src/components/settings/UsersPanel.tsx` uses one field labeled «نام و نام خانوادگی». `users.write` shows role and email controls for every row, including self. Delete is hidden for self. `src/domains/auth/userRepository.ts` posts `{ password }` to `users/{id}/password` and does not send a current password. A manager lacks `users.write`, so those controls are not rendered.
-- **Decision required:** Answer each question above before any account-form change.
-- **Status:** OWNER DECISION REQUIRED. Not chosen. Not implemented.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. Not implemented. → **RESOLVED 2026-10-02 — option A (keep the restrictions).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> `PrivilegedIdentityPolicy` keeps all four restrictions: (a) self-edit,
+> (b) administrator→administrator edit, (c) assigning `administrator`,
+> (d) privileged email change. The server is **not** relaxed to match
+> `UsersPanel.tsx`.
+>
+> The five sub-questions above (one `name` field? admin→admin? manager→admin?
+> privileged email change? current password required?) are answered by **keeping
+> today's server behaviour as the policy** rather than by changing it — so the
+> shipped frontend remains the more permissive of the two surfaces.
+>
+> **Consequence:** no code change. `OWNER_DECISION_REQUIRED_PB2` continues to be
+> returned; it is now the implemented policy, not a placeholder.
 
 ### PB-3. Writes that have no permission id
 
-- **What:** Room, instrument, learning-curriculum, and progress mutations render without `useCan`. No `rooms.write`, `instruments.write`, `learning.write`, or `progress.write` exists. Inventing one would change the 22-permission vocabulary.
+- **What:** Room, instrument, learning-curriculum, and progress mutations render without `useCan`. No `rooms.write`, `instruments.write`, `learning.write`, or `progress.write` exists. Inventing one would change the permission vocabulary. *(The original 2026-09 wording of this sheet said "22-permission vocabulary"; `backend/config/permissions.php` has since grown to **23** ids, and the live count is corrected here while the historical figure is preserved in place.)*
 - **Evidence:** `src/domains/rooms/RoomsPanel.tsx`, `src/domains/instruments/InstrumentsPanel.tsx`, `src/domains/learning/LearningPanel.tsx`, `src/domains/progress/StudentProgressPanel.tsx`, `src/domains/progress/RepertoirePanel.tsx`. `StudentProgressPanel` also branches on `role === "teacher"`.
-- **Decision required:** Which existing permission, if any, hides each of those writes? `settings.write` and `library.write` are already used by other panels and must not be assumed.
-- **Status:** OWNER DECISION REQUIRED. Not chosen.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (keep blocked, invent no permission id).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> Room, instrument, learning-curriculum and progress writes stay blocked. **No**
+> `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created.
+> `settings.write` and `library.write` are **not** reinterpreted as covering
+> these domains, and nothing authorizes on `role === "teacher"`. The permission
+> vocabulary remains the **23** ids already in `backend/config/permissions.php`
+> (this sheet's historical "22-permission vocabulary" is corrected below).
+>
+> **Consequence:** no code change. `OWNER_DECISION_REQUIRED_PB3` continues to be
+> returned on all six rooms endpoints for every role, administrator included.
+> The four panels still render their writes ungated — that is a frontend
+> rendering question, and the server refuses regardless.
 
 ### PB-4. `useCan(...) || !user`
 
 - **What:** Student, class, and schedule write flags are true when `user` is null. `useCan` itself returns true outside `AuthProvider`, by an explicit comment, so legacy view tests keep their controls.
 - **Evidence:** `src/views/Classes.tsx`, `src/views/Students.tsx`, `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`. The RBAC contract says no control when the permission is absent. The class comment says the idiom is required so the controls are not dropped.
-- **Decision required:** Remove the idiom, or keep it as a test seam? Inside the signed-in shell `AuthGate` does not render these views with a null user.
-- **Status:** OWNER DECISION REQUIRED. Not chosen.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (keep the test seam).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> The `useCan(...) || !user` idiom is **kept** as the documented test seam. It is
+> not removed. Backend authentication is not weakened: every route except login
+> still requires a Bearer token and answers `401` without one, so the idiom
+> remains a frontend-only affordance with no server reach.
+>
+> **Consequence:** no code change, frontend or backend.
 
 ### PB-5. Notifications domain versus later delivery
 
 - **What:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` O-17 says no notifications domain in v1. `docs/frontend-completion/10-integration-architecture.md` still classifies Telegram/Bale/SMS/email notification delivery as a required later capability.
 - **Evidence:** both files. Settings notification toggles already say they do not save.
-- **Decision required:** Is v1 allowed to have a notifications domain, or only a later adapter with no inbox table?
-- **Status:** OWNER DECISION REQUIRED. Push was not started.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. Push was not started. → **RESOLVED 2026-10-02 — option A (no notifications domain in v1).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> v1 has **no** notifications domain, inbox, table, permission or delivery
+> implementation. Telegram / Bale / SMS / email remain **later adapter
+> capabilities only**.
+>
+> **Document conflict reconciled by this decision.** `GOVERNANCE_CHECKPOINT.md`
+> O-17 says no notifications domain in v1, while
+> `docs/frontend-completion/10-integration-architecture.md` classifies
+> notification delivery as a required later capability. **PB-5 = A is
+> authoritative** and both documents are read as *"required later capability,
+> not in v1"*. Neither document is rewritten: O-17's v1 exclusion stands, and the
+> integration architecture's REQUIRED classification stands as a future-capability
+> claim. Only the sequencing question was open, and it is now settled.
+>
+> **Consequence:** no code change. Push stays not started.
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 

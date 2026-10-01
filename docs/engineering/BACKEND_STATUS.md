@@ -1,13 +1,20 @@
 # BACKEND STATUS — Laravel API (`backend/`)
 
 Implementation record of the first backend slice on branch `cleanup/demo-migration-lineage`
-(local commits, not pushed). Phase B owner decisions PB-1..PB-5 remain **OPEN**; this slice does not
-resolve any of them. Where a behavior depends on one, the server fails closed with
-`403 OWNER_DECISION_REQUIRED_PB<n>` (see the PB-isolation map).
+(local commits, not pushed).
+
+> **PB-1..PB-5 ARE RESOLVED — owner decision 2026-10-02, all option A** (keep the existing
+> restrictive behaviour). They were **OPEN** when this document was written. The decision register
+> is [DECISIONS.md §26](DECISIONS.md); the original sheets, evidence and reasoning stay in
+> [OPEN_ITEMS.md](OPEN_ITEMS.md) and are not rewritten. **Every option A keeps the behaviour that
+> was already implemented**, so the `403 OWNER_DECISION_REQUIRED_PB<n>` codes below are the
+> *expected and final* answers rather than placeholders awaiting a choice. Where a behavior depends
+> on one, the server fails closed with that code (see the PB-isolation map). No permission id was
+> created, no existing permission was reinterpreted, and `TenantContext` was not touched.
 
 Stack: Laravel 12, Sanctum 4 (Bearer personal access tokens), SQLite for dev and tests, PHPUnit via
-`php artisan test`. 158 backend feature tests pass at the end of the Scheduling + Attendance
-slice (122 at the end of the first slice).
+`php artisan test`. 160 backend feature tests pass at the end of the PB-1 enforcement commit
+(158 at the end of the Scheduling + Attendance slice, 122 at the end of the first slice).
 
 ## Verification status — read this before trusting any number below
 
@@ -18,6 +25,8 @@ as an artifact; "verified in this continuation" means it was re-executed and the
 | Claim | Status | How it is established |
 |---|---|---|
 | 158 backend tests pass | **verified in this continuation** | `.github/workflows/backend-tests.yml`, job `PHP 8.3 — Laravel test suite`, PHP 8.3, `php artisan test` → `Tests: 158 passed (1090 assertions)` on `d6098c5`, run `36885088076`. Re-runnable on every push that touches `backend/`. |
+| 160 backend tests pass (PB-1 enforcement) | **verified in this continuation** | same job, `php artisan test` → `Tests: 160 passed (1114 assertions)`, **0 failed**, on `86610cf`, run `36929494095`. `backend-test-tally` and `backend-http-smoke` both `success`. The two added tests are `SchedulingTest::test_pb1_closes_generation_and_every_session_write` and `SchedulingTest::test_teacher_with_teacher_id_is_unaffected_by_the_pb1_guard`. |
+| PB-1 on every session endpoint | **verified in this continuation** | same run, HTTP smoke step: `GET /sessions`, `/attendance`, `/attendance/corrections` and `/sessions/with-attendance` all answer `403 OWNER_DECISION_REQUIRED_PB1` for `teacher6` (no `teacherId`). |
 | Scheduling + Attendance behave per contract, over HTTP | **verified in this continuation, over HTTP** | same workflow, job `HTTP smoke`, step `Scheduling + Attendance — over HTTP`. See "Slice 3" §10. |
 | T-02 (teacher sees only their own enrolled students) | **verified in this continuation, over HTTP** | same workflow, job `HTTP smoke — T-02 / PB-1 / PB-3`. See "HTTP smoke" below. |
 | PB-1 fails closed for a teacher with no `teacherId` | **verified in this continuation, over HTTP** | `403 OWNER_DECISION_REQUIRED_PB1` |
@@ -151,11 +160,11 @@ Defaults: `pricingPlan = {label: class.level, amount: class.tuition}`, `startDat
 
 | PB | Isolating method | Blocked code | Status |
 |---|---|---|---|
-| PB-1 teacher without `teacherId` | `App\Domain\Students\StudentAccessPolicy::teacherWithoutTeacherIdScope()`, `App\Domain\Scheduling\SessionPolicy::teacherScope()`, `App\Domain\Attendance\AttendancePolicy::scope()` | 403 `OWNER_DECISION_REQUIRED_PB1` | IMPLEMENTED-BLOCKED on students list/get/create/update/delete **and on every session and attendance endpoint** (including `roster`, `check-conflicts`, `corrections`, `with-attendance`). Teacher WITH `teacherId` = T-02 implemented in SQL — students: active enrollment ∩ `classes.teacher_id`; sessions: `class_sessions.teacher_id`; attendance: through the session. `students.teacher_id` is never an authorization source. |
-| PB-2 privileged identity | `App\Domain\Users\PrivilegedIdentityPolicy::assertAllowed()` — (a) self-edit, (b) editing another administrator, (c) assigning `administrator`, (d) email change of an administrator/manager | 403 `OWNER_DECISION_REQUIRED_PB2` | IMPLEMENTED-BLOCKED for a–d; other user writes implemented. Single `name` field and no current-password field kept (current contract, not a decision). |
-| PB-3 rooms / instruments / learning / progress | `App\Domain\Rooms\RoomPolicy::authorizeRead()` / `authorizeWrite()` | 403 `OWNER_DECISION_REQUIRED_PB3` | Rooms: IMPLEMENTED-BLOCKED on all six endpoints for every role. Instruments, learning, progress: LEFT-UNIMPLEMENTED. Class validation still checks room existence/active as data integrity, not as room authorization. |
-| PB-4 `useCan(...) \|\| !user` | none (frontend idiom; every server route except login requires a token → 401) | – | LEFT-UNTOUCHED |
-| PB-5 notifications | none | – | LEFT-UNIMPLEMENTED (no table, no route) |
+| PB-1 teacher without `teacherId` | `App\Domain\Students\StudentAccessPolicy::teacherWithoutTeacherIdScope()`, `App\Domain\Scheduling\SessionPolicy::teacherScope()`, `App\Domain\Attendance\AttendancePolicy::scope()` | 403 `OWNER_DECISION_REQUIRED_PB1` | IMPLEMENTED-BLOCKED on students list/get/create/update/delete **and on every session and attendance endpoint** (including `roster`, `check-conflicts`, `corrections`, `with-attendance`). Teacher WITH `teacherId` = T-02 implemented in SQL — students: active enrollment ∩ `classes.teacher_id`; sessions: `class_sessions.teacher_id`; attendance: through the session. `students.teacher_id` is never an authorization source. **RESOLVED 2026-10-02 — option A:** fail-closed is the chosen policy, applied consistently to students, scheduling sessions, attendance, attendance corrections, related attendance reads and `with-attendance` — never org-wide. The gap that `sessions/generate` and the write verbs left is closed: `SessionPolicy::assertTeacherLinked()` runs in all seven scheduling Form Requests **before** the permission check, and in all five `SessionService` write methods, so the refusal cannot be bypassed by reaching a verb that selects no rows. |
+| PB-2 privileged identity | `App\Domain\Users\PrivilegedIdentityPolicy::assertAllowed()` — (a) self-edit, (b) editing another administrator, (c) assigning `administrator`, (d) email change of an administrator/manager | 403 `OWNER_DECISION_REQUIRED_PB2` | IMPLEMENTED-BLOCKED for a–d; other user writes implemented. Single `name` field and no current-password field kept (current contract, not a decision). **RESOLVED 2026-10-02 — option A:** all four restrictions (a–d) are kept deliberately. The server is **not** relaxed to match the more permissive frontend panel; the frontend stays the wider surface. |
+| PB-3 rooms / instruments / learning / progress | `App\Domain\Rooms\RoomPolicy::authorizeRead()` / `authorizeWrite()` | 403 `OWNER_DECISION_REQUIRED_PB3` | Rooms: IMPLEMENTED-BLOCKED on all six endpoints for every role. Instruments, learning, progress: LEFT-UNIMPLEMENTED. Class validation still checks room existence/active as data integrity, not as room authorization. **RESOLVED 2026-10-02 — option A:** rooms stay blocked and **no** `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created. `settings.write` and `library.write` are **not** reinterpreted as covering these domains, and nothing authorizes on `role === "teacher"`. The vocabulary remains the **23** ids in `backend/config/permissions.php` — which contains no `rooms.*` id at all. |
+| PB-4 `useCan(...) \|\| !user` | none (frontend idiom; every server route except login requires a token → 401) | – | LEFT-UNTOUCHED — **RESOLVED 2026-10-02 — option A:** kept as the documented test seam. Removal would break legacy view tests, and the idiom has no production reach because `AuthGate` never renders those views with a null user. Backend authentication is **not** weakened: the smoke job asserts `401` with no token. |
+| PB-5 notifications | none | – | LEFT-UNIMPLEMENTED (no table, no route) — **RESOLVED 2026-10-02 — option A:** v1 has **no** notifications domain, inbox, table, permission or delivery implementation; Telegram/Bale/SMS/email stay **later adapter capabilities only**. This also reconciles the O-17 vs integration-architecture conflict: both documents are read as *“required later capability, not in v1”* and neither is rewritten. |
 
 ## HTTP smoke — governance assertions over the wire
 
@@ -204,7 +213,8 @@ Read it as four separate facts:
    coincide, so a regression to the old rule cannot pass quietly.
 3. **The scope is a strict subset.** The administrator sees all 15 students over the same endpoint;
    the teacher sees 5. The job fails if the teacher's count is 0 (fail-closed-empty) or equal to the
-   organization total (org-wide) — the two outcomes PB-1 has not decided between.
+   organization total (org-wide) — the two outcomes PB-1 **has now decided between**: the owner chose
+   fail-closed (option A, 2026-10-02), so 0 is the correct answer and the org-wide total is not.
 4. **PB-1 and PB-3 fail closed over HTTP, not only in unit tests.** Detaching `teacher6`'s
    `teacher_id` yields `403 OWNER_DECISION_REQUIRED_PB1`; every rooms endpoint yields
    `403 OWNER_DECISION_REQUIRED_PB3` even for the administrator.
@@ -242,7 +252,7 @@ Read it as:
 
 1. **The seeded schedule is reachable and complete.** 137 rows in, 137 visible to the administrator.
 2. **T-02 holds for sessions too** — `teacher1` sees 26 of 137, a strict subset (the job fails on 0
-   or on the full total, the two outcomes PB-1 has not decided between).
+   or on the full total, the two outcomes PB-1 **has now decided between** — option A, fail-closed).
 3. **PB-1 fails closed on every new endpoint**, including the derived reads.
 4. **Static routes are not shadowed.** `POST sessions/generate?preview=1` answers 200 rather than
    being swallowed by `sessions/{id}`, and the step re-counts the table afterwards to prove the
