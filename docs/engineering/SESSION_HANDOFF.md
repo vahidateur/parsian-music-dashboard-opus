@@ -1,5 +1,81 @@
 # SESSION HANDOFF
 
+> **BACKEND IMPLEMENTATION HANDOFF — 2026-10-01**
+>
+> ```text
+> CURRENT BRANCH:  cleanup/demo-migration-lineage
+> CURRENT HEAD:    7215633  (feat(backend): add classes and enrollments)
+> PARENT:          b38ff25  (feat(backend): teachers, rooms (PB-3 blocked) and students with T-02 scope)
+> PARENT^2:        dec2016  (feat(backend): Laravel foundation, auth, users and roles)
+>
+> BACKEND: PARTIAL — first slice complete, pushed to origin
+> Stack: Laravel 12.69.3 + Sanctum 4.3.3, SQLite (dev/test), PHPUnit
+> Backend location: backend/   (within the repo root)
+> Tests: 122 passed, 915 assertions (php artisan test from backend/)
+>
+> WHAT WAS BUILT (this session):
+>   dec2016 — Laravel foundation, Sanctum bearer auth (login/logout/me), users CRUD,
+>             roles CRUD/reset, server permission matrix (23-id vocabulary only),
+>             consistent {data}/{error} envelope (O-15), tenant seam (org_id from token,
+>             never from body/wire), PermissionGate, DemoDatasetSeeder
+>   b38ff25 — teachers API (CRUD + deactivate), rooms API persistence + service
+>             (all endpoints BLOCKED PB-3), students API with T-02 SQL scope +
+>             PB-1 fail-closed, classes/enrollments migrations + models
+>   7215633 — classes API (CRUD + archive), enrollments API (transactional
+>             capacity + duplicate + withdraw), BACKEND_STATUS.md written
+>
+> SMOKE TEST (19/19 pass verified with running server):
+>   login 200, me 200 (token=""), unauth 401, students×15 200, classes×10 200,
+>   enrollments×18 200, teachers×8 200, rooms 403 OWNER_DECISION_REQUIRED_PB3
+>
+> TypeScript typecheck: clean (exit 0)
+> vitest: hangs in this Windows sandbox — pre-existing environmental issue (CRLF/workers)
+>
+> PB-1..PB-5: ALL remain OWNER DECISION REQUIRED — not resolved.
+>   PB-1: teacher without teacherId → 403 OWNER_DECISION_REQUIRED_PB1 (fail-closed)
+>         teacher WITH teacherId → T-02 SQL scope enforced (active enrollment ∩ class.teacher_id)
+>   PB-2: privileged identity cases a-d → 403 OWNER_DECISION_REQUIRED_PB2
+>   PB-3: all room endpoints → 403 OWNER_DECISION_REQUIRED_PB3
+>   PB-4/PB-5: untouched
+>
+> NEXT PLANNED SLICE (NOT YET STARTED — aborted to hand off):
+>   Scheduling (sessions CRUD, cancel, reschedule, generate+preview, check-conflicts, roster)
+>   Attendance (records, bulk, correct, corrections, session attendance, with-attendance)
+>   Authorization: schedule.read/write, attendance.read/write (already exist in vocabulary)
+>   Wire contracts: src/domains/scheduling/apiRepository.ts + types.ts
+>                   src/domains/attendance/apiRepository.ts + types.ts
+>   Seed data:  data/dataset/scheduledSessions.json
+>               data/dataset/attendance.json
+>               data/dataset/attendanceCorrections.json
+>   Original Kiro plan artifact: .agents/tasks/backend-slice/plan.md (§4 slices 7–8 equivalent,
+>     §8 test checklist SchedulingTest + AttendanceTest, §9 BACKEND_STATUS.md extension)
+>   Key constraints:
+>     - PB-1 teacher scope: sessions.teacher_id = actor.teacher_id (T-02 extension)
+>     - recorded_by_user_id / changed_by_user_id from auth session, never from body
+>     - attendance_corrections: INSERT only (append-only table)
+>     - UNIQUE(session_id, student_id) must be a DB constraint on attendance_records
+>     - POST /attendance/bulk: one DB::transaction
+>     - POST /sessions/generate: MAX_GENERATION_DAYS=180, MAX_GENERATION_SESSIONS=500
+>     - Static routes (/bulk, /corrections, /with-attendance) BEFORE {id} parameterized routes
+>
+> HOW TO RESUME:
+>   cd backend
+>   composer install
+>   copy .env.example .env  (if no .env)
+>   php artisan key:generate
+>   set DEMO_SEED_PASSWORD=<any>
+>   php artisan migrate:fresh --seed
+>   php artisan test --no-ansi  (should show 122 passed)
+>   php artisan serve --port=8080
+>
+> GOVERNANCE FILES:
+>   docs/engineering/BACKEND_STATUS.md     — full endpoint table, PB-isolation map
+>   .agents/tasks/backend-slice/plan.md    — original Kiro plan (slices 1–8 + test checklist)
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> Protected refs: see LIVE POINTER block below. Do not alter.
+> ```
+
 > **LIVE POINTER — 2026-09-30, lineage pointer synchronization.** This supersedes the Decision A pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
 >
 > ```text

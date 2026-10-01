@@ -123,3 +123,41 @@ Stored verbatim in `students.deferred` (type-validated only, never derived, not 
 Scheduling, attendance, finance, reports, library, organization settings, progress, instruments,
 learning, tickets, chat, files/media, notifications (PB-5), audit events (O-18), MFA, cookie
 transport (O-12), Telegram/Bale/push, student portal. All PB-1..PB-5 decisions remain with the owner.
+
+---
+
+## Next recommended slice — Scheduling + Attendance (NOT YET STARTED)
+
+Wire contracts already exist in the frontend:
+- `src/domains/scheduling/apiRepository.ts` + `types.ts`
+- `src/domains/attendance/apiRepository.ts` + `types.ts`
+
+Seed data available:
+- `data/dataset/scheduledSessions.json`
+- `data/dataset/attendance.json`
+- `data/dataset/attendanceCorrections.json`
+
+### Scheduling endpoints (`schedule.read` / `schedule.write`)
+`GET/POST/PATCH/DELETE sessions`, `POST sessions/{id}/cancel`, `POST sessions/{id}/reschedule`,
+`POST sessions/generate?preview=1`, `POST sessions/check-conflicts`, `GET sessions/{id}/roster`.
+
+### Attendance endpoints (`attendance.read` / `attendance.write`)
+`GET/POST attendance`, `POST attendance/bulk`, `POST attendance/{id}/correct`,
+`GET attendance/corrections`, `GET sessions/{id}/attendance`, `GET sessions/with-attendance`.
+
+### Key constraints for the next agent
+- T-02 extension: sessions/attendance teacher scope = `sessions.teacher_id = actor.teacher_id`.
+- Teacher without `teacher_id` → `OwnerDecisionRequired('PB-1')` on all session and attendance endpoints.
+- `recorded_by_user_id` / `changed_by_user_id` come from `$request->user()->id` only — never accepted from body.
+- `attendance_corrections` is INSERT-only (append-only audit trail); no UPDATE or DELETE route or service method.
+- `UNIQUE(session_id, student_id)` on `attendance_records` must be a DB constraint.
+- `POST /attendance/bulk`: one `DB::transaction` — all or nothing.
+- `POST /sessions/generate`: `MAX_GENERATION_DAYS = 180`, `MAX_GENERATION_SESSIONS = 500` (422 SESSION_GENERATION_WINDOW_INVALID on exceed).
+- Register static routes (`/bulk`, `/corrections`, `/with-attendance`) **before** `{id}` parameterized routes (Laravel matches in registration order).
+- Tests required: `SchedulingTest.php` + `AttendanceTest.php` following the pattern in `ClassesTest.php` / `EnrollmentsTest.php`.
+- Original Kiro plan with full slice spec: `.agents/tasks/backend-slice/plan.md` §4 (slices 7–8 equivalent) and §8 (test checklist).
+
+### After Scheduling + Attendance
+Organization settings, library/resources, progress, finance, reports, instruments, learning,
+tickets, chat, files/media, notifications (PB-5), audit events (O-18), MFA, cookie transport (O-12),
+Telegram/Bale/push, student portal.
