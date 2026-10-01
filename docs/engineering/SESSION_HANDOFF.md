@@ -55,12 +55,23 @@
 >                         both success.
 >   PHP syntax lint   ->  169 PHP files, 0 syntax errors
 >   npm run typecheck ->  exit 0, clean
->   npm test          ->  2638 passed / 14 failed / 18 skipped (2670), 5 of 204 files
->                         failing. No frontend source was changed by these two commits
->                         (git diff 66a5e14..86610cf touches backend/ only), so this is
->                         not attributable to them: 9 are projectState.test.ts failing
->                         on a SHALLOW CLONE (environmental), and 5 are the recorded
->                         pre-existing frontend failures. No regression, none hidden.
+>   npm test          ->  2648 passed / 4 failed / 18 skipped (2670), 3 of 204 files
+>                         failing — EXACTLY the recorded baseline (2648/4/18) and
+>                         exactly the recorded pre-existing set: m10Boundary
+>                         (Finance.tsx imports AuthContext), honestWriteCopy (2),
+>                         emptyEnvironmentPanels (1). No regression, none hidden.
+>                         No frontend source was changed by these two commits
+>                         (git diff 66a5e14..86610cf touches backend/ only).
+>   SHALLOW-CLONE TRAP (cost a full re-run here — read before trusting `npm test`):
+>                         the first run of this session reported 14 failures. Nine of
+>                         the extra ten are projectState.test.ts, which asserts that
+>                         checkpoint and preserved-branch SHAs are real objects and
+>                         therefore fails on an incomplete clone. Fix, in order:
+>                           git fetch --unshallow
+>                           git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+>                           git fetch origin --tags
+>                         After that projectState is 52/52 and the suite returns to 4.
+>                         A shallow-clone run is NOT a regression; do not report one.
 >   WARNING: a43ac33 alone is RED (1 failed: the delete assertion). Do not stop there.
 >            86610cf is the fix and is green.
 >
