@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
+use App\Http\Controllers\Api\V1\SessionController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -71,4 +73,33 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::patch('enrollments/{id}', [EnrollmentController::class, 'update']);
     Route::delete('enrollments/{id}', [EnrollmentController::class, 'destroy']);
     Route::post('enrollments/{id}/withdraw', [EnrollmentController::class, 'withdraw']);
+
+    /*
+     * Scheduling + Attendance.
+     *
+     * STATIC segments are registered BEFORE the `{id}` routes on purpose:
+     * `sessions/generate` must not be swallowed by `sessions/{id}`, and
+     * `attendance/bulk` must not be swallowed by `attendance/{id}`.
+     */
+    Route::get('sessions', [SessionController::class, 'index']);
+    Route::post('sessions', [SessionController::class, 'store']);
+    Route::post('sessions/generate', [SessionController::class, 'generate']);
+    Route::post('sessions/check-conflicts', [SessionController::class, 'checkConflicts']);
+    Route::get('sessions/with-attendance', [AttendanceController::class, 'withAttendance']);
+
+    Route::get('sessions/{id}', [SessionController::class, 'show']);
+    Route::patch('sessions/{id}', [SessionController::class, 'update']);
+    Route::delete('sessions/{id}', [SessionController::class, 'destroy']);
+    Route::post('sessions/{id}/cancel', [SessionController::class, 'cancel']);
+    Route::post('sessions/{id}/reschedule', [SessionController::class, 'reschedule']);
+    Route::get('sessions/{id}/roster', [SessionController::class, 'roster']);
+    Route::get('sessions/{id}/attendance', [AttendanceController::class, 'sessionAttendance']);
+
+    Route::get('attendance', [AttendanceController::class, 'index']);
+    Route::post('attendance', [AttendanceController::class, 'store']);
+    Route::post('attendance/bulk', [AttendanceController::class, 'bulk']);
+    Route::get('attendance/corrections', [AttendanceController::class, 'corrections']);
+    Route::post('attendance/{id}/correct', [AttendanceController::class, 'correct']);
+    Route::get('attendance/{id}', [AttendanceController::class, 'show']);
 });
+
