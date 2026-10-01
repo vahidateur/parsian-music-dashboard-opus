@@ -8,6 +8,30 @@ resolve any of them. Where a behavior depends on one, the server fails closed wi
 Stack: Laravel 12, Sanctum 4 (Bearer personal access tokens), SQLite for dev and tests, PHPUnit via
 `php artisan test`. 122 backend feature tests pass at the end of this slice.
 
+## Verification status — read this before trusting any number below
+
+Every claim in this document is tagged with how it was actually established. "Previously
+verified" means it was observed in the interrupted Opus 5.5 session and could not be persisted
+as an artifact; "verified in this continuation" means it was re-executed and the output recorded.
+
+| Claim | Status | How it is established |
+|---|---|---|
+| 122 backend tests pass | **verified in this continuation** | `.github/workflows/backend-tests.yml`, job `PHP 8.3 — Laravel test suite`, PHP 8.3, `php artisan test` → `Tests: 122 passed (915 assertions)`. Re-runnable on every push that touches `backend/`. |
+| T-02 (teacher sees only their own enrolled students) | **verified in this continuation, over HTTP** | same workflow, job `HTTP smoke — T-02 / PB-1 / PB-3`. See "HTTP smoke" below. |
+| PB-1 fails closed for a teacher with no `teacherId` | **verified in this continuation, over HTTP** | `403 OWNER_DECISION_REQUIRED_PB1` |
+| PB-3 blocks rooms for every role, administrator included | **verified in this continuation, over HTTP** | `403 OWNER_DECISION_REQUIRED_PB3` on `GET rooms` and `GET rooms/r1` |
+| Unauthenticated request → 401 | **verified in this continuation, over HTTP** | `401` on `GET students` with no token |
+| All 135 PHP files parse | **verified in this continuation** | PHP 8.3 grammar parse of every `.php` file under `backend/` (the one Blade template excluded) |
+| `npm run typecheck` clean | **verified in this continuation** | `tsc --noEmit`, no output |
+| `npm test` result | **verified in this continuation** | 2648 passed / 4 failed / 18 skipped (204 files). The 4 failures are **pre-existing frontend failures**, not backend contracts — see "Frontend gates" below. |
+| Everything else in this document | **previously verified**, then re-read and audited in this continuation | code audit against `SESSION_HANDOFF.md` §10, `GOVERNANCE_CHECKPOINT.md` and the committed frontend API repositories |
+
+**Not run / blocked.** The backend suite cannot be executed inside the sandbox this continuation
+ran in: there is no PHP runtime and no package repository (`packagist.org`, `getcomposer.org`,
+`deb.debian.org` are all unreachable from it). Rather than record an unverified number, the suite
+was moved to GitHub Actions and executed there. The result above is the Actions run, not an
+inference.
+
 ## How to run
 
 ```powershell
@@ -25,6 +49,36 @@ Frontend against the API: `VITE_DATA_SOURCE=api` (the existing `Api*Repository` 
 code was changed). Seeded accounts come from `data/dataset/users.json` (`admin@demo.local`,
 `manager@demo.local`, `desk@demo.local`, `finance@demo.local`, `teacher1..8@demo.local`). No credential
 is committed; the password is whatever `DEMO_SEED_PASSWORD` was when seeding.
+
+**Running the suite without a local PHP toolchain.** `.github/workflows/backend-tests.yml` runs the
+same two commands on GitHub Actions, on every push or PR touching `backend/`:
+
+```bash
+gh workflow run backend-tests.yml            # or just push to a branch
+gh run list --branch <branch> --limit 1      # find the run id
+gh run watch <run-id>
+```
+
+The workflow has two jobs:
+
+1. `PHP 8.3 — Laravel test suite` — `composer install`, `key:generate`, a `php -l` lint over every
+   PHP file, then `php artisan test`. Because the Actions console log is served from a host that is
+   not reachable from every environment this repository is worked on from, the step republishes the
+   PHPUnit tally as a **check run** named `backend-test-tally (PHP 8.3)`, readable through the REST
+   API from anywhere:
+
+   ```bash
+   gh api "repos/vahidateur/parsian-music-dashboard-opus/commits/<sha>/check-runs" \
+     --jq '.check_runs[] | select(.name | startswith("backend-")) | .output.summary'
+   ```
+
+2. `HTTP smoke — T-02 / PB-1 / PB-3` — boots the API against the committed demo dataset and asserts
+   the governance rules over the wire (see below). Its report is published the same way as a check
+   run named `backend-http-smoke`.
+
+The frontend gates are deliberately **not** in CI: they carry pre-existing, governance-recorded
+failures that must not be hidden or disabled, and folding them in would only turn a recorded
+failure into a red build.
 
 ## Architecture (one boundary)
 
@@ -84,6 +138,58 @@ Defaults: `pricingPlan = {label: class.level, amount: class.tuition}`, `startDat
 | PB-4 `useCan(...) \|\| !user` | none (frontend idiom; every server route except login requires a token → 401) | – | LEFT-UNTOUCHED |
 | PB-5 notifications | none | – | LEFT-UNIMPLEMENTED (no table, no route) |
 
+## HTTP smoke — governance assertions over the wire
+
+The interrupted session verified T-02 by hand over HTTP and could not persist the output. The
+`HTTP smoke — T-02 / PB-1 / PB-3` job is that check, made re-runnable. It seeds the committed
+dataset (`data/dataset/*.json`), boots the API, and asserts against expectations **computed from
+the seeded rows** — never hard-coded — so it stays meaningful if the dataset changes.
+
+Verbatim report of the run recorded in this continuation:
+
+```text
+T-02 expected (active enrollment ∩ classes.teacher_id = t1):
+st1
+st11
+st13
+st5
+st7
+T-02 actual (GET /api/v1/students as teacher1):
+st1
+st11
+st13
+st5
+st7
+students.teacher_id = t1 (NOT the scope):
+st1
+st13
+st5
+st7
+org total: db=15 admin_http=15
+T-02 OK
+PB-1: HTTP 403 OWNER_DECISION_REQUIRED_PB1
+PB-1 OK
+PB-3 GET /rooms as administrator: HTTP 403 OWNER_DECISION_REQUIRED_PB3
+PB-3 GET /rooms/r1 as administrator: HTTP 403 OWNER_DECISION_REQUIRED_PB3
+PB-3 OK
+no token: HTTP 401
+```
+
+Read it as four separate facts:
+
+1. **T-02 holds, and it is enforced in SQL.** `teacher1@demo.local` (`teacher_id = t1`) receives
+   exactly `st1, st11, st13, st5, st7` — the five students with an `active` enrollment in one of the
+   two classes `t1` teaches.
+2. **`students.teacher_id` is provably not the authorization source.** That column points at `t1`
+   for `st1, st13, st5, st7` — four students, a *different* set. The job fails if the two sets ever
+   coincide, so a regression to the old rule cannot pass quietly.
+3. **The scope is a strict subset.** The administrator sees all 15 students over the same endpoint;
+   the teacher sees 5. The job fails if the teacher's count is 0 (fail-closed-empty) or equal to the
+   organization total (org-wide) — the two outcomes PB-1 has not decided between.
+4. **PB-1 and PB-3 fail closed over HTTP, not only in unit tests.** Detaching `teacher6`'s
+   `teacher_id` yields `403 OWNER_DECISION_REQUIRED_PB1`; every rooms endpoint yields
+   `403 OWNER_DECISION_REQUIRED_PB3` even for the administrator.
+
 ## Recorded deviations and tensions
 
 - **O-12 transport:** Bearer tokens only (the only transport `src/api/client.ts` speaks). The
@@ -118,8 +224,45 @@ Stored verbatim in `students.deferred` (type-validated only, never derived, not 
   levels domain server-side; they are plain strings).
 - `includeArchived` / `assignableOnly` class list params are not sent by `toQuery` and not implemented.
 
+## Frontend gates (run in this continuation, backend not involved)
+
+The backend slice changed no frontend source, but the repository gates were run so the state of the
+branch is recorded honestly rather than assumed.
+
+- `npm run typecheck` — **clean**, no output. `tsconfig.json` still includes only `src` and
+  `vite.config.ts`, so `backend/**` is already outside the frontend program; no exclusion was needed.
+- `npm test` — **2648 passed / 4 failed / 18 skipped** across 204 files. The failures are
+  pre-existing and unrelated to the backend; none was hidden, skipped or edited:
+
+  | Test | Failure |
+  |---|---|
+  | `src/__tests__/m10Boundary.test.ts` → "makes the deferred surfaces carry their deferral instead of a read path" | `src/views/Finance.tsx` imports `@/domains/auth/AuthContext`, which the M10 boundary forbids for a deferred surface |
+  | `src/views/__tests__/honestWriteCopy.test.tsx` → "in EMPTY names the academy's own data…" and "in DEMO still says plainly that the data is demo data" | the «ذخیرهٔ تغییرات» (branding save) control is not rendered for the acting role, so the test cannot find it |
+  | `src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx` → "saving the academy's identity never calls it demo data" | same missing save control over an EMPTY environment |
+
+  Two further facts about this baseline, both recorded because they change how the numbers read:
+
+  - **Flaky count.** Three full runs produced 13, 14 and 4 failures. `projectState.test.ts`
+    contributed 9 or 10 of the failures in the first two runs — **purely environmental**: the sandbox
+    clone was shallow, so the historical commits the gate checks were missing. After
+    `git fetch --unshallow` that file is 52/52 green. The genuine pre-existing frontend failures are
+    the 3–5 above.
+  - **I19 did not reproduce.** `src/views/__tests__/schedulingWrites.test.tsx:1234` (extra id
+    `ses_cl2_20260929_1400`) is recorded as a known pre-existing failure in
+    [SESSION_HANDOFF.md](SESSION_HANDOFF.md) §8. It passed in all three runs of this continuation.
+    That is not evidence it was fixed — nothing here touched it — only that it did not reproduce
+    here. It stays on the record.
+
 ## Remaining work
 
-Scheduling, attendance, finance, reports, library, organization settings, progress, instruments,
-learning, tickets, chat, files/media, notifications (PB-5), audit events (O-18), MFA, cookie
-transport (O-12), Telegram/Bale/push, student portal. All PB-1..PB-5 decisions remain with the owner.
+The first backend slice — authentication, users and roles, teachers, rooms, students, classes and
+enrollments — is **contract-complete** against `SESSION_HANDOFF.md` §10 and is now covered by a
+re-runnable CI gate (`.github/workflows/backend-tests.yml`). Nothing in it needs rebuilding.
+
+Still unbuilt, all of it outside this slice: scheduling, attendance, finance, reports, library,
+organization settings, progress, instruments, learning, tickets, chat, files/media, notifications
+(PB-5), audit events (O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal.
+
+All PB-1..PB-5 decisions remain with the owner. The backend implements each of them **fail-closed**
+where it applies — see the PB-isolation map — and the HTTP smoke job proves that over the wire. It
+does not decide any of them.

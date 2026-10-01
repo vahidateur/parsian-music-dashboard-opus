@@ -1,5 +1,90 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-01, backend first-slice continuation (build-loop + finalize).** This supersedes the lineage-synchronization pointer below as the work order. It does not delete that pointer, it does not delete any SHA in this file, and it does not merge anything to `main`.
+>
+> ```text
+> ACCEPTED BASELINE (unchanged):
+> 7ff23379bb846798cdabd96be1ba9344792c0e24
+> Not the current HEAD. Do not reset to it. Do not rewrite history to make it the tip.
+>
+> BACKEND SLICE BASELINE — where this continuation started:
+> 7215633c18550c9faf053e8b2bde5ea2e8da08e8
+> subject: feat(backend): add classes and enrollments
+> parent: b38ff258f607ddcef3493b049da34a6f1d1f2007
+> Tip of cleanup/demo-migration-lineage at both the local and the remote
+> at the start of this continuation. Verified with git ls-remote; they matched.
+>
+> CONTINUATION BRANCH (this session's own branch, created by this work):
+> arena/01a0f73f-parsian-music-dashboard-opus
+> Parent commit of the continuation commits: 7215633c18550c9faf053e8b2bde5ea2e8da08e8
+> Continuation commits, in order:
+>   f953f090a8e6bb9864d53c5894ebdd51a2800615  ci(backend): add re-runnable execution gate for the Laravel suite
+>   2aca43e913cf913c4f73d1bae4c5c87e4776b286  ci(backend): republish the PHPUnit tally as a check run
+>   baf195c8540cd119bb2fd2fba17cf0b32cb71341  ci(backend): verify T-02, PB-1 and PB-3 over HTTP
+>   038b15c05cafa77218f49a0173c1f8432c303dc4  ci(backend): publish the HTTP smoke report as a check run
+> The documentation commit that carries this paragraph is the child of
+> 038b15c05cafa77218f49a0173c1f8432c303dc4. It does not contain its own SHA.
+> Read the tip with: git ls-remote origin refs/heads/arena/01a0f73f-parsian-music-dashboard-opus
+>
+> CURRENT HEAD:
+> the commit that contains this paragraph
+> parent: 038b15c05cafa77218f49a0173c1f8432c303dc4
+> subject: docs(engineering): record the backend first-slice continuation
+> Do not rewind past 7215633c18550c9faf053e8b2bde5ea2e8da08e8.
+>
+> WHY THIS POINTER EXISTS:
+> The backend first slice was interrupted mid-verification. Its test result
+> (122 tests green) and its HTTP smoke result (T-02: teacher1 sees exactly
+> 5 students) were real but lived only in a chat transcript. Both have now
+> been re-executed and made re-runnable in CI. Neither required changing a
+> line of backend source.
+>
+> BACKEND FIRST SLICE: CONTRACT-COMPLETE, NOT MERGED
+> authentication, users, roles, teachers, rooms, students, classes, enrollments
+> 122 backend tests pass — re-verified, not assumed (CI run, PHP 8.3)
+> T-02, PB-1 fail-closed, PB-3 fail-closed — re-verified OVER HTTP (CI job)
+> Full record: docs/engineering/BACKEND_STATUS.md
+> Final report: docs/engineering/backend-slice/FINAL_REPORT.md
+>
+> PB-1..PB-5: UNCHANGED. OWNER DECISION REQUIRED.
+> This continuation implemented nothing that resolves one.
+> Where a behavior depends on one, the server fails closed with
+> 403 OWNER_DECISION_REQUIRED_PB<n>. That is verified over HTTP for PB-1 and PB-3.
+>
+> MAIN:
+> 15775ea9486cb57fbfb8fefa3268658cbe7eb669
+> UNTOUCHED. Do not merge. Ahead-by is not merge authorization.
+>
+> DO NOT MERGE:
+> docs/demo-migration-plan
+> 1b233362ef391e4b8f31df9e48c56b3687e36222
+>
+> PROTECTED:
+> backup/pre-f2-2026-09-29 @ 62deb84dfbbd9d7ad27002196569d0c7ef4c87f6
+> archive tags
+> local WIP arena/01a0e8ec-parsian-music-dashboard-opus @ eb973eb2758447eff16b60ab4fd4c267f9d85061
+> Do not push, reset, or clean the WIP.
+> Do not delete any branch or tag.
+>
+> KNOWN FRONTEND FAILURES — pre-existing, untouched, not hidden:
+> m10Boundary (Finance.tsx imports AuthContext), honestWriteCopy (2),
+> emptyEnvironmentPanels (1). Three full runs gave 13, 14 and 4 failures;
+> the spread is projectState.test.ts failing on a SHALLOW CLONE, which is
+> environmental — after `git fetch --unshallow` that file is 52/52 green.
+> I19 (schedulingWrites.test.tsx:1234) did NOT reproduce in any run here.
+> Not rerun is neither pass nor fail; not reproducing is not fixed.
+>
+> NEXT ACTION, not authorized by this commit:
+> PB-1..PB-5 remain with the owner. Do not implement them.
+> Do not start scheduling, attendance, finance, reports, library,
+> organization settings, progress, instruments, learning, tickets, chat,
+> files/media, notifications, audit events, MFA, cookie transport,
+> Telegram/Bale/push or the student portal from this pointer.
+> Do not merge to main.
+> ```
+>
+> Continuation and evidence only. It does not close GAP, UNKNOWN, BACKEND-ONLY, OWNER DECISION REQUIRED, or PRE-EXISTING FAILURE.
+
 > **LIVE POINTER — 2026-09-30, lineage pointer synchronization.** This supersedes the Decision A pointer below as the work order. It does not delete that pointer, and it does not delete any SHA in this file.
 >
 > ```text
