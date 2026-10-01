@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ClassController;
+use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\V1\StudentController;
@@ -55,4 +57,18 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::get('students/{id}', [StudentController::class, 'show']);
     Route::patch('students/{id}', [StudentController::class, 'update']);
     Route::delete('students/{id}', [StudentController::class, 'destroy']);
+
+    Route::get('classes', [ClassController::class, 'index']);
+    Route::post('classes', [ClassController::class, 'store']);
+    Route::get('classes/{id}', [ClassController::class, 'show']);
+    Route::patch('classes/{id}', [ClassController::class, 'update']);
+    Route::delete('classes/{id}', [ClassController::class, 'destroy']);
+    Route::post('classes/{id}/archive', [ClassController::class, 'archive']);
+
+    Route::get('enrollments', [EnrollmentController::class, 'index']);
+    Route::post('enrollments', [EnrollmentController::class, 'store']);
+    Route::get('enrollments/{id}', [EnrollmentController::class, 'show']);
+    Route::patch('enrollments/{id}', [EnrollmentController::class, 'update']);
+    Route::delete('enrollments/{id}', [EnrollmentController::class, 'destroy']);
+    Route::post('enrollments/{id}/withdraw', [EnrollmentController::class, 'withdraw']);
 });
