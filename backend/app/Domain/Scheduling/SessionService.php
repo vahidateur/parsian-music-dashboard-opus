@@ -81,10 +81,14 @@ final class SessionService
     /** @param  array<string, mixed>  $input  validated wire input */
     public function create(User $actor, array $input): ClassSession
     {
-        $this->policy->authorizeWrite($actor);
-        // PB-1 precedes the write: a teacher with no teacherId is refused, so
-        // the error is OWNER_DECISION_REQUIRED_PB1 and not a silent 403.
+        // PB-1 is a scope question and is answered BEFORE the permission
+        // check, so a teacher with no linked teacherId gets
+        // OWNER_DECISION_REQUIRED_PB1 rather than a bare FORBIDDEN — the
+        // precedence the shipped students slice uses. This order is
+        // load-bearing in this service too: `destroy` has no FormRequest,
+        // so the service is the only place its PB-1 answer is decided.
         $this->policy->assertTeacherLinked($actor);
+        $this->policy->authorizeWrite($actor);
 
         $class = $this->requireClass((string) $input['classId']);
 
@@ -124,8 +128,14 @@ final class SessionService
     /** @param  array<string, mixed>  $input  validated wire input */
     public function update(User $actor, string $id, array $input): ClassSession
     {
-        $this->policy->authorizeWrite($actor);
+        // PB-1 is a scope question and is answered BEFORE the permission
+        // check, so a teacher with no linked teacherId gets
+        // OWNER_DECISION_REQUIRED_PB1 rather than a bare FORBIDDEN — the
+        // precedence the shipped students slice uses. This order is
+        // load-bearing in this service too: `destroy` has no FormRequest,
+        // so the service is the only place its PB-1 answer is decided.
         $this->policy->assertTeacherLinked($actor);
+        $this->policy->authorizeWrite($actor);
 
         return DB::transaction(function () use ($actor, $id, $input): ClassSession {
             $session = $this->find($id, $actor, lock: true);
@@ -161,8 +171,14 @@ final class SessionService
      */
     public function cancel(User $actor, string $id, string $reason): ClassSession
     {
-        $this->policy->authorizeWrite($actor);
+        // PB-1 is a scope question and is answered BEFORE the permission
+        // check, so a teacher with no linked teacherId gets
+        // OWNER_DECISION_REQUIRED_PB1 rather than a bare FORBIDDEN — the
+        // precedence the shipped students slice uses. This order is
+        // load-bearing in this service too: `destroy` has no FormRequest,
+        // so the service is the only place its PB-1 answer is decided.
         $this->policy->assertTeacherLinked($actor);
+        $this->policy->authorizeWrite($actor);
 
         return DB::transaction(function () use ($actor, $id, $reason): ClassSession {
             $session = $this->find($id, $actor, lock: true);
@@ -193,8 +209,14 @@ final class SessionService
      */
     public function reschedule(User $actor, string $id, array $input): ClassSession
     {
-        $this->policy->authorizeWrite($actor);
+        // PB-1 is a scope question and is answered BEFORE the permission
+        // check, so a teacher with no linked teacherId gets
+        // OWNER_DECISION_REQUIRED_PB1 rather than a bare FORBIDDEN — the
+        // precedence the shipped students slice uses. This order is
+        // load-bearing in this service too: `destroy` has no FormRequest,
+        // so the service is the only place its PB-1 answer is decided.
         $this->policy->assertTeacherLinked($actor);
+        $this->policy->authorizeWrite($actor);
 
         return DB::transaction(function () use ($actor, $id, $input): ClassSession {
             $original = $this->find($id, $actor, lock: true);
@@ -239,8 +261,14 @@ final class SessionService
 
     public function delete(User $actor, string $id): void
     {
-        $this->policy->authorizeWrite($actor);
+        // PB-1 is a scope question and is answered BEFORE the permission
+        // check, so a teacher with no linked teacherId gets
+        // OWNER_DECISION_REQUIRED_PB1 rather than a bare FORBIDDEN — the
+        // precedence the shipped students slice uses. This order is
+        // load-bearing in this service too: `destroy` has no FormRequest,
+        // so the service is the only place its PB-1 answer is decided.
         $this->policy->assertTeacherLinked($actor);
+        $this->policy->authorizeWrite($actor);
 
         DB::transaction(function () use ($actor, $id): void {
             $session = $this->find($id, $actor, lock: true);
