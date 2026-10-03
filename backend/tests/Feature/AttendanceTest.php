@@ -408,4 +408,115 @@ class AttendanceTest extends TestCase
             'status' => 'present',
         ])->assertStatus(404)->assertJsonPath('error.code', 'ATTENDANCE_SESSION_NOT_FOUND');
     }
+
+    /* ------------------------------------------------------------------ */
+    /* wire contract — the TS types are authoritative (resolved 2026-10-04) */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * DECISIONS.md §12: provenance is the authenticated principal's USER ID.
+     * The wire must expose `recordedByUserId`, not only a display name.
+     */
+    public function test_wire_exposes_recorded_by_user_id_per_the_ts_contract(): void
+    {
+        $session = $this->makeSession(['teacher_id' => 't1']);
+        $student = $this->enrolled($session);
+        $actor = $this->actingAsRole('teacher', ['teacher_id' => 't1', 'name' => 'مدرس تست']);
+
+        $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id,
+            'studentId' => $student->id,
+            'status' => 'present',
+        ])->assertStatus(201)
+            // The contract key: a user id equal to the authenticated principal.
+            ->assertJsonPath('data.recordedByUserId', $actor->id)
+            // The deprecated display alias is retained for existing consumers.
+            ->assertJsonPath('data.recordedBy', 'مدرس تست');
+
+        // The id is a real user reference, not a name and not a body value.
+        $this->assertSame($actor->id, AttendanceRecord::query()->first()->recorded_by_user_id);
+    }
+
+    /**
+     * The contract sends `note`; the server previously validated only `notes`
+     * and silently discarded the operator's note. Both keys are now accepted.
+     */
+    public function test_note_is_the_contract_key_and_survives_the_round_trip(): void
+    {
+        $session = $this->makeSession();
+        $student = $this->enrolled($session);
+        $this->actingAsRole('manager', ['name' => 'مدیر تست']);
+
+        $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id,
+            'studentId' => $student->id,
+            'status' => 'late',
+            'note' => 'ده دقیقه تأخیر',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.note', 'ده دقیقه تأخیر')
+            ->assertJsonPath('data.notes', 'ده دقیقه تأخیر');
+
+        $this->assertSame('ده دقیقه تأخیر', AttendanceRecord::query()->first()->notes);
+    }
+
+    /** The deprecated `notes` key still writes, so no consumer is broken. */
+    public function test_notes_alias_still_writes(): void
+    {
+        $session = $this->makeSession();
+        $student = $this->enrolled($session);
+        $this->actingAsRole('manager', ['name' => 'مدیر تست']);
+
+        $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id,
+            'studentId' => $student->id,
+            'status' => 'late',
+            'notes' => 'علیه قدیمی',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.note', 'علیه قدیمی');
+    }
+
+    /**
+     * `AttendanceCorrection` exposes `changedByUserId` and
+     * `attendanceRecordId`, the two keys the TS interface declares.
+     */
+    public function test_correction_wire_exposes_the_contract_keys(): void
+    {
+        $session = $this->makeSession();
+        $student = $this->enrolled($session);
+        $actor = $this->actingAsRole('manager', ['name' => 'سارا مدیر']);
+
+        $record = $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id, 'studentId' => $student->id, 'status' => 'absent',
+        ])->assertStatus(201)->json('data');
+
+        $this->postJson("/api/v1/attendance/{$record['id']}/correct", [
+            'status' => 'excused',
+            'reason' => 'ارائهٔ گواهی پزشکی',
+        ])->assertOk()->assertJsonPath('data.status', 'excused');
+
+        $this->getJson('/api/v1/attendance/corrections')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.attendanceRecordId', $record['id'])
+            ->assertJsonPath('data.0.changedByUserId', $actor->id)
+            // Deprecated aliases retained.
+            ->assertJsonPath('data.0.recordId', $record['id'])
+            ->assertJsonPath('data.0.changedBy', 'سارا مدیر');
+    }
+
+    /** A client cannot assert provenance: the body value is ignored. */
+    public function test_recorded_by_user_id_is_never_taken_from_the_request_body(): void
+    {
+        $session = $this->makeSession();
+        $student = $this->enrolled($session);
+        $actor = $this->actingAsRole('manager', ['name' => 'مدیر تست']);
+
+        $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id,
+            'studentId' => $student->id,
+            'status' => 'present',
+            'recordedByUserId' => 'spoofed-user-id',
+        ])->assertStatus(201)
+            ->assertJsonPath('data.recordedByUserId', $actor->id);
+    }
 }

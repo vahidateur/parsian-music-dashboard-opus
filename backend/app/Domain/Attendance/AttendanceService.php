@@ -79,7 +79,8 @@ final class AttendanceService
     {
         $this->policy->authorizeWrite($actor);
 
-        return DB::transaction(fn () => $this->write($actor, (string) $input['sessionId'], [['studentId' => $input['studentId'], 'status' => $input['status'], 'notes' => $input['notes'] ?? null]], false)[0]);
+        // `note` is the contract key; `notes` remains a tolerated alias.
+        return DB::transaction(fn () => $this->write($actor, (string) $input['sessionId'], [['studentId' => $input['studentId'], 'status' => $input['status'], 'notes' => $input['note'] ?? $input['notes'] ?? null]], false)[0]);
     }
 
     /**
@@ -238,7 +239,7 @@ final class AttendanceService
 
         $records = [];
         foreach ($entries as $entry) {
-            $records[] = $this->upsert($actor, $session, (string) $entry['studentId'], (string) $entry['status'], $entry['notes'] ?? null);
+            $records[] = $this->upsert($actor, $session, (string) $entry['studentId'], (string) $entry['status'], $entry['note'] ?? $entry['notes'] ?? null);
         }
 
         return $records;

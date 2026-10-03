@@ -25,6 +25,11 @@ final class StoreAttendanceRequest extends ApiFormRequest
             'sessionId' => ['required', 'string', 'max:64'],
             'studentId' => ['required', 'string', 'max:64'],
             'status' => ['required', 'string', 'in:'.implode(',', AttendanceRecord::STATUSES)],
+            // `note` is the contract key (TS `RecordAttendanceInput.note`);
+            // `notes` is accepted as a deprecated alias. Without this the
+            // operator's note is validated away and silently dropped — the
+            // request carries `note` and the service reads `notes`.
+            'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'acknowledgeWarnings' => ['sometimes', 'boolean'],
         ];

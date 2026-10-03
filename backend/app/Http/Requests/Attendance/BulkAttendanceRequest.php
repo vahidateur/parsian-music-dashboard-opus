@@ -26,6 +26,9 @@ final class BulkAttendanceRequest extends ApiFormRequest
             'entries' => ['required', 'array', 'min:1', 'max:500'],
             'entries.*.studentId' => ['required', 'string', 'max:64', 'distinct:strict'],
             'entries.*.status' => ['required', 'string', 'in:'.implode(',', AttendanceRecord::STATUSES)],
+            // `note` is the contract key (TS `BulkAttendanceEntry.note`);
+            // `notes` is accepted as a deprecated alias.
+            'entries.*.note' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'entries.*.notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'acknowledgeWarnings' => ['sometimes', 'boolean'],
         ];
