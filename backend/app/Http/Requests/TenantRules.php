@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Piece;
 use App\Models\Room;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -39,6 +40,26 @@ final class TenantRules
             }
             if (! is_string($value) || ! Student::query()->whereKey($value)->exists()) {
                 $fail('هنرجوی انتخاب‌شده وجود ندارد.');
+            }
+        };
+    }
+
+    /**
+     * The piece must exist in the caller's organization AND be active.
+     *
+     * An inactive piece cannot be assigned: the client contract refuses it with
+     * a `pieceId` field error, and the same rule is enforced here so a direct
+     * API call cannot bypass the panel. This is an existence/state check, not
+     * an authorization decision.
+     */
+    public static function assignablePiece(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            $piece = is_string($value) ? Piece::query()->whereKey($value)->first() : null;
+            if ($piece === null) {
+                $fail('قطعه یافت نشد.');
+            } elseif (! $piece->active) {
+                $fail('این قطعه غیرفعال است.');
             }
         };
     }

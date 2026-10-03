@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\PieceAssignmentController;
+use App\Http\Controllers\Api\V1\PieceController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
@@ -127,5 +129,27 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::get('resources/{id}', [ResourceController::class, 'show']);
     Route::patch('resources/{id}', [ResourceController::class, 'update']);
     Route::delete('resources/{id}', [ResourceController::class, 'destroy']);
+
+    /*
+     * Progress — slice 1: pieces and piece-assignments.
+     *
+     * Authorized by the owner for v1 on 2026-10-03 under `progress.read` /
+     * `progress.write` (DECISIONS.md §29).
+     *
+     * DEFERRED to a later Progress slice, with NO placeholder routes here:
+     * progress-events, students/{id}/progress-overview, analytics, plateau
+     * detection, recommendations and workflow automation.
+     */
+    Route::get('pieces', [PieceController::class, 'index']);
+    Route::post('pieces', [PieceController::class, 'store']);
+    Route::get('pieces/{id}', [PieceController::class, 'show']);
+    Route::patch('pieces/{id}', [PieceController::class, 'update']);
+    Route::delete('pieces/{id}', [PieceController::class, 'destroy']);
+
+    Route::get('piece-assignments', [PieceAssignmentController::class, 'index']);
+    Route::post('piece-assignments', [PieceAssignmentController::class, 'store']);
+    Route::get('piece-assignments/{id}', [PieceAssignmentController::class, 'show']);
+    Route::patch('piece-assignments/{id}', [PieceAssignmentController::class, 'update']);
+    Route::delete('piece-assignments/{id}', [PieceAssignmentController::class, 'destroy']);
 });
 

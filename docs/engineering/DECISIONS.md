@@ -2271,6 +2271,67 @@ writable column map); `ResourceResource::toWire` (calls `ResourcePresenter::size
 
 **Status.** ✅ In force — 2026-10-03.
 
+## 29. Progress is authorized for v1: PB-3 is lifted for Progress only, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning and
+progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. `src/domains/progress/apiRepository.ts` has existed throughout with a
+complete 13-endpoint contract and an explicit "no server implements these endpoints yet" note, so
+Progress has been the one fully-specified domain with no path forward.
+
+The owner has now decided, explicitly and for v1 only, that Progress is in scope.
+
+**Decision.** Progress is authorized for v1. Exactly two permission ids are added — `progress.read`
+and `progress.write` — taking the vocabulary from **23 to 25**. Nothing else changes.
+
+- PB-3 remains **Option A** for **instruments** and **learning**. Neither is implemented, and no
+  `instruments.*` or `learning.*` id exists.
+- PB-5 remains **Option A**: no notifications domain, and Telegram/Bale/push stay later adapter
+  capabilities.
+- No other permission family is touched: not `finance.*`, `reports.*`, `messages.*`, `rooms.*`,
+  `resource.*`, and no media/storage permission.
+
+**Why.** The Progress contract is the only unbuilt domain that is fully specified by an existing
+committed `apiRepository.ts`, so implementing it invents no endpoint, no field and no error code.
+Every other candidate would have required inventing both permissions and an API shape.
+
+**Role matrix, derived from existing conventions rather than invented.**
+
+| role | progress.read | progress.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | yes |
+| staff | yes | no |
+| accountant | no | no |
+
+`progress.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`students.read`, `teachers.read`, `classes.read`, `schedule.read` and `library.read` — Progress is
+per-student learning data, so it reads like the rest of the per-student core and is withheld from
+accounting. `progress.write` goes to manager and teacher: repertoire is content the manager authors
+(mirroring `library.write`), and assignments are teacher-authored the way attendance entries are
+(mirroring `attendance.write`). Staff is reception and holds no content-authoring write.
+
+**Consequence, deliberate.** The client's `StudentProgressPanel` gates writes on
+`role === "teacher"`. That is a UX gate, not an authorization boundary, and PB-3 is explicit that
+nothing authorizes on role. The permission carries the decision server-side; `teacherId` on an
+assignment is provenance for accountability and authorizes nothing.
+
+**Implementation consequence — referential validation is partial.** `validatePiece()` in the client
+checks `instrumentId`, `programId` and `recommendedLevelId` against its instruments/programs/levels
+stores. No such tables exist on the server (instruments and learning are PB-3), so the server
+validates shape and length only and stores them as references by value. `contentIds` is likewise an
+opaque list. This is the same boundary `library.instrument` and `mediaId` sit behind.
+
+**Enforced by.** `backend/config/permissions.php` (25 ids, `progress.read` in `$readOnlyCore`,
+`progress.write` on manager and teacher); `App\Domain\Progress\ProgressPolicy`;
+`ProgressTest::test_reading_requires_progress_read`, `test_writing_requires_progress_write`,
+`test_deleting_requires_progress_write`, `test_the_permission_check_precedes_validation`, and
+`test_the_permission_vocabulary_is_exactly_twenty_five_ids` (which asserts the diff against the old
+23 is exactly the two new ids).
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and
