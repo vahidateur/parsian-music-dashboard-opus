@@ -224,7 +224,22 @@ final class SessionService
                 throw ApiException::conflict('SESSION_ALREADY_CANCELLED', 'جلسهٔ لغو‌شده را نمی‌توان جابه‌جا کرد.');
             }
 
+            // The candidate carries the ORIGINAL session's id so the conflict
+            // check excludes it. Without this the session being replaced was
+            // counted as its own clash: `overlappingSessions()` sees it as
+            // still `scheduled` (it is only cancelled below, after the check),
+            // so moving a session to a slot that overlaps its own old time was
+            // refused with a bogus SESSION_CONFLICT (item I23). Excluding it is
+            // correct precisely because the original is cancelled by this same
+            // transaction — the replacement legitimately supersedes it.
+            //
+            // This restores the convention the sibling paths already follow:
+            // SessionService::update() passes 'id' => $session->id, and
+            // SessionGenerator passes 'id' => $change['sessionId'] for updates.
+            // `id` is read in exactly one place downstream — the whereKeyNot()
+            // exclusions in ConflictDetector — so it carries no other meaning.
             $candidate = [
+                'id' => $original->id,
                 'classId' => $original->class_id,
                 'date' => (string) $input['date'],
                 'startTime' => (string) $input['startTime'],

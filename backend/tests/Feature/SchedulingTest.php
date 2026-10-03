@@ -384,10 +384,24 @@ class SchedulingTest extends TestCase
             ->assertJsonPath('error.code', 'SESSION_ALREADY_CANCELLED');
     }
 
-    /** Reschedule keeps the original and links both ways: history survives. */
+    /**
+     * Reschedule keeps the original and links both ways: history survives.
+     *
+     * The fixture is pinned rather than left to the factory. The factory draws
+     * a random date (today+1..30) and start hour (08..18), and this move targets
+     * a fixed slot, so the test only failed on the 2 of 330 draws that landed
+     * the original on the same date at an overlapping hour — item I23. Pinning
+     * it to exactly that collision makes the test deterministic and turns it
+     * into the regression guard for I23: the session being replaced must not be
+     * counted as a clash with its own replacement.
+     */
     public function test_reschedule_links_original_and_replacement(): void
     {
-        $original = $this->makeSession()->id;
+        $original = $this->makeSession([
+            'date' => Carbon::today()->addDays(10)->toDateString(),
+            'start_time' => '08:00',
+            'end_time' => '09:30',
+        ])->id;
         $this->actingAsRole('manager');
 
         $new = $this->postJson("/api/v1/sessions/$original/reschedule", [
@@ -404,6 +418,49 @@ class SchedulingTest extends TestCase
             ->assertJsonPath('data.status', 'cancelled')
             ->assertJsonPath('data.rescheduledToId', $new['id'])
             ->assertJsonPath('data.cancelReason', 'تغییر برنامهٔ مدرس');
+    }
+
+    /**
+     * The I23 fix excludes only the session being replaced — it must not
+     * suppress a clash with a genuinely different session. Guards the other
+     * half of the invariant so the exclusion cannot be widened by a later edit.
+     */
+    public function test_reschedule_onto_another_sessions_slot_is_refused(): void
+    {
+        $targetDate = Carbon::today()->addDays(10)->toDateString();
+
+        // The session being moved sits elsewhere entirely, so it is not the
+        // source of any clash below.
+        $original = $this->makeSession([
+            'date' => Carbon::today()->addDays(3)->toDateString(),
+            'start_time' => '14:00',
+            'end_time' => '15:30',
+        ])->id;
+
+        // A DIFFERENT session already occupies the target slot (same teacher
+        // and room), so the move is a real double-booking.
+        $this->makeSession([
+            'date' => $targetDate,
+            'start_time' => '09:00',
+            'end_time' => '10:30',
+        ]);
+
+        $this->actingAsRole('manager');
+
+        $this->postJson("/api/v1/sessions/$original/reschedule", [
+            'date' => $targetDate,
+            'startTime' => '09:00',
+            'endTime' => '10:00',
+            'reason' => 'تغییر برنامهٔ مدرس',
+        ])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'SESSION_CONFLICT');
+
+        // The failed move left the original untouched and still scheduled.
+        $this->assertDatabaseHas('class_sessions', [
+            'id' => $original,
+            'status' => 'scheduled',
+        ]);
     }
 
     public function test_delete_is_refused_once_attendance_exists(): void
