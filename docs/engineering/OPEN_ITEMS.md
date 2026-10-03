@@ -1758,6 +1758,29 @@ Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb8467
 > The four panels still render their writes ungated — that is a frontend
 > rendering question, and the server refuses regardless.
 
+> **PARTIAL CARVE-OUT — 2026-10-03 — OWNER DECISION (Progress only).**
+> The owner authorized **Progress for v1**, which supersedes the PB-3 block for
+> **Progress only**. This item's wording above ("no … `progress.write` exists")
+> is therefore no longer true for Progress and is amended here; it remains
+> exactly true for rooms, instruments and learning.
+>
+> Added: `progress.read`, `progress.write`. The vocabulary went from **23 to 25**
+> ids — nothing else was added.
+>
+> Unchanged: PB-3 stays **option A** for rooms, instruments and learning. No
+> `rooms.*`, `instruments.*` or `learning.*` permission exists, and rooms still
+> return `OWNER_DECISION_REQUIRED_PB3` on all six endpoints for every role.
+> `StudentProgressPanel`'s `role === "teacher"` branch remains a frontend
+> rendering question and authorizes nothing on the server — Progress writes are
+> gated on `progress.write`, not on role.
+>
+> Implemented: pieces and piece-assignments (10 endpoints). Deferred:
+> progress-events, progress-overview, analytics, plateau detection,
+> recommendations and workflow automation.
+>
+> Record: DECISIONS.md §29. Progress inventory: BACKEND_STATUS.md →
+> "Slice 6 — Progress, pieces and piece-assignments".
+
 ### PB-4. `useCan(...) || !user`
 
 - **What:** Student, class, and schedule write flags are true when `user` is null. `useCan` itself returns true outside `AuthProvider`, by an explicit comment, so legacy view tests keep their controls.

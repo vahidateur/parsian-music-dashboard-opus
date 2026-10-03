@@ -359,7 +359,13 @@ Organization settings slice below.
 The backend now ALSO covers **library resources** (`GET|POST /resources` and
 `GET|PATCH|DELETE /resources/{id}`) — metadata only, see the Library resources slice below.
 
-Still unbuilt, all of it outside the slices built so far: progress, finance,
+The backend now ALSO covers **Progress slice 1 — pieces and piece-assignments** (`GET|POST /pieces`,
+`GET|PATCH|DELETE /pieces/{id}` and the same five verbs on `/piece-assignments`), authorized by the
+owner for v1 on 2026-10-03 under `progress.read` / `progress.write`. See the Progress slice below
+for what is deliberately NOT built.
+
+Still unbuilt, all of it outside the slices built so far: **the rest of Progress** (progress-events,
+progress-overview, analytics, plateau detection, recommendations, workflow automation), finance,
 reports, instruments, learning, tickets, chat, files/media, notifications (PB-5), audit events
 (O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal. **Binary storage for
 library resources** (upload, download, signed URLs) is deliberately not built — see limitation 8
@@ -1141,3 +1147,226 @@ The next unbuilt backend slice would be **progress**, which is blocked: its `api
 exists but `progress.read` / `progress.write` are not in the vocabulary, so it needs a governance
 decision first. The same is true of `instruments.*` and `learning.*`. Finance, reports, tickets,
 chat, files/media, notifications, Telegram/Bale/push and the student portal remain out of scope.
+
+---
+
+## Slice 6 — Progress: pieces and piece-assignments (BUILT AND VERIFIED — SLICE 1 OF 2)
+
+Owner-authorized for v1 on 2026-10-03 (DECISIONS.md §29). Starting SHA
+`e0cb46078fc6eed4078fff5d009673d99534925f`; ending SHA `999f9d7`.
+
+**This is slice 1 of the Progress domain. The Progress domain is NOT complete.**
+
+### 1. Provenance — read before any code was written
+
+The contract came from `src/domains/progress/apiRepository.ts` (13 documented endpoints),
+`types.ts`, `repository.ts` and `localRepository.ts`. No endpoint, field or error code was invented.
+
+One contract inconsistency was found and is recorded rather than papered over:
+
+> `apiRepository.ts` documents **13** endpoints in its header comment, but the class also
+> implements a **14th** — `studentAssignments()` calls `GET students/{id}/assignments`. That path
+> is absent from the header list, is not used by any production UI (its only caller is
+> `src/views/__tests__/studentProfileRegression.test.tsx`, which goes through
+> `getProgressRepository()` and therefore hits the **local** repository, not the API), and is
+> grouped under `/* ---- derived ---- */` in the repository interface. It is **excluded** from this
+> slice and deferred.
+
+### 2. Files added
+
+| File | Role |
+| --- | --- |
+| `app/Models/Piece.php` | `pieces` table; string key; `BelongsToOrganization` |
+| `app/Models/PieceAssignment.php` | `piece_assignments`; status vocabularies; `isClosed()` |
+| `app/Domain/Progress/ProgressPolicy.php` | the only authorization decision: `progress.read` / `progress.write` |
+| `app/Domain/Progress/PieceService.php` | tenant-scoped CRUD + the "in use" delete guard |
+| `app/Domain/Progress/AssignmentService.php` | tenant-scoped CRUD + duplicate guard + `closed_at` state machine |
+| `app/Domain/Progress/ProgressRules.php` | field limits, incl. `MAX_RANGE_VALUE` from the client contract |
+| `app/Http/Requests/Progress/{List,Store,Update}PiecesRequest.php` | query/body validation, authorize first |
+| `app/Http/Requests/Progress/{List,Store,Update}AssignmentsRequest.php` | query/body validation, authorize first |
+| `app/Http/Resources/PieceResource.php` | camelCase wire shape = TS `Piece` |
+| `app/Http/Resources/PieceAssignmentResource.php` | camelCase wire shape = TS `PieceAssignment` |
+| `app/Http/Controllers/Api/V1/PieceController.php` | thin; policy first, then service |
+| `app/Http/Controllers/Api/V1/PieceAssignmentController.php` | thin; policy first, then service |
+| `database/factories/PieceFactory.php`, `PieceAssignmentFactory.php` | fixtures |
+| `database/migrations/2026_10_03_100000_create_pieces_table.php` | schema |
+| `database/migrations/2026_10_03_100001_create_piece_assignments_table.php` | schema |
+| `tests/Feature/ProgressTest.php` | 33 methods, 45 cases |
+
+Modified: `config/permissions.php` (23 → 25 ids), `routes/api.php` (10 routes),
+`app/Http/Requests/TenantRules.php` (added `assignablePiece()`).
+
+### 3. Endpoints — IMPLEMENTED
+
+```
+GET    /api/v1/pieces                  progress.read
+POST   /api/v1/pieces                  progress.write
+GET    /api/v1/pieces/{id}             progress.read
+PATCH  /api/v1/pieces/{id}             progress.write
+DELETE /api/v1/pieces/{id}             progress.write
+GET    /api/v1/piece-assignments       progress.read
+POST   /api/v1/piece-assignments       progress.write
+GET    /api/v1/piece-assignments/{id}  progress.read
+PATCH  /api/v1/piece-assignments/{id}  progress.write
+DELETE /api/v1/piece-assignments/{id}  progress.write
+```
+
+Pieces query: `instrument_id`, `program_id`, `search`, `active_only`, `page`, `per_page`.
+Assignments query: `student_id`, `piece_id`, `teacher_id`, `status`, `active_only`, `page`,
+`per_page` — all snake_case, as `pieceQuery()` / `assignmentQuery()` send them.
+
+Ordering: pieces by `title` ascending; assignments newest `assignedAt` first — both mirroring the
+client so a server-backed list reads like a demo-backed one.
+
+### 4. Endpoints — DEFERRED (no placeholder routes exist)
+
+```
+GET    /api/v1/progress-events                  (append-only log)
+POST   /api/v1/progress-events
+GET    /api/v1/students/{id}/progress-overview  (analytics + recommendations)
+GET    /api/v1/students/{id}/assignments        (derived join — see §1)
+```
+
+Analytics, plateau detection, recommendations and workflow automation are deferred with them.
+
+### 5. Permissions — 23 → 25, and only those two
+
+| role | progress.read | progress.write |
+| --- | --- | --- |
+| administrator | allow | allow |
+| manager | allow | allow |
+| teacher | allow | allow |
+| staff | allow | 403 `progress.write` |
+| accountant | 403 `progress.read` | 403 `progress.write` |
+
+`progress.read` joins `$readOnlyCore`; `progress.write` goes to manager and teacher. The reasoning
+is recorded in DECISIONS.md §29 and is convention-reuse, not invention.
+
+`progress.write` is **not** taken to imply `progress.read`. Authorization precedes validation, so a
+caller without the permission gets 403 and never a 422. 401 (no token) stays distinct from 403
+(authenticated but unpermitted).
+
+**Nothing authorizes on `role === "teacher"`.** The client's `StudentProgressPanel` gates writes on
+role; PB-3 is explicit that this is not an authorization boundary, so the permission carries the
+decision here. `teacherId` on an assignment is provenance for accountability only.
+
+### 6. Tenancy
+
+`TenantContext` via the shared `BelongsToOrganization` global scope — no new tenancy model, no
+modification to `TenantContext`. `Rule::exists` was deliberately **not** used: it queries the table
+directly and would accept another organization's student or piece. Requests use
+`TenantRules::studentExists()`, `teacherExists()` and the new `assignablePiece()`, all scoped.
+
+### 7. Server-authoritative rules implemented
+
+- **A piece in use cannot be deleted** → `409 PIECE_IN_USE`. Progress is tracked against the piece,
+  so removing an assigned one would silently rewrite what a student has been working on.
+  Deactivation (`active: false`) is the supported path and is tested.
+- **One OPEN assignment per (student, piece)** → `409 ASSIGNMENT_DUPLICATE`. Only non-closed
+  assignments block (a finished piece may be re-assigned later), which is precisely why this
+  cannot be a unique index. Enforced inside a transaction with `lockForUpdate`.
+- **An inactive piece cannot be assigned** → 422 on `pieceId`.
+- **`closed_at` state machine** → stamped on close, sticky while closed, cleared on reopen. A later
+  close after a reopen stamps the new moment, so the field always records the current closure.
+- **`studentId` / `pieceId` are create-only** — the update contract excludes them, so an assignment
+  cannot be re-pointed at another student or piece by patching.
+
+### 8. Migrations
+
+`pieces`: `id`, `organization_id` (FK cascade), `title`, `composer` (default `''`), `instrument_id`,
+`program_id` (nullable), `recommended_level_id` (nullable), `description` (text), `range_unit`,
+`total_range` (nullable), `content_ids` (json, nullable), `active` (default true), timestamps;
+indexes on `(organization_id, instrument_id)` and `(organization_id, active)`.
+
+`piece_assignments`: `id`, `organization_id` (FK cascade), `student_id` (FK cascade),
+`piece_id` (FK cascade), `teacher_id` (nullable, FK nullOnDelete), `status`, `assigned_at`,
+`target_date`, `closed_at`, `notes` (text), `latest` (json, nullable), timestamps; indexes on
+`(organization_id, student_id | piece_id | teacher_id | status)`.
+
+`size`-style derived columns are absent: nothing here is a denormalized display value except
+`latest`, which is a projection of the event log.
+
+### 9. Seeding
+
+Not seeded. The demo dataset's 17 pieces and 20 assignments are served by the client's local
+repository, which the registry still selects. Seeding them would also require seeding programs and
+levels, which have no server presence at all.
+
+### 10. Tests executed
+
+`backend/tests/Feature/ProgressTest.php` — 33 methods, 45 cases with the data provider:
+
+- **authorized read** — administrator, manager, teacher, staff get 200 on both resources.
+- **unauthorized read** — accountant gets 403 naming `progress.read`.
+- **authorized write** — administrator, manager, teacher get 201.
+- **unauthorized write** — staff and accountant get 403 naming `progress.write`; delete covered
+  separately (a reader is not an author) with the row verified untouched.
+- **401 vs 403** — no token is 401 on all ten verbs; a token without the permission is 403.
+- **tenant isolation** — list scoping; get/patch/delete of another organization's piece and
+  assignment are 404 (not 403) for a fully privileged foreign actor, and both rows survive.
+- **cross-tenant references** — foreign student, piece and teacher are each refused with 422 and
+  the correct `error.fields` key.
+- **validation** — a 13-case data provider for pieces, plus assignment status/targetDate and the
+  inactive-piece rule.
+- **update** — changes only what was sent; `contentIds` is not blanked by a patch; `createdAt`
+  cannot be rewritten.
+- **delete** — 204 then `assertDatabaseMissing`; the in-use refusal is 409.
+- **invariants** — duplicate conflict, closed-does-not-block, same piece across students, the
+  `closed_at` state machine, and the create-only nature of `studentId`/`pieceId`.
+- **exact response shape** — full `assertJsonStructure` plus value assertions on both resources.
+- **ordering, filters, pagination** — including the `per_page` clamp reported in `meta`.
+- **the deferred boundary** — all four deferred paths asserted 404.
+- **the vocabulary** — asserted to be exactly 25 ids, with the diff against the old 23 being
+  exactly `progress.read` and `progress.write`.
+
+### 11. HTTP smoke (CI)
+
+Unchanged and still green. It runs `migrate:fresh --seed`, which is what proves both new migrations
+apply cleanly against a fresh database outside the in-memory suite. No Progress step was added: the
+feature tests already exercise the real middleware stack (Sanctum tokens, `auth:sanctum`, `tenant`).
+
+### 12. Governance
+
+- Owner decision 2026-10-03: Progress authorized for v1; `progress.read` / `progress.write` added;
+  vocabulary 23 → 25 (DECISIONS.md §29).
+- **PB-3 remains Option A** for instruments and learning. No `instruments.*` or `learning.*` id
+  exists, and nothing was built against either domain.
+- **PB-5 remains Option A**: no notifications domain, and Telegram/Bale/push stay later adapter
+  capabilities.
+- `TenantContext` was **not** modified.
+
+### 13. Known limitations after this slice
+
+1. **The Progress domain is not complete.** Only pieces and piece-assignments exist. There is no
+   event log, so no progress can actually be recorded yet — the domain is a catalogue with
+   assignments, not a progress tracker.
+2. **`latest` is always null.** It is the denormalized snapshot of the newest progress event, and
+   the event log is deferred. It is served as null rather than invented.
+3. **The delete-refuses-with-history guard does not fire.** The client contract refuses deletion
+   when progress events exist. No `progress_events` table exists yet, so no assignment can have
+   history and the invariant holds vacuously. The guard is added with the event log — it is not
+   stubbed here, and deletion is therefore *more* permissive today than the final contract intends.
+   This is the most important limitation to close in slice 2.
+4. **`instrumentId`, `programId` and `recommendedLevelId` are not referentially validated.** The
+   client checks them against its instruments/programs/levels stores; no such tables exist on the
+   server (instruments and learning are PB-3). They are stored as references by value.
+5. **`contentIds` is an opaque list.** It references learning content, which has no server
+   presence. No existence check, no binary handling.
+6. **The registry still selects `LocalProgressRepository`.** Flipping it is a frontend change, out
+   of scope.
+7. **`students/{id}/assignments` is not implemented** — see the contract inconsistency in §1.
+8. **Pieces require `composer`, `description` and `active` on create**, because the TS
+   `CreatePieceInput` type does. That is deliberate contract fidelity, not an oversight.
+9. **Search uses SQL `LIKE` without wildcard escaping**, so `%` or `_` act as wildcards. Portable
+   across the supported databases; noted rather than fixed with dialect-specific `ESCAPE` syntax.
+
+### 14. Exact next unfinished task
+
+**Progress slice 2** — `progress-events` (append-only) and `students/{id}/progress-overview`, plus
+the event-existence guard on assignment deletion and the `latest` snapshot recomputation. That slice
+is already authorized under the same `progress.read` / `progress.write` ids and needs no new
+governance decision.
+
+Beyond it, still blocked or out of scope: instruments and learning (PB-3, Option A), notifications
+and Telegram/Bale/push (PB-5, Option A), finance, reports, tickets, chat, files/media, student
+portal, binary storage.

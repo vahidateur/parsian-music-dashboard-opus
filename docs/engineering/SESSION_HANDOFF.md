@@ -1,5 +1,76 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-03, Progress slice 1 (pieces + piece-assignments).**
+> This supersedes the Library / resources pointer below as the work order. It deletes
+> nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        e0cb46078fc6eed4078fff5d009673d99534925f
+> RESULTING SHA: 999f9d7  (commits 13ae50a, 999f9d7)
+>
+> GOVERNANCE — OWNER DECISION 2026-10-03 (DECISIONS.md §29):
+>   Progress is AUTHORIZED for v1. PB-3 is lifted for Progress ONLY.
+>   ADDED EXACTLY TWO permission ids: progress.read, progress.write.
+>   Vocabulary 23 -> 25. No other id was added.
+>   PB-3 REMAINS OPTION A for instruments and learning.
+>   PB-5 REMAINS OPTION A for notifications and Telegram/Bale/Push.
+>   TenantContext was NOT modified.
+>
+> COMMITS, in order:
+>   13ae50a  feat(backend): implement Progress slice 1, pieces and piece-assignments
+>   999f9d7  fix(backend): keep the closedAt test inside the Sanctum token lifetime
+>     (test-only: travel(2 days) expired the 720-minute Sanctum token, so the
+>      request returned 401 and never reached the service)
+>
+> IMPLEMENTED (10 endpoints, contract from apiRepository.ts):
+>   GET    /api/v1/pieces                  progress.read
+>   POST   /api/v1/pieces                  progress.write
+>   GET    /api/v1/pieces/{id}             progress.read
+>   PATCH  /api/v1/pieces/{id}             progress.write
+>   DELETE /api/v1/pieces/{id}             progress.write
+>   GET    /api/v1/piece-assignments       progress.read
+>   POST   /api/v1/piece-assignments       progress.write
+>   GET    /api/v1/piece-assignments/{id}  progress.read
+>   PATCH  /api/v1/piece-assignments/{id}  progress.write
+>   DELETE /api/v1/piece-assignments/{id}  progress.write
+>
+> DEFERRED — NO placeholder routes exist, all asserted 404:
+>   progress-events, students/{id}/progress-overview,
+>   students/{id}/assignments, analytics, plateau detection, recommendations,
+>   workflow automation.
+>   THE PROGRESS DOMAIN IS NOT COMPLETE. `latest` is always null; the
+>   delete-refuses-with-history guard does not fire because no event table
+>   exists, so deletion is MORE permissive today than the contract intends.
+>
+> ROLE MATRIX (asserted, not assumed):
+>   administrator read+write | manager read+write | teacher read+write
+>   staff read only (403 progress.write) | accountant neither (403 progress.read)
+>   NOTHING authorizes on `role === "teacher"` despite the client panel doing so.
+>
+> TENANCY: TenantContext + BelongsToOrganization. Rule::exists deliberately NOT
+> used (it bypasses Eloquent scopes). New TenantRules::assignablePiece().
+>
+> TESTS: 33 methods, 45 cases. CI run 37126691491 — PHP 8.3 suite SUCCESS,
+>   HTTP smoke SUCCESS. Backend tally 262 passed / 1788 assertions / 0 failed
+>   (was 217 / 1475). Frontend 14 failed | 2638 passed | 18 skipped (2670) —
+>   identical to the accepted baseline (10 schedulingGeneration + m10Boundary,
+>   honestWriteCopy x2, emptyEnvironmentPanels). Typecheck exit 0.
+>   No frontend file was changed.
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> PROTECTED REFS unchanged: main 15775ea9…, docs/demo-migration-plan 1b233362…,
+>   backup/pre-f2-2026-09-29 62deb84d…. Fast-forward only: no force, no rebase,
+>   no reset, no history rewrite.
+>
+> EXACT NEXT UNFINISHED TASK: Progress slice 2 — progress-events (append-only)
+> and students/{id}/progress-overview, the event-existence guard on assignment
+> deletion, and `latest` recomputation. Already authorized under the SAME two
+> permission ids; no new governance decision needed. STOP after it.
+> ```
+
 > **LIVE POINTER — 2026-10-03, Library / resources slice (metadata only).**
 > This supersedes the Organization settings pointer below as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.
