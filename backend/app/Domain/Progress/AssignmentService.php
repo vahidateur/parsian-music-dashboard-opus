@@ -3,6 +3,7 @@
 namespace App\Domain\Progress;
 
 use App\Models\PieceAssignment;
+use App\Models\ProgressEvent;
 use App\Support\Api\ApiException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
