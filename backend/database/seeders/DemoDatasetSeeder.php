@@ -179,11 +179,33 @@ class DemoDatasetSeeder extends Seeder
         $organization = $this->dataset('organization');
         $now = now();
 
+        /*
+         * The whole `OrganizationSettings` record, not just the name: the demo
+         * dataset (data/dataset/organization.json) is the shipped rule set, and
+         * a seeded academy whose working hours silently fell back to the column
+         * defaults would not be the academy the dataset describes.
+         */
         DB::table('organizations')->insert([
             'id' => self::ORGANIZATION_ID,
             'slug' => 'demo',
             'name' => (string) $organization['name'],
             'status' => 'active',
+            'tagline' => (string) ($organization['tagline'] ?? ''),
+            'locale' => (string) ($organization['locale'] ?? 'fa-IR'),
+            'direction' => (string) ($organization['direction'] ?? 'rtl'),
+            'calendar' => (string) ($organization['calendar'] ?? 'jalali'),
+            'currency' => (string) ($organization['currency'] ?? 'toman'),
+            'first_weekday' => (int) ($organization['firstWeekday'] ?? 0),
+            'default_session_minutes' => (int) ($organization['defaultSessionMinutes'] ?? 60),
+            'session_gap_minutes' => (int) ($organization['sessionGapMinutes'] ?? 10),
+            'cancellation_grace_hours' => (int) ($organization['cancellationGraceHours'] ?? 24),
+            'max_makeups_per_term' => (int) ($organization['maxMakeupsPerTerm'] ?? 2),
+            'working_day_start' => (string) ($organization['workingDayStart'] ?? '08:00'),
+            'working_day_end' => (string) ($organization['workingDayEnd'] ?? '21:00'),
+            'closed_weekdays' => json_encode(
+                array_values(array_map('intval', (array) ($organization['closedWeekdays'] ?? [6]))),
+                JSON_THROW_ON_ERROR,
+            ),
             'created_at' => $now,
             'updated_at' => $now,
         ]);

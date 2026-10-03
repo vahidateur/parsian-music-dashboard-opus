@@ -13,11 +13,11 @@ namespace App\Domain\Scheduling;
  * legitimate-but-unusual and require explicit acknowledgement
  * (`acknowledgeWarnings`); they never block silently.
  *
- * Deliberately NOT implemented: `SESSION_OUTSIDE_WORKING_HOURS` and
- * `SESSION_TIGHT_TURNOUND`. Both are advisory rules the academy configures in
- * Settings → قواعد جلسه, and there is no server-side working-hours domain yet.
- * Inventing one would be inventing a requirement, so they are omitted and the
- * omission is recorded in BACKEND_STATUS.md.
+ * `SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are advisory
+ * rules the academy configures in Settings → قواعد جلسه. They were omitted while
+ * the server had no copy of the organization rules; Organization settings now
+ * provides that copy (`OrganizationRules`), and `ConflictDetector` emits both as
+ * WARNINGS — never as hard conflicts, which is how the frontend classifies them.
  */
 final class ConflictReport
 {

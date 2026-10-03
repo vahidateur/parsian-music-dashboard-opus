@@ -269,7 +269,65 @@ class SchedulingTest extends TestCase
         ]);
         $this->actingAsRole('manager');
 
-        $this->postJson('/api/v1/sessions', $this->payload())->assertStatus(201);
+        // Touching, not overlapping: still not a HARD conflict. It is now also
+        // an advisory turnaround warning (the academy's configured 10-minute
+        // gap), which is why the booking carries `acknowledgeWarnings`.
+        $this->postJson('/api/v1/sessions', [...$this->payload(), 'acknowledgeWarnings' => true])
+            ->assertStatus(201);
+    }
+
+    /**
+     * `SESSION_TIGHT_TURNAROUND` — evaluated now that the server holds the
+     * academy's rules. Advisory only: `ok` stays true and `hard` stays empty.
+     */
+    public function test_a_tight_turnaround_warns_but_does_not_block(): void
+    {
+        $this->makeSession([
+            'date' => Carbon::today()->addDays(3)->toDateString(),
+            'start_time' => '13:00',
+            'end_time' => '14:00', // zero turnaround against the 14:00 candidate
+            'room_id' => 'r1',
+            'teacher_id' => 't1',
+        ]);
+        $this->actingAsRole('manager');
+
+        $this->postJson('/api/v1/sessions', $this->payload())
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'SESSION_WARNINGS_UNACKNOWLEDGED')
+            ->assertJsonPath('error.conflicts.ok', true)
+            ->assertJsonPath('error.conflicts.hard', [])
+            ->assertJsonPath('error.conflicts.warnings.0.kind', 'SESSION_TIGHT_TURNAROUND');
+    }
+
+    /**
+     * `SESSION_OUTSIDE_WORKING_HOURS` — the other kind the missing Organization
+     * settings kept unevaluated. A session at 22:00 is outside the shipped
+     * 08:00–21:00 window, and is told about rather than refused.
+     */
+    public function test_a_session_outside_working_hours_warns_but_does_not_block(): void
+    {
+        $this->actingAsRole('manager');
+
+        $this->postJson('/api/v1/sessions', $this->payload(['startTime' => '22:00', 'endTime' => '23:00']))
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'SESSION_WARNINGS_UNACKNOWLEDGED')
+            ->assertJsonPath('error.conflicts.ok', true)
+            ->assertJsonPath('error.conflicts.hard', [])
+            ->assertJsonPath('error.conflicts.warnings.0.kind', 'SESSION_OUTSIDE_WORKING_HOURS');
+    }
+
+    /**
+     * The rule follows the academy's OWN settings, not a hard-coded window:
+     * widening the bookable day makes the very same 22:00 booking unremarkable.
+     */
+    public function test_the_working_hours_rule_follows_the_academys_own_settings(): void
+    {
+        $this->actingAsRole('administrator');
+        $this->patchJson('/api/v1/organization', ['workingDayEnd' => '23:30'])->assertOk();
+
+        $this->actingAsRole('manager');
+        $this->postJson('/api/v1/sessions', $this->payload(['startTime' => '22:00', 'endTime' => '23:00']))
+            ->assertStatus(201);
     }
 
     public function test_inactive_room_warns_and_requires_acknowledgement(): void

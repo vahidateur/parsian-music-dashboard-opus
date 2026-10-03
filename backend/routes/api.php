@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
+use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\V1\SessionController;
@@ -25,6 +26,15 @@ Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttl
 Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+
+    /*
+     * Organization settings — one record, two verbs, exactly the contract in
+     * src/domains/organization/apiRepository.ts (marked BACKEND REQUIRED).
+     * `settings.read` to read, `settings.write` to patch, both enforced by
+     * OrganizationPolicy; the row is always the caller's own organization.
+     */
+    Route::get('organization', [OrganizationController::class, 'show']);
+    Route::patch('organization', [OrganizationController::class, 'update']);
 
     Route::get('users', [UserController::class, 'index']);
     Route::post('users', [UserController::class, 'store']);
