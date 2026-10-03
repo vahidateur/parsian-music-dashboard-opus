@@ -8,6 +8,7 @@ use App\Support\Api\ApiException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Library resource persistence.
@@ -79,7 +80,13 @@ final class ResourceService
         $attributes['uses'] = 0;
 
         return DB::transaction(function () use ($attributes): Resource {
-            return Resource::query()->create($attributes)->refresh();
+            $resource = new Resource;
+            // Ids are generated here, not by the database: the row is a string
+            // key and `create()` would otherwise insert NULL.
+            $resource->id = 'res_'.strtolower((string) Str::ulid());
+            $resource->fill($attributes)->save();
+
+            return $resource->refresh();
         });
     }
 

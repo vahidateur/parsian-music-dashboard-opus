@@ -507,10 +507,15 @@ class ResourceTest extends TestCase
 
         $this->getJson(self::BASE.'?sort=title')->assertOk()->assertJsonPath('data.0.title', 'الف');
         $this->getJson(self::BASE.'?sort=most_used')->assertOk()->assertJsonPath('data.0.title', 'ب');
-        // Newest-first is the default, and an unrecognized key falls back to it
-        // rather than erroring or returning rows in an arbitrary order.
+        // Newest-first is the default.
         $this->getJson(self::BASE)->assertOk()->assertJsonPath('data.0.title', 'ب');
-        $this->getJson(self::BASE.'?sort=nonsense')->assertOk()->assertJsonPath('data.0.title', 'ب');
+
+        // An unrecognized sort key is refused, not silently ignored: like every
+        // other filter on this endpoint it is a 422 with the field named.
+        $this->getJson(self::BASE.'?sort=nonsense')
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'RESOURCE_INVALID')
+            ->assertJsonStructure(['error' => ['fields' => ['sort']]]);
     }
 
     public function test_pagination_meta_reports_what_was_returned(): void
