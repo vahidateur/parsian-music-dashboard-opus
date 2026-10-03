@@ -67,10 +67,17 @@
 >   Frontend 14 failed | 2638 passed | 18 skipped (2670) == accepted baseline;
 >   tsc exits 0; no frontend file touched.
 >
-> *** BACKEND CI IS RED AT 57dbfc2 — ON I23 ALONE. ***
->   A re-run could NOT be requested: gh workflow run -> HTTP 403 (the App token has
+> *** I23 WAS RED AT 57dbfc2 — NOW FIXED AND GREEN AT deb7f0c. ***
+>   A re-run could NOT be requested at the time: gh workflow run -> HTTP 403 (the App token has
 >   read-only Actions access) and gh run rerun is refused for that run.
->   Do NOT describe this slice as fully verified while that check is red.
+>   [RESOLVED 2026-10-03] Owner authorized repairing I23. SessionService::reschedule() now passes
+>   'id' => $original->id on its conflict-check candidate, so the replaced session is no longer
+>   counted as its own clash. CI run 37154399272: Tests: 307 passed, 0 failed; all 4 checks green.
+>   The flaky test's fixture was pinned to the collision case (deterministic, and it now fails
+>   without the fix), and a companion test proves a genuinely different overlapping session is
+>   still refused. See OPEN_ITEMS I23.
+>   The historical reasoning below is retained: it was correct not to game CI for a green run
+>   while the fix still needed authorization — Scheduling is outside the Progress scope.
 >
 > ENVIRONMENT CAVEAT for whoever picks this up: the backend suite CANNOT be run
 >   locally here — no PHP runtime is installable (packagist.org, getcomposer.org and

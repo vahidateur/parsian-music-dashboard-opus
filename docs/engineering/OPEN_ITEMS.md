@@ -1604,7 +1604,7 @@ recovery and the zero-record tests both remaining green.
   and `57dbfc2`; slice 2 changed **zero** of them. (2) `SchedulingTest.php` was last modified in
   `2d768c2` (the Organization slice), long before slice 2. (3) The same test against the same code
   was **green** at `999f9d7` (`Tests: 262 passed`, 0 failed) and **red** at `57dbfc2`
-  (`1 failed, 305 passed`) — the +43 are slice 2's own tests, all passing. Identical code, opposite
+  (`1 failed, 305 passed`) — the +44 are slice 2's own tests, all passing. Identical code, opposite
   outcomes, differing only by the random draw: that is the flakiness signature.
 - **Limitation of the reproduction, stated honestly.** The test was **not executed locally**: no PHP
   runtime is installable in this environment (`packagist.org`, `getcomposer.org` and the Debian
@@ -1617,7 +1617,9 @@ recovery and the zero-record tests both remaining green.
   thing by another route, so it was not done. A re-run could not be requested either: with valid
   credentials restored, `gh workflow run` returns **HTTP 403 Resource not accessible by
   integration** (the App token has read-only Actions access) and `gh run rerun` is refused for that
-  run. **Backend CI is therefore still red at `57dbfc2`.**
+  run. **Backend CI was therefore still red at `57dbfc2`** — *superseded: I23 was later authorized
+  and fixed in `deb7f0c`, and CI is green again; see the RESOLVED entry below. This paragraph is
+  kept because it records why CI was not gamed into green while the fix awaited authorization.*
 - **`reschedule()` is the ONLY path that should carry an `id` and does not — so the fix restores
   the codebase's own convention rather than inventing semantics.** Enumerating every `$candidate`
   built in `SessionService.php`: `create` → no `id` (**correct**, there is nothing to exclude);
@@ -1631,19 +1633,59 @@ recovery and the zero-record tests both remaining green.
   operating on an existing session already passes `id`, so the change would align `reschedule()`
   with existing behaviour rather than alter shared semantics. The risk of the fix is therefore
   materially lower than this item previously stated.
-- **Done when:** either the reschedule candidate carries `'id' => $original->id` (a one-line change
-  to a protected scheduling path, **still needing owner authorization** — it is out of scope for
-  Progress and was not made), or the fixture pins a date the 30-day draw cannot reach. Recorded
-  rather than fixed; compare **I19**, the frontend analogue in the same area.
-- **Related finding, NOT acted on:** if the sibling pit exists elsewhere it would look the same —
-  an `$candidate` for an existing session without an `id`. The enumeration above found exactly one
-  such site, so no second instance is currently known.
-- **Status:** recorded 2026-10-03 as not started, not owned by Progress slice 2. Classification
-  **Category D (pre-existing / flaky)** is now **proven**, not asserted — see the reproduction and
-  the three proofs above. **Consequence: backend CI at `57dbfc2` is red on this test alone
-  (1 failed, 305 passed), and will stay red until a re-run happens to draw a non-colliding date
-  (expected ~164 times in 165) or the item is fixed under its own authorization.** Slice 2's own
-  43 tests all pass.
+- **RESOLVED 2026-10-03 in `deb7f0c`, under owner authorization to repair I23.**
+
+  **Root cause.** `SessionService::reschedule()` built its conflict-check candidate without an
+  `id`, so `ConflictDetector` treated the session being replaced as an unrelated clash with its
+  own replacement. The check runs *before* the original is cancelled, so `overlappingSessions()`
+  still sees it as `scheduled`: moving a session to a slot overlapping its own old time was
+  refused with a spurious **409 `SESSION_CONFLICT`**.
+
+  **The fix (one line).** The candidate now carries `'id' => $original->id`
+  (`SessionService.php:227`). Excluding it is correct *precisely because* the original is cancelled
+  by the same transaction — the replacement legitimately supersedes it. Clashes with any other
+  session are untouched.
+
+  **Why the fix is safe — three independent reasons.** (1) It restores the convention the sibling
+  paths already follow rather than introducing semantics: `update()` passes `'id' => $session->id`
+  and `SessionGenerator` passes `'id' => $change['sessionId']` for updates. (2) `id` is read in
+  **exactly one place** downstream — the two `whereKeyNot()` exclusions in `ConflictDetector`
+  (`:240-241`, `:262-263`) — so it cannot alter any unrelated check. (3) An exhaustive audit of
+  every `$candidate` and every `check()` call site in `app/` found **no other** existing-session
+  path missing it: `create` and `SessionGenerator`'s creates correctly carry none (nothing to
+  exclude), and `SessionService::checkConflicts()` is a user-supplied pass-through.
+
+  **Test changes (hardened, not weakened).**
+  - `test_reschedule_links_original_and_replacement` — fixture **pinned** to the exact collision
+    case (same date, `08:00–09:30`) instead of a random factory draw. It is now deterministic and
+    doubles as the regression guard: it **fails without the fix**. Its assertions are unchanged.
+  - `test_reschedule_onto_another_sessions_slot_is_refused` — **new**. Asserts a genuinely
+    different overlapping session is still refused with `SESSION_CONFLICT`, so the exclusion
+    cannot be widened by a later edit.
+  - No existing test was skipped, deleted, or loosened.
+
+  **CI evidence (`deb7f0c`, run 37154399272).** `Tests: 307 passed (2005 assertions)`, **0
+  failed**; all four checks green — `PHP 8.3 — Laravel test suite`, `backend-test-tally`,
+  `backend-http-smoke`, and the HTTP smoke covering T-02 / PB-1 / PB-3 / scheduling / attendance.
+  The arithmetic is self-consistent: 306 executed before (305 passed + this 1 failure), 307 now
+  (306 + the 1 new test), and `SchedulingTest` went from 25 to 26 test methods.
+
+  **On the rate discrepancy recorded above.** It is now moot and the lower-bound caveat is
+  withdrawn: the failure mode is eliminated at source rather than merely made improbable. The
+  observed 1-in-6 versus the enumerated 0.606% was a small-sample artefact of which runs happened
+  to carry a digest; the mechanism (2 of 330 draws) was correct and is now unreachable.
+- **Status:** **CLOSED — fixed in `deb7f0c`.** Backend CI is green. Classification while it was
+  open was **Category D (pre-existing / flaky)**, and that classification was **proven**, not
+  asserted — the deciding files were byte-identical across the passing and failing runs. Note the
+  distinction preserved here: the *test* was flaky, but the *underlying behaviour* was a genuine
+  latent defect (a real double-booking false positive, reachable in production whenever a session
+  is moved to a slot overlapping its own former time), so D described its relationship to Progress
+  slice 2, not a statement that nothing was wrong.
+- **Historical note, retained deliberately.** This item was first recorded as *not fixed*, with an
+  explicit statement that re-rolling the RNG to re-trigger CI would be "editing the test to go
+  green by another route". That reasoning was correct at the time: the fix needed owner
+  authorization because Scheduling is outside the Progress scope. It was authorized and then made.
+  Compare **I19**, the frontend analogue in the same area, which remains open.
 
 ---
 

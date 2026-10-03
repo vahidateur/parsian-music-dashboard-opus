@@ -1495,10 +1495,19 @@ in the docblock of `StoreProgressEventRequest` and in the commit message.
   **Caveat, stated honestly:** the test was not executed locally. No PHP runtime is installable here
   (`packagist.org`, `getcomposer.org` and the Debian mirrors are unreachable). What was reproduced
   is the test's **decision logic**, exhaustively, from the committed sources.
-- **Backend CI is therefore RED at `57dbfc2`** — on that one unrelated test. It could not be
-  re-run: `gh workflow run` returns **HTTP 403** (the App token has read-only Actions access) and
+- **Backend CI was RED at `57dbfc2`** — on that one unrelated test. It could not be re-run:
+  `gh workflow run` returns **HTTP 403** (the App token has read-only Actions access) and
   `gh run rerun` is refused for that run. Deliberately **not** re-rolled by pushing a no-op backend
   change, which would be the same thing as editing the test to go green.
+- **RESOLVED 2026-10-03 — backend CI is now GREEN at `deb7f0c`.** I23 was subsequently authorized
+  for repair and fixed: `SessionService::reschedule()` now carries `'id' => $original->id` on its
+  conflict-check candidate, so a session being replaced is no longer counted as its own clash.
+  CI run 37154399272: **`Tests: 307 passed`, 0 failed**, all four check-runs green. The test was
+  also made deterministic (fixture pinned to the collision case) and a companion test was added
+  proving a genuinely different overlapping session is still refused. See **OPEN_ITEMS I23** for
+  the full root cause. *Historical note: the paragraph above is retained because the reasoning for
+  not gaming CI at the time was correct — the fix required owner authorization, since Scheduling
+  is outside the Progress scope.*
 - The one real defect CI caught was `7cd8c97` → `57dbfc2`: a missing
   `use App\Models\ProgressEvent;` in `AssignmentService`, which made every delete return 500. Two
   tests caught it — the new history-guard test **and** slice 1's `delete removes an assignment`,
