@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\ClassSession;
 use App\Models\Piece;
 use App\Models\Room;
 use App\Models\Student;
@@ -73,6 +74,23 @@ final class TenantRules
                 $fail('مدرس یافت نشد.');
             } elseif ($teacher->status === 'inactive') {
                 $fail('مدرس غیرفعال است.');
+            }
+        };
+    }
+
+    /**
+     * A progress event may be linked to a class session, but only to one in the
+     * caller's organization. The link is provenance for the timeline, never
+     * authorization, yet a cross-tenant id must not be storable.
+     */
+    public static function sessionExists(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+            if (! is_string($value) || ! ClassSession::query()->whereKey($value)->exists()) {
+                $fail('جلسه انتخاب‌شده وجود ندارد.');
             }
         };
     }

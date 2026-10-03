@@ -19,9 +19,12 @@ use Tests\TestCase;
  * administrator, manager and teacher hold both; staff holds read only; the
  * accountant holds neither. None of that is assumed — it is asserted below.
  *
- * Deferred to a later slice and asserted ABSENT, not stubbed:
- * progress-events, students/{id}/progress-overview, analytics, plateau
- * detection, recommendations and workflow automation.
+ * Slice 2 added the append-only event log, the assignment-history deletion
+ * guard and the student overview, all under the same two permission ids.
+ *
+ * Still deferred to a later slice and asserted ABSENT, not stubbed: standalone
+ * analytics and plateau-detection endpoints (they are computed inside the
+ * overview instead) and workflow automation.
  */
 class ProgressTest extends TestCase
 {
@@ -29,6 +32,7 @@ class ProgressTest extends TestCase
 
     private const PIECES = '/api/v1/pieces';
     private const ASSIGNMENTS = '/api/v1/piece-assignments';
+    private const EVENTS = '/api/v1/progress-events';
 
     /** @param  array<string, mixed>  $overrides */
     private function piecePayload(array $overrides = []): array
@@ -799,17 +803,42 @@ class ProgressTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Slice 1 implements pieces and piece-assignments only. The rest of the
-     * Progress contract is deferred with NO placeholder routes, so those paths
-     * must not exist — a 404 here is the intended state, not an oversight.
+     * The boundary moved in slice 2, and this test moved with it rather than
+     * being dropped: `progress-events` and the overview are now live, while the
+     * genuinely deferred paths stay unrouted.
+     *
+     * The strongest assertion here is the one that was added, not the one that
+     * was removed: there is NO mutation route for an event. That is what makes
+     * the log append-only, and it must never become a 404-shaped accident — so
+     * every mutation verb is asserted 404 (or 405) explicitly.
      */
-    public function test_the_deferred_progress_endpoints_are_not_routed(): void
+    public function test_the_event_log_is_append_only_and_deferred_paths_stay_unrouted(): void
     {
+        $organization = $this->defaultOrganization();
+        $student = Student::factory()->create(['organization_id' => $organization->id]);
+        $piece = Piece::factory()->create(['organization_id' => $organization->id]);
+
         $this->actingAsRole('manager');
 
-        $this->getJson('/api/v1/progress-events')->assertStatus(404);
-        $this->postJson('/api/v1/progress-events', [])->assertStatus(404);
-        $this->getJson('/api/v1/students/st1/progress-overview')->assertStatus(404);
+        $assignmentId = $this->postJson(self::ASSIGNMENTS, ['studentId' => $student->id, 'pieceId' => $piece->id])
+            ->json('data.id');
+
+        $eventId = $this->postJson(self::EVENTS, [
+            'assignmentId' => $assignmentId,
+            'mastery' => 55,
+            'source' => 'teacher',
+        ])->json('data.id');
+
+        // The two read/write verbs the contract defines DO exist.
+        $this->getJson(self::EVENTS)->assertOk();
+        $this->getJson('/api/v1/students/'.$student->id.'/progress-overview')->assertOk();
+
+        // Correcting a mistake appends a new event; it never rewrites history.
+        $this->putJson(self::EVENTS.'/'.$eventId, ['mastery' => 90])->assertStatus(404);
+        $this->patchJson(self::EVENTS.'/'.$eventId, ['mastery' => 90])->assertStatus(404);
+        $this->deleteJson(self::EVENTS.'/'.$eventId)->assertStatus(404);
+
+        // Still deferred, still no placeholder route.
         $this->getJson('/api/v1/students/st1/assignments')->assertStatus(404);
     }
 

@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\PieceAssignmentController;
 use App\Http\Controllers\Api\V1\PieceController;
+use App\Http\Controllers\Api\V1\ProgressEventController;
+use App\Http\Controllers\Api\V1\ProgressOverviewController;
 use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
@@ -131,14 +133,15 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::delete('resources/{id}', [ResourceController::class, 'destroy']);
 
     /*
-     * Progress — slice 1: pieces and piece-assignments.
+     * Progress — pieces, piece-assignments, the append-only event log and the
+     * derived overview.
      *
      * Authorized by the owner for v1 on 2026-10-03 under `progress.read` /
      * `progress.write` (DECISIONS.md §29).
      *
-     * DEFERRED to a later Progress slice, with NO placeholder routes here:
-     * progress-events, students/{id}/progress-overview, analytics, plateau
-     * detection, recommendations and workflow automation.
+     * STILL DEFERRED, with NO placeholder routes here: analytics and plateau
+     * detection as standalone endpoints (they are computed inside the overview
+     * instead), and workflow automation.
      */
     Route::get('pieces', [PieceController::class, 'index']);
     Route::post('pieces', [PieceController::class, 'store']);
@@ -151,5 +154,17 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::get('piece-assignments/{id}', [PieceAssignmentController::class, 'show']);
     Route::patch('piece-assignments/{id}', [PieceAssignmentController::class, 'update']);
     Route::delete('piece-assignments/{id}', [PieceAssignmentController::class, 'destroy']);
+
+    /*
+     * The progress log. APPEND-ONLY: only GET and POST exist, and no
+     * PUT/PATCH/DELETE route for an event is registered anywhere. Correcting a
+     * mistake appends a new event rather than rewriting the past.
+     */
+    Route::get('progress-events', [ProgressEventController::class, 'index']);
+    Route::post('progress-events', [ProgressEventController::class, 'store']);
+
+    // The derived read: insights and recommendations, recomputed on the server
+    // over the full history.
+    Route::get('students/{id}/progress-overview', [ProgressOverviewController::class, 'show']);
 });
 

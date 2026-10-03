@@ -125,18 +125,32 @@ final class AssignmentService
     }
 
     /**
-     * Removes an assignment.
+     * Removes an assignment, but never one that has progress history.
      *
-     * The client contract ALSO refuses deletion when progress events exist, so
-     * a deletion can never silently destroy the evidence every analytic is
-     * computed from. That guard cannot fire in this slice: `progress-events` is
-     * a later slice, no `progress_events` table exists, and therefore no
-     * assignment can have history yet. The invariant holds vacuously. The guard
-     * is added with the event log, not stubbed out here.
+     * The client contract refuses deletion while events exist, so a deletion
+     * can never silently destroy the evidence every analytic is computed from.
+     * The check is inside the transaction and takes a lock on the count, so two
+     * concurrent deletes cannot both pass it.
+     *
+     * @throws ApiException ASSIGNMENT_HAS_HISTORY when events exist
      */
     public function delete(PieceAssignment $assignment): void
     {
         DB::transaction(function () use ($assignment): void {
+            // lockForUpdate on the count: a concurrent append must not slip an
+            // event in between the check and the delete.
+            $hasHistory = ProgressEvent::query()
+                ->where('assignment_id', $assignment->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($hasHistory) {
+                throw ApiException::conflict(
+                    'ASSIGNMENT_HAS_HISTORY',
+                    'این تخصیص دارای سابقهٔ پیشرفت است و حذف نمی‌شود.',
+                );
+            }
+
             $assignment->delete();
         });
     }

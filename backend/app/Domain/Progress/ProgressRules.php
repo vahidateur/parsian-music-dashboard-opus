@@ -16,6 +16,21 @@ final class ProgressRules
     /** Bounds copied verbatim from the client contract. */
     public const MAX_RANGE_VALUE = 100_000;
 
+    /** `MASTERY_SCALE` — the one measurement every event carries. */
+    public const MASTERY_MIN = 0;
+
+    public const MASTERY_MAX = 100;
+
+    /** `TEMPO_BOUNDS` — a tempo outside this range is a typo, not a tempo. */
+    public const TEMPO_MIN = 20;
+
+    public const TEMPO_MAX = 400;
+
+    /** `PRACTICE_MINUTES_BOUNDS` — zero is meaningful ("practised elsewhere"). */
+    public const PRACTICE_MINUTES_MIN = 0;
+
+    public const PRACTICE_MINUTES_MAX = 600;
+
     public const MAX_TITLE = 200;
 
     public const MAX_COMPOSER = 200;
