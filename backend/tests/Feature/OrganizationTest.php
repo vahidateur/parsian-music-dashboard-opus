@@ -6,6 +6,7 @@ use App\Domain\Organization\OrganizationRules;
 use App\Domain\Organization\OrganizationService;
 use App\Models\Organization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -68,9 +69,12 @@ class OrganizationTest extends TestCase
 
         foreach (['teacher', 'staff', 'accountant'] as $role) {
             $this->actingAsRole($role);
+            // The write check runs first, so the refusal names the permission
+            // the verb needs, not the weaker one the actor also lacks.
             $this->patchJson('/api/v1/organization', $body)
                 ->assertStatus(403)
-                ->assertJsonPath('error.permission', 'settings.read');
+                ->assertJsonPath('error.code', 'FORBIDDEN')
+                ->assertJsonPath('error.permission', 'settings.write');
         }
     }
 
@@ -112,8 +116,17 @@ class OrganizationTest extends TestCase
         $this->actingAsRole('administrator');
 
         $before = $this->getJson('/api/v1/organization')->json('data.updatedAt');
+        $this->assertNotSame('', $before);
 
+        /*
+         * Timestamp columns are stored to the second, so the clock has to
+         * actually move before the stamp can differ — a fast patch followed by
+         * a read-back otherwise lands inside the same second and the panel
+         * would appear to claim the rules were never saved.
+         */
+        Carbon::setTestNow(Carbon::parse($before)->addMinute());
         $this->patchJson('/api/v1/organization', ['sessionGapMinutes' => 15])->assertOk();
+        Carbon::setTestNow();
 
         $after = $this->getJson('/api/v1/organization')->json('data.updatedAt');
 
