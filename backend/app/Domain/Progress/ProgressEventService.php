@@ -104,6 +104,64 @@ final class ProgressEventService
     }
 
     /**
+     * The student's assignments joined to their pieces — the `AssignmentWithPiece[]`
+     * half of the overview, on its own.
+     *
+     * This is the 14th Progress endpoint (`GET /students/{id}/assignments`,
+     * authorized 2026-10-03). It shares the lookup and the query with
+     * `overviewFor()` so the two can never disagree about which assignments a
+     * student has or what order they come back in.
+     *
+     * @return list<array{assignment: PieceAssignment, piece: Piece|null}>
+     *
+     * @throws ApiException STUDENT_NOT_FOUND
+     */
+    public function assignmentsFor(string $studentId): array
+    {
+        return $this->assignmentsForStudent($this->studentOrFail($studentId))
+            ->map(fn (PieceAssignment $assignment): array => [
+                'assignment' => $assignment,
+                'piece' => $assignment->piece,
+            ])
+            ->all();
+    }
+
+    /**
+     * Tenant-scoped student lookup.
+     *
+     * A foreign student is invisible to the scoped query, so this 404s rather
+     * than leaking that the id exists in another organization. Shared by both
+     * derived reads so they cannot diverge on 404 semantics.
+     *
+     * @throws ApiException STUDENT_NOT_FOUND
+     */
+    private function studentOrFail(string $studentId): Student
+    {
+        $student = Student::query()->whereKey($studentId)->first();
+        if ($student === null) {
+            throw ApiException::notFound('STUDENT_NOT_FOUND', "هنرجو با شناسهٔ {$studentId} یافت نشد.");
+        }
+
+        return $student;
+    }
+
+    /**
+     * Newest assignment first: the current work is what a teacher opens for.
+     * `id` is the tie-break so two assignments sharing a timestamp still come
+     * back in a stable order.
+     *
+     * @return Collection<int, PieceAssignment>
+     */
+    private function assignmentsForStudent(Student $student): Collection
+    {
+        return PieceAssignment::query()
+            ->where('student_id', $student->id)
+            ->with('piece')
+            ->orderByDesc('assigned_at')->orderByDesc('id')
+            ->get();
+    }
+
+    /**
      * The student's progress overview — assignments, insights, ordered
      * recommendations and the most recent events.
      *
@@ -113,19 +171,8 @@ final class ProgressEventService
      */
     public function overviewFor(string $studentId): array
     {
-        // A foreign student is invisible to the scoped query, so this 404s
-        // rather than leaking that the id exists elsewhere.
-        $student = Student::query()->whereKey($studentId)->first();
-        if ($student === null) {
-            throw ApiException::notFound('STUDENT_NOT_FOUND', "هنرجو با شناسهٔ {$studentId} یافت نشد.");
-        }
-
-        // Newest assignment first: the current work is what a teacher opens for.
-        $assignments = PieceAssignment::query()
-            ->where('student_id', $student->id)
-            ->with('piece')
-            ->orderByDesc('assigned_at')->orderByDesc('id')
-            ->get();
+        $student = $this->studentOrFail($studentId);
+        $assignments = $this->assignmentsForStudent($student);
 
         // One query for the whole history, then grouped in memory — not a
         // query per assignment.

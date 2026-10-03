@@ -8,6 +8,7 @@ use App\Models\Piece;
 use App\Models\PieceAssignment;
 use App\Models\ProgressEvent;
 use App\Models\Student;
+use App\Http\Resources\ProgressOverviewResource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
@@ -68,6 +69,12 @@ class ProgressEventTest extends TestCase
     private function overviewUrl(Student $student): string
     {
         return '/api/v1/students/'.$student->id.'/progress-overview';
+    }
+
+    /** The 14th endpoint (slice 3): `AssignmentWithPiece[]`, unpaginated. */
+    private function assignmentsUrl(Student $student): string
+    {
+        return '/api/v1/students/'.$student->id.'/assignments';
     }
 
     /* ------------------------------------------------------------------ */
@@ -862,5 +869,184 @@ class ProgressEventTest extends TestCase
         $this->assertContains('progress.write', $vocabulary);
         $this->assertNotContains('progress.admin', $vocabulary);
         $this->assertNotContains('analytics.read', $vocabulary);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* slice 3 — the 14th endpoint: GET /students/{id}/assignments        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * `GET /students/{id}/assignments` is the endpoint the post-closure audit
+     * found missing: `ProgressRepository` requires `studentAssignments()` and
+     * `ApiProgressRepository` implements it as
+     * `students/{id}/assignments`, but no route existed, so the API repository
+     * was not a complete implementation of its own interface.
+     *
+     * Authorized 2026-10-03 as a narrow addition to Progress. No new
+     * permission: `progress.read` already governs this surface.
+     */
+    public function test_student_assignments_returns_every_assignment_joined_to_its_piece(): void
+    {
+        $org = $this->defaultOrganization();
+        $student = Student::factory()->create(['organization_id' => $org->id]);
+
+        $older = $this->makeStudent($org, ['title' => 'قطعهٔ قدیمی'], ['assigned_at' => now()->subDays(3)], $student);
+        $newer = $this->makeStudent($org, ['title' => 'قطعهٔ جدید'], ['assigned_at' => now()->subDay()], $student);
+
+        $this->actingAsRole('teacher');
+
+        $payload = $this->getJson($this->assignmentsUrl($student))->assertOk()->json('data');
+
+        $this->assertIsArray($payload);
+        $this->assertCount(2, $payload);
+
+        // Newest assignment first.
+        $this->assertSame($newer['assignment']->id, $payload[0]['assignment']['id']);
+        $this->assertSame($older['assignment']->id, $payload[1]['assignment']['id']);
+
+        // Every entry is TS `AssignmentWithPiece` — exactly {assignment, piece}.
+        foreach ($payload as $entry) {
+            $this->assertSame(['assignment', 'piece'], array_keys($entry));
+        }
+
+        // The join actually joined: identity, status and the piece fields.
+        $this->assertSame((string) $newer['assignment']->status, $payload[0]['assignment']['status']);
+        $this->assertSame((string) $newer['assignment']->student_id, $payload[0]['assignment']['studentId']);
+        $this->assertSame($newer['piece']->id, $payload[0]['piece']['id']);
+        $this->assertSame($newer['piece']->title, $payload[0]['piece']['title']);
+    }
+
+    /** Newest first, and `id` DESC breaks ties so the order is never random. */
+    public function test_student_assignments_are_newest_first_with_a_stable_id_tie_break(): void
+    {
+        $org = $this->defaultOrganization();
+        $student = Student::factory()->create(['organization_id' => $org->id]);
+        $shared = now()->subDay();
+
+        $oldest = $this->makeStudent($org, [], ['assigned_at' => $shared->copy()->subDays(2)], $student);
+        $tieLow = $this->makeStudent($org, [], ['assigned_at' => $shared, 'id' => 'as_aaa_low'], $student);
+        $tieHigh = $this->makeStudent($org, [], ['assigned_at' => $shared, 'id' => 'as_zzz_high'], $student);
+
+        $this->actingAsRole('teacher');
+
+        $ids = collect($this->getJson($this->assignmentsUrl($student))->assertOk()->json('data'))
+            ->pluck('assignment.id')
+            ->all();
+
+        $this->assertSame(
+            [$tieHigh['assignment']->id, $tieLow['assignment']->id, $oldest['assignment']->id],
+            $ids,
+        );
+    }
+
+    /** A plain array, never a paginated envelope — that is the contract's shape. */
+    public function test_student_assignments_is_an_empty_array_for_a_student_with_no_work(): void
+    {
+        $student = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
+
+        $this->actingAsRole('teacher');
+
+        $this->getJson($this->assignmentsUrl($student))
+            ->assertOk()
+            ->assertJsonPath('data', [])
+            ->assertJsonMissingPath('meta');
+    }
+
+    /** A foreign student is invisible, not empty — the id must not be confirmed. */
+    public function test_another_organizations_student_assignments_are_404(): void
+    {
+        $orgA = $this->defaultOrganization();
+        $orgB = $this->makeOrganization();
+        $foreignStudent = $this->makeStudent($orgA)['student'];
+
+        $this->actingAsRole('manager', [], $orgB);
+
+        $this->getJson($this->assignmentsUrl($foreignStudent))
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'STUDENT_NOT_FOUND');
+    }
+
+    /** Same four roles as every other Progress read; the accountant holds none. */
+    public function test_student_assignments_requires_progress_read(): void
+    {
+        $org = $this->defaultOrganization();
+        $student = $this->makeStudent($org)['student'];
+
+        foreach (['administrator', 'manager', 'teacher', 'staff'] as $role) {
+            $this->actingAsRole($role);
+            $this->getJson($this->assignmentsUrl($student))->assertOk();
+        }
+
+        $this->actingAsRole('accountant');
+        $this->getJson($this->assignmentsUrl($student))
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.permission', 'progress.read');
+    }
+
+    public function test_student_assignments_is_401_when_unauthenticated(): void
+    {
+        $this->asGuest();
+
+        $this->getJson('/api/v1/students/st_missing/assignments')->assertStatus(401);
+    }
+
+    /**
+     * TS types the piece `Piece | undefined`, so the pair serializer must emit
+     * null rather than omitting the key when a piece is absent.
+     *
+     * Not reachable through HTTP: `piece_id` is non-nullable with
+     * `cascadeOnDelete`, so the branch is asserted against the serializer the
+     * endpoint shares with the overview.
+     */
+    public function test_the_pair_serializer_keeps_piece_null_when_the_piece_is_absent(): void
+    {
+        ['assignment' => $assignment] = $this->makeStudent($this->defaultOrganization());
+
+        $pair = ProgressOverviewResource::toWirePair(['assignment' => $assignment, 'piece' => null]);
+
+        $this->assertArrayHasKey('piece', $pair);
+        $this->assertNull($pair['piece']);
+        $this->assertSame((string) $assignment->id, $pair['assignment']['id']);
+    }
+
+    /**
+     * The two endpoints are two views of one list, so they must agree exactly.
+     * They share the query and the pair serializer; this is the test that fails
+     * if anyone ever forks one of them.
+     */
+    public function test_the_assignments_endpoint_and_the_overview_agree_exactly(): void
+    {
+        $org = $this->defaultOrganization();
+        $student = $this->makeStudent($org)['student'];
+        $this->makeStudent($org, [], ['assigned_at' => now()->subDays(4)], $student);
+        $this->makeStudent($org, [], ['assigned_at' => now()->subDays(2), 'status' => 'completed'], $student);
+
+        $this->actingAsRole('manager');
+
+        $standalone = $this->getJson($this->assignmentsUrl($student))->assertOk()->json('data');
+        $fromOverview = $this->getJson($this->overviewUrl($student))->assertOk()->json('data.assignments');
+
+        $this->assertSame($fromOverview, $standalone);
+        $this->assertCount(3, $standalone);
+    }
+
+    /** Read-only surface: no mutation verb is routed, and the overview is intact. */
+    public function test_the_assignments_endpoint_is_read_only_and_leaves_the_overview_intact(): void
+    {
+        $org = $this->defaultOrganization();
+        $fixture = $this->makeStudent($org);
+        $url = $this->assignmentsUrl($fixture['student']);
+
+        $this->actingAsRole('manager');
+
+        $this->postJson($url, [])->assertStatus(405);
+        $this->patchJson($url, [])->assertStatus(405);
+        $this->deleteJson($url)->assertStatus(405);
+
+        $this->getJson($this->overviewUrl($fixture['student']))
+            ->assertOk()
+            ->assertJsonPath('data.assignments.0.assignment.id', $fixture['assignment']->id)
+            ->assertJsonPath('data.assignments.0.piece.id', $fixture['piece']->id);
     }
 }

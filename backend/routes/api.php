@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\V1\SessionController;
+use App\Http\Controllers\Api\V1\StudentAssignmentController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -166,5 +167,11 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     // The derived read: insights and recommendations, recomputed on the server
     // over the full history.
     Route::get('students/{id}/progress-overview', [ProgressOverviewController::class, 'show']);
+
+    // The 14th endpoint, authorized 2026-10-03 to close the contract gap found
+    // by the post-closure audit: `studentAssignments()` was required by
+    // `ProgressRepository` and implemented by `ApiProgressRepository`, but no
+    // server route existed. Read-only, under progress.read, unpaginated.
+    Route::get('students/{id}/assignments', [StudentAssignmentController::class, 'index']);
 });
 
