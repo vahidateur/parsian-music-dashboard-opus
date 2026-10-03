@@ -356,9 +356,14 @@ enrollments, **sessions** and **attendance**. Everything built so far is contrac
 The backend now ALSO covers **organization settings** (`GET`/`PATCH /organization`) — see the
 Organization settings slice below.
 
-Still unbuilt, all of it outside the slices built so far: library/resources, progress, finance,
+The backend now ALSO covers **library resources** (`GET|POST /resources` and
+`GET|PATCH|DELETE /resources/{id}`) — metadata only, see the Library resources slice below.
+
+Still unbuilt, all of it outside the slices built so far: progress, finance,
 reports, instruments, learning, tickets, chat, files/media, notifications (PB-5), audit events
-(O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal.
+(O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal. **Binary storage for
+library resources** (upload, download, signed URLs) is deliberately not built — see limitation 8
+of the Library slice.
 
 PB-1..PB-5 were **resolved by the owner on 2026-10-02, all option A** (see DECISIONS.md §26 and the
 PB-isolation map). They are no longer open: each option A keeps the behaviour that was already
@@ -914,3 +919,225 @@ portal, finance or reports.
 3. `cancellationGraceHours`, `maxMakeupsPerTerm` and `defaultSessionMinutes` are now
    stored authoritatively but are not yet read by any server rule — the cancellation
    window and make-up ceiling are still frontend-side.
+
+---
+
+## Slice 5 — Library resources (BUILT AND VERIFIED — METADATA ONLY)
+
+Built by explicit owner authorization, after the Organization settings slice. Starting SHA
+`adf5c0674d979fe7df871a55698f728bf53fe335`; ending SHA `d422a8f`.
+
+### 1. Provenance — the contract was not invented
+
+The contract was read from `src/domains/library/` **before** any backend code was written, and is
+recorded in §16 above ("Library / resources — contract inventory"). Summary of what pinned it down:
+
+- `apiRepository.ts` — `RESOURCE = "resources"`, the five verbs, and `toQuery()`'s parameter list
+  (`search`, `kind`, `instrument`, `level`, `visibility`, `sort`, `page`, `per_page`).
+- `types.ts` — `Resource` / `LibraryItem` field names and the `CreateLibraryItemInput` /
+  `UpdateLibraryItemInput` shapes.
+- `localRepository.ts` — filter semantics, validation bounds, and the derived display labels.
+- `__tests__/apiRepository.test.ts` — `RESOURCE_NOT_FOUND` (404) and `RESOURCE_INVALID` (422 with
+  `error.fields`), and the exact-shape assertion on `title`/`kind`/`instrument`/`level`/`size`.
+- `docs/frontend-completion/06-library-gallery-spec.md` — binary storage, signed URLs, per-object
+  auth and virus scanning are all classified **"Contract Now Backend Later (B)"**.
+
+No contradiction was found between the frontend contract and backend conventions. The one place a
+mismatch could have hidden — the error family — resolved cleanly: `LIBRARY_ITEM_*` is used only by
+the demo adapter and never reaches the network, so the server's `RESOURCE_*` (which also matches
+the existing `<ENTITY>_NOT_FOUND` / `<ENTITY>_INVALID` convention) is the correct wire family.
+
+### 2. Files added
+
+| File | Role |
+| --- | --- |
+| `app/Models/Resource.php` | model; `resources` table, string key, `BelongsToOrganization` |
+| `app/Domain/Library/ResourcePolicy.php` | the only authorization decision, `library.read` / `library.write` |
+| `app/Domain/Library/ResourceService.php` | tenant-scoped list/get/create/update/delete |
+| `app/Domain/Library/ResourceRules.php` | field limits and vocabularies |
+| `app/Domain/Library/ResourcePresenter.php` | Persian display projections (mirrors the client's own helpers) |
+| `app/Http/Requests/Library/ListResourcesRequest.php` | query validation, authorizes read first |
+| `app/Http/Requests/Library/StoreResourceRequest.php` | `CreateLibraryItemInput` |
+| `app/Http/Requests/Library/UpdateResourceRequest.php` | `UpdateLibraryItemInput` |
+| `app/Http/Resources/ResourceResource.php` | camelCase wire shape = TS `LibraryItem` |
+| `app/Http/Controllers/Api/V1/ResourceController.php` | thin; policy first, then service |
+| `database/factories/ResourceFactory.php` | test fixture |
+| `database/migrations/2026_10_03_090000_create_resources_table.php` | schema |
+| `tests/Feature/ResourceTest.php` | 23 test methods (33 cases with the data provider) |
+
+Modified: `routes/api.php` (five routes in the existing `auth:sanctum` + `tenant` group) and
+`app/Http/Requests/TenantRules.php` (added `studentExists()`, alongside the existing
+`teacherExists()`).
+
+### 3. Endpoints
+
+```
+GET    /api/v1/resources             library.read
+POST   /api/v1/resources             library.write
+GET    /api/v1/resources/{id}        library.read
+PATCH  /api/v1/resources/{id}        library.write
+DELETE /api/v1/resources/{id}        library.write
+```
+
+`POST /uploads` and `GET /resources/{id}/download` are **not routed** — see limitation 8.
+
+### 4. Request / response contracts
+
+List → `{ data: [...], meta: { page, per_page, total } }`; get/create/update → `{ data: {...} }`
+(201 on create); delete → 204 with no body.
+
+Wire row (`ResourceResource::toWire`), camelCase: `id`, `title`, `composer`, `teacherId`, `kind`,
+`instrument`, `level`, `size`, `duration`, `pages`, `mediaId`, `peaks`, `visibility`,
+`restrictedToStudentIds`, `active`, `uses`, `added`, `createdAt`.
+
+Optional values are emitted as `null`, never omitted, so a row's shape does not depend on which
+fields were filled in. That is load-bearing for `restrictedToStudentIds`: on the client an absent
+value means "no restriction" while an empty array means "restricted to nobody", and
+`studentCanAccess()` treats them differently — so `null` (not `[]`) carries "no restriction".
+
+`duration` is derived from the persisted `duration_seconds` and `added` from `created_at`, using
+`ResourcePresenter`, which mirrors `sizeLabel()` / `durationLabel()` / `addedLabel()` in
+`localRepository.ts` and `faNum()` in `src/lib/format.ts` label for label.
+
+### 5. Permissions — reused, not invented
+
+`library.read` for the three read verbs, `library.write` for create, update and delete. Both were
+already in the shipped 23-id vocabulary; **no id was added and none was reinterpreted**. The
+vocabulary is still exactly 23 ids in `backend/config/permissions.php` — no `library.admin`,
+`resource.*` or `resources.*`.
+
+Resulting matrix, asserted by tests rather than assumed:
+
+| role | read | write |
+| --- | --- | --- |
+| administrator | allow | allow |
+| manager | allow | allow |
+| teacher | allow | 403 `library.write` |
+| staff | allow | 403 `library.write` |
+| accountant | 403 `library.read` | 403 `library.write` |
+
+`library.write` is **not** taken to imply `library.read`; the two are checked independently. The
+write check runs before the read check, so a forbidden write names `library.write` in
+`error.permission`. Authorization also precedes validation, so a caller without the permission gets
+403 and never a 422 — validation is not an oracle.
+
+Nothing inspects `teacher_id` for authorization: in the client contract it is provenance ("who
+contributed this"), and it is independent of `composer`.
+
+### 6. Tenancy
+
+Reuses `TenantContext` through the shared `BelongsToOrganization` global scope — no new tenancy
+model. Reads are constrained to the caller's organization, and with no resolved tenant the scope
+matches nothing (fail closed). New rows take `organization_id` from the context; no request body or
+query parameter can supply one.
+
+Referential validation is tenant-scoped too. `Rule::exists` was deliberately **not** used, because
+it queries the table directly and would accept another organization's teacher or student. The
+request uses `TenantRules::teacherExists()` (existing) and `TenantRules::studentExists()` (added),
+both of which go through the scoped model.
+
+Proven by: list returns only the caller's rows; get/patch/delete of another organization's id is
+404 `RESOURCE_NOT_FOUND` (not 403) for an actor who holds **both** permissions, and the row survives
+untouched for its real owner; and a cross-tenant teacher or student reference is a 422.
+
+### 7. Migrations
+
+`2026_10_03_090000_create_resources_table.php` — `id` (string PK), `organization_id` (indexed,
+FK cascade), `teacher_id` (nullable, indexed, FK nullOnDelete), `title`, `composer` (default `''`),
+`kind`, `instrument`, `level` (default `''`), `media_id` (nullable, no FK by design), `pages`,
+`duration_seconds`, `peaks` (json), `uses` (default 0), `visibility` (default `students`),
+`restricted_student_ids` (json), `active` (default true), timestamps, plus
+`(organization_id, kind)`, `(organization_id, instrument)` and `(organization_id, visibility)`
+indexes. Typed columns throughout, not a JSON bag.
+
+`size` and `duration` are **not** columns: they are derived display labels.
+
+### 8. Seeding
+
+Not seeded. The demo dataset's 12 resources in `data/dataset/resources.json` are served by the
+client's local repository, which the registry still selects; seeding them would have meant also
+seeding `instruments` and `media`, which have no server presence at all. `migrate:fresh --seed` was
+verified to still succeed with the new table in place (HTTP smoke job).
+
+### 9. Tests executed
+
+`backend/tests/Feature/ResourceTest.php`, run in CI (not locally — there is no PHP in this
+environment). 23 methods, 33 cases with the data provider:
+
+- **authorized read** — administrator, manager, teacher, staff all get 200.
+- **unauthorized read** — accountant gets 403 naming `library.read`.
+- **authorized write** — administrator and manager get 201.
+- **unauthorized write** — teacher, staff, accountant get 403 naming `library.write`; delete is
+  covered separately (a reader is not an author) and the row is verified untouched.
+- **tenant isolation** — list scoping; get/patch/delete of a foreign row is 404 for a fully
+  privileged actor of another organization; the row survives for its owner; cross-tenant
+  `teacherId` and `restrictedToStudentIds` are 422.
+- **validation** — a data provider of 11 invalid fields, each asserting 422, `RESOURCE_INVALID` and
+  the specific `error.fields` key; plus the same bounds on PATCH.
+- **update** — changes only what was sent, verified against the database as well as the response.
+- **delete** — 204, then `assertDatabaseMissing`, then 404.
+- **exact response shape** — full `assertJsonStructure` plus value assertions, including the five
+  fields the apiRepository contract test pins, the derived `duration` (`۴:۲۰` for 260s), `added`,
+  and the defaults for omitted fields.
+- **error shape** — 404 `RESOURCE_NOT_FOUND` on all three single-row verbs; 422 `RESOURCE_INVALID`
+  with `error.fields`; 401 unauthenticated on all five verbs.
+- **file/storage behavior** — asserted to be **absent**: `GET /resources/{id}/download` and
+  `POST /uploads` are both 404.
+- **behaviour mirroring the local repository** — filters (kind, instrument, level, visibility),
+  search across title/composer/level and teacher-name-through-`teacher_id`, sort (`title`,
+  `most_used`, default newest-first), and pagination meta including the `per_page` clamp.
+
+### 10. HTTP smoke (CI)
+
+Unchanged and still green. The job runs `migrate:fresh --seed`, which is what proves the new
+migration applies cleanly against a fresh database outside the in-memory test suite. No Library
+step was added: the feature tests already exercise the real middleware stack (Sanctum tokens,
+`auth:sanctum`, `tenant`) and cover authorization, tenant isolation and validation over it.
+
+### 11. Governance decisions relied on
+
+- The permission vocabulary stays at **23** ids; `library.read` / `library.write` are reused as-is
+  (§5). No PB item was reopened.
+- PB-3 remains in force: rooms, instruments, learning and progress are untouched. This slice does
+  **not** create an instruments table, and `instrument` is validated as a free string — see
+  limitation 2.
+- PB-5 remains in force: no notifications domain.
+
+### 12. Known limitations after this slice
+
+1. **Binaries are not implemented.** This slice stores metadata only. `mediaId` is an opaque string
+   reference into the media domain; `POST /uploads` and `GET /resources/{id}/download` are not
+   routed; nothing is uploaded, stored, scanned or served. Consequently `size` always reports the
+   catalogue's unknown marker (`نامشخص`) rather than a real byte count — the server holds no bytes,
+   and inventing a figure would be worse than reporting that it does not know.
+2. **`instrument` is not referentially validated.** `InstrumentId` is an open `string` in the client
+   contract whose validity comes from the academy's instruments collection — and there is no
+   instruments table on the server (PB-3). So the field is checked for shape and length only. A
+   closed enum here would have been invented policy.
+3. **`level` is a descriptive string**, not a foreign key — this is the client's own O-02 decision
+   (2026-09-21), recorded in `06-library-gallery-spec.md`, and the slice follows it.
+4. **`uses` is always 0.** The count grows on a download, which needs the endpoint this slice does
+   not build (the spec lists "uses count increment on download" as back-end-later). It is accepted
+   as a stored column and is explicitly not settable through the API.
+5. **Per-student eligibility is stored but not enforced.** `restrictedToStudentIds` and `visibility`
+   are persisted and served, but no server rule reads them: `studentCanAccess()` is the client's
+   single access rule and is a pure function of the row. Enforcement belongs to the learning
+   domain, which is out of scope. The rows are honest — the server does not claim to authorize
+   per-student access.
+6. **The registry still selects `LocalLibraryRepository`.** Flipping it to
+   `ApiLibraryRepository` is a frontend change, out of scope for this slice. `apiRepository.test.ts`
+   asserts that registry default, and it still passes.
+7. **Search uses SQL `LIKE` without wildcard escaping**, so a `%` or `_` typed into the search box
+   acts as a wildcard rather than a literal. Portable across the supported databases; noted rather
+   than fixed with dialect-specific `ESCAPE` syntax.
+8. **Nothing is seeded** (§8), so a freshly seeded server has an empty catalogue.
+
+### 13. Exact next unfinished task
+
+None authorized. The Library slice is complete within the scope that was authorized, and the
+instruction was to stop after it.
+
+The next unbuilt backend slice would be **progress**, which is blocked: its `apiRepository.ts`
+exists but `progress.read` / `progress.write` are not in the vocabulary, so it needs a governance
+decision first. The same is true of `instruments.*` and `learning.*`. Finance, reports, tickets,
+chat, files/media, notifications, Telegram/Bale/push and the student portal remain out of scope.

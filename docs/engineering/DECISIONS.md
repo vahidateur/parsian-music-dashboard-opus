@@ -2229,6 +2229,48 @@ settings rather than a hard-coded value.
 
 **Status.** ✅ In force — 2026-10-03.
 
+## 28. Library resources — the slice is metadata-only, and the bytes stay behind a declared boundary
+
+**Context.** `src/domains/library/apiRepository.ts` was written with five metadata verbs
+(`GET|POST /resources`, `GET|PATCH|DELETE /resources/{id}`) and declares two file endpoints —
+`POST /uploads` and `GET /resources/{id}/download` — that it explicitly does **not** call, because
+its `ApiClient` is JSON-only. A contract test asserts those two paths are never hit.
+`src/domains/library/repository.ts` states that bytes are not part of the contract.
+`docs/frontend-completion/06-library-gallery-spec.md` classifies the binary storage provider,
+signed URLs, per-object auth and virus scanning as **"Contract Now Backend Later (B)"**.
+
+That left a real question: does implementing `/resources` mean also implementing upload and
+download? Building storage would have meant inventing a provider, an access model for signed URLs
+and a scanning policy — none of which the repository requires and all of which are governance
+decisions, not implementation details.
+
+**Decision.** The slice is **metadata-only**. `mediaId` is persisted as an opaque string reference
+into the media domain. `POST /uploads` and `GET /resources/{id}/download` are **not routed**, and no
+storage provider, signed URL, per-object authorization or scanning is introduced. Because the
+server therefore holds no bytes, `size` is **not** a column: every row reports the catalogue's own
+unknown marker (`نامشخص`), the same value `localRepository.ts` emits when a row has no media asset.
+
+**Why.** Reporting "unknown" is the honest answer and the contract already defines it; a fabricated
+byte count would be a number the server cannot defend. This is the same rule that governs every
+other derived figure in this codebase — an absent measurement is not a zero measurement, and
+«نامشخص» is not «۰».
+
+**Consequence, deliberate.** `uses` is stored but permanently 0 for now, because the count grows on
+a download and that endpoint is not built (the spec lists "uses count increment on download" as
+back-end-later too). `instrument` is validated for shape but not existence, because `InstrumentId`
+is an open `string` whose validity comes from the academy's instruments collection and no
+instruments table exists on the server (PB-3). Both are recorded as limitations rather than papered
+over, and neither is presented as implemented behaviour.
+
+**Enforced by.** `ResourceService` (no byte handling, `uses` set to 0 on create and not in the
+writable column map); `ResourceResource::toWire` (calls `ResourcePresenter::sizeLabel(null)`);
+`routes/api.php` (no `uploads` or `download` route, with the omission explained in a comment);
+`ResourceTest::test_the_file_endpoints_are_not_part_of_this_slice` asserts **both** paths are 404;
+`test_uses_is_not_a_settable_field` asserts a posted `uses` is ignored;
+`test_create_returns_the_exact_contract_shape` asserts `size === 'نامشخص'`.
+
+**Status.** ✅ In force — 2026-10-03.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

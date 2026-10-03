@@ -1,5 +1,75 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-03, Library / resources slice (metadata only).**
+> This supersedes the Organization settings pointer below as the work order. It deletes
+> nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        adf5c0674d979fe7df871a55698f728bf53fe335
+> RESULTING SHA: d422a8f  (commits cb5adf3, d422a8f)
+>
+> AUTHORIZED: the Library / resources backend slice only. PB-1..PB-5 were NOT
+> reopened and were not reinterpreted. Nothing was started for Organization
+> settings (already built), working hours, progress, instruments, learning, rooms,
+> notifications, Telegram, Bale, push, the student portal, finance or reports.
+> NO new permission id was created — the vocabulary is still exactly the 23 ids in
+> backend/config/permissions.php. No unrelated frontend change was made.
+>
+> COMMITS, in order:
+>   cb5adf3  feat(backend): implement Library resources slice
+>   d422a8f  fix(backend): generate resource ids and refuse unknown sort keys
+>
+> ENDPOINTS (read from src/domains/library/apiRepository.ts, not invented):
+>   GET    /api/v1/resources           library.read
+>   POST   /api/v1/resources           library.write
+>   GET    /api/v1/resources/{id}      library.read
+>   PATCH  /api/v1/resources/{id}      library.write
+>   DELETE /api/v1/resources/{id}      library.write
+>   query: search, kind, instrument, level, visibility, sort, page, per_page
+>   errors: RESOURCE_NOT_FOUND (404), RESOURCE_INVALID (422 with error.fields)
+>
+> NOT BUILT, deliberately — see DECISIONS.md §28:
+>   POST /uploads and GET /resources/{id}/download are NOT routed. The slice is
+>   metadata-only and mediaId is an opaque reference into the media domain; the
+>   spec classifies storage, signed URLs, per-object auth and scanning as
+>   back-end-later. `size` is therefore always the catalogue's unknown marker
+>   (نامشخص) — the server holds no bytes, and no figure is fabricated. `uses`
+>   stays 0 for the same reason: it only grows on a download.
+>   Do NOT report upload or download as implemented.
+>
+> TENANCY: TenantContext via the shared BelongsToOrganization global scope. No
+> request-supplied organization_id. Cross-tenant references are refused —
+> Rule::exists was deliberately NOT used because it bypasses Eloquent scopes;
+> TenantRules::teacherExists() / studentExists() scope to the caller's org.
+>
+> TESTS: backend/tests/Feature/ResourceTest.php — 23 methods, 33 cases with the
+> data provider. Authorized + unauthorized read and write, tenant isolation on
+> list/get/patch/delete (404, not 403, for a fully privileged foreign actor),
+> cross-tenant references, validation (11-case provider), update, delete, exact
+> response shape, error shapes, filters, search, sort, pagination, and the binary
+> boundary (both file paths asserted 404).
+>
+> CI: run 37122492289 — PHP 8.3 test suite SUCCESS, HTTP smoke SUCCESS.
+>   Backend tally: 217 passed / 1475 assertions / 0 failed (was 184 / 1241).
+>   PHP lint clean. Frontend: 14 failed | 2638 passed | 18 skipped (2670) —
+>   identical to the accepted baseline (10 proven-pre-existing
+>   schedulingGeneration + the 4 recorded: m10Boundary, honestWriteCopy x2,
+>   emptyEnvironmentPanels). Typecheck exit 0. No frontend file was changed.
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> PROTECTED REFS unchanged: main 15775ea9…, docs/demo-migration-plan 1b233362…,
+>   backup/pre-f2-2026-09-29 62deb84d…. Pushed fast-forward only: no force, no
+>   rebase, no reset, no history rewrite.
+>
+> EXACT NEXT UNFINISHED TASK: none authorized — stop after Library. The next
+> unbuilt slice is progress, which is BLOCKED: its apiRepository.ts exists but
+> progress.read / progress.write are not in the vocabulary, so it needs a
+> governance decision first. The same is true of instruments.* and learning.*.
+> ```
+
 > **LIVE POINTER — 2026-10-03, Organization settings + working-hours slice.**
 > This supersedes the 2026-10-02 Phase B pointer below as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.
