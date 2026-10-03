@@ -687,7 +687,10 @@ class ProgressTest extends TestCase
             ->json('data.closedAt');
         $this->assertNotNull($firstClosedAt);
 
-        $this->travel(2)->days();
+        // Advance the clock so a later closure is distinguishable, but stay
+        // well inside the Sanctum token lifetime (720 minutes) — travelling
+        // past it would expire the token and turn this into a 401 test.
+        $this->travel(5)->minutes();
 
         // Still closed — a second close must not move the date.
         $this->patchJson(self::ASSIGNMENTS.'/'.$id, ['status' => 'abandoned'])
