@@ -1618,11 +1618,26 @@ recovery and the zero-record tests both remaining green.
   credentials restored, `gh workflow run` returns **HTTP 403 Resource not accessible by
   integration** (the App token has read-only Actions access) and `gh run rerun` is refused for that
   run. **Backend CI is therefore still red at `57dbfc2`.**
-- **Done when:** either the reschedule candidate carries its own `id` so `overlappingSessions()`
-  excludes it (a **behaviour** change to a protected scheduling path, needing authorization — it
-  also alters the semantics of "conflicts with itself" for every other caller), or the fixture pins
-  a date the 30-day draw cannot reach. Recorded rather than fixed; compare **I19**, the frontend
-  analogue in the same area.
+- **`reschedule()` is the ONLY path that should carry an `id` and does not — so the fix restores
+  the codebase's own convention rather than inventing semantics.** Enumerating every `$candidate`
+  built in `SessionService.php`: `create` → no `id` (**correct**, there is nothing to exclude);
+  `update` → **carries `'id' => $session->id`** (`SessionService.php:145`); `reschedule` → **no
+  `id`** (`SessionService.php:228-234`), the sole exception. `SessionGenerator.php:296` likewise
+  passes `['id' => $change['sessionId'], ...]`. So id-exclusion is the established, intended
+  mechanism, and `reschedule()` is the one call site that omits it.
+- **RECORD CORRECTION (2026-10-03).** An earlier version of this item described adding `'id'` to
+  the reschedule candidate as "a behaviour change … it also alters the semantics of 'conflicts with
+  itself' for every other caller". **That is wrong** and is corrected here: every other caller
+  operating on an existing session already passes `id`, so the change would align `reschedule()`
+  with existing behaviour rather than alter shared semantics. The risk of the fix is therefore
+  materially lower than this item previously stated.
+- **Done when:** either the reschedule candidate carries `'id' => $original->id` (a one-line change
+  to a protected scheduling path, **still needing owner authorization** — it is out of scope for
+  Progress and was not made), or the fixture pins a date the 30-day draw cannot reach. Recorded
+  rather than fixed; compare **I19**, the frontend analogue in the same area.
+- **Related finding, NOT acted on:** if the sibling pit exists elsewhere it would look the same —
+  an `$candidate` for an existing session without an `id`. The enumeration above found exactly one
+  such site, so no second instance is currently known.
 - **Status:** recorded 2026-10-03 as not started, not owned by Progress slice 2. Classification
   **Category D (pre-existing / flaky)** is now **proven**, not asserted — see the reproduction and
   the three proofs above. **Consequence: backend CI at `57dbfc2` is red on this test alone
