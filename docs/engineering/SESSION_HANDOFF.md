@@ -1,5 +1,108 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-03, Organization settings + working-hours slice.**
+> This supersedes the 2026-10-02 Phase B pointer below as the work order. It deletes
+> nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        83b177fe5577ce3f646e62bdc6c0e61e3ff58324
+> RESULTING SHA: f7ca27981d31dc6348a8ac4bb523ef29bf6767ca
+>
+> AUTHORIZED: the Organization settings slice only. PB-1..PB-5 were NOT reopened
+> and were not reinterpreted; nothing was started for Telegram, Push, the student
+> portal, notifications, finance or reports.
+>
+> COMMITS, in order:
+>   2d768c2  feat(backend): Organization settings slice, GET/PATCH /organization
+>   f7ca279  fix(backend): complete the organization factory; correct three test expectations
+>
+> WHAT WAS BUILT — the server counterpart of the existing frontend architecture:
+>   GET  /organization   settings.read    -> { data: OrganizationSettings }
+>   PATCH /organization  settings.write   -> { data: OrganizationSettings }
+>   Storage: the settings columns live ON `organizations`, not beside it. One
+>            academy, one rule set, one row — so `organizations.name` is the
+>            single source of `OrganizationSettings.name`, and the row is always
+>            loaded by whereKey(TenantContext). Isolation is structural: another
+>            tenant's settings are never queried, not merely filtered out.
+>   Rules:   OrganizationRules is the server copy of rules.ts (workingWindow,
+>            isInsideWorkingHours, closedWeekdays, gapMinutes, schedulingRules).
+>            Same arithmetic, same fields, same "unreadable rule answers null".
+>   Conflicts: SESSION_OUTSIDE_WORKING_HOURS and SESSION_TIGHT_TURNAROUND — the
+>            two kinds this file's limitation 1 recorded as unevaluated — are now
+>            emitted as WARNINGS, per conflicts.ts, appended last so no existing
+>            caller's first warning moves.
+>
+> PERMISSIONS — only ids already in the shipped 23-id vocabulary:
+>   settings.read, settings.write. No organization.*, no working_hours.*, and no
+>   neighbouring permission borrowed. The administrator alone holds settings.write;
+>   the manager holds settings.read. That asymmetry is asserted, not assumed.
+>   TENANCY — TenantContext + BelongsToOrganization, unchanged. No new seam.
+>
+> EXECUTED, NOT ASSUMED — CI run 37119421685 on f7ca279:
+>   php artisan test  ->  Tests: 184 passed (1241 assertions), 0 failed
+>                         (was 160 passed / 1114 assertions)
+>   HTTP smoke        ->  T-02 OK, PB-1 OK, PB-3 OK, Scheduling + Attendance OK,
+>                         no-token 401 OK. backend-test-tally + backend-http-smoke
+>                         both success.
+>   PHP syntax lint   ->  177 PHP files, 0 syntax errors
+>   npm run typecheck ->  exit 0
+>   npm test          ->  2638 passed / 14 failed / 18 skipped (2670), 4 of 204
+>                         files failing. See the FRONTEND note below for why the
+>                         extra 10 are not this slice's.
+>
+>   WARNING: 2d768c2 alone is RED (4 failed). f7ca279 is the fix and is green.
+>            Do not stop at 2d768c2.
+>
+> MAIN: 15775ea9486cb57fbfb8fefa3268658cbe7eb669 — UNTOUCHED. Do not merge.
+> PROTECTED REFS unchanged: main 15775ea9…, docs/demo-migration-plan 1b233362…,
+>   backup/pre-f2-2026-09-29 62deb84d…. Pushed fast-forward only: no force, no
+>   rebase, no reset, no history rewrite, no amended pushed commit.
+>
+> EXACT NEXT UNFINISHED TASK (still NOT authorized):
+>   Library / resources — library.read and library.write already exist in the
+>   vocabulary and src/domains/library/apiRepository.ts is written, so it needs
+>   no governance decision to begin. After that, progress / instruments / learning
+>   remain blocked: their permissions are not in the vocabulary.
+> ```
+>
+> ### FRONTEND — read this before reporting a frontend regression
+>
+> The frontend suite does NOT match the recorded 2648/4/18 baseline. It is
+> **2638 passed / 14 failed / 18 skipped** (2670 tests, 204 files):
+>
+>     10  src/views/__tests__/schedulingGeneration.test.tsx  <- NOT this slice
+>      2  src/views/__tests__/honestWriteCopy.test.tsx       <- recorded pre-existing
+>      1  src/domains/shared/__tests__/emptyEnvironmentPanels.test.tsx  <- recorded
+>      1  src/__tests__/m10Boundary.test.ts                  <- recorded pre-existing
+>
+> The 4 recorded ones are untouched. This slice did not cause the remaining 10:
+> `git diff 83b177f..f7ca279` touches **backend/ only** — not one frontend source
+> file, test or config.
+>
+> Two things move the number:
+>
+> 1. **A SHALLOW CLONE** adds 9 failures in `projectState.test.ts`, which asserts
+>    that checkpoint and preserved-branch SHAs are real objects. Fix, in order:
+>      git fetch --unshallow
+>      git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+>      git fetch origin --tags
+>    After that the file is 52/52. A shallow-clone run is NOT a regression.
+>
+> 2. **`src/views/__tests__/schedulingGeneration.test.tsx` fails 10 of 15** in this
+>    environment. **Proven not to be this slice's doing:** the file is byte-identical
+>    at 83b177f and at f7ca279, and running it in a clean worktree at the PRE-SLICE
+>    commit 83b177f reproduces the identical 10 failed / 5 passed. It is also
+>    stable across clocks (verified at UTC+14, UTC-11, UTC-5 and UTC+3:30), so it
+>    is not a weekday or time-of-day flake — it is an environment-dependent
+>    failure that appeared between the 2026-10-02 baseline run and now. Not fixed
+>    here: it is a frontend test outside this slice's authorization.
+>
+> The four recorded pre-existing failures (m10Boundary/Finance.tsx, honestWriteCopy
+> x2, emptyEnvironmentPanels) were NOT touched.
+
 > **LIVE POINTER — 2026-10-02, Phase B governance resolution (PB-1..PB-5) and PB-1 enforcement.**
 > This supersedes the 2026-10-01 Scheduling + Attendance pointer below as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.
@@ -80,6 +183,8 @@
 >   backup/pre-f2-2026-09-29 62deb84d…. Pushed fast-forward only: no force, no rebase,
 >   no reset, no history rewrite.
 >
+> **[SUPERSEDED 2026-10-03 — Organization settings is BUILT; see the live pointer above.**
+> The line below is the 2026-10-02 record and is kept as history.]**
 > EXACT NEXT UNFINISHED TASK (still NOT authorized):
 >   Organization settings — GET /organization and PATCH /organization under
 >   settings.read / settings.write. Unchanged from the pointer below; it still

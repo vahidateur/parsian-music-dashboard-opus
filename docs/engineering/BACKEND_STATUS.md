@@ -115,6 +115,8 @@ calls the domain policy before validation so 403 precedes 422) → application s
 |---|---|---|
 | `POST auth/login` | public, throttled 5/min per email+IP (429 `RATE_LIMITED`) | 401 `AUTH_INVALID_CREDENTIALS`, 403 `AUTH_USER_DISABLED` / `ORGANIZATION_SUSPENDED` |
 | `POST auth/logout`, `GET auth/me` | authenticated | `me` returns `token: ""` |
+| `GET organization` | `settings.read` | one record, the caller's own organization |
+| `PATCH organization` | `settings.write` | partial patch; 422 `ORGANIZATION_INVALID` with `error.fields` |
 | `GET users`, `GET users/{id}`, `GET users/{id}/password` | `users.read` | |
 | `POST users`, `PATCH users/{id}`, `DELETE users/{id}`, `POST users/{id}/password` | `users.write` + `PrivilegedIdentityPolicy` (PB-2) | 409 `USER_EMAIL_TAKEN`; password body `{password}` only |
 | `GET roles`, `GET roles/{id}` | authenticated org member (see "Flagged for owner review") | |
@@ -351,13 +353,17 @@ enrollments, **sessions** and **attendance**. Everything built so far is contrac
 `SESSION_HANDOFF.md` §10 and is covered by a re-runnable CI gate
 (`.github/workflows/backend-tests.yml`). Nothing in it needs rebuilding.
 
-Still unbuilt, all of it outside the slices built so far: organization settings, library/resources,
-progress, finance, reports, instruments, learning, tickets, chat, files/media, notifications (PB-5),
-audit events (O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal.
+The backend now ALSO covers **organization settings** (`GET`/`PATCH /organization`) — see the
+Organization settings slice below.
 
-All PB-1..PB-5 decisions remain with the owner. The backend implements each of them **fail-closed**
-where it applies — see the PB-isolation map — and the HTTP smoke job proves that over the wire. It
-does not decide any of them.
+Still unbuilt, all of it outside the slices built so far: library/resources, progress, finance,
+reports, instruments, learning, tickets, chat, files/media, notifications (PB-5), audit events
+(O-18), MFA, cookie transport (O-12), Telegram/Bale/push, student portal.
+
+PB-1..PB-5 were **resolved by the owner on 2026-10-02, all option A** (see DECISIONS.md §26 and the
+PB-isolation map). They are no longer open: each option A keeps the behaviour that was already
+implemented, so the `403 OWNER_DECISION_REQUIRED_PB<n>` answers are the expected and final ones, and
+the HTTP smoke job proves them over the wire.
 
 ---
 
@@ -655,13 +661,13 @@ No frontend source was changed by this slice, but both gates were run rather tha
 
 ### 14. Known limitations
 
-1. **`SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are not evaluated.** The rules
-   themselves exist in `src/domains/organization/rules.ts` (`workingDayStart`, `workingDayEnd`,
-   `closedWeekdays`), but there is no server-side store of them: `ApiOrganizationRepository` is
-   written and marked BACKEND REQUIRED for `GET/PATCH /organization`, yet no endpoint serves it, so
-   the registry still selects the local repository. Evaluating the two kinds server-side requires
-   the Organization settings slice first. (An earlier version of this note claimed the academy had no
-   working-hours domain at all; that was wrong and is corrected here.)
+1. ~~`SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are not evaluated.~~ **RESOLVED
+   2026-10-03 by the Organization settings slice.** Both kinds are now evaluated server-side against
+   `OrganizationRules`, the server copy of `src/domains/organization/rules.ts`, and both are emitted
+   as WARNINGS — never as hard conflicts — exactly as `src/domains/scheduling/conflicts.ts`
+   classifies them ("a session outside it is a warning, never a refusal"). A rule that cannot be read
+   is NOT emitted. (An earlier version of this note claimed the academy had no working-hours domain at
+   all; that was wrong and was corrected here.)
 2. **Room/teacher double-booking is enforced transactionally, not by a DB constraint.** An
    exclusive-end time range cannot be expressed as a UNIQUE index, so the check is re-run inside the
    write transaction. `UNIQUE(session_id, student_id)` *is* a real constraint; the schedule
@@ -681,7 +687,8 @@ No frontend source was changed by this slice, but both gates were run rather tha
 
 ### 15. Unresolved
 
-- PB-1..PB-5, all with the owner.
+- ~~PB-1..PB-5, all with the owner.~~ **Resolved 2026-10-02, all option A** — see DECISIONS.md §26.
+  Nothing here reopens them.
 - The enrollment date format (limitation 3), which also blocks the `O-` items recorded in
   `OPEN_ITEMS.md`.
 - Whether a teacher should be able to author the schedule at all. The shipped vocabulary says no
@@ -690,10 +697,15 @@ No frontend source was changed by this slice, but both gates were run rather tha
 
 ### 16. Exact next unfinished task
 
-Per this document's own ordering, the next slice is **Organization settings** — `GET /organization`
-and `PATCH /organization`, using `settings.read` / `settings.write`, against the contract already
-written in `src/domains/organization/apiRepository.ts` (which is explicitly marked BACKEND REQUIRED
-and is not yet selected by the registry).
+**DONE 2026-10-03.** `GET /organization` and `PATCH /organization` exist, using `settings.read` /
+`settings.write`, against the contract in `src/domains/organization/apiRepository.ts`.
+
+The next slice after it is **Library / resources** — `library.read` and `library.write` are already
+in the vocabulary and `src/domains/library/apiRepository.ts` is written, so it needs no governance
+decision to begin. It is not authorized yet.
+
+For the record, the ordering that pointed here was: Organization settings came first because it is
+the earliest item on the plan's "After" list that the standing scope constraints do not exclude
 
 It is the right next step for two reasons beyond ordering: it is the first item on the plan's
 "After" list that is not excluded by the standing scope constraints (tickets, chat, files,
@@ -728,3 +740,135 @@ npm ci
 npm run typecheck
 npm test
 ```
+
+---
+
+## Slice 4 — Organization settings (BUILT AND VERIFIED)
+
+### 1. Provenance
+
+Authorized by the owner on 2026-10-03 as the next unfinished backend slice, and
+named by this document's own §16 as exactly that task. The contract was already
+written and waiting: `src/domains/organization/apiRepository.ts` is marked
+**BACKEND REQUIRED** for `GET /organization` and `PATCH /organization`, and
+`ApiOrganizationRepository` was unselected by the registry only because no
+endpoint existed. This slice builds the endpoint the contract describes; it does
+not invent a second organization-settings architecture or a parallel rules engine.
+
+### 2. Files added
+
+| File | Role |
+|---|---|
+| `app/Domain/Organization/OrganizationPolicy.php` | `settings.read` / `settings.write` via `PermissionGate` |
+| `app/Domain/Organization/OrganizationRules.php` | server copy of `src/domains/organization/rules.ts` |
+| `app/Domain/Organization/OrganizationService.php` | tenant-scoped read and partial patch |
+| `app/Http/Controllers/Api/V1/OrganizationController.php` | `show` / `update` |
+| `app/Http/Requests/Organization/UpdateOrganizationRequest.php` | validation, incl. the stored-pair rule |
+| `app/Http/Resources/OrganizationResource.php` | camelCase wire shape = TS `OrganizationSettings` |
+| `database/migrations/2026_10_02_140000_add_settings_to_organizations_table.php` | the settings columns |
+| `tests/Feature/OrganizationTest.php` | 24 tests |
+
+Modified: `routes/api.php`, `app/Models/Organization.php`,
+`app/Domain/Scheduling/ConflictDetector.php`, `ConflictReport.php`,
+`database/seeders/DemoDatasetSeeder.php`, `database/factories/OrganizationFactory.php`,
+`tests/Feature/SchedulingTest.php`.
+
+### 3. Endpoints
+
+`GET /organization` (`settings.read`) and `PATCH /organization` (`settings.write`).
+One record, two verbs — no list, no delete, no `/organization/settings`,
+`/settings/organization` or `/working-hours` alias. "Removing" a rule means
+writing the default back, which `update` already does.
+
+### 4. Request / response contracts
+
+`{ "data": OrganizationSettings }` on both verbs, through the existing envelope.
+Validation failure is `422 ORGANIZATION_INVALID` with an `error.fields` map in the
+same shape the client renders (`validateOrganizationInput()` returns the same keys).
+The policy runs before validation, so an unauthorized caller gets 403 and never a
+422 that would describe a valid body.
+
+### 5. Permissions
+
+`settings.read` and `settings.write` only — both already in the shipped **23**-id
+vocabulary. No `organization.read`, `organization.write`, `working_hours.read` or
+`working_hours.write` was created, and no neighbouring permission was borrowed.
+The shipped vocabulary gives `settings.write` to the administrator **only**; the
+manager holds `settings.read`. That asymmetry is asserted by the tests.
+
+### 6. Tenancy
+
+The settings columns live on `organizations`, not on a side table: an academy has
+exactly one set of rules and exactly one organization row, so the rules ARE the
+tenant record. That keeps a single authoritative source for the academy name and
+makes isolation structural — `OrganizationService` always loads
+`whereKey(TenantContext::organizationId())`, so another organization's settings are
+never queried, not merely filtered out. `BelongsToOrganization` cannot apply here
+because this model has no `organization_id` column. `TenantContext` is unmodified.
+
+### 7. Migrations
+
+One additive migration on `organizations`. Every default is a value from
+`DEFAULT_ORGANIZATION_SETTINGS` (types.ts), not an invented one. `closed_weekdays`
+is nullable on purpose: a row predating the migration has no value, and absent
+means "the shipped default [6]", never "no closed day".
+
+### 8. Seeding
+
+`DemoDatasetSeeder::seedOrganization()` now writes the whole record from
+`data/dataset/organization.json` rather than the name alone, so the seeded academy
+has the rules the dataset states instead of silently falling back to column
+defaults.
+
+### 9. Tests executed
+
+Backend suite: **184 passed (1241 assertions), 0 failed** on `f7ca279`, CI run
+`37119421685` — up from 160 passed (1114 assertions). `OrganizationTest` contributes
+24 tests covering: 401 unauthenticated; `settings.read` and `settings.write` for
+every role; the policy preceding validation; GET defaults; `updatedAt` stamping;
+partial patch leaving untouched fields alone; out-of-bounds rules; a malformed
+clock; the one-sided window patch against the stored other half; whole-window
+acceptance; `closedWeekdays` bounds and membership; enum rejection; tenant
+isolation both over HTTP and at the service boundary; and the derived rules
+(working window, inside/outside, unreadable rule → null, closed-weekday fallback,
+`schedulingRules`, gap read-back).
+
+### 10. Conflict integration
+
+`SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` — the two kinds
+§14.1 recorded as unevaluated for want of this slice — are now emitted by
+`ConflictDetector`, as **warnings**, matching `src/domains/scheduling/conflicts.ts`.
+They are appended last so no existing caller's first warning moves. Turnaround
+compares every non-cancelled same-day session, not only overlapping ones, which is
+what `overlappingSessions()` cannot provide.
+
+**Deliberate behaviour change:** a booking adjacent to an existing session is still
+not a hard conflict, but it is now an advisory turnaround warning (the academy's
+configured gap). `SchedulingTest::test_adjacent_slot_is_not_a_conflict` therefore
+sends `acknowledgeWarnings`; two new tests pin both kinds, and a third proves the
+rule follows the academy's own settings by widening the window and watching the
+same 22:00 booking become unremarkable.
+
+### 11. HTTP smoke
+
+Green on `f7ca279`: T-02 OK, PB-1 OK, PB-3 OK, Scheduling + Attendance OK, no-token
+401 OK. The smoke's own session create already sends `acknowledgeWarnings: true`,
+so the new warnings do not disturb it.
+
+### 12. Governance
+
+PB-1..PB-5 remain resolved as A and are untouched. No permission id was added.
+No unrelated domain was started: no notifications, Telegram, Bale, Push, student
+portal, finance or reports.
+
+### 13. Known limitations after this slice
+
+1. The registry still selects `LocalOrganizationRepository` in every mode. Flipping
+   it to `ApiOrganizationRepository` is a frontend change that was out of this
+   slice's scope, so the panels continue to read the demo store.
+2. `closedWeekdays` is stored and served but still consumes nothing: `SKIP_CLOSED_DAY`
+   remains unemitted (§14.4) and `isClosedWeekday` has no server caller yet. Wiring
+   it into generation is a separate decision, not an oversight of this slice.
+3. `cancellationGraceHours`, `maxMakeupsPerTerm` and `defaultSessionMinutes` are now
+   stored authoritatively but are not yet read by any server rule — the cancellation
+   window and make-up ceiling are still frontend-side.

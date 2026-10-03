@@ -2159,6 +2159,76 @@ stays not started.
 
 ---
 
+## 27. Organization settings — three decisions of the slice
+
+Recorded 2026-10-03 with the Organization settings slice (BACKEND_STATUS.md §Slice 4).
+These are implementation decisions the owner's authorization left open, not new
+product policy: no permission id was created, no rule was reinterpreted, and
+PB-1..PB-5 were not reopened.
+
+### 27.1 The settings ARE the organization row, not a child of it
+
+**Decision.** The `OrganizationSettings` columns live on `organizations`. There is
+no `organization_settings` table.
+
+**Why.** An academy has exactly one set of rules and exactly one organization row,
+so the settings are the tenant record rather than a satellite of it. Two concrete
+consequences drove it: `organizations.name` already is the `name` field of
+`OrganizationSettings`, so a side table would create a second source of truth for
+the academy's name; and `BelongsToOrganization` cannot apply to `organizations`
+(no `organization_id` column exists), so a separate table would have been the only
+scoped model in the codebase without the trait's global scope — the one place where
+a missing `where` clause would leak across tenants. Loading by
+`whereKey(TenantContext::organizationId())` makes isolation structural: another
+organization's settings are never queried, not merely filtered out.
+
+**Enforced by.** `OrganizationService::get()`; `OrganizationTest::test_settings_never_cross_organizations`
+and `test_the_service_scopes_its_row_to_the_tenant_in_context`.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.2 The server copies the existing rules; it does not reinterpret them
+
+**Decision.** `OrganizationRules` is a translation of `src/domains/organization/rules.ts`
+— same fields, same arithmetic, same defaults. No new business semantics.
+
+**Why.** The rules already existed and are already consumed by the frontend; a
+server-side "interpretation" would have produced two answers to one question
+("is this session inside the bookable window?"). The translation keeps the
+frontend's own null-discipline: when a value cannot be read, the rule answers
+`null`, and `null` means "not evaluated", never "allowed".
+
+**Enforced by.** `OrganizationRules`; `OrganizationTest` cases for an unreadable
+clock, a window that closes before it opens, and the closed-weekday fallback.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.3 The two working-hours conflict kinds are WARNINGS, not refusals
+
+**Decision.** `SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are
+emitted as warnings. Neither can block a booking.
+
+**Why.** Taken from evidence, not preference: `src/domains/scheduling/conflicts.ts`
+states "a session outside it is a warning, never a refusal", and
+`academyRules.test.ts` asserts both kinds inside `report.warnings`. The rationale
+that file gives is the one adopted — an academy that stays open late for a concert,
+or a make-up lesson at 21:30, is a real thing that happens, and the rule exists to
+tell the operator what they are doing rather than to police the schedule with a
+number from Settings.
+
+**Consequence, deliberate.** A booking adjacent to an existing session is still not
+a hard conflict, but is now advisory — which is the entire point of
+`sessionGapMinutes`. `SchedulingTest::test_adjacent_slot_is_not_a_conflict` therefore
+sends `acknowledgeWarnings`. Both kinds are appended last in the warnings array, so
+no existing caller's first warning moves.
+
+**Enforced by.** `ConflictDetector::appendOrganizationRuleWarnings()`; three tests
+in `SchedulingTest`, including one that widens the academy's window and watches the
+same 22:00 booking become unremarkable — proving the rule reads the academy's own
+settings rather than a hard-coded value.
+
+**Status.** ✅ In force — 2026-10-03.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and
