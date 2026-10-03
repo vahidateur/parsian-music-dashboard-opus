@@ -39,6 +39,7 @@ import type { InstrumentRepository } from "./instruments/repository";
 import type { LearningRepository } from "./learning/repository";
 import type { ChatRepository } from "./chat/repository";
 import type { MediaRepository } from "./media/repository";
+import { ApiOrganizationRepository } from "./organization/apiRepository";
 import type { LibraryRepository } from "./library/repository";
 import type { BrandingRepository } from "./branding/repository";
 import type { OrganizationRepository } from "./organization/repository";
@@ -47,6 +48,7 @@ import type { ProgressRepository } from "@/domains/progress/repository";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import type { CompensationRepository } from "@/domains/compensation/repository";
+import { ApiProgressRepository } from "@/domains/progress/apiRepository";
 import { createUnavailableRepository } from "@/domains/shared/unavailableRepository";
 import { UNAVAILABLE_DOMAINS, type UnavailableDomain } from "@/domains/shared/unavailableDomains";
 
@@ -147,6 +149,31 @@ export function getEnrollmentRepository(): EnrollmentRepository {
   return new ApiEnrollmentRepository(getApiClient());
 }
 
+/*
+ * Progress — served since 2026-10-03 (DECISIONS.md §29 and §30).
+ *
+ * The backend exposes 14 authorized endpoints under `progress.read` /
+ * `progress.write`, and the wire shapes match the TS types field-for-field
+ * (`Piece`, `PieceAssignment`, `ProgressEvent` and the nested
+ * `ProgressSnapshot`, plus `AssignmentWithPiece`). Contract verification
+ * preceded wiring; the endpoint list is asserted against `routes/api.php`.
+ */
+export function getProgressRepository(): ProgressRepository {
+  if (overrides.progress) return overrides.progress;
+  return new ApiProgressRepository(getApiClient());
+}
+
+/*
+ * Organization — served: `GET` and `PATCH /api/v1/organization`.
+ *
+ * `OrganizationResource` emits exactly the 16 fields of the TS
+ * `OrganizationSettings` interface, with no gaps either way.
+ */
+export function getOrganizationRepository(): OrganizationRepository {
+  if (overrides.organization) return overrides.organization;
+  return new ApiOrganizationRepository(getApiClient());
+}
+
 /* ------------------------------------------------------------------ */
 /* Unavailable domains — explicit DOMAIN_UNAVAILABLE, never demo       */
 /* ------------------------------------------------------------------ */
@@ -169,14 +196,8 @@ export function getLibraryRepository(): LibraryRepository {
 export function getBrandingRepository(): BrandingRepository {
   return overrides.branding ?? unavailable<BrandingRepository>("branding");
 }
-export function getOrganizationRepository(): OrganizationRepository {
-  return overrides.organization ?? unavailable<OrganizationRepository>("organization");
-}
 export function getGalleryRepository(): GalleryRepository {
   return overrides.gallery ?? unavailable<GalleryRepository>("gallery");
-}
-export function getProgressRepository(): ProgressRepository {
-  return overrides.progress ?? unavailable<ProgressRepository>("progress");
 }
 export function getSchedulingRepository(): SchedulingRepository {
   return overrides.scheduling ?? unavailable<SchedulingRepository>("scheduling");
