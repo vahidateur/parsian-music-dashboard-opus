@@ -702,7 +702,49 @@ No frontend source was changed by this slice, but both gates were run rather tha
 
 The next slice after it is **Library / resources** — `library.read` and `library.write` are already
 in the vocabulary and `src/domains/library/apiRepository.ts` is written, so it needs no governance
-decision to begin. It is not authorized yet.
+decision to begin.
+
+#### Library / resources — contract inventory (read-only, recorded 2026-10-03)
+
+Taken from the frontend contract **before** any backend code was written. No contradiction was
+found between the frontend contract and backend conventions.
+
+**Endpoints** (from `src/domains/library/apiRepository.ts`, `RESOURCE = "resources"`):
+
+```
+GET    /api/v1/resources             library.read
+POST   /api/v1/resources             library.write
+GET    /api/v1/resources/{id}        library.read
+PATCH  /api/v1/resources/{id}        library.write
+DELETE /api/v1/resources/{id}        library.write
+```
+
+Query parameters (from `toQuery()`): `search`, `kind`, `instrument`, `level`, `visibility`,
+`sort`, `page`, `per_page`. Response: `{ data: … }` for get/create/update and
+`{ data: […], meta: { page, per_page, total } }` for list.
+
+**Error family on the wire:** `RESOURCE_NOT_FOUND` (404) and `RESOURCE_INVALID` (422, carrying
+`error.fields`). The `LIBRARY_ITEM_*` family in `src/domains/library/localRepository.ts` belongs
+**only** to the demo adapter (covered by `demoRepository.test.ts`) and never reaches the network.
+`RESOURCE_*` also matches the existing backend `<ENTITY>_NOT_FOUND` / `<ENTITY>_INVALID`
+convention, so no new error vocabulary is introduced.
+
+**Exact-shape contract** (`__tests__/apiRepository.test.ts`): every row must carry `title`, `kind`,
+`instrument`, `level` and `size`.
+
+**Persisted fields** (`types.ts` `Resource` + `LibraryItem`): `title`, `composer`, `teacherId`,
+`kind` (`sheet|audio|video|doc`), `instrument`, `level`, `mediaId`, `pages`, `duration` (derived
+from the `durationSeconds` input), `peaks`, `visibility` (`students|teachers`; an absent value
+reads as `students`), `restrictedToStudentIds`, `active`, `uses`, `size`, `added`, `createdAt`.
+
+**Deliberate exclusion — binaries.** `src/domains/library/repository.ts` states that bytes are not
+part of the contract. `apiRepository.ts` documents `POST /uploads` and
+`GET /resources/{id}/download` as the file endpoints but explicitly does **not** call them, and a
+contract test asserts those two paths are never hit. In
+`docs/frontend-completion/06-library-gallery-spec.md`, the binary storage provider, signed URLs,
+per-object auth and virus scanning are all classified **"Contract Now Backend Later (B)"**. This
+slice is therefore **metadata-only**: `mediaId` is persisted as an opaque reference into the media
+domain, and no upload or download endpoint is built.
 
 For the record, the ordering that pointed here was: Organization settings came first because it is
 the earliest item on the plan's "After" list that the standing scope constraints do not exclude

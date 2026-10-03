@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Room;
+use App\Models\Student;
 use App\Models\Teacher;
 use Closure;
 
@@ -21,6 +22,23 @@ final class TenantRules
             }
             if (! is_string($value) || ! Teacher::query()->whereKey($value)->exists()) {
                 $fail('مدرس انتخاب‌شده وجود ندارد.');
+            }
+        };
+    }
+
+    /**
+     * The referenced student must exist in the caller's organization. Used for
+     * `restrictedToStudentIds`, where a cross-tenant id must fail the same way
+     * an unknown one does.
+     */
+    public static function studentExists(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+            if (! is_string($value) || ! Student::query()->whereKey($value)->exists()) {
+                $fail('هنرجوی انتخاب‌شده وجود ندارد.');
             }
         };
     }

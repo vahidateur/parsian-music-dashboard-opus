@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
 use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
 use App\Http\Controllers\Api\V1\SessionController;
@@ -111,5 +112,20 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::get('attendance/corrections', [AttendanceController::class, 'corrections']);
     Route::post('attendance/{id}/correct', [AttendanceController::class, 'correct']);
     Route::get('attendance/{id}', [AttendanceController::class, 'show']);
+
+    /*
+     * Library / resources — src/domains/library/apiRepository.ts.
+     *
+     * METADATA ONLY. The file endpoints the same README names are NOT routed:
+     * `POST /uploads` and `GET /resources/{id}/download` carry the bytes, which
+     * the client contract keeps out of the resource repository and the spec
+     * classifies as back-end-later. `mediaId` is persisted as an opaque
+     * reference into the media domain.
+     */
+    Route::get('resources', [ResourceController::class, 'index']);
+    Route::post('resources', [ResourceController::class, 'store']);
+    Route::get('resources/{id}', [ResourceController::class, 'show']);
+    Route::patch('resources/{id}', [ResourceController::class, 'update']);
+    Route::delete('resources/{id}', [ResourceController::class, 'destroy']);
 });
 
