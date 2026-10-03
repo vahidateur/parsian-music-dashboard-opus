@@ -150,6 +150,14 @@
 >   delete-refuses-with-history guard does not fire because no event table
 >   exists, so deletion is MORE permissive today than the contract intends.
 >
+>   [SUPERSEDED 2026-10-03 — retained as the slice-1 snapshot, not current state.]
+>   Slice 2 (`7cd8c97`, `57dbfc2`) delivered progress-events, progress-overview,
+>   `latest` recomputation and the history guard. Slice 3 (`e605dbc`) delivered
+>   `students/{id}/assignments` as the 14th endpoint (DECISIONS.md §30). Every
+>   Progress endpoint in the contract is now implemented; analytics, plateau,
+>   recommendations and workflow automation remain deferred by contract, with no
+>   placeholder routes. Backend CI green: 316 passed / 0 failed.
+>
 > ROLE MATRIX (asserted, not assumed):
 >   administrator read+write | manager read+write | teacher read+write
 >   staff read only (403 progress.write) | accountant neither (403 progress.read)

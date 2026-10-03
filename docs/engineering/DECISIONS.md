@@ -2332,6 +2332,52 @@ opaque list. This is the same boundary `library.instrument` and `mediaId` sit be
 
 **Status.** ✅ In force — 2026-10-03. Owner-authorized.
 
+## 30. Progress is authorized with a 14th endpoint: `GET /students/{id}/assignments`
+
+**Context.** §29 authorized Progress as a *"complete 13-endpoint contract"*, taking the permission
+vocabulary from 23 to 25. A post-closure audit then found that the contract is in fact 14
+endpoints, and that the 14th is the only contracted route in the whole repository with no server
+implementation:
+
+- `ProgressRepository` (`src/domains/progress/repository.ts:72`) **requires** `studentAssignments()`;
+- `ApiProgressRepository.studentAssignments()` implements it as `GET students/{id}/assignments`;
+- no backend route served it — so the API repository was not a complete implementation of its own
+  interface, even though nothing called it (the registry resolves Progress to
+  `LocalProgressRepository`).
+
+A mechanical comparison of every `apiRepository.ts` against `routes/api.php` — 68 endpoint calls
+across ten domains — returned exactly this one gap. Everything else was already served.
+
+**Decision.** `GET /api/v1/students/{id}/assignments` is authorized as the **14th Progress
+endpoint**, and Progress is now canonically a **14-endpoint** contract. The response is a plain,
+unpaginated `AssignmentWithPiece[]` = `[{assignment, piece|null}]`, ordered `assignedAt` DESC with
+an `id` DESC tie-break. It is read-only: no mutation verb is registered.
+
+**Permissions.** **No new permission.** The endpoint is governed by `progress.read`, which §29
+already created. The vocabulary remains **25**. Nothing else in §29 changes: PB-3 stays Option A
+for instruments and learning, PB-5 stays Option A, TenantContext is untouched, and no new table is
+introduced.
+
+**Why this was not folded into §29 silently.** §29 was numerically explicit — *"13-endpoint
+contract"*, *"Nothing else changes"* — and a frontend contract does not by itself authorize backend
+implementation. The 14th endpoint was therefore surfaced as an owner decision rather than
+implemented on inference. This entry records that decision.
+
+**Scope discipline.** This authorizes **one endpoint**. It does not reopen §29 generally, and does
+not authorize workflow automation, standalone analytics/plateau endpoints, Learning, Instruments,
+Rooms, media/storage, notifications, the student portal, finance, reports, or frontend registry
+wiring.
+
+**Enforced by.** `backend/routes/api.php` (a single `GET`, no mutation verb),
+`backend/app/Http/Controllers/Api/V1/StudentAssignmentController.php`,
+`backend/app/Domain/Progress/ProgressEventService::assignmentsFor()`, and
+`backend/tests/Feature/ProgressEventTest.php` — which covers the happy path, ordering and the id
+tie-break, the empty state, cross-tenant 404, `progress.read` across the §29 role matrix, the
+null-piece serializer branch, exact agreement with the overview, and that POST/PATCH/DELETE are
+405.
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

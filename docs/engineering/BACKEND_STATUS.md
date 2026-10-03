@@ -1159,18 +1159,28 @@ Owner-authorized for v1 on 2026-10-03 (DECISIONS.md §29). Starting SHA
 
 ### 1. Provenance — read before any code was written
 
-The contract came from `src/domains/progress/apiRepository.ts` (13 documented endpoints),
+The contract came from `src/domains/progress/apiRepository.ts` (13 documented endpoints —
+*the header's count; the class implements 14, and the 14th is now built — see DECISIONS.md §30*),
 `types.ts`, `repository.ts` and `localRepository.ts`. No endpoint, field or error code was invented.
 
-One contract inconsistency was found and is recorded rather than papered over:
+One contract inconsistency was found, recorded rather than papered over, and has since been
+resolved:
 
 > `apiRepository.ts` documents **13** endpoints in its header comment, but the class also
 > implements a **14th** — `studentAssignments()` calls `GET students/{id}/assignments`. That path
 > is absent from the header list, is not used by any production UI (its only caller is
 > `src/views/__tests__/studentProfileRegression.test.tsx`, which goes through
 > `getProgressRepository()` and therefore hits the **local** repository, not the API), and is
-> grouped under `/* ---- derived ---- */` in the repository interface. It is **excluded** from this
-> slice and deferred.
+> grouped under `/* ---- derived ---- */` in the repository interface. It was **excluded** from
+> slice 1 and deferred.
+>
+> **[RESOLVED 2026-10-03 — DECISIONS.md §30.]** The post-closure audit confirmed this was the only
+> contracted endpoint in the repository with no server implementation (68 endpoint calls across ten
+> `apiRepository` domains; exactly one gap). The owner authorized it as the **14th Progress
+> endpoint**, implemented in `e605dbc` under the existing `progress.read`. **Progress is now
+> canonically a 14-endpoint contract.** No new permission, no new table, no TenantContext change.
+> The header comment in `apiRepository.ts` still says 13 — that is a **frontend** file and the
+> frontend is frozen, so it is recorded here as known documentation debt rather than corrected.
 
 ### 2. Files added
 
@@ -1228,6 +1238,12 @@ GET    /api/v1/students/{id}/assignments        (derived join — see §1)
 ```
 
 Analytics, plateau detection, recommendations and workflow automation are deferred with them.
+
+**[RESOLVED 2026-10-03 — DECISIONS.md §30.]** All four endpoints above are now implemented: slices
+2 (`progress-events`, `progress-overview`) and 3 (`students/{id}/assignments`, commit `e605dbc`).
+**The Progress surfaced contract is complete.** What remains deferred is *not* an endpoint:
+standalone analytics/plateau-detection routes (the contract defines no path for them — they are
+computed inside the overview) and workflow automation (never authorized, correctly not stubbed).
 
 ### 5. Permissions — 23 → 25, and only those two
 
@@ -1354,7 +1370,9 @@ feature tests already exercise the real middleware stack (Sanctum tokens, `auth:
    presence. No existence check, no binary handling.
 6. **The registry still selects `LocalProgressRepository`.** Flipping it is a frontend change, out
    of scope.
-7. **`students/{id}/assignments` is not implemented** — see the contract inconsistency in §1.
+7. ~~**`students/{id}/assignments` is not implemented** — see the contract inconsistency in §1.~~
+   **[RESOLVED 2026-10-03]** Implemented in `e605dbc` as the 14th Progress endpoint (DECISIONS.md
+   §30), under the existing `progress.read`. This list is otherwise unchanged.
 8. **Pieces require `composer`, `description` and `active` on create**, because the TS
    `CreatePieceInput` type does. That is deliberate contract fidelity, not an oversight.
 9. **Search uses SQL `LIKE` without wildcard escaping**, so `%` or `_` act as wildcards. Portable
@@ -1523,8 +1541,9 @@ in the docblock of `StoreProgressEventRequest` and in the commit message.
 1. **No event can be corrected in place.** By design — append a new event.
 2. **`suggestedContentIds` is always empty** until learning gains server tables (§6).
 3. **The registry still selects `LocalProgressRepository`**; flipping it is a frontend change.
-4. **`students/{id}/assignments` is still not implemented** — see the contract inconsistency in the
-   Slice 6 section, §1.
+4. ~~**`students/{id}/assignments` is still not implemented** — see the contract inconsistency in
+   the Slice 6 section, §1.~~ **[RESOLVED 2026-10-03]** Implemented in `e605dbc` as the 14th
+   Progress endpoint (DECISIONS.md §30), under the existing `progress.read`.
 5. **Analytics and plateau detection have no standalone endpoint.** They are computed inside the
    overview, because the contract defines no path for them. No placeholder route was invented.
 6. **No workflow automation** — never authorized; not stubbed.
