@@ -48,7 +48,12 @@
 >   No workflow automation.
 >
 > TESTS / CI  (remote tip 57dbfc2, verified by git ls-remote):
->   Backend  305 passed, 1 failed. +43 from this slice (262 -> 305), ALL 43 PASSING.
+>   Backend  305 passed, 1 failed (306 executed). This slice added 44 tests
+>   (34 plain + a 10-case provider); 262 pre-existing + 44 = 306. ALL 44 PASS.
+>   The 1 failure is a PRE-EXISTING test, not one this slice added.
+>   I23 PROVEN BY OBSERVATION: from 2d768c2 onward the five deciding files are
+>   byte-identical (e6a079 8504f5 0affa3 79e572 03e334), and across six CI runs
+>   on that identical code the test PASSED 5x and FAILED 1x. Faker is unseeded.
 >   The 1 failure is PROVEN PRE-EXISTING and FLAKY, not a regression:
 >     SchedulingTest > reschedule links original and replacement
 >   => I23. Proven by exhaustive enumeration of the factory's random space:
@@ -70,6 +75,19 @@
 > ENVIRONMENT CAVEAT for whoever picks this up: the backend suite CANNOT be run
 >   locally here — no PHP runtime is installable (packagist.org, getcomposer.org and
 >   the Debian mirrors are unreachable), so CI is the only execution evidence.
+>
+> RECURRING HAZARD: this sandbox has rolled local HEAD back to 7215633 five times
+>   (#7-#11), each time with a shallow clone and a dirty tree whose files are NEWER
+>   than HEAD. Do NOT trust HEAD; do NOT "fix" the tree by resetting. Recovery that
+>   has worked every time, losslessly:
+>     1. git stash push -u            (PRESERVE — never skip this)
+>     2. git fetch origin --unshallow ; git fetch origin '+refs/heads/*:refs/remotes/origin/*'
+>     3. git merge --ff-only origin/arena/01a0f73f-parsian-music-dashboard-opus
+>     4. prove it: compare stash@{0}^3 blobs against the new HEAD (0 lost, 0 differing)
+>   Never: reset --hard, force push, rebase, clean -fd, checkout -- .
+>   On #11 the tree turned out to be an exact mirror of 9b00863 (91 untracked +
+>   16 tracked, 0 differing), so nothing newer was ever at risk — but that is only
+>   knowable AFTER the comparison, never assumed before it.
 >
 > PROVENANCE: this slice's docs were first committed locally as b185751, which failed
 >   to push (credential error). A sandbox regression then recreated the branch at

@@ -1560,11 +1560,35 @@ recovery and the zero-record tests both remaining green.
   (`backend/database/factories/ClassSessionFactory.php:18-22`). When that random draw lands on
   `today+10` with an overlapping hour, the original collides with itself on room **and** teacher,
   `assertNoHardConflicts()` throws, and the endpoint answers **409 where the test asserts 200**.
-- **Evidence:** CI run for `57dbfc2` — 305 passed, **1 failed**, `Tests\Feature\SchedulingTest >
-  reschedule links original and replacement`, `Expected response status code [200] but received 409`
-  at `SchedulingTest.php:398`. Every Progress test passed in the same run (262 → 305, +43).
-  `git diff --name-only 6f74f60 57dbfc2 | grep -iE "scheduling|session|conflict|attendance"` returns
-  **nothing**: no scheduling, session or conflict file was touched by that slice.
+- **Evidence — OBSERVED (2026-10-03, upgraded from inference to observation).** The same test was
+  run against **byte-identical code in six separate CI runs** and produced **both outcomes**:
+
+  | commit | run conclusion | this test |
+  |---|---|---|
+  | `2d768c2` | failure (4 tests, other causes) | **✓ passed** |
+  | `f7ca279` | success | passed |
+  | `d422a8f` | success | passed |
+  | `13ae50a` | failure (1 test: the `closedAt` Sanctum bug) | **✓ passed** |
+  | `999f9d7` | success | passed |
+  | `57dbfc2` | **failure** | **FAILED** — `Expected 200 but received 409` |
+
+  From `2d768c2` onward all five deciding files carry identical blob hashes —
+  `SchedulingTest.php e6a079`, `ClassSessionFactory.php 8504f5`, `ConflictDetector.php 0affa3`,
+  `SessionService.php 79e572`, `ClassSession.php 03e334`. **Five observed passes and one observed
+  failure on identical code: the test is non-deterministic as an observed fact, not as a theory.**
+  `git diff --name-only 6f74f60 57dbfc2 | grep -iE "scheduling|session|conflict|attendance"` also
+  returns **nothing**.
+- **Every Progress test passes, proved arithmetically.** Slice 2 added **44** tests (34 plain
+  methods + 10 data-provider cases in `ProgressEventTest.php`). Pre-existing count 262 → 306
+  executed; observed 305 passed + 1 failed = 306. Therefore **44 of 44 Slice 2 tests passed** and
+  the single failure is a **pre-existing** test, not one this slice introduced.
+- **The randomness premise is verified, not assumed.** Faker is **not seeded** anywhere — no
+  `Faker\Generator` binding, no `seed()` call in `TestCase`, no seed in `phpunit.xml` — so
+  `ClassSessionFactory`'s date/time draw is genuinely random per run.
+- **Honest discrepancy, recorded rather than smoothed over.** The observed rate (1 failure in ~6
+  runs of identical code) is higher than the 0.606% the enumeration predicts. That gap is
+  unexplained; it does not weaken the conclusion — non-determinism is established by observation —
+  but it means the 1-in-165 figure should be treated as a **lower bound** pending a fix.
 - **Reproduction (2026-10-03, deterministic and exhaustive — not a sample).** The factory's random
   space is finite and small, so it can be enumerated completely: `addDays` ∈ 1..30 × `startHour`
   ∈ 8..18 = **330 equiprobable draws**. Transcribing `overlapsTime()` (a plain string compare,

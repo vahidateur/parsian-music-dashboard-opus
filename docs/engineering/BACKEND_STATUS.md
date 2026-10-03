@@ -1470,10 +1470,20 @@ in the docblock of `StoreProgressEventRequest` and in the commit message.
 
 ### 8. Tests and CI
 
-- **Backend: 305 passed, 1 failed.** The +43 are this slice's tests (262 → 305), **all passing**. The
-  single failure is `SchedulingTest > reschedule links original and replacement` — **proven
+- **Backend: 305 passed, 1 failed, 306 executed.** This slice added **44** tests (34 plain methods
+  plus a 10-case data provider in `ProgressEventTest.php`); 262 pre-existing + 44 = 306. **All 44
+  Slice 2 tests pass**; the single failure is one of the 262 pre-existing tests. (An earlier draft
+  said "+43" — that conflated the net rise in the passing count with the number of tests added.)
+  The failure is `SchedulingTest > reschedule links original and replacement` — **proven
   pre-existing and flaky**, not a regression. Recorded as **I23** in
   [OPEN_ITEMS.md](OPEN_ITEMS.md) and left unfixed on purpose.
+- **I23 is proven by observation, not inference.** From `2d768c2` onward the five deciding files are
+  byte-identical (`e6a079`, `8504f5`, `0affa3`, `79e572`, `03e334`), and across six CI runs on that
+  identical code the test **passed five times and failed once** — visible ✓ in the digests of
+  `2d768c2` and `13ae50a`, green suites at `f7ca279`, `d422a8f`, `999f9d7`, and the failure at
+  `57dbfc2`. Faker is verified **unseeded**, so the fixture's date/time draw really does vary.
+  Caveat recorded honestly: the observed rate (~1 in 6) exceeds the enumerated 0.606%, so treat
+  that figure as a lower bound.
 - **I23 is proven, not asserted.** The factory's random space is finite, so it was enumerated
   exhaustively: 30 date offsets × 11 start hours = **330 equiprobable draws**, of which **exactly
   2** (`addDays=10` with hour 08 or 09) make the original session block its own reschedule —
