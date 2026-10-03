@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
+use App\Models\ClassSession;
 use App\Support\Iso;
 
 /**
@@ -88,12 +89,54 @@ final class AttendanceResource
         ];
     }
 
-    /** @return array<string, mixed> TS `SessionAttendance` */
-    public static function sessionAttendanceToWire(string $sessionId, iterable $records, iterable $corrections): array
+    /**
+     * TS `SessionAttendance`.
+     *
+     * The contract ships a PRE-JOINED view — the roster with each student's
+     * mark attached, plus the derived counts and the lock flag — not the raw
+     * record and correction lists. The backend previously returned only
+     * `{ sessionId, records, corrections }`, which no frontend consumer can
+     * read as `SessionAttendance`. Both shapes are now returned: the contract
+     * keys are canonical, the raw lists are retained for existing consumers.
+     *
+     * @param  list<array{studentId: string, studentName: string, photoMediaId?: string}>  $roster
+     * @return array<string, mixed>
+     */
+    public static function sessionAttendanceToWire(ClassSession $session, iterable $records, iterable $corrections, array $roster = []): array
     {
+        $wireRecords = array_map(self::toWire(...), is_array($records) ? $records : iterator_to_array($records));
+
+        $byStudent = [];
+        foreach ($wireRecords as $wire) {
+            $byStudent[$wire['studentId']] = $wire;
+        }
+
+        $rows = [];
+        $recorded = 0;
+        foreach ($roster as $student) {
+            $record = $byStudent[$student['studentId']] ?? null;
+
+            // Absent key, never a placeholder: "not taken" and "absent" are
+            // different facts, and a disputed absence turns on exactly that
+            // distinction — the same rule LocalAttendanceRepository applies.
+            if ($record === null) {
+                $rows[] = ['student' => $student];
+                continue;
+            }
+
+            $recorded++;
+            $rows[] = ['student' => $student, 'record' => $record];
+        }
+
         return [
-            'sessionId' => $sessionId,
-            'records' => array_map(self::toWire(...), is_array($records) ? $records : iterator_to_array($records)),
+            'sessionId' => $session->id,
+            // ---- contract keys (TS `SessionAttendance`) ----
+            'roster' => $rows,
+            'recorded' => $recorded,
+            'expected' => count($rows),
+            'locked' => $session->status === 'cancelled',
+            // ---- retained for existing consumers ----
+            'records' => $wireRecords,
             'corrections' => array_map(self::correctionToWire(...), is_array($corrections) ? $corrections : iterator_to_array($corrections)),
         ];
     }

@@ -519,4 +519,62 @@ class AttendanceTest extends TestCase
         ])->assertStatus(201)
             ->assertJsonPath('data.recordedByUserId', $actor->id);
     }
+
+    /**
+     * `SessionAttendance` is a PRE-JOINED view: the roster with each student's
+     * mark attached, plus derived counts and the lock flag. The raw record and
+     * correction lists are retained alongside it.
+     */
+    public function test_session_attendance_exposes_the_joined_contract_shape(): void
+    {
+        $session = $this->makeSession();
+        $present = $this->enrolled($session);
+        $this->enrolled($session); // on the roster, but no mark
+        $this->actingAsRole('manager', ['name' => 'مدیر تست']);
+
+        $this->postJson('/api/v1/attendance', [
+            'sessionId' => $session->id,
+            'studentId' => $present->id,
+            'status' => 'present',
+        ])->assertStatus(201);
+
+        $body = $this->getJson("/api/v1/sessions/{$session->id}/attendance")
+            ->assertOk()
+            ->assertJsonPath('data.sessionId', $session->id)
+            // Derived counts: two on the roster, one of them recorded.
+            ->assertJsonCount(2, 'data.roster')
+            ->assertJsonPath('data.recorded', 1)
+            ->assertJsonPath('data.expected', 2)
+            ->assertJsonPath('data.locked', false)
+            // The raw lists are still there for existing consumers.
+            ->assertJsonCount(1, 'data.records')
+            ->json('data');
+
+        $recorded = array_values(array_filter($body['roster'], fn ($r) => isset($r['record'])));
+        $unrecorded = array_values(array_filter($body['roster'], fn ($r) => ! isset($r['record'])));
+
+        $this->assertCount(1, $recorded);
+        $this->assertSame($present->id, $recorded[0]['student']['studentId']);
+        $this->assertSame('present', $recorded[0]['record']['status']);
+
+        // "Not taken" is an ABSENT key, never a placeholder record — a disputed
+        // absence turns on exactly that distinction.
+        $this->assertCount(1, $unrecorded);
+        $this->assertArrayNotHasKey('record', $unrecorded[0]);
+        $this->assertArrayHasKey('student', $unrecorded[0]);
+    }
+
+    /** `locked` mirrors a cancelled session, so the UI withdraws its controls. */
+    public function test_session_attendance_locked_reflects_a_cancelled_session(): void
+    {
+        $session = $this->makeSession(['status' => 'cancelled']);
+        $this->enrolled($session);
+        $this->actingAsRole('manager');
+
+        $this->getJson("/api/v1/sessions/{$session->id}/attendance")
+            ->assertOk()
+            ->assertJsonPath('data.locked', true)
+            ->assertJsonPath('data.recorded', 0)
+            ->assertJsonPath('data.expected', 1);
+    }
 }

@@ -6,6 +6,7 @@ use App\Models\AttendanceCorrection;
 use App\Models\AttendanceRecord;
 use App\Models\ClassSession;
 use App\Models\Enrollment;
+use App\Models\Student;
 use App\Models\User;
 use App\Http\Resources\AttendanceResource;
 use App\Support\Api\ApiException;
@@ -184,7 +185,47 @@ final class AttendanceService
             ->get()
             ->all();
 
-        return AttendanceResource::sessionAttendanceToWire($session->id, $records, $corrections);
+        return AttendanceResource::sessionAttendanceToWire($session, $records, $corrections, $this->rosterFor($session));
+    }
+
+    /**
+     * The register's roster, derived from active enrollments on the session's
+     * class and never stored — the same rule `SessionService::roster()` holds.
+     * A student who joins in week 6 must not appear on week 2.
+     *
+     * @return list<array{studentId: string, studentName: string, photoMediaId?: string}>
+     */
+    private function rosterFor(ClassSession $session): array
+    {
+        $studentIds = Enrollment::query()
+            ->where('class_id', $session->class_id)
+            ->where('status', 'active')
+            ->orderBy('created_at')
+            ->pluck('student_id')
+            ->all();
+
+        if ($studentIds === []) {
+            return [];
+        }
+
+        $students = Student::query()->whereIn('id', $studentIds)->get()->keyBy('id');
+
+        $roster = [];
+        foreach ($studentIds as $studentId) {
+            $student = $students->get($studentId);
+            if ($student === null) {
+                continue;
+            }
+
+            $entry = ['studentId' => $student->id, 'studentName' => (string) $student->name];
+            $photo = is_array($student->deferred) ? ($student->deferred['photoMediaId'] ?? null) : null;
+            if (is_string($photo) && $photo !== '') {
+                $entry['photoMediaId'] = $photo;
+            }
+            $roster[] = $entry;
+        }
+
+        return $roster;
     }
 
     /**
