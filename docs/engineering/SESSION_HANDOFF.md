@@ -1,6 +1,86 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-10-03, Progress slice 1 (pieces + piece-assignments).**
+> **LIVE POINTER — 2026-10-03, Progress slice 2 (append-only event log, history guard, overview).**
+> This supersedes the Progress slice 1 pointer immediately below it as the work order. It
+> deletes nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        6f74f6067cea86a81230450340480472d6b260aa
+> RESULTING SHA: 57dbfc2  (commits 7cd8c97, 57dbfc2)
+>
+> GOVERNANCE — unchanged from DECISIONS.md §29, NO new decision taken:
+>   Reuses the SAME two permission ids: progress.read, progress.write.
+>   Vocabulary is STILL EXACTLY 25. Nothing was added.
+>   PB-3 REMAINS OPTION A for instruments and learning.
+>   PB-5 REMAINS OPTION A for notifications and Telegram/Bale/Push.
+>   TenantContext was NOT modified. No client organization_id is accepted.
+>
+> COMMITS, in order:
+>   7cd8c97  feat(progress): append-only event log, history deletion guard, student overview
+>   57dbfc2  fix(progress): import the ProgressEvent model in AssignmentService
+>     (Category C defect: AssignmentService is in App\Domain\Progress, so the bare
+>      ProgressEvent in the history guard resolved to a non-existent domain class
+>      instead of App\Models\ProgressEvent, and every delete returned 500)
+>
+> IMPLEMENTED (3 more endpoints; 13 total in Progress):
+>   GET    /api/v1/progress-events               progress.read
+>   POST   /api/v1/progress-events               progress.write   (APPEND-ONLY)
+>   GET    /api/v1/students/{id}/progress-overview  progress.read
+>
+> APPEND-ONLY IS A ROUTING FACT:
+>   No PUT / PATCH / DELETE route for an event is registered anywhere. Correcting a
+>   mistake appends a new event rather than rewriting the past. Asserted explicitly.
+>
+> ASSIGNMENT HISTORY GUARD — the gap slice 1 recorded as vacuous is now CLOSED:
+>   DELETE /piece-assignments/{id} with events -> 409 ASSIGNMENT_HAS_HISTORY
+>   DELETE /piece-assignments/{id} with none  -> 204
+>
+> SERVER-AUTHORITATIVE:
+>   student_id and piece_id come from the assignment, NEVER from the client.
+>   `latest` is recomputed from the log on every append, newest by recorded_at then id.
+>
+> DEFERRED, asserted not invented:
+>   suggestedContentIds is always [] (learning has no server tables; PB-3 Option A).
+>   No standalone analytics/plateau endpoint — the contract defines no path.
+>   No workflow automation.
+>
+> TESTS / CI  (remote tip 57dbfc2, verified by git ls-remote):
+>   Backend  305 passed, 1 failed. +43 from this slice (262 -> 305), ALL 43 PASSING.
+>   The 1 failure is PROVEN PRE-EXISTING and FLAKY, not a regression:
+>     SchedulingTest > reschedule links original and replacement
+>   => I23. Proven by exhaustive enumeration of the factory's random space:
+>      330 equiprobable draws, exactly 2 fail (addDays=10 at hour 08 or 09)
+>      = 0.606%, ~1 run in 165. Control (candidate carries its own id): 0 of 330.
+>      Plus: the six deciding files are byte-identical at 6f74f60 and 57dbfc2,
+>      SchedulingTest was last touched in 2d768c2, and the same code was GREEN at
+>      999f9d7 (262 passed, 0 failed) and RED at 57dbfc2 — the draw is the only
+>      difference. NOT edited to go green; not re-rolled via a no-op push either.
+>   HTTP smoke GREEN on both commits.
+>   Frontend 14 failed | 2638 passed | 18 skipped (2670) == accepted baseline;
+>   tsc exits 0; no frontend file touched.
+>
+> *** BACKEND CI IS RED AT 57dbfc2 — ON I23 ALONE. ***
+>   A re-run could NOT be requested: gh workflow run -> HTTP 403 (the App token has
+>   read-only Actions access) and gh run rerun is refused for that run.
+>   Do NOT describe this slice as fully verified while that check is red.
+>
+> ENVIRONMENT CAVEAT for whoever picks this up: the backend suite CANNOT be run
+>   locally here — no PHP runtime is installable (packagist.org, getcomposer.org and
+>   the Debian mirrors are unreachable), so CI is the only execution evidence.
+>
+> PROVENANCE: this slice's docs were first committed locally as b185751, which failed
+>   to push (credential error). A sandbox regression then recreated the branch at
+>   7215633 and b185751 ceased to exist as an object; the work was recovered
+>   LOSSLESSLY from git stash (91 untracked files, 0 lost, 0 differing; of 16 tracked
+>   modifications exactly 3 carried extra work — these docs).
+> ```
+>
+> ---
+>
+> **SUPERSEDED 2026-10-03 by the slice 2 pointer above — Progress slice 1 (pieces + piece-assignments).**
 > This supersedes the Library / resources pointer below as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.
 >

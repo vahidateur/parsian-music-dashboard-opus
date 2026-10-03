@@ -1545,6 +1545,67 @@ recovery and the zero-record tests both remaining green.
   a product behaviour change must not ride on a type-fix commit.
 - **Status:** recorded 2026-09-25 as not started. **Frontend holder fixed 2026-09-30** in `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0`; regression `88fee2665434647f81b05b0f1560270ab56b86e3` reaches «دانلود خروجی» for an administrator and the honest empty state when the issued set has no export permission. The item is **not removed**: a downloaded file is still not a server authorization, and export remains BACKEND-ONLY.
 
+### I23. `SchedulingTest > reschedule links original and replacement` is date-flaky: a rescheduled session can block its own reschedule (found 2026-10-03 during Progress slice 2 CI triage)
+
+- **What:** `backend/tests/Feature/SchedulingTest.php:391` reschedules a session to
+  `Carbon::today()->addDays(10)` at 09:00–10:00. `SessionService::reschedule()`
+  (`backend/app/Domain/Scheduling/SessionService.php:230-236`) builds the conflict-check candidate
+  from `classId, date, startTime, endTime, teacherId, roomId` — **no `id` key**. `ConflictDetector::
+  overlappingSessions()` (`backend/app/Domain/Scheduling/ConflictDetector.php:256-264`) excludes a
+  candidate's own row only when `$candidate['id']` is non-empty, so the **original session is not
+  excluded**, and it is still `status = 'scheduled'` at that moment (it is cancelled later in the
+  transaction). The original is created by `makeSession()`
+  (`backend/tests/Feature/SchedulingTest.php:52`) from `ClassSessionFactory`, whose `date` is
+  `now()->addDays(faker 1..30)` and whose `start_time` is a random hour in 08:00–18:00
+  (`backend/database/factories/ClassSessionFactory.php:18-22`). When that random draw lands on
+  `today+10` with an overlapping hour, the original collides with itself on room **and** teacher,
+  `assertNoHardConflicts()` throws, and the endpoint answers **409 where the test asserts 200**.
+- **Evidence:** CI run for `57dbfc2` — 305 passed, **1 failed**, `Tests\Feature\SchedulingTest >
+  reschedule links original and replacement`, `Expected response status code [200] but received 409`
+  at `SchedulingTest.php:398`. Every Progress test passed in the same run (262 → 305, +43).
+  `git diff --name-only 6f74f60 57dbfc2 | grep -iE "scheduling|session|conflict|attendance"` returns
+  **nothing**: no scheduling, session or conflict file was touched by that slice.
+- **Reproduction (2026-10-03, deterministic and exhaustive — not a sample).** The factory's random
+  space is finite and small, so it can be enumerated completely: `addDays` ∈ 1..30 × `startHour`
+  ∈ 8..18 = **330 equiprobable draws**. Transcribing `overlapsTime()` (a plain string compare,
+  `ClassSession.php:58-61`) and the `overlappingSessions()` filter, **exactly 2 of the 330** make
+  the original block its own reschedule:
+  `addDays=10 / 08:00–09:30` and `addDays=10 / 09:00–10:30`, both against the candidate's
+  `09:00–10:00`. Rate **2/330 = 0.606% ≈ 1 run in 165**, on both room `r1` and teacher `t1`.
+  **Control:** re-run with the candidate carrying its own `id` → **0 of 330**. That isolates the
+  missing `id` as the enabler and the date draw as the trigger.
+- **It is not this slice's, proven three ways.** (1) All six files that decide it —
+  `SchedulingTest.php`, `ClassSessionFactory.php`, `ConflictDetector.php`, `SessionService.php`,
+  `ClassSession.php`, `permissions.php` — have **identical blob hashes** at `6f74f60` (pre-slice-2)
+  and `57dbfc2`; slice 2 changed **zero** of them. (2) `SchedulingTest.php` was last modified in
+  `2d768c2` (the Organization slice), long before slice 2. (3) The same test against the same code
+  was **green** at `999f9d7` (`Tests: 262 passed`, 0 failed) and **red** at `57dbfc2`
+  (`1 failed, 305 passed`) — the +43 are slice 2's own tests, all passing. Identical code, opposite
+  outcomes, differing only by the random draw: that is the flakiness signature.
+- **Limitation of the reproduction, stated honestly.** The test was **not executed locally**: no PHP
+  runtime is installable in this environment (`packagist.org`, `getcomposer.org` and the Debian
+  mirrors are unreachable, so neither the binary nor the Composer dependencies can be obtained).
+  What was reproduced is the test's **decision logic**, exhaustively, from the committed sources —
+  which establishes the mechanism and the rate, but is not a substitute for an observed run.
+- **Why it is not fixed here:** it is a pre-existing latent fixture hazard, not a regression. The
+  standing rule is that an unrelated failing test is **recorded, not edited**, to obtain a green
+  run — and re-rolling the RNG by pushing a no-op backend change to re-trigger CI would be the same
+  thing by another route, so it was not done. A re-run could not be requested either: with valid
+  credentials restored, `gh workflow run` returns **HTTP 403 Resource not accessible by
+  integration** (the App token has read-only Actions access) and `gh run rerun` is refused for that
+  run. **Backend CI is therefore still red at `57dbfc2`.**
+- **Done when:** either the reschedule candidate carries its own `id` so `overlappingSessions()`
+  excludes it (a **behaviour** change to a protected scheduling path, needing authorization — it
+  also alters the semantics of "conflicts with itself" for every other caller), or the fixture pins
+  a date the 30-day draw cannot reach. Recorded rather than fixed; compare **I19**, the frontend
+  analogue in the same area.
+- **Status:** recorded 2026-10-03 as not started, not owned by Progress slice 2. Classification
+  **Category D (pre-existing / flaky)** is now **proven**, not asserted — see the reproduction and
+  the three proofs above. **Consequence: backend CI at `57dbfc2` is red on this test alone
+  (1 failed, 305 passed), and will stay red until a re-run happens to draw a non-colliding date
+  (expected ~164 times in 165) or the item is fixed under its own authorization.** Slice 2's own
+  43 tests all pass.
+
 ---
 
 ## LOWER PRIORITY / HYGIENE

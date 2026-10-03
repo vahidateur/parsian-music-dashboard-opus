@@ -1362,11 +1362,153 @@ feature tests already exercise the real middleware stack (Sanctum tokens, `auth:
 
 ### 14. Exact next unfinished task
 
-**Progress slice 2** — `progress-events` (append-only) and `students/{id}/progress-overview`, plus
-the event-existence guard on assignment deletion and the `latest` snapshot recomputation. That slice
-is already authorized under the same `progress.read` / `progress.write` ids and needs no new
-governance decision.
+Progress slices 1 and 2 are **complete**; see the Slice 7 section below for what landed and for the
+limitations that remain.
 
-Beyond it, still blocked or out of scope: instruments and learning (PB-3, Option A), notifications
+Beyond them, still blocked or out of scope: instruments and learning (PB-3, Option A), notifications
 and Telegram/Bale/push (PB-5, Option A), finance, reports, tickets, chat, files/media, student
 portal, binary storage.
+
+One recorded, unfixed hazard sits outside Progress and is not the next task: **I23** in
+[OPEN_ITEMS.md](OPEN_ITEMS.md) — a date-flaky scheduling test that can fail roughly one run in
+~165. It is unrelated to Progress and was deliberately **not** edited to obtain a green run.
+
+---
+
+## Slice 7 — Progress slice 2: the append-only event log, the history guard and the overview
+
+**Status.** ✅ Implemented and pushed. Commits `7cd8c97` (feature) and `57dbfc2` (one-line import
+fix), on `arena/01a0f73f-parsian-music-dashboard-opus`. Remote tip `57dbfc2` — verified by
+`git ls-remote`.
+
+**Provenance note (2026-10-03, hardening pass).** The documentation for this slice was first
+committed locally as `b185751`, which **failed to push** — the sandbox credential returned
+`could not read Username for 'https://github.com'`. A sandbox regression then recreated the branch
+at `7215633` with a shallow clone and a dirty tree, and `b185751` ceased to exist as an object. The
+work was recovered **losslessly** from `git stash push -u`: all 91 captured untracked files were
+proven present at `57dbfc2` with **zero** content differences, and of the 16 tracked modifications
+exactly 3 carried work beyond `57dbfc2` — the three docs files. This section is that recovered work,
+amended with the I23 evidence above.
+
+**Provenance.** Authorized by the owner for v1 on 2026-10-03 under the **same** two permission ids
+(DECISIONS.md §29). No permission was added: the vocabulary is still **exactly 25**. No new
+governance decision was needed, and none was taken.
+
+### 1. What landed
+
+| Contract | Endpoint | Verbs | Permission | Notes |
+|---|---|---|---|---|
+| Event log | `/progress-events` | GET, POST | `progress.read` / `progress.write` | append-only |
+| Overview | `/students/{id}/progress-overview` | GET | `progress.read` | recomputed per call |
+| History guard | `/piece-assignments/{id}` | DELETE | `progress.write` | **409** when events exist |
+
+**Append-only is a routing fact, not a convention.** Only `GET` and `POST` exist, and no `PUT`,
+`PATCH` or `DELETE` route for an event is registered anywhere. Correcting a mistake appends a new
+event rather than rewriting the past — which is what keeps a chart from silently changing shape. The
+test that used to assert these paths were *unrouted* was not deleted; it moved, and now asserts
+PUT/PATCH/DELETE on an event are 404 **explicitly**.
+
+### 2. Ordering — one rule, stated once
+
+Ordering is by **`recorded_at`, tie-broken by `id`** — the contract's `sortByTime()`. No sequence
+column is introduced, because the contract does not define one and a back-dated entry must be able
+to land before an earlier-created one.
+
+The `latest` snapshot takes the newest event by `recorded_at DESC, id DESC` — the exact mirror of
+`sortByTime()`'s `recorded_at ASC, id ASC`. That mirroring is the point: **the snapshot and the chart
+can never disagree about which event is newest**, which is the invariant the contract states as
+"derived strictly from the log, so a back-dated entry cannot make the snapshot disagree with the
+history a chart draws."
+
+With no events, `refreshSnapshot()` returns early and the existing snapshot is left alone.
+
+### 3. Server-authoritative values
+
+- `student_id` and `piece_id` are **copied from the assignment**, never accepted from the client.
+  Accepting them would let a caller file a measurement against one student's assignment while
+  attributing it to another. A test posts both fields and asserts they are ignored.
+- `organization_id` comes from `TenantContext`; request input never supplies one.
+- Bounds (mastery 0–100, tempo 20–400, practice 0–600, range 0–100 000) are transcribed from
+  `MASTERY_SCALE` / `TEMPO_BOUNDS` / `PRACTICE_MINUTES_BOUNDS` / `MAX_RANGE_VALUE`.
+- A closed assignment refuses new events (`PROGRESS_INVALID`, `fields.assignmentId`), and a
+  range's shape must match how the piece is subdivided.
+
+### 4. The history guard closes the gap slice 1 recorded
+
+Slice 1 documented that `ASSIGNMENT_HAS_HISTORY` **could not fire**, because no `progress_events`
+table existed and therefore no assignment could have history — deletion was *more permissive* than
+the final contract intends. That gap is now closed: DELETE is **409** when events exist, and still
+**204** when they do not. Both directions are tested, and the check takes `lockForUpdate()` inside
+the transaction so two concurrent deletes cannot both pass it.
+
+### 5. Nothing was invented
+
+The thresholds, the **order of the checks** and the recommendation rules are transcribed from
+`src/domains/progress/analytics.ts` and `recommendations.ts`, which the contract makes the server's
+responsibility over the FULL history:
+
+- `DEFAULT_THRESHOLDS` verbatim: plateau needs **3** trailing repeats on the same range spanning
+  **10** days with mastery moving ≤ **2** and tempo ≤ **2**.
+- **Regression outranks a plateau** (losing ground is the more urgent fact); a plateau outranks
+  "stable" (it carries an action). Both orderings are pinned by tests.
+- "Stable" produces **no** recommendation — silence is a valid output.
+
+### 6. Deferred behaviour, asserted rather than papered over
+
+`suggestedContentIds` is **always `[]`**. Learning has no server-side representation (PB-3 stays
+Option A for it), so nothing is eligible, and that is exactly what the contract's `relatedContent()`
+returns for zero eligible items. This is the safe direction: a recommendation must never surface
+material a student is not permitted to open (§21). A test asserts the field is empty for every
+recommendation produced.
+
+### 7. One documented deviation
+
+The contract bounds range and tempo with `Number.isFinite` and would therefore accept measure `1.5`
+or `72.5` BPM, but every one of them is stored in an **integer column**. They are validated as
+integers so the API answers **422** instead of truncating on write or failing with a 500. Recorded
+in the docblock of `StoreProgressEventRequest` and in the commit message.
+
+### 8. Tests and CI
+
+- **Backend: 305 passed, 1 failed.** The +43 are this slice's tests (262 → 305), **all passing**. The
+  single failure is `SchedulingTest > reschedule links original and replacement` — **proven
+  pre-existing and flaky**, not a regression. Recorded as **I23** in
+  [OPEN_ITEMS.md](OPEN_ITEMS.md) and left unfixed on purpose.
+- **I23 is proven, not asserted.** The factory's random space is finite, so it was enumerated
+  exhaustively: 30 date offsets × 11 start hours = **330 equiprobable draws**, of which **exactly
+  2** (`addDays=10` with hour 08 or 09) make the original session block its own reschedule —
+  **0.606%, ≈ 1 run in 165**. Control with the candidate carrying its own `id`: **0 of 330**.
+  Three independent proofs that it is not this slice: all six deciding files have **identical blob
+  hashes** at `6f74f60` and `57dbfc2`; `SchedulingTest.php` was last touched in `2d768c2`
+  (Organization slice); and the same code was **green at `999f9d7` (262 passed, 0 failed)** and red
+  at `57dbfc2` — differing only by the draw.
+  **Caveat, stated honestly:** the test was not executed locally. No PHP runtime is installable here
+  (`packagist.org`, `getcomposer.org` and the Debian mirrors are unreachable). What was reproduced
+  is the test's **decision logic**, exhaustively, from the committed sources.
+- **Backend CI is therefore RED at `57dbfc2`** — on that one unrelated test. It could not be
+  re-run: `gh workflow run` returns **HTTP 403** (the App token has read-only Actions access) and
+  `gh run rerun` is refused for that run. Deliberately **not** re-rolled by pushing a no-op backend
+  change, which would be the same thing as editing the test to go green.
+- The one real defect CI caught was `7cd8c97` → `57dbfc2`: a missing
+  `use App\Models\ProgressEvent;` in `AssignmentService`, which made every delete return 500. Two
+  tests caught it — the new history-guard test **and** slice 1's `delete removes an assignment`,
+  i.e. the regression suite doing its job. A sweep of `app/`, `database/`, `tests/` and `routes/`
+  for the same class of bug found no other instance.
+- **HTTP smoke: green** on both commits, so the new migration runs cleanly under
+  `migrate:fresh --seed`.
+- **Frontend: 14 failed | 2638 passed | 18 skipped (2670)** — identical to the accepted baseline,
+  and `npx tsc --noEmit` exits 0. **No frontend source, configuration or test was touched.**
+
+### 9. Limitations carried forward
+
+1. **No event can be corrected in place.** By design — append a new event.
+2. **`suggestedContentIds` is always empty** until learning gains server tables (§6).
+3. **The registry still selects `LocalProgressRepository`**; flipping it is a frontend change.
+4. **`students/{id}/assignments` is still not implemented** — see the contract inconsistency in the
+   Slice 6 section, §1.
+5. **Analytics and plateau detection have no standalone endpoint.** They are computed inside the
+   overview, because the contract defines no path for them. No placeholder route was invented.
+6. **No workflow automation** — never authorized; not stubbed.
+7. **`session_id` is validated for existence in the tenant but is not otherwise used.** It is
+   provenance for the timeline, never an authorization input.
+8. **I23**, the flaky scheduling test, is recorded and unowned (§8).
