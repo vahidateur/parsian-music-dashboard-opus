@@ -358,7 +358,11 @@ jobs:
           code=$?
           set -e
           cat /tmp/mysql-test.log
-          echo "G5: artisan test exit code = ${code}"
+          # Appended to the log as well as printed, because the Actions log
+          # blob is not retrievable from every environment this repository is
+          # worked on from — the failure digest is the only readable copy, and
+          # it is built from this file.
+          echo "G5: artisan test exit code = ${code}" | tee -a /tmp/mysql-test.log
           exit "${code}"
 
       - name: Publish MySQL failure digest
