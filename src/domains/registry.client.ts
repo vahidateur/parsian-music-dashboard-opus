@@ -40,6 +40,9 @@ import type { LearningRepository } from "./learning/repository";
 import type { ChatRepository } from "./chat/repository";
 import type { MediaRepository } from "./media/repository";
 import { ApiOrganizationRepository } from "./organization/apiRepository";
+import { ApiSchedulingRepository } from "./scheduling/apiRepository";
+import { ApiAttendanceRepository } from "./attendance/apiRepository";
+import { ApiLibraryRepository } from "./library/apiRepository";
 import type { LibraryRepository } from "./library/repository";
 import type { BrandingRepository } from "./branding/repository";
 import type { OrganizationRepository } from "./organization/repository";
@@ -174,6 +177,53 @@ export function getOrganizationRepository(): OrganizationRepository {
   return new ApiOrganizationRepository(getApiClient());
 }
 
+/*
+ * Scheduling — served: 11 endpoints under `sessions`.
+ *
+ * Every wire shape was compared field-by-field against the backend Resources
+ * and DTOs and matches exactly: `Session` (the four conditional keys are
+ * emitted only when non-empty, which is precisely the TS optionality),
+ * `ConflictReport`, `ConflictItem` (all ten `ConflictKind` values, with the
+ * hard/warning split identical), `RosterEntry`, `GenerationPlan` and its four
+ * nested item shapes, and `GenerationResult`. `?preview=1` returns the plan as
+ * the item, which is what `previewGeneration()` unwraps.
+ */
+export function getSchedulingRepository(): SchedulingRepository {
+  if (overrides.scheduling) return overrides.scheduling;
+  return new ApiSchedulingRepository(getApiClient());
+}
+
+/*
+ * Attendance — served: 8 endpoints, contract-corrected 2026-10-04.
+ *
+ * Wired only after a contract-authority audit resolved which side defines the
+ * wire (see `AttendanceResource`): the TS types are authoritative, and the
+ * server now emits `recordedByUserId` / `changedByUserId` / `note` /
+ * `attendanceRecordId`, and returns the pre-joined `SessionAttendance` view
+ * with its derived `recorded` / `expected` / `locked` fields.
+ */
+export function getAttendanceRepository(): AttendanceRepository {
+  if (overrides.attendance) return overrides.attendance;
+  return new ApiAttendanceRepository(getApiClient());
+}
+
+/*
+ * Library — served: `GET|POST /resources`, `GET|PATCH|DELETE /resources/{id}`.
+ *
+ * `ResourceResource` emits exactly the eighteen fields of the TS
+ * `LibraryItem` — `Resource` plus the five `LibraryItem` additions — with no
+ * gaps either way. Optional values arrive as `null` rather than being omitted,
+ * and `studentCanAccess` treats `null` as "no restriction" through `!restricted`,
+ * so the null/absent distinction the server documents is preserved.
+ *
+ * The bytes still are not served: this slice is metadata-only, so `mediaId`
+ * names a file the server does not hold and downloads remain unavailable.
+ */
+export function getLibraryRepository(): LibraryRepository {
+  if (overrides.library) return overrides.library;
+  return new ApiLibraryRepository(getApiClient());
+}
+
 /* ------------------------------------------------------------------ */
 /* Unavailable domains — explicit DOMAIN_UNAVAILABLE, never demo       */
 /* ------------------------------------------------------------------ */
@@ -190,20 +240,11 @@ export function getChatRepository(): ChatRepository {
 export function getMediaRepository(): MediaRepository {
   return overrides.media ?? unavailable<MediaRepository>("media");
 }
-export function getLibraryRepository(): LibraryRepository {
-  return overrides.library ?? unavailable<LibraryRepository>("library");
-}
 export function getBrandingRepository(): BrandingRepository {
   return overrides.branding ?? unavailable<BrandingRepository>("branding");
 }
 export function getGalleryRepository(): GalleryRepository {
   return overrides.gallery ?? unavailable<GalleryRepository>("gallery");
-}
-export function getSchedulingRepository(): SchedulingRepository {
-  return overrides.scheduling ?? unavailable<SchedulingRepository>("scheduling");
-}
-export function getAttendanceRepository(): AttendanceRepository {
-  return overrides.attendance ?? unavailable<AttendanceRepository>("attendance");
 }
 export function getCompensationRepository(): CompensationRepository {
   return overrides.compensation ?? unavailable<CompensationRepository>("compensation");

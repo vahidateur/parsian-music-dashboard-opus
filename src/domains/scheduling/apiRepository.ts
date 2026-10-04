@@ -20,12 +20,26 @@ const SESSIONS = "sessions";
 /**
  * Implementation #2 — REST backend for scheduling.
  *
- * **No server implements these endpoints, and this class is deliberately NOT
- * registered in `registry.ts`.** Wiring it would produce failing requests
- * dressed up as a feature, which §37 forbids. It exists so the boundary is
- * real rather than hypothetical: it compiles against the same interface the
- * demo satisfies, uses the shared `ApiClient`, and pins the contract a backend
- * must honour.
+ * **Served since 2026-10-04.** The historical note below is retained because
+ * it explains why this class was built before its server existed; the "no
+ * server implements these endpoints" clause no longer describes the present:
+ *
+ * > **No server implements these endpoints, and this class is deliberately NOT
+ * > registered in `registry.ts`.** Wiring it would produce failing requests
+ * > dressed up as a feature, which §37 forbids.
+ *
+ * Every endpoint below now has a route, and `registry.client.ts` (the
+ * production composition) resolves this domain to this class. `registry.ts` —
+ * the DEMO composition — still selects `LocalSchedulingRepository` and
+ * discloses that through `DEMO_SERVED_DOMAINS`; a deliberate, separately-tested
+ * choice, not an oversight.
+ *
+ * Wiring followed a field-by-field comparison of every wire shape against the
+ * backend: `Session`, `ConflictReport` / `ConflictItem`, `RosterEntry`,
+ * `GenerationPlan` with its four nested item shapes, and `GenerationResult` all
+ * match exactly, including the hard/warning conflict split and the conditional
+ * emission of `cancelReason` / `rescheduledFromId` / `rescheduledToId` /
+ * `notes`, which is precisely the TS optionality.
  *
  * ENDPOINTS
  *

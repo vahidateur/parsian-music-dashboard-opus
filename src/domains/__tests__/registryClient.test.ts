@@ -32,6 +32,9 @@ import { ApiStudentRepository } from "@/domains/students/apiRepository";
 import { ApiTeacherRepository } from "@/domains/teachers/apiRepository";
 import { ApiProgressRepository } from "@/domains/progress/apiRepository";
 import { ApiOrganizationRepository } from "@/domains/organization/apiRepository";
+import { ApiSchedulingRepository } from "@/domains/scheduling/apiRepository";
+import { ApiAttendanceRepository } from "@/domains/attendance/apiRepository";
+import { ApiLibraryRepository } from "@/domains/library/apiRepository";
 import type { ProgressRepository } from "@/domains/progress/repository";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import * as client from "@/domains/registry.client";
@@ -89,18 +92,25 @@ describe("source boundary — no demo capability in the client composition", () 
 });
 
 describe("explicit unavailable — DOMAIN_UNAVAILABLE, never demo data", () => {
-  it("UNAVAILABLE_DOMAINS is the single disclosure enumeration (10 ids, no duplicates)", () => {
+  it("UNAVAILABLE_DOMAINS is the single disclosure enumeration (7 ids, no duplicates)", () => {
     const ids = UNAVAILABLE_DOMAINS.map((d) => d.id);
-    expect(ids).toHaveLength(10);
+    expect(ids).toHaveLength(7);
     expect(new Set(ids).size).toBe(ids.length);
-    // progress and organization left this list on 2026-10-03: the backend now
-    // serves them and the client composition resolves them to their Api
-    // repositories. They must NOT be disclosed as unavailable any more.
-    expect(ids).not.toContain("progress");
-    expect(ids).not.toContain("organization");
+    // Served domains must NOT be disclosed as unavailable. Progress and
+    // organization left on 2026-10-03; scheduling, attendance and library left
+    // on 2026-10-04 after their contracts were verified (and, for attendance,
+    // after the server was corrected to emit the authoritative keys).
+    for (const served of ["progress", "organization", "scheduling", "attendance", "library"]) {
+      expect(ids).not.toContain(served);
+    }
     // The still-unserved domains remain disclosed, never silently dropped.
-    expect(ids).toContain("scheduling");
-    expect(ids).toContain("attendance");
+    expect(ids).toContain("instruments");
+    expect(ids).toContain("learning");
+    expect(ids).toContain("chat");
+    expect(ids).toContain("media");
+    expect(ids).toContain("branding");
+    expect(ids).toContain("gallery");
+    expect(ids).toContain("compensation");
   });
 
   it("every unavailable id has a getter whose every call rejects with DOMAIN_UNAVAILABLE", async () => {
@@ -110,11 +120,8 @@ describe("explicit unavailable — DOMAIN_UNAVAILABLE, never demo data", () => {
       learning: client.getLearningRepository,
       chat: client.getChatRepository,
       media: client.getMediaRepository,
-      library: client.getLibraryRepository,
       branding: client.getBrandingRepository,
       gallery: client.getGalleryRepository,
-      scheduling: client.getSchedulingRepository,
-      attendance: client.getAttendanceRepository,
       compensation: client.getCompensationRepository,
     };
     expect(Object.keys(getters).sort()).toEqual([...UNAVAILABLE_DOMAINS.map((d) => d.id)].sort());
@@ -158,22 +165,37 @@ describe("composition parity — served domains are the real Api classes", () =>
   });
 
   /**
-   * Progress and organization joined the served set on 2026-10-03. The point of
-   * these assertions is the failure mode they prevent: a domain that reverts to
-   * the unavailable stub still typechecks and still builds, so only an explicit
-   * instance check catches it.
+   * Progress and organization joined the served set on 2026-10-03; scheduling,
+   * attendance and library on 2026-10-04. The point of these assertions is the
+   * failure mode they prevent: a domain that reverts to the unavailable stub
+   * still typechecks and still builds, so only an explicit instance check
+   * catches it.
    */
-  it("progress and organization resolve to their Api repositories, not the unavailable stub", async () => {
+  it("every served domain resolves to its Api repository, not the unavailable stub", async () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "https://backend.test/api/v1" });
 
     expect(client.getProgressRepository()).toBeInstanceOf(ApiProgressRepository);
     expect(client.getOrganizationRepository()).toBeInstanceOf(ApiOrganizationRepository);
+    expect(client.getSchedulingRepository()).toBeInstanceOf(ApiSchedulingRepository);
+    expect(client.getAttendanceRepository()).toBeInstanceOf(ApiAttendanceRepository);
+    expect(client.getLibraryRepository()).toBeInstanceOf(ApiLibraryRepository);
 
     // Not the stub: the stub rejects every call, the real repository must not.
+    // A rejection here is a network failure against a fixture base URL, never
+    // DOMAIN_UNAVAILABLE — that code can only come from the stub.
     await expect(client.getProgressRepository().listPieces()).not.rejects.toMatchObject({
       code: DOMAIN_UNAVAILABLE,
     });
     await expect(client.getOrganizationRepository().get()).not.rejects.toMatchObject({
+      code: DOMAIN_UNAVAILABLE,
+    });
+    await expect(client.getSchedulingRepository().list()).not.rejects.toMatchObject({
+      code: DOMAIN_UNAVAILABLE,
+    });
+    await expect(client.getAttendanceRepository().list()).not.rejects.toMatchObject({
+      code: DOMAIN_UNAVAILABLE,
+    });
+    await expect(client.getLibraryRepository().list()).not.rejects.toMatchObject({
       code: DOMAIN_UNAVAILABLE,
     });
   });
