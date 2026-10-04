@@ -348,8 +348,18 @@ jobs:
         env:
           APP_ENV: testing
         run: |
-          set -o pipefail
-          php artisan test --configuration=phpunit.mysql.xml --colors=never 2>&1 | tee /tmp/mysql-test.log
+          set -euo pipefail
+          # Deliberately NOT a pipeline. `… | tee log` under `pipefail` makes the
+          # step's status the status of the whole pipeline, which conflates a
+          # PHPUnit failure with anything `tee` does, and hides which one it was.
+          # Run it, keep its own exit code, then show the log.
+          set +e
+          php artisan test --configuration=phpunit.mysql.xml --colors=never > /tmp/mysql-test.log 2>&1
+          code=$?
+          set -e
+          cat /tmp/mysql-test.log
+          echo "G5: artisan test exit code = ${code}"
+          exit "${code}"
 
       - name: Publish MySQL failure digest
         if: failure()
