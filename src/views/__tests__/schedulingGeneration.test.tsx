@@ -67,6 +67,38 @@ import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { SchedulingView } from "@/views/Scheduling";
 
 /* ------------------------------------------------------------------ */
+/* Clock: pinned to the seed's own date, so the seeded week is on screen */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The seeded schedule is anchored to a FIXED window — `SEED_DATE` ±
+ * `SEED_WINDOW_DAYS`, i.e. 2026-08-04 → 2026-09-29 — while the calendar opens
+ * on whichever week `academyNow()` falls in (`Scheduling.tsx` seeds its anchor
+ * from that clock once, on mount). Once the real date walks past the window the
+ * seeded sessions stop covering the week on screen: `calendarSettled()` waits
+ * for a block that is never rendered, and every case in this file — which drives
+ * the REAL demo repositories, not doubles — times out on an empty grid.
+ *
+ * That is why `schedulingWrites` uses stubs for 14 of its 16 cases: "the seeded
+ * schedule is anchored to fixed dates that stop covering the current week."
+ * This file deliberately does NOT use stubs, so instead it pins the clock to
+ * the seed date itself, before the week constants below are derived. `TODAY`,
+ * `WEEK_START`, `WEEK_END` and the view's own anchor then agree on one week —
+ * the same relationship these cases had when they last passed.
+ *
+ * `SEED_DATE` stays frozen where it is: three suites pin its literal value
+ * (`datasetSchemaGate`, `schedulingSeed`, `operatorReset`) and the dataset
+ * schema gate treats it as a contract, so moving it would trade ten failures
+ * here for three elsewhere and break a documented invariant.
+ *
+ * Only `Date` is faked, never timers: every case waits on data, on a toast or
+ * on a named control, never on a timeout. Same convention as
+ * `dashboardInsightsLive` and `relationsPlumbing`.
+ */
+vi.useFakeTimers({ toFake: ["Date"] });
+vi.setSystemTime(new Date(2026, 8, 1, 12, 0, 0)); // 2026-09-01 — SEED_DATE
+
+/* ------------------------------------------------------------------ */
 /* Dates: the academy's own, never a hardcoded calendar day             */
 /* ------------------------------------------------------------------ */
 

@@ -22,8 +22,9 @@ import { LearningPanel } from "@/domains/learning/LearningPanel";
 import { RepertoirePanel } from "@/domains/progress/RepertoirePanel";
 import { RoomsPanel } from "@/domains/rooms/RoomsPanel";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { resetRegistry } from "@/domains/registry";
-import { demoStore } from "@/services/demoStore";
+import { resetRegistry, setAuthRepository } from "@/domains/registry";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToEmptyEnvironment } from "@/test/demoEnvironment";
 
 /** Text that can only reach the DOM through an arithmetic or lookup mistake. */
@@ -63,11 +64,35 @@ function expectNoArtefacts(container: HTMLElement, surface: string): void {
   }
 }
 
-beforeEach(() => {
+/**
+ * Signs in as the EMPTY environment's bootstrap administrator.
+ *
+ * `AuthProvider` is given no `repository` here, so it resolves through
+ * `getAuthRepository()`, which finds no override after `resetRegistry()` clears
+ * `overrides.auth` (`registryCore.ts`) and falls back to a bare
+ * `LocalAuthRepository` whose `restore()` finds no persisted session. Permissions
+ * are then `[]`, `useCan("settings.write")` answers false, and BrandingPanel
+ * disables its save button — so `getByRole("button", { name: "ذخیرهٔ تغییرات" })`
+ * has nothing to find and the save case cannot run.
+ *
+ * EMPTY seeds no academy records but does seed its access bootstrap
+ * (`admin@academy.local`, role `administrator`, `lifecycle.ts`), which has no
+ * passphrase of its own and so authenticates with the shared demo passphrase.
+ * Every other case in this file is read-only and needs no session; signing in
+ * adds the one permission the save case is entitled to, and nothing else.
+ */
+async function signInAsBootstrapAdmin(): Promise<void> {
+  const authRepo = new LocalAuthRepository(demoStore, memoryStorage());
+  setAuthRepository(authRepo);
+  await authRepo.login({ email: "admin@academy.local", password: DEMO_PASSPHRASE });
+}
+
+beforeEach(async () => {
   localStorage.clear();
   resetToEmptyEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
+  await signInAsBootstrapAdmin();
 });
 
 afterEach(() => {
