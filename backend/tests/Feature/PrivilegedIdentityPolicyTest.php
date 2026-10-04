@@ -9,7 +9,7 @@ use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
 /**
- * PB-2 is an unresolved owner decision: each undecided case must fail closed
+ * PB-2 was resolved 2026-10-02 as option A (keep the restrictions): each case must fail closed
  * with 403 OWNER_DECISION_REQUIRED_PB2 — never silently allow or deny.
  */
 class PrivilegedIdentityPolicyTest extends TestCase

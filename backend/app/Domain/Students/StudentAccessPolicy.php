@@ -18,7 +18,7 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * - role teacher WITH teacher_id → T-02 (GOVERNANCE_CHECKPOINT): only students
  *   with an ACTIVE enrollment in a class whose teacher_id is the actor's,
  *   enforced in SQL. students.teacher_id is NEVER consulted.
- * - role teacher WITHOUT teacher_id → PB-1, unresolved: 403
+ * - role teacher WITHOUT teacher_id → 403 OWNER_DECISION_REQUIRED_PB1 (PB-1 is RESOLVED (2026-10-02, option A): fail-closed is the chosen policy, not a placeholder.)
  *   OWNER_DECISION_REQUIRED_PB1 (neither empty result nor org-wide).
  * - every other role → the whole organization.
  */
@@ -63,14 +63,14 @@ final class StudentAccessPolicy
     }
 
     /**
-     * PB-1 — UNRESOLVED owner decision. Fail-closed-empty vs org-wide is not
+     * PB-1 — resolved 2026-10-02 as option A (fail-closed). Fail-closed-empty vs org-wide is not
      * decided; do not replace this throw with either behavior.
      */
     public function teacherWithoutTeacherIdScope(User $actor): never
     {
         throw new OwnerDecisionRequired(
             'PB-1',
-            'Teacher account has no linked teacherId; fail-closed vs org-wide is owner decision PB-1.',
+            'Teacher account has no linked teacherId; PB-1 resolved as fail-closed.',
         );
     }
 

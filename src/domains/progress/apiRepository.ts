@@ -1,13 +1,25 @@
 /**
  * Implementation #2 — REST backend for repertoire and progress.
  *
- * **No server implements these endpoints yet.** This class exists so the
- * boundary is real rather than hypothetical: it compiles against the same
- * interface the demo satisfies, uses the shared `ApiClient`, and documents the
- * contract a backend must honour. It is deliberately NOT wired into the
- * registry — doing so would produce failing requests dressed up as a feature.
+ * **Served since 2026-10-03** (DECISIONS.md §29 authorized the domain and §30
+ * authorized the 14th endpoint). The historical note below is retained because
+ * it explains why this class was built before its server existed; it no longer
+ * describes the present, and the "deliberately NOT wired" clause is void:
  *
- * Endpoints (contract):
+ * > **No server implements these endpoints yet.** This class exists so the
+ * > boundary is real rather than hypothetical: it compiles against the same
+ * > interface the demo satisfies, uses the shared `ApiClient`, and documents the
+ * > contract a backend must honour. It is deliberately NOT wired into the
+ * > registry — doing so would produce failing requests dressed up as a feature.
+ *
+ * Current state: every endpoint below has a backend route, the wire shapes
+ * match these types field-for-field, and `registry.client.ts` (the production
+ * composition) resolves this domain to this class. The **demo** composition
+ * still selects `LocalProgressRepository` and discloses that through
+ * `DEMO_SERVED_DOMAINS` — a deliberate, separately-tested choice, not an
+ * oversight.
+ *
+ * Endpoints (contract) — 14, all served:
  *   GET    /api/v1/pieces
  *   POST   /api/v1/pieces
  *   GET    /api/v1/pieces/{id}
@@ -21,6 +33,12 @@
  *   GET    /api/v1/progress-events
  *   POST   /api/v1/progress-events
  *   GET    /api/v1/students/{id}/progress-overview
+ *   GET    /api/v1/students/{id}/assignments
+ *
+ * The 14th — `GET students/{id}/assignments`, used by `studentAssignments()` —
+ * was absent from this header while being implemented by the class below. That
+ * inconsistency is what the post-closure audit found, and §30 authorized the
+ * server route to resolve it.
  *
  * SERVER-SIDE OBLIGATIONS (see docs/production-handoff.md):
  *   - analytics, plateau detection and recommendations are recomputed on the

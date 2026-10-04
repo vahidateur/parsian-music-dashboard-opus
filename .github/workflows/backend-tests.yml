@@ -1,0 +1,565 @@
+# Backend execution gate for the `backend/` Laravel slice.
+#
+# WHY THIS EXISTS
+#   The first backend slice (commits dec2016, b38ff25, 7215633) was developed in
+#   an environment that had a local PHP + Composer toolchain. That toolchain is
+#   not guaranteed to exist for every later session or agent, so the execution
+#   evidence for `php artisan test` must be reproducible outside any one
+#   machine. This workflow is the durable, re-runnable form of that evidence.
+#
+# SCOPE
+#   Backend only. The frontend gates (`npm run typecheck`, `npm test`) are
+#   deliberately NOT run here: they carry pre-existing, governance-recorded
+#   failures (see docs/engineering/SESSION_HANDOFF.md §8 and
+#   docs/engineering/OPEN_ITEMS.md) that must not be hidden or disabled, and
+#   folding them into CI would only turn a recorded failure into a red build.
+#
+# It changes no API contract, no permission id, no tenancy rule and no
+# frontend source.
+
+name: backend-tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
+
+permissions:
+  contents: read
+  # Used only by the "Publish test tally" step below, so the PHPUnit tally is
+  # readable through the REST API instead of only through the Actions log UI.
+  checks: write
+
+concurrency:
+  group: backend-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: PHP ${{ matrix.php }} — Laravel test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Resolve Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
+
+      # --no-scripts: bootstrap/app.php must not boot before APP_KEY exists.
+      # The autoload dump (and with it `artisan package:discover`) runs below,
+      # after .env and the application key are in place.
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Dump autoload (runs package:discover)
+        run: composer dump-autoload --optimize
+
+      - name: PHP syntax lint
+        run: |
+          set -euo pipefail
+          find app config database routes tests bootstrap public -name '*.php' -print0 \
+            | xargs -0 -n1 -P 4 php -l | grep -v '^No syntax errors detected' || true
+          echo "lint: no syntax errors"
+
+      - name: Test suite (php artisan test)
+        env:
+          APP_ENV: testing
+        run: |
+          set -o pipefail
+          php artisan test --colors=never 2>&1 | tee artisan-test.log
+
+      # The Actions console log is not reachable from every environment this
+      # repository is worked on from, so the tally is republished as a check run
+      # where the REST API can read it back.
+      # The Actions log blob is not reachable from every environment this
+      # repository is worked on from. On failure, republish the PHPUnit detail
+      # as a check run so the diagnosis stays readable through the REST API.
+      - name: Publish failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="$(tail -n 200 artisan-test.log 2>/dev/null || echo 'no artisan-test.log was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-test-failure-digest (PHP ${{ matrix.php }})' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion=failure \
+            -f 'output[title]=php artisan test - failure detail' \
+            -f "output[summary]=$body" \
+            --silent
+
+      - name: Publish tally as a check run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          summary="$(grep -E 'Tests:|OK \(|Duration:|FAILURES|ERRORS|WARNINGS' artisan-test.log | tail -8 || true)"
+          [ -n "$summary" ] || summary="no PHPUnit tally line was produced"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-test-tally (PHP ${{ matrix.php }})' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion="${{ job.status == 'success' && 'success' || 'failure' }}" \
+            -f 'output[title]=php artisan test' \
+            -f "output[summary]=$summary" \
+            --silent
+
+  # ---------------------------------------------------------------------------
+  # HTTP smoke — the durable form of the manual smoke run the first slice was
+  # verified with. It asserts the load-bearing governance rules *over HTTP*,
+  # against the committed demo dataset, with expectations computed from the
+  # seeded rows rather than hard-coded:
+  #
+  #   T-02  a teacher sees exactly the students with an ACTIVE enrollment in a
+  #         class taught by that teacher  (and NOT the students whose
+  #         `students.teacher_id` happens to point at them — that column is
+  #         never an authorization source)
+  #   PB-1  a teacher account with no linked teacherId is 403
+  #         OWNER_DECISION_REQUIRED_PB1 — fail-closed, not empty, not org-wide
+  #   PB-3  every rooms endpoint is 403 OWNER_DECISION_REQUIRED_PB3 for every
+  #         role, administrator included
+  #         plus a Scheduling + Attendance pass over the new endpoints
+  #
+  # DEMO_SEED_PASSWORD below is a throwaway value for an ephemeral CI sqlite
+  # file. It is not a credential for any real system and nothing it protects
+  # outlives the job.
+  # ---------------------------------------------------------------------------
+  smoke:
+    name: HTTP smoke — T-02 / PB-1 / PB-3 / scheduling / attendance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: local
+      DEMO_SEED_PASSWORD: ci-throwaway-not-a-credential
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          composer dump-autoload --optimize
+          touch database/database.sqlite
+
+      - name: Migrate and seed the demo dataset
+        run: |
+          set -o pipefail
+          php artisan migrate:fresh --seed --force 2>&1 | tee /tmp/seed.log
+
+      # Same reason as the digest above: the Actions log blob is not reachable
+      # from every environment, so a migrate/seed failure is republished as a
+      # check run where the REST API can read it.
+      - name: Publish seed failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="$(tail -n 200 /tmp/seed.log 2>/dev/null || echo 'no seed log was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-seed-failure-digest' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion=failure \
+            -f 'output[title]=migrate:fresh --seed - failure detail' \
+            -f "output[summary]=$body" \
+            --silent
+
+      - name: Serve the API
+        run: |
+          setsid nohup php artisan serve --host=127.0.0.1 --port=8080 > /tmp/serve.log 2>&1 < /dev/null &
+          for _ in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8080/up > /dev/null && exit 0
+            sleep 0.5
+          done
+          echo "server did not come up"; cat /tmp/serve.log; exit 1
+
+      - name: T-02 — teacher student scope, over HTTP
+        run: |
+          set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
+          API=http://127.0.0.1:8080/api/v1
+
+          token() {
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"$1\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          }
+
+          T1="$(token teacher1@demo.local)"
+          ADMIN="$(token admin@demo.local)"
+          if [ -z "$T1" ] || [ "$T1" = "null" ] || [ -z "$ADMIN" ] || [ "$ADMIN" = "null" ]; then
+            echo "::error::login failed for teacher1 or admin"; exit 1
+          fi
+
+          # Expectation computed from the seeded rows: students with an ACTIVE
+          # enrollment in a class whose teacher_id is t1.
+          expected="$(
+            sqlite3 database/database.sqlite "
+              select distinct e.student_id
+                from enrollments e
+                join classes c on c.id = e.class_id
+               where e.status = 'active' and c.teacher_id = 't1'
+               order by e.student_id;" | LC_ALL=C sort
+          )"
+
+          actual="$(
+            curl -sS "$API/students?per_page=100" -H "Authorization: Bearer $T1" |
+              jq -r '.data[].id' | LC_ALL=C sort
+          )"
+
+          # What the FORBIDDEN source would have produced: students whose own
+          # teacher_id column points at t1. T-02 says this is never the scope.
+          wrong_source="$(
+            sqlite3 database/database.sqlite "
+              select id from students where teacher_id = 't1' order by id;" | LC_ALL=C sort
+          )"
+
+          expected_count="$(printf '%s\n' "$expected" | grep -c . || true)"
+          total_students="$(sqlite3 database/database.sqlite 'select count(*) from students;')"
+          admin_total="$(
+            curl -sS "$API/students?per_page=1" -H "Authorization: Bearer $ADMIN" |
+              jq -r '.meta.total'
+          )"
+
+          echo "T-02 expected (active enrollment ∩ classes.teacher_id = t1):"
+          echo "$expected"
+          echo "T-02 actual (GET /api/v1/students as teacher1):"
+          echo "$actual"
+          echo "students.teacher_id = t1 (NOT the scope):"
+          echo "$wrong_source"
+          echo "org total: db=$total_students admin_http=$admin_total"
+
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::T-02 scope over HTTP does not match the enrollment-derived expectation"
+            exit 1
+          fi
+          if [ -n "$expected" ] && [ "$expected" = "$wrong_source" ]; then
+            echo "::error::teacher scope coincides with students.teacher_id — T-02 is not the operative rule"
+            exit 1
+          fi
+          if [ "$expected_count" = "0" ] || [ "$expected_count" = "$admin_total" ]; then
+            echo "::error::teacher scope is empty or org-wide ($expected_count of $admin_total) — expected a strict subset"
+            exit 1
+          fi
+          if [ "$admin_total" != "$total_students" ]; then
+            echo "::error::administrator does not see the whole organization ($admin_total != $total_students)"
+            exit 1
+          fi
+          echo "T-02 OK"
+
+      - name: PB-1 — teacher with no teacherId fails closed
+        run: |
+          set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
+          API=http://127.0.0.1:8080/api/v1
+
+          # Every seeded teacher has a teacherId, so detach one to exercise PB-1.
+          sqlite3 database/database.sqlite \
+            "update users set teacher_id = null where email = 'teacher6@demo.local';"
+
+          TOKEN="$(
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"teacher6@demo.local\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          )"
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "::error::login failed for teacher6"; exit 1
+          fi
+
+          body="$(curl -sS -w '\n%{http_code}' "$API/students" -H "Authorization: Bearer $TOKEN")"
+          status="$(printf '%s' "$body" | tail -n1)"
+          code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
+
+          echo "PB-1: HTTP $status $code"
+          if [ "$status" != "403" ] || [ "$code" != "OWNER_DECISION_REQUIRED_PB1" ]; then
+            echo "::error::PB-1 is not fail-closed (expected 403 OWNER_DECISION_REQUIRED_PB1)"
+            exit 1
+          fi
+          echo "PB-1 OK"
+
+      - name: PB-3 — rooms stay blocked for every role
+        run: |
+          set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
+          API=http://127.0.0.1:8080/api/v1
+
+          ADMIN_TOKEN="$(
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"admin@demo.local\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          )"
+
+          for path in rooms rooms/r1; do
+            body="$(curl -sS -w '\n%{http_code}' "$API/$path" -H "Authorization: Bearer $ADMIN_TOKEN")"
+            status="$(printf '%s' "$body" | tail -n1)"
+            code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
+            echo "PB-3 GET /$path as administrator: HTTP $status $code"
+            if [ "$status" != "403" ] || [ "$code" != "OWNER_DECISION_REQUIRED_PB3" ]; then
+              echo "::error::PB-3 room reads are not blocked for the administrator"
+              exit 1
+            fi
+          done
+          echo "PB-3 OK"
+
+      # -------------------------------------------------------------------------
+      # Scheduling + Attendance, over HTTP, against the committed demo dataset.
+      #
+      #   - the seeded `scheduledSessions.json` schedule is readable
+      #   - T-02 (session form): a teacher sees exactly the sessions they teach,
+      #     computed from the seeded rows rather than hard-coded
+      #   - PB-1 (session + attendance form): a teacher with no teacherId is
+      #     403 OWNER_DECISION_REQUIRED_PB1 on every new endpoint, not 200/empty
+      #   - static routes (`sessions/generate`, `attendance/corrections`,
+      #     `sessions/with-attendance`) are not swallowed by `{id}` routes
+      #   - create / roster / cancel round-trip through the wire contract
+      #   - attendance: record → re-record → correct, with the UNIQUE
+      #     (session, student) invariant and the append-only correction log both
+      #     verified in SQLite, not just in the HTTP response
+      # -------------------------------------------------------------------------
+      - name: Scheduling + Attendance — over HTTP
+        run: |
+          set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
+          API=http://127.0.0.1:8080/api/v1
+          DB=database/database.sqlite
+
+          token() {
+            curl -sS -X POST "$API/auth/login" \
+              -H 'Accept: application/json' -H 'Content-Type: application/json' \
+              -d "{\"email\":\"$1\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
+              jq -r '.data.token'
+          }
+
+          ADMIN="$(token admin@demo.local)"
+          T1="$(token teacher1@demo.local)"
+          for t in "$ADMIN" "$T1"; do
+            [ -n "$t" ] && [ "$t" != "null" ] || { echo "::error::login failed"; exit 1; }
+          done
+
+          T1_TEACHER="$(sqlite3 "$DB" "select teacher_id from users where email='teacher1@demo.local';")"
+          echo "teacher1 -> $T1_TEACHER"
+
+          # ---- the seeded schedule is readable ------------------------------
+          seeded="$(sqlite3 "$DB" 'select count(*) from class_sessions;')"
+          admin_total="$(curl -sS "$API/sessions?per_page=1" -H "Authorization: Bearer $ADMIN" | jq -r '.meta.total')"
+          echo "sessions: db=$seeded admin_http=$admin_total"
+          [ "$seeded" = "$admin_total" ] || { echo "::error::administrator does not see every session"; exit 1; }
+          [ "$seeded" != "0" ] || { echo "::error::scheduledSessions.json seeded nothing"; exit 1; }
+
+          # ---- T-02, session form -------------------------------------------
+          expected="$(
+            sqlite3 "$DB" "select id from class_sessions where teacher_id = '$T1_TEACHER' order by id;" | LC_ALL=C sort
+          )"
+          actual="$(
+            curl -sS "$API/sessions?per_page=500" -H "Authorization: Bearer $T1" |
+              jq -r '.data[].id' | LC_ALL=C sort
+          )"
+          expected_count="$(printf '%s\n' "$expected" | grep -c . || true)"
+          echo "sessions visible to teacher1: $expected_count of $seeded"
+          [ "$expected" = "$actual" ] || { echo "::error::T-02 session scope mismatch"; exit 1; }
+          [ "$expected_count" != "0" ] || { echo "::error::teacher session scope is empty"; exit 1; }
+          [ "$expected_count" != "$seeded" ] || { echo "::error::teacher session scope is org-wide"; exit 1; }
+
+          # ---- PB-1, session and attendance form ----------------------------
+          # teacher6's teacherId was detached by the PB-1 step above.
+          T6="$(token teacher6@demo.local)"
+          for path in sessions attendance attendance/corrections sessions/with-attendance; do
+            body="$(curl -sS -w '\n%{http_code}' "$API/$path" -H "Authorization: Bearer $T6")"
+            status="$(printf '%s' "$body" | tail -n1)"
+            code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
+            echo "PB-1 GET /$path as teacher6: HTTP $status $code"
+            [ "$status" = "403" ] && [ "$code" = "OWNER_DECISION_REQUIRED_PB1" ] ||
+              { echo "::error::PB-1 is not fail-closed on /$path"; exit 1; }
+          done
+
+          # ---- static routes are not swallowed by {id} ----------------------
+          CLS="$(sqlite3 "$DB" "select id from classes order by id limit 1;")"
+          FROM="$(date -u -d '+1 day' +%Y-%m-%d)"
+          TO="$(date -u -d '+8 days' +%Y-%m-%d)"
+          prev="$(curl -sS -w '\n%{http_code}' -X POST "$API/sessions/generate?preview=1" \
+            -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+            -d "{\"classId\":\"$CLS\",\"from\":\"$FROM\",\"to\":\"$TO\"}")"
+          pstatus="$(printf '%s' "$prev" | tail -n1)"
+          echo "POST /sessions/generate?preview=1: HTTP $pstatus"
+          [ "$pstatus" = "200" ] || { echo "::error::generate preview is unreachable (static route shadowed?)"; exit 1; }
+          # ...and a preview writes nothing.
+          [ "$(sqlite3 "$DB" 'select count(*) from class_sessions;')" = "$seeded" ] ||
+            { echo "::error::preview was not read-only"; exit 1; }
+
+          # ---- create / roster / cancel -------------------------------------
+          NEWDATE="$(date -u -d '+400 days' +%Y-%m-%d)"
+          created="$(curl -sS -X POST "$API/sessions" \
+            -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+            -d "{\"classId\":\"$CLS\",\"date\":\"$NEWDATE\",\"startTime\":\"23:00\",\"endTime\":\"23:45\",\"teacherId\":\"$T1_TEACHER\",\"roomId\":\"r1\",\"acknowledgeWarnings\":true}")"
+          SID="$(printf '%s' "$created" | jq -r '.data.id')"
+          echo "created session: $SID origin=$(printf '%s' "$created" | jq -r '.data.origin')"
+          [ -n "$SID" ] && [ "$SID" != "null" ] || { echo "::error::session create failed: $created"; exit 1; }
+
+          roster_status="$(curl -sS -o /dev/null -w '%{http_code}' "$API/sessions/$SID/roster" -H "Authorization: Bearer $ADMIN")"
+          echo "GET /sessions/$SID/roster: HTTP $roster_status"
+          [ "$roster_status" = "200" ] || { echo "::error::roster unreachable"; exit 1; }
+
+          cancelled="$(curl -sS -X POST "$API/sessions/$SID/cancel" \
+            -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+            -d '{"reason":"لغو در تست سی‌آی"}')"
+          echo "cancel -> $(printf '%s' "$cancelled" | jq -r '.data.status')"
+          [ "$(printf '%s' "$cancelled" | jq -r '.data.status')" = "cancelled" ] ||
+            { echo "::error::cancel failed"; exit 1; }
+
+          # A reason is mandatory: this is the record a dispute turns on.
+          noreason="$(curl -sS -w '\n%{http_code}' -X POST "$API/sessions/$SID/cancel" \
+            -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' -d '{}')"
+          echo "cancel without reason: HTTP $(printf '%s' "$noreason" | tail -n1)"
+
+          # ---- attendance: record, re-record, correct -----------------------
+          TSESSION="$(sqlite3 "$DB" "
+            select s.id from class_sessions s
+              join enrollments e on e.class_id = s.class_id and e.status = 'active'
+             where s.teacher_id = '$T1_TEACHER' and s.id != '$SID'
+             order by s.id limit 1;")"
+          STU="$(sqlite3 "$DB" "
+            select e.student_id from enrollments e
+             where e.status = 'active'
+               and e.class_id = (select class_id from class_sessions where id = '$TSESSION')
+             limit 1;")"
+          echo "teacher1 session=$TSESSION student=$STU"
+          [ -n "$TSESSION" ] && [ -n "$STU" ] || { echo "::error::no teacher session with an enrolled student"; exit 1; }
+
+          rec="$(curl -sS -X POST "$API/attendance" \
+            -H "Authorization: Bearer $T1" -H 'Content-Type: application/json' \
+            -d "{\"sessionId\":\"$TSESSION\",\"studentId\":\"$STU\",\"status\":\"present\"}")"
+          RID="$(printf '%s' "$rec" | jq -r '.data.id')"
+          echo "recorded attendance: $RID by $(printf '%s' "$rec" | jq -r '.data.recordedBy')"
+          [ -n "$RID" ] && [ "$RID" != "null" ] || { echo "::error::attendance record failed: $rec"; exit 1; }
+
+          # Re-recording must NOT add a row (UNIQUE session+student) and must
+          # NOT silently overwrite: it appends a correction.
+          curl -sS -o /dev/null -X POST "$API/attendance" \
+            -H "Authorization: Bearer $T1" -H 'Content-Type: application/json' \
+            -d "{\"sessionId\":\"$TSESSION\",\"studentId\":\"$STU\",\"status\":\"late\"}"
+          rows="$(sqlite3 "$DB" "select count(*) from attendance_records where session_id='$TSESSION' and student_id='$STU';")"
+          first_correction="$(sqlite3 "$DB" "select count(*) from attendance_corrections where record_id='$RID';")"
+          echo "re-record: rows=$rows corrections=$first_correction"
+          [ "$rows" = "1" ] || { echo "::error::UNIQUE(session, student) violated — $rows rows"; exit 1; }
+          [ "$first_correction" = "1" ] || { echo "::error::re-record did not append a correction"; exit 1; }
+
+          corrected="$(curl -sS -X POST "$API/attendance/$RID/correct" \
+            -H "Authorization: Bearer $T1" -H 'Content-Type: application/json' \
+            -d '{"status":"excused","reason":"گواهی پزشکی در تست سی‌آی"}')"
+          echo "corrected -> $(printf '%s' "$corrected" | jq -r '.data.status')"
+          [ "$(printf '%s' "$corrected" | jq -r '.data.status')" = "excused" ] ||
+            { echo "::error::correction failed"; exit 1; }
+
+          audit="$(curl -sS "$API/attendance/corrections?session_id=$TSESSION" -H "Authorization: Bearer $ADMIN")"
+          echo "audit rows over HTTP: $(printf '%s' "$audit" | jq -r '.meta.total')"
+          [ "$(printf '%s' "$audit" | jq -r '.meta.total')" -ge 2 ] ||
+            { echo "::error::corrections are not visible / not append-only"; exit 1; }
+          # Both corrections must survive with their previous values intact.
+          # Compared as sorted sets so the assertion does not depend on the
+          # ordering of two rows written within the same second.
+          [ "$(printf '%s' "$audit" | jq -r '[.data[].previousStatus] | sort | join(",")')" = "late,present" ] ||
+            { echo "::error::a correction lost its previous status"; exit 1; }
+          [ "$(printf '%s' "$audit" | jq -r '[.data[].newStatus] | sort | join(",")')" = "excused,late" ] ||
+            { echo "::error::a correction lost its new status"; exit 1; }
+
+          printf '%s\n' "$(curl -sS "$API/sessions/with-attendance" -H "Authorization: Bearer $ADMIN" | jq -r '.data[]')" |
+            grep -qx "$TSESSION" || { echo "::error::with-attendance is missing $TSESSION"; exit 1; }
+
+          sessatt="$(curl -sS "$API/sessions/$TSESSION/attendance" -H "Authorization: Bearer $ADMIN")"
+          [ "$(printf '%s' "$sessatt" | jq -r '.data.sessionId')" = "$TSESSION" ] ||
+            { echo "::error::session attendance mismatch"; exit 1; }
+
+          echo "Scheduling + Attendance OK"
+
+      - name: Unauthenticated requests are 401
+        run: |
+          set -euo pipefail
+          exec > >(tee -a /tmp/smoke-report.md) 2>&1
+          status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/api/v1/students)"
+          echo "no token: HTTP $status"
+          [ "$status" = "401" ] || { echo "::error::expected 401"; exit 1; }
+
+      - name: Publish smoke report as a check run
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Give the `tee` process substitutions of the previous steps a moment
+          # to flush before the report file is read.
+          sleep 2
+          body="$(cat /tmp/smoke-report.md 2>/dev/null || echo 'no smoke report was produced')"
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-http-smoke' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion="${{ job.status == 'success' && 'success' || 'failure' }}" \
+            -f 'output[title]=HTTP smoke — T-02 / PB-1 / PB-3 / scheduling / attendance' \
+            -f "output[summary]=$body" \
+            --silent

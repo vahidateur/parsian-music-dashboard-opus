@@ -1,10 +1,19 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\EnrollmentController;
+use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\PieceAssignmentController;
+use App\Http\Controllers\Api\V1\PieceController;
+use App\Http\Controllers\Api\V1\ProgressEventController;
+use App\Http\Controllers\Api\V1\ProgressOverviewController;
+use App\Http\Controllers\Api\V1\ResourceController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\RoomController;
+use App\Http\Controllers\Api\V1\SessionController;
+use App\Http\Controllers\Api\V1\StudentAssignmentController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -23,6 +32,15 @@ Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttl
 Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+
+    /*
+     * Organization settings — one record, two verbs, exactly the contract in
+     * src/domains/organization/apiRepository.ts (marked BACKEND REQUIRED).
+     * `settings.read` to read, `settings.write` to patch, both enforced by
+     * OrganizationPolicy; the row is always the caller's own organization.
+     */
+    Route::get('organization', [OrganizationController::class, 'show']);
+    Route::patch('organization', [OrganizationController::class, 'update']);
 
     Route::get('users', [UserController::class, 'index']);
     Route::post('users', [UserController::class, 'store']);
@@ -71,4 +89,89 @@ Route::middleware(['auth:sanctum', 'tenant'])->group(function () {
     Route::patch('enrollments/{id}', [EnrollmentController::class, 'update']);
     Route::delete('enrollments/{id}', [EnrollmentController::class, 'destroy']);
     Route::post('enrollments/{id}/withdraw', [EnrollmentController::class, 'withdraw']);
+
+    /*
+     * Scheduling + Attendance.
+     *
+     * STATIC segments are registered BEFORE the `{id}` routes on purpose:
+     * `sessions/generate` must not be swallowed by `sessions/{id}`, and
+     * `attendance/bulk` must not be swallowed by `attendance/{id}`.
+     */
+    Route::get('sessions', [SessionController::class, 'index']);
+    Route::post('sessions', [SessionController::class, 'store']);
+    Route::post('sessions/generate', [SessionController::class, 'generate']);
+    Route::post('sessions/check-conflicts', [SessionController::class, 'checkConflicts']);
+    Route::get('sessions/with-attendance', [AttendanceController::class, 'withAttendance']);
+
+    Route::get('sessions/{id}', [SessionController::class, 'show']);
+    Route::patch('sessions/{id}', [SessionController::class, 'update']);
+    Route::delete('sessions/{id}', [SessionController::class, 'destroy']);
+    Route::post('sessions/{id}/cancel', [SessionController::class, 'cancel']);
+    Route::post('sessions/{id}/reschedule', [SessionController::class, 'reschedule']);
+    Route::get('sessions/{id}/roster', [SessionController::class, 'roster']);
+    Route::get('sessions/{id}/attendance', [AttendanceController::class, 'sessionAttendance']);
+
+    Route::get('attendance', [AttendanceController::class, 'index']);
+    Route::post('attendance', [AttendanceController::class, 'store']);
+    Route::post('attendance/bulk', [AttendanceController::class, 'bulk']);
+    Route::get('attendance/corrections', [AttendanceController::class, 'corrections']);
+    Route::post('attendance/{id}/correct', [AttendanceController::class, 'correct']);
+    Route::get('attendance/{id}', [AttendanceController::class, 'show']);
+
+    /*
+     * Library / resources — src/domains/library/apiRepository.ts.
+     *
+     * METADATA ONLY. The file endpoints the same README names are NOT routed:
+     * `POST /uploads` and `GET /resources/{id}/download` carry the bytes, which
+     * the client contract keeps out of the resource repository and the spec
+     * classifies as back-end-later. `mediaId` is persisted as an opaque
+     * reference into the media domain.
+     */
+    Route::get('resources', [ResourceController::class, 'index']);
+    Route::post('resources', [ResourceController::class, 'store']);
+    Route::get('resources/{id}', [ResourceController::class, 'show']);
+    Route::patch('resources/{id}', [ResourceController::class, 'update']);
+    Route::delete('resources/{id}', [ResourceController::class, 'destroy']);
+
+    /*
+     * Progress — pieces, piece-assignments, the append-only event log and the
+     * derived overview.
+     *
+     * Authorized by the owner for v1 on 2026-10-03 under `progress.read` /
+     * `progress.write` (DECISIONS.md §29).
+     *
+     * STILL DEFERRED, with NO placeholder routes here: analytics and plateau
+     * detection as standalone endpoints (they are computed inside the overview
+     * instead), and workflow automation.
+     */
+    Route::get('pieces', [PieceController::class, 'index']);
+    Route::post('pieces', [PieceController::class, 'store']);
+    Route::get('pieces/{id}', [PieceController::class, 'show']);
+    Route::patch('pieces/{id}', [PieceController::class, 'update']);
+    Route::delete('pieces/{id}', [PieceController::class, 'destroy']);
+
+    Route::get('piece-assignments', [PieceAssignmentController::class, 'index']);
+    Route::post('piece-assignments', [PieceAssignmentController::class, 'store']);
+    Route::get('piece-assignments/{id}', [PieceAssignmentController::class, 'show']);
+    Route::patch('piece-assignments/{id}', [PieceAssignmentController::class, 'update']);
+    Route::delete('piece-assignments/{id}', [PieceAssignmentController::class, 'destroy']);
+
+    /*
+     * The progress log. APPEND-ONLY: only GET and POST exist, and no
+     * PUT/PATCH/DELETE route for an event is registered anywhere. Correcting a
+     * mistake appends a new event rather than rewriting the past.
+     */
+    Route::get('progress-events', [ProgressEventController::class, 'index']);
+    Route::post('progress-events', [ProgressEventController::class, 'store']);
+
+    // The derived read: insights and recommendations, recomputed on the server
+    // over the full history.
+    Route::get('students/{id}/progress-overview', [ProgressOverviewController::class, 'show']);
+
+    // The 14th endpoint, authorized 2026-10-03 to close the contract gap found
+    // by the post-closure audit: `studentAssignments()` was required by
+    // `ProgressRepository` and implemented by `ApiProgressRepository`, but no
+    // server route existed. Read-only, under progress.read, unpaginated.
+    Route::get('students/{id}/assignments', [StudentAssignmentController::class, 'index']);
 });
+

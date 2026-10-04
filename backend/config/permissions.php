@@ -25,6 +25,10 @@ $vocabulary = [
     'messages.write',
     'library.read',
     'library.write',
+    // Authorized by the owner for v1 on 2026-10-03 (DECISIONS.md §29). PB-3 is
+    // lifted for Progress ONLY; instruments and learning remain blocked.
+    'progress.read',
+    'progress.write',
     'reports.read',
     'settings.read',
     'settings.write',
@@ -40,6 +44,9 @@ $readOnlyCore = [
     'classes.read',
     'schedule.read',
     'library.read',
+    // Progress is per-student learning data, so it reads like the rest of the
+    // per-student core: everyone who teaches or administers, never accounting.
+    'progress.read',
 ];
 
 return [
@@ -61,6 +68,7 @@ return [
             'messages.read',
             'messages.write',
             'library.write',
+            'progress.write',
             'reports.read',
             'settings.read',
             'users.read',
@@ -71,6 +79,9 @@ return [
             'attendance.write',
             'messages.read',
             'messages.write',
+            // Assignments are teacher-authored, the way attendance entries are.
+            // The permission carries this; nothing authorizes on role === "teacher".
+            'progress.write',
         ],
         'staff' => [
             ...$readOnlyCore,

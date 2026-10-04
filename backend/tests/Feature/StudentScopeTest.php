@@ -15,7 +15,8 @@ use Tests\TestCase;
 /**
  * T-02 (teacher WITH teacher_id): visible students = active enrollment ∩
  * class.teacher_id. students.teacher_id is not an authorization source.
- * PB-1 (teacher WITHOUT teacher_id): 403 OWNER_DECISION_REQUIRED_PB1.
+ * PB-1 (teacher WITHOUT teacher_id), resolved 2026-10-02 as option A:
+ * 403 OWNER_DECISION_REQUIRED_PB1.
  */
 class StudentScopeTest extends TestCase
 {

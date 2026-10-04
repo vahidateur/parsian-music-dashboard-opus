@@ -16,7 +16,8 @@ use Illuminate\Support\Str;
  * Rooms persistence and domain rules of the caller's organization.
  *
  * This service carries NO actor and makes NO authorization decision: room
- * authorization is the unresolved owner decision PB-3, isolated in
+ * authorization is owner decision PB-3, resolved 2026-10-02 as option A (keep
+ * blocked, invent no permission id), isolated in
  * RoomPolicy, which RoomController calls before reaching this service. Other
  * domains may use it for data integrity (e.g. "room exists and is active"),
  * which is not room authorization.

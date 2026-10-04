@@ -2016,6 +2016,368 @@ deliberate deviation §23 and §24 record: `PROJECT_STATE.md` was excluded from 
 
 ---
 
+## 26. Phase B governance decisions: PB-1 … PB-5 (resolved 2026-10-02)
+
+**Five owner decisions, all option A — keep the existing restrictive behaviour.**
+They close the set recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) §PB-1..PB-5, where the original
+sheets, evidence and reasoning are preserved verbatim.
+
+`PB-*` is its own namespace: it is **not** a `D`-number, **not** an `O-*` id, and it does not amend
+any D-entry. These five entries change **no** `T-02` or `O-*` status. They are recorded here because
+each one is load-bearing for the server and is now enforced by tests rather than by convention.
+
+The governing rule across all five: **fail closed, invent nothing.** Where the live documents
+disagreed or named no rule, the decision is to leave the restrictive behaviour in place rather than
+to widen it, and to refuse rather than to guess. No permission id was created, no existing
+permission was reinterpreted, and `TenantContext` was not touched.
+
+---
+
+### 26.1 PB-1 — Teacher with no `teacherId`: fail-closed
+
+- **Decision id.** PB-1
+- **Decision.** **Option A — fail-closed.** A teacher account with no linked `teacherId` sees **no**
+  records — never organization-wide. The server answers `403 OWNER_DECISION_REQUIRED_PB1`.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-1: *"Does a teacher account with no linked teacher id
+  see no students, or every student?"* `GOVERNANCE_CHECKPOINT.md` states T-02 is fail-closed and
+  must not be revisited. Server and shipped frontend disagreed: `src/domains/auth/scope.ts` fell
+  through to org-wide, the server refused. Option A adopts the server's behaviour as the policy.
+- **Affected scope.** Applied **consistently** to students, scheduling sessions, attendance,
+  attendance corrections and related attendance reads, and `sessions/with-attendance`.
+- **Implementation consequence.** One real gap was found and closed (`a43ac33`): `sessions/generate`
+  (reachable by a teacher through `schedule.read`) and the five session write verbs did not enforce
+  the decision — the preview returned a plan, and the writes answered a bare `403 FORBIDDEN`.
+  `SessionPolicy::assertTeacherLinked()` is now called by all seven scheduling Form Requests, before
+  the permission check, and by the service methods. No schema, contract or permission change.
+  `students.teacher_id` remains a non-authorization column.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (fail-closed, not org-wide)
+
+**Enforced by.** `SchedulingTest::test_pb1_closes_generation_and_every_session_write`,
+`SchedulingTest::test_teacher_without_teacher_id_is_pb1_403`, `StudentScopeTest`,
+`AttendanceTest::test_teacher_without_teacher_id_is_pb1_403`, and the HTTP smoke step
+`PB-1 — teacher with no teacherId fails closed`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.2 PB-2 — Privileged account identity: keep the restrictions
+
+- **Decision id.** PB-2
+- **Decision.** **Option A.** `PrivilegedIdentityPolicy` keeps all four restrictions: (a) self-edit,
+  (b) administrator→administrator edit, (c) assigning `administrator`, (d) privileged email change.
+  The server is **not** relaxed to match the frontend panel.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-2 lists five sub-questions no product document
+  answers (one `name` field? admin→admin? manager→admin? privileged email change? current
+  password?). `UsersPanel.tsx` renders role and email controls for every row including self;
+  `userRepository.ts` posts `{ password }` with no current password. Option A answers all five by
+  keeping today's server behaviour, so the frontend stays the more permissive surface.
+- **Affected scope.** `users.write`, `roles.write`; `UserController`, `PrivilegedIdentityPolicy`.
+- **Implementation consequence.** **No code change.** `OWNER_DECISION_REQUIRED_PB2` continues to be
+  returned; it is now the implemented policy rather than a placeholder. The single `name` field and
+  the absence of a current-password field are retained as current contract.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the restrictions)
+
+**Enforced by.** `PrivilegedIdentityPolicyTest` (all four cases assert
+`403 OWNER_DECISION_REQUIRED_PB2`).
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.3 PB-3 — Writes with no permission id: keep blocked, invent none
+
+- **Decision id.** PB-3
+- **Decision.** **Option A.** Room, instrument, learning-curriculum and progress writes stay
+  blocked. **No** `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-3: *"Which existing permission, if any, hides each of
+  those writes? `settings.write` and `library.write` are already used by other panels and must not
+  be assumed."* Because reuse is explicitly unsupported by the evidence, the only options were
+  "keep blocked" or "name new ids" — and the owner chose to keep blocked.
+- **Affected scope.** `RoomsPanel`, `InstrumentsPanel`, `LearningPanel`, `StudentProgressPanel`,
+  `RepertoirePanel`; `RoomPolicy`, `RoomController`.
+- **Implementation consequence.** **No code change, and no new permission id.** `settings.write`
+  and `library.write` are **not** reinterpreted as covering these domains, and nothing authorizes on
+  `role === "teacher"`. The permission vocabulary remains the **23** ids in
+  `backend/config/permissions.php`. `OWNER_DECISION_REQUIRED_PB3` is still returned on all six rooms
+  endpoints for every role, administrator included.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep blocked, invent no permission id)
+
+**Enforced by.** `RoomsTest` and the HTTP smoke step `PB-3 — rooms stay blocked for every role`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.4 PB-4 — `useCan(...) || !user`: keep the test seam
+
+- **Decision id.** PB-4
+- **Decision.** **Option A — keep the idiom** as the documented test seam. Do not remove it, and do
+  not weaken backend authentication to match it.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-4: `useCan` returns true outside `AuthProvider`
+  *"by an explicit comment, so legacy view tests keep their controls"*, and `AuthGate` never renders
+  those views with a null user. The idiom therefore has no production reach.
+- **Affected scope.** `src/views/Classes.tsx`, `src/views/Students.tsx`,
+  `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`.
+- **Implementation consequence.** **No code change**, frontend or backend. Every route except login
+  still requires a Bearer token and answers `401` without one, so the seam remains frontend-only.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the test seam)
+
+**Enforced by.** The `401` assertion in the HTTP smoke job. No test asserts the idiom itself — it is
+retained deliberately, not pinned.
+
+**Status.** ✅ Resolved — 2026-10-02. Left untouched by design.
+
+---
+
+### 26.5 PB-5 — Notifications: no domain in v1
+
+- **Decision id.** PB-5
+- **Decision.** **Option A.** v1 has **no** notifications domain, inbox, table, permission or
+  delivery implementation. Telegram / Bale / SMS / email remain **later adapter capabilities only**.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-5 records a live conflict: `GOVERNANCE_CHECKPOINT.md`
+  **O-17** says no notifications domain in v1, while
+  `docs/frontend-completion/10-integration-architecture.md` classifies Telegram/Bale/SMS/email
+  delivery as a required later capability.
+- **Affected scope.** Notification settings toggles (which already disclose they do not save); any
+  future adapter work.
+- **Implementation consequence.** **No code change.** The conflict is reconciled by reading **both**
+  documents as *"required later capability, not in v1"*: O-17's v1 exclusion stands, the integration
+  architecture's REQUIRED classification stands as a future-capability claim, and neither document is
+  rewritten. Only the sequencing question was open, and this decision settles it.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (no notifications domain in v1)
+
+**Enforced by.** Absence: no notification table, migration, route, permission or domain exists. Push
+stays not started.
+
+**Status.** ✅ Resolved — 2026-10-02.
+
+---
+
+## 27. Organization settings — three decisions of the slice
+
+Recorded 2026-10-03 with the Organization settings slice (BACKEND_STATUS.md §Slice 4).
+These are implementation decisions the owner's authorization left open, not new
+product policy: no permission id was created, no rule was reinterpreted, and
+PB-1..PB-5 were not reopened.
+
+### 27.1 The settings ARE the organization row, not a child of it
+
+**Decision.** The `OrganizationSettings` columns live on `organizations`. There is
+no `organization_settings` table.
+
+**Why.** An academy has exactly one set of rules and exactly one organization row,
+so the settings are the tenant record rather than a satellite of it. Two concrete
+consequences drove it: `organizations.name` already is the `name` field of
+`OrganizationSettings`, so a side table would create a second source of truth for
+the academy's name; and `BelongsToOrganization` cannot apply to `organizations`
+(no `organization_id` column exists), so a separate table would have been the only
+scoped model in the codebase without the trait's global scope — the one place where
+a missing `where` clause would leak across tenants. Loading by
+`whereKey(TenantContext::organizationId())` makes isolation structural: another
+organization's settings are never queried, not merely filtered out.
+
+**Enforced by.** `OrganizationService::get()`; `OrganizationTest::test_settings_never_cross_organizations`
+and `test_the_service_scopes_its_row_to_the_tenant_in_context`.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.2 The server copies the existing rules; it does not reinterpret them
+
+**Decision.** `OrganizationRules` is a translation of `src/domains/organization/rules.ts`
+— same fields, same arithmetic, same defaults. No new business semantics.
+
+**Why.** The rules already existed and are already consumed by the frontend; a
+server-side "interpretation" would have produced two answers to one question
+("is this session inside the bookable window?"). The translation keeps the
+frontend's own null-discipline: when a value cannot be read, the rule answers
+`null`, and `null` means "not evaluated", never "allowed".
+
+**Enforced by.** `OrganizationRules`; `OrganizationTest` cases for an unreadable
+clock, a window that closes before it opens, and the closed-weekday fallback.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.3 The two working-hours conflict kinds are WARNINGS, not refusals
+
+**Decision.** `SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are
+emitted as warnings. Neither can block a booking.
+
+**Why.** Taken from evidence, not preference: `src/domains/scheduling/conflicts.ts`
+states "a session outside it is a warning, never a refusal", and
+`academyRules.test.ts` asserts both kinds inside `report.warnings`. The rationale
+that file gives is the one adopted — an academy that stays open late for a concert,
+or a make-up lesson at 21:30, is a real thing that happens, and the rule exists to
+tell the operator what they are doing rather than to police the schedule with a
+number from Settings.
+
+**Consequence, deliberate.** A booking adjacent to an existing session is still not
+a hard conflict, but is now advisory — which is the entire point of
+`sessionGapMinutes`. `SchedulingTest::test_adjacent_slot_is_not_a_conflict` therefore
+sends `acknowledgeWarnings`. Both kinds are appended last in the warnings array, so
+no existing caller's first warning moves.
+
+**Enforced by.** `ConflictDetector::appendOrganizationRuleWarnings()`; three tests
+in `SchedulingTest`, including one that widens the academy's window and watches the
+same 22:00 booking become unremarkable — proving the rule reads the academy's own
+settings rather than a hard-coded value.
+
+**Status.** ✅ In force — 2026-10-03.
+
+## 28. Library resources — the slice is metadata-only, and the bytes stay behind a declared boundary
+
+**Context.** `src/domains/library/apiRepository.ts` was written with five metadata verbs
+(`GET|POST /resources`, `GET|PATCH|DELETE /resources/{id}`) and declares two file endpoints —
+`POST /uploads` and `GET /resources/{id}/download` — that it explicitly does **not** call, because
+its `ApiClient` is JSON-only. A contract test asserts those two paths are never hit.
+`src/domains/library/repository.ts` states that bytes are not part of the contract.
+`docs/frontend-completion/06-library-gallery-spec.md` classifies the binary storage provider,
+signed URLs, per-object auth and virus scanning as **"Contract Now Backend Later (B)"**.
+
+That left a real question: does implementing `/resources` mean also implementing upload and
+download? Building storage would have meant inventing a provider, an access model for signed URLs
+and a scanning policy — none of which the repository requires and all of which are governance
+decisions, not implementation details.
+
+**Decision.** The slice is **metadata-only**. `mediaId` is persisted as an opaque string reference
+into the media domain. `POST /uploads` and `GET /resources/{id}/download` are **not routed**, and no
+storage provider, signed URL, per-object authorization or scanning is introduced. Because the
+server therefore holds no bytes, `size` is **not** a column: every row reports the catalogue's own
+unknown marker (`نامشخص`), the same value `localRepository.ts` emits when a row has no media asset.
+
+**Why.** Reporting "unknown" is the honest answer and the contract already defines it; a fabricated
+byte count would be a number the server cannot defend. This is the same rule that governs every
+other derived figure in this codebase — an absent measurement is not a zero measurement, and
+«نامشخص» is not «۰».
+
+**Consequence, deliberate.** `uses` is stored but permanently 0 for now, because the count grows on
+a download and that endpoint is not built (the spec lists "uses count increment on download" as
+back-end-later too). `instrument` is validated for shape but not existence, because `InstrumentId`
+is an open `string` whose validity comes from the academy's instruments collection and no
+instruments table exists on the server (PB-3). Both are recorded as limitations rather than papered
+over, and neither is presented as implemented behaviour.
+
+**Enforced by.** `ResourceService` (no byte handling, `uses` set to 0 on create and not in the
+writable column map); `ResourceResource::toWire` (calls `ResourcePresenter::sizeLabel(null)`);
+`routes/api.php` (no `uploads` or `download` route, with the omission explained in a comment);
+`ResourceTest::test_the_file_endpoints_are_not_part_of_this_slice` asserts **both** paths are 404;
+`test_uses_is_not_a_settable_field` asserts a posted `uses` is ignored;
+`test_create_returns_the_exact_contract_shape` asserts `size === 'نامشخص'`.
+
+**Status.** ✅ In force — 2026-10-03.
+
+## 29. Progress is authorized for v1: PB-3 is lifted for Progress only, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning and
+progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. `src/domains/progress/apiRepository.ts` has existed throughout with a
+complete 13-endpoint contract and an explicit "no server implements these endpoints yet" note, so
+Progress has been the one fully-specified domain with no path forward.
+
+The owner has now decided, explicitly and for v1 only, that Progress is in scope.
+
+**Decision.** Progress is authorized for v1. Exactly two permission ids are added — `progress.read`
+and `progress.write` — taking the vocabulary from **23 to 25**. Nothing else changes.
+
+- PB-3 remains **Option A** for **instruments** and **learning**. Neither is implemented, and no
+  `instruments.*` or `learning.*` id exists.
+- PB-5 remains **Option A**: no notifications domain, and Telegram/Bale/push stay later adapter
+  capabilities.
+- No other permission family is touched: not `finance.*`, `reports.*`, `messages.*`, `rooms.*`,
+  `resource.*`, and no media/storage permission.
+
+**Why.** The Progress contract is the only unbuilt domain that is fully specified by an existing
+committed `apiRepository.ts`, so implementing it invents no endpoint, no field and no error code.
+Every other candidate would have required inventing both permissions and an API shape.
+
+**Role matrix, derived from existing conventions rather than invented.**
+
+| role | progress.read | progress.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | yes |
+| staff | yes | no |
+| accountant | no | no |
+
+`progress.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`students.read`, `teachers.read`, `classes.read`, `schedule.read` and `library.read` — Progress is
+per-student learning data, so it reads like the rest of the per-student core and is withheld from
+accounting. `progress.write` goes to manager and teacher: repertoire is content the manager authors
+(mirroring `library.write`), and assignments are teacher-authored the way attendance entries are
+(mirroring `attendance.write`). Staff is reception and holds no content-authoring write.
+
+**Consequence, deliberate.** The client's `StudentProgressPanel` gates writes on
+`role === "teacher"`. That is a UX gate, not an authorization boundary, and PB-3 is explicit that
+nothing authorizes on role. The permission carries the decision server-side; `teacherId` on an
+assignment is provenance for accountability and authorizes nothing.
+
+**Implementation consequence — referential validation is partial.** `validatePiece()` in the client
+checks `instrumentId`, `programId` and `recommendedLevelId` against its instruments/programs/levels
+stores. No such tables exist on the server (instruments and learning are PB-3), so the server
+validates shape and length only and stores them as references by value. `contentIds` is likewise an
+opaque list. This is the same boundary `library.instrument` and `mediaId` sit behind.
+
+**Enforced by.** `backend/config/permissions.php` (25 ids, `progress.read` in `$readOnlyCore`,
+`progress.write` on manager and teacher); `App\Domain\Progress\ProgressPolicy`;
+`ProgressTest::test_reading_requires_progress_read`, `test_writing_requires_progress_write`,
+`test_deleting_requires_progress_write`, `test_the_permission_check_precedes_validation`, and
+`test_the_permission_vocabulary_is_exactly_twenty_five_ids` (which asserts the diff against the old
+23 is exactly the two new ids).
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
+## 30. Progress is authorized with a 14th endpoint: `GET /students/{id}/assignments`
+
+**Context.** §29 authorized Progress as a *"complete 13-endpoint contract"*, taking the permission
+vocabulary from 23 to 25. A post-closure audit then found that the contract is in fact 14
+endpoints, and that the 14th is the only contracted route in the whole repository with no server
+implementation:
+
+- `ProgressRepository` (`src/domains/progress/repository.ts:72`) **requires** `studentAssignments()`;
+- `ApiProgressRepository.studentAssignments()` implements it as `GET students/{id}/assignments`;
+- no backend route served it — so the API repository was not a complete implementation of its own
+  interface, even though nothing called it (the registry resolves Progress to
+  `LocalProgressRepository`).
+
+A mechanical comparison of every `apiRepository.ts` against `routes/api.php` — 68 endpoint calls
+across ten domains — returned exactly this one gap. Everything else was already served.
+
+**Decision.** `GET /api/v1/students/{id}/assignments` is authorized as the **14th Progress
+endpoint**, and Progress is now canonically a **14-endpoint** contract. The response is a plain,
+unpaginated `AssignmentWithPiece[]` = `[{assignment, piece|null}]`, ordered `assignedAt` DESC with
+an `id` DESC tie-break. It is read-only: no mutation verb is registered.
+
+**Permissions.** **No new permission.** The endpoint is governed by `progress.read`, which §29
+already created. The vocabulary remains **25**. Nothing else in §29 changes: PB-3 stays Option A
+for instruments and learning, PB-5 stays Option A, TenantContext is untouched, and no new table is
+introduced.
+
+**Why this was not folded into §29 silently.** §29 was numerically explicit — *"13-endpoint
+contract"*, *"Nothing else changes"* — and a frontend contract does not by itself authorize backend
+implementation. The 14th endpoint was therefore surfaced as an owner decision rather than
+implemented on inference. This entry records that decision.
+
+**Scope discipline.** This authorizes **one endpoint**. It does not reopen §29 generally, and does
+not authorize workflow automation, standalone analytics/plateau endpoints, Learning, Instruments,
+Rooms, media/storage, notifications, the student portal, finance, reports, or frontend registry
+wiring.
+
+**Enforced by.** `backend/routes/api.php` (a single `GET`, no mutation verb),
+`backend/app/Http/Controllers/Api/V1/StudentAssignmentController.php`,
+`backend/app/Domain/Progress/ProgressEventService::assignmentsFor()`, and
+`backend/tests/Feature/ProgressEventTest.php` — which covers the happy path, ordering and the id
+tie-break, the empty state, cross-tenant 404, `progress.read` across the §29 role matrix, the
+null-piece serializer branch, exact agreement with the overview, and that POST/PATCH/DELETE are
+405.
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

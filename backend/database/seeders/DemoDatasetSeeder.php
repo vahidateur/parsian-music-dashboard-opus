@@ -39,6 +39,7 @@ class DemoDatasetSeeder extends Seeder
             $this->seedStudents();
             $this->seedClasses();
             $this->seedEnrollments();
+            $this->seedSessions();
         });
     }
 
@@ -178,11 +179,33 @@ class DemoDatasetSeeder extends Seeder
         $organization = $this->dataset('organization');
         $now = now();
 
+        /*
+         * The whole `OrganizationSettings` record, not just the name: the demo
+         * dataset (data/dataset/organization.json) is the shipped rule set, and
+         * a seeded academy whose working hours silently fell back to the column
+         * defaults would not be the academy the dataset describes.
+         */
         DB::table('organizations')->insert([
             'id' => self::ORGANIZATION_ID,
             'slug' => 'demo',
             'name' => (string) $organization['name'],
             'status' => 'active',
+            'tagline' => (string) ($organization['tagline'] ?? ''),
+            'locale' => (string) ($organization['locale'] ?? 'fa-IR'),
+            'direction' => (string) ($organization['direction'] ?? 'rtl'),
+            'calendar' => (string) ($organization['calendar'] ?? 'jalali'),
+            'currency' => (string) ($organization['currency'] ?? 'toman'),
+            'first_weekday' => (int) ($organization['firstWeekday'] ?? 0),
+            'default_session_minutes' => (int) ($organization['defaultSessionMinutes'] ?? 60),
+            'session_gap_minutes' => (int) ($organization['sessionGapMinutes'] ?? 10),
+            'cancellation_grace_hours' => (int) ($organization['cancellationGraceHours'] ?? 24),
+            'max_makeups_per_term' => (int) ($organization['maxMakeupsPerTerm'] ?? 2),
+            'working_day_start' => (string) ($organization['workingDayStart'] ?? '08:00'),
+            'working_day_end' => (string) ($organization['workingDayEnd'] ?? '21:00'),
+            'closed_weekdays' => json_encode(
+                array_values(array_map('intval', (array) ($organization['closedWeekdays'] ?? [6]))),
+                JSON_THROW_ON_ERROR,
+            ),
             'created_at' => $now,
             'updated_at' => $now,
         ]);
@@ -222,6 +245,46 @@ class DemoDatasetSeeder extends Seeder
                 'scope' => (string) ($role['scope'] ?? ''),
                 'permissions' => is_array($permissions) ? json_encode(array_values($permissions)) : null,
                 'updated_at' => isset($role['updatedAt']) ? $this->timestamp($role['updatedAt']) : null,
+            ]);
+        }
+    }
+
+
+    /**
+     * Sessions come from `scheduledSessions.json`, whose records already match
+     * the server `Session` shape exactly (classId / date / startTime / endTime
+     * / teacherId / roomId / status / origin).
+     *
+     * `sessions.json` and `attendance.json` are NOT seeded: both are the legacy
+     * demo format (`g7`-style ids, a `mark` field, `recordedBy` as a free-text
+     * person name) and neither can be mapped onto the schema without inventing
+     * data. `attendanceRecords.json` and `attendanceCorrections.json` are empty
+     * arrays, so attendance is created by factories in tests instead.
+     */
+    protected function seedSessions(): void
+    {
+        foreach ($this->dataset('scheduledSessions') as $session) {
+            if (! isset($session['classId'], $session['date'], $session['startTime'], $session['endTime'])) {
+                continue;
+            }
+
+            DB::table('class_sessions')->insert([
+                'id' => (string) $session['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'class_id' => (string) $session['classId'],
+                'date' => (string) $session['date'],
+                'start_time' => (string) $session['startTime'],
+                'end_time' => (string) $session['endTime'],
+                'teacher_id' => (string) ($session['teacherId'] ?? ''),
+                'room_id' => (string) ($session['roomId'] ?? ''),
+                'status' => (string) ($session['status'] ?? 'scheduled'),
+                'origin' => (string) ($session['origin'] ?? 'generated'),
+                'cancel_reason' => $session['cancelReason'] ?? null,
+                'rescheduled_from_id' => $session['rescheduledFromId'] ?? null,
+                'rescheduled_to_id' => $session['rescheduledToId'] ?? null,
+                'notes' => $session['notes'] ?? null,
+                'created_at' => $this->timestamp($session['createdAt'] ?? null),
+                'updated_at' => $this->timestamp($session['updatedAt'] ?? null),
             ]);
         }
     }
