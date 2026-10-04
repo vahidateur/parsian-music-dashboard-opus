@@ -7,6 +7,7 @@ use App\Models\PieceAssignment;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -345,8 +346,8 @@ class ProgressTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $override
-     * @dataProvider invalidPieces
      */
+    #[DataProvider('invalidPieces')]
     public function test_invalid_piece_fields_are_refused(string $field, array $override): void
     {
         $this->actingAsRole('manager');

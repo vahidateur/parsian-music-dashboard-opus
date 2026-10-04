@@ -10,6 +10,7 @@ use App\Models\ProgressEvent;
 use App\Models\Student;
 use App\Http\Resources\ProgressOverviewResource;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -316,9 +317,8 @@ class ProgressEventTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $overrides
-     *
-     * @dataProvider boundedFieldProvider
      */
+    #[DataProvider('boundedFieldProvider')]
     public function test_out_of_range_fields_are_refused(array $overrides): void
     {
         $fixture = $this->makeStudent($this->defaultOrganization());
