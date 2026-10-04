@@ -183,15 +183,22 @@ jobs:
           MYSQL_DATABASE: parsian_ci
         ports:
           - 3306:3306
+        # `options` is passed to `docker create`, so it may only carry docker
+        # flags. mysqld settings such as --character-set-server or
+        # --innodb-default-row-format are NOT docker flags: putting them here
+        # makes `docker create` reject the container and the job dies at
+        # "Initialize containers" with every later step skipped. (First run of
+        # this leg failed exactly that way.)
+        #
+        # So the server is left on the mysql:8.0 image defaults — utf8mb4,
+        # InnoDB, DYNAMIC row format — and G1 below READS the real values back
+        # from the live server instead of asserting them here. Evidence over
+        # assumption: if a default ever differs, the job log says so.
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -u root --password=ci-throwaway-not-a-credential"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=15
-          --character-set-server=utf8mb4
-          --collation-server=utf8mb4_unicode_ci
-          --default-storage-engine=INNODB
-          --innodb-default-row-format=dynamic
 
     steps:
       - name: Checkout
@@ -255,6 +262,18 @@ jobs:
             echo "server version    : {$row->v}\n";
             echo "innodb row format : {$row->rf}\n";
             echo "charset/collation : {$row->cs} / {$row->co}\n";
+            // The 3072-byte key limit is a property of DYNAMIC (and COMPACT).
+            // REDUNDANT caps a key at 767 bytes, which the 3060-byte P-2
+            // indexes would blow straight through — so assert it rather than
+            // let a differently-configured server quietly change the result.
+            if (strcasecmp((string) $row->rf, "dynamic") !== 0) {
+              fwrite(STDERR, "FATAL: row format is {$row->rf}, expected dynamic\n");
+              exit(1);
+            }
+            if (strpos((string) $row->cs, "utf8mb4") !== 0) {
+              fwrite(STDERR, "FATAL: server charset is {$row->cs}, expected utf8mb4\n");
+              exit(1);
+            }
             // innodb_large_prefix was REMOVED in MySQL 8.0; it is probed here
             // only so the evidence record states that explicitly rather than
             // leaving the variable unaccounted for.
