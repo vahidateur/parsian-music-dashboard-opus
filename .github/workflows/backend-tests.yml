@@ -354,10 +354,13 @@ jobs:
           # PHPUnit failure with anything `tee` does, and hides which one it was.
           # Run it, keep its own exit code, then show the log.
           set +e
-          php artisan test --configuration=phpunit.mysql.xml --colors=never > /tmp/mysql-test.log 2>&1
+          php artisan test --configuration=phpunit.mysql.xml --colors=never \
+            > /tmp/mysql-test.log 2> /tmp/mysql-test.err
           code=$?
           set -e
           cat /tmp/mysql-test.log
+          echo "G5: artisan stderr:" | tee -a /tmp/mysql-test.log
+          tail -n 40 /tmp/mysql-test.err | tee -a /tmp/mysql-test.log
           # Appended to the log as well as printed, because the Actions log
           # blob is not retrievable from every environment this repository is
           # worked on from — the failure digest is the only readable copy, and
