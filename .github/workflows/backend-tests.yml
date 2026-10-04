@@ -369,7 +369,10 @@ jobs:
           # from the artisan wrapper, by running the very same configuration
           # through vendor/bin/phpunit.
           set +e
-          vendor/bin/phpunit --configuration=phpunit.mysql.xml --colors=never --display-deprecations > /tmp/phpunit-direct.log 2>&1
+          vendor/bin/phpunit --configuration=phpunit.mysql.xml --colors=never \
+            --display-deprecations --display-phpunit-deprecations \
+            --display-errors --display-notices --display-warnings \
+            > /tmp/phpunit-direct.log 2>&1
           direct=$?
           set -e
           echo "G5: vendor/bin/phpunit exit code = ${direct}" | tee -a /tmp/mysql-test.log
