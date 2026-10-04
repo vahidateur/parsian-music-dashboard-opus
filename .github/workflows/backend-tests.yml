@@ -349,39 +349,30 @@ jobs:
           APP_ENV: testing
         run: |
           set -euo pipefail
-          # Deliberately NOT a pipeline. `… | tee log` under `pipefail` makes the
-          # step's status the status of the whole pipeline, which conflates a
-          # PHPUnit failure with anything `tee` does, and hides which one it was.
-          # Run it, keep its own exit code, then show the log.
+          # vendor/bin/phpunit, not `php artisan test`.
+          #
+          # The identical suite through the artisan wrapper runs all 323 tests
+          # green and still exits 1, with an empty stderr and no deprecations,
+          # errors, notices or warnings — while vendor/bin/phpunit on the very
+          # same configuration exits 0. The wrapper's non-zero is therefore not
+          # a signal about the tests, and trusting it would make this leg
+          # permanently red for a reason unrelated to MySQL. Use the canonical
+          # PHPUnit invocation, which reports the suite's real result.
+          #
+          # Not a pipeline: under `pipefail` a `| tee` step reports the
+          # pipeline's status, which conflates a PHPUnit failure with anything
+          # on the tee side. Run it, keep its own exit code, then show the log.
           set +e
-          php artisan test --configuration=phpunit.mysql.xml --colors=never \
-            > /tmp/mysql-test.log 2> /tmp/mysql-test.err
+          vendor/bin/phpunit --configuration=phpunit.mysql.xml --colors=never \
+            > /tmp/mysql-test.log 2>&1
           code=$?
           set -e
           cat /tmp/mysql-test.log
-          echo "G5: artisan stderr:" | tee -a /tmp/mysql-test.log
-          tail -n 40 /tmp/mysql-test.err | tee -a /tmp/mysql-test.log
-          # Appended to the log as well as printed, because the Actions log
-          # blob is not retrievable from every environment this repository is
-          # worked on from — the failure digest is the only readable copy, and
-          # it is built from this file.
-          echo "G5: artisan test exit code = ${code}" | tee -a /tmp/mysql-test.log
-
-          # 323 tests pass and the tally reports no failures, yet the wrapper
-          # exits non-zero. Isolate whether that comes from PHPUnit itself or
-          # from the artisan wrapper, by running the very same configuration
-          # through vendor/bin/phpunit.
-          set +e
-          vendor/bin/phpunit --configuration=phpunit.mysql.xml --colors=never \
-            --display-deprecations --display-phpunit-deprecations \
-            --display-errors --display-notices --display-warnings \
-            > /tmp/phpunit-direct.log 2>&1
-          direct=$?
-          set -e
-          echo "G5: vendor/bin/phpunit exit code = ${direct}" | tee -a /tmp/mysql-test.log
-          echo "G5: deprecation detail:" | tee -a /tmp/mysql-test.log
-          grep -n -A6 -i "deprecat" /tmp/phpunit-direct.log | head -n 80 | tee -a /tmp/mysql-test.log || true
-
+          # Appended to the log as well as printed: the Actions log blob is not
+          # retrievable from every environment this repository is worked on
+          # from, so the failure digest — built from this file — is the only
+          # readable copy of the run.
+          echo "G5: phpunit exit code = ${code}" | tee -a /tmp/mysql-test.log
           exit "${code}"
 
       - name: Publish MySQL failure digest
