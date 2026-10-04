@@ -313,7 +313,14 @@ class OrganizationTest extends TestCase
     public function test_a_rule_that_cannot_be_read_answers_null(): void
     {
         $organization = $this->defaultOrganization();
-        $organization->working_day_start = 'not a clock';
+        // 5 characters, because that is what the column is: `working_day_start`
+        // is `string(..., 5)`. SQLite ignores a VARCHAR length and happily
+        // stored the longer literal this case used to write, so the case passed
+        // there and failed on MySQL with SQLSTATE 22001 (1406 Data too long) —
+        // a storage error, not the unreadable-rule behaviour under test.
+        // '25:99' is still not a time of day (hour 25, minute 99), so the rule
+        // reads null for the reason the case is actually about.
+        $organization->working_day_start = '25:99';
         $organization->save();
         $broken = $organization->fresh();
 

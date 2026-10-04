@@ -235,10 +235,32 @@ class EnrollmentsTest extends TestCase
     {
         // A writer that bypasses the service's in-transaction check still hits
         // the database index (EnrollmentService maps it to ENROLLMENT_DUPLICATE).
+        //
+        // That index is a PARTIAL index, and only sqlite and pgsql have those.
+        // The migration creates it conditionally and says why: "MySQL has no
+        // partial indexes; there the service's transactional check is the only
+        // guard." So this asserts the defence-in-depth layer on the drivers
+        // that have it...
         $org = $this->defaultOrganization()->id;
         Enrollment::factory()->create(['organization_id' => $org, 'student_id' => 's1', 'class_id' => 'c1', 'status' => 'waitlist']);
-        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
-        Enrollment::factory()->create(['organization_id' => $org, 'student_id' => 's1', 'class_id' => 'c1', 'status' => 'active']);
+
+        if (in_array(DB::connection()->getDriverName(), ['sqlite', 'pgsql'], true)) {
+            $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+            Enrollment::factory()->create(['organization_id' => $org, 'student_id' => 's1', 'class_id' => 'c1', 'status' => 'active']);
+
+            return;
+        }
+
+        // ...and on MySQL, where it cannot exist, it asserts the layer that
+        // does instead. Skipping would drop the invariant altogether, which is
+        // the one thing this case must never do: "at most one open enrollment
+        // per student and class" has to hold on every driver, by whichever
+        // mechanism that driver actually provides.
+        $this->actingAsRole('administrator');
+        $this->postJson('/api/v1/enrollments', ['studentId' => 's1', 'classId' => 'c1', 'status' => 'active'])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'ENROLLMENT_DUPLICATE');
+        $this->assertSame(1, DB::table('enrollments')->where('student_id', 's1')->count());
     }
 
     public function test_service_enforces_capacity_without_http(): void

@@ -153,10 +153,17 @@ class StudentScopeTest extends TestCase
         $query = app(StudentAccessPolicy::class)->scopeQuery(Student::query(), $teacher);
         $sql = strtolower($query->toSql());
 
-        $this->assertStringContainsString('exists', $sql);
-        $this->assertStringContainsString('"enrollments"."status" = ?', $sql);
-        $this->assertStringContainsString('"classes"."teacher_id" = ?', $sql);
-        $this->assertStringNotContainsString('"students"."teacher_id"', $sql);
+        // Identifier quoting is dialect-specific — sqlite and pgsql write
+        // "enrollments"."status", MySQL writes `enrollments`.`status`. Strip the
+        // quoting so these assertions are about WHICH columns the scope reads,
+        // which is the security property, rather than about how this one driver
+        // happens to spell an identifier.
+        $bare = str_replace(['"', '`', '[', ']'], '', $sql);
+
+        $this->assertStringContainsString('exists', $bare);
+        $this->assertStringContainsString('enrollments.status = ?', $bare);
+        $this->assertStringContainsString('classes.teacher_id = ?', $bare);
+        $this->assertStringNotContainsString('students.teacher_id', $bare);
     }
 
     public function test_non_teacher_roles_are_org_wide(): void

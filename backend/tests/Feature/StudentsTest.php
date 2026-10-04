@@ -93,6 +93,23 @@ class StudentsTest extends TestCase
         $this->assertStringStartsWith('st_', $id);
         $expected = ['id' => $id, ...$this->payload()];
         foreach ($expected as $key => $value) {
+            // `nextClass` and friends round-trip through JSON columns. MySQL's
+            // JSON type NORMALISES object key order — keys are stored sorted,
+            // so ['day','time','room'] comes back as ['day','room','time'] —
+            // while SQLite keeps insertion order and returns them as written.
+            // `assertJsonPath` compares with assertSame, which is
+            // order-sensitive, so a nested map is walked key by key instead:
+            // every value is still asserted exactly, only the ordering is not.
+            // JSON object key order is not a product contract on any driver.
+            // Lists (notes, activity, skills) keep their order and are
+            // compared whole — their sequence does carry meaning.
+            if (is_array($value) && ! array_is_list($value)) {
+                foreach ($value as $nestedKey => $nestedValue) {
+                    $created->assertJsonPath("data.$key.$nestedKey", $nestedValue);
+                }
+
+                continue;
+            }
             $created->assertJsonPath("data.$key", $value);
         }
         $created->assertJsonMissingPath('data.organization_id')->assertJsonMissingPath('data.photoMediaId');
