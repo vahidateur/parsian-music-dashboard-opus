@@ -146,6 +146,212 @@ jobs:
             --silent
 
   # ---------------------------------------------------------------------------
+  # MySQL leg — the PHASE 5.5 / 5.6 / 5.7 evidence gate.
+  #
+  # WHY THIS EXISTS
+  #   Every gate above runs on SQLite. SQLite is not MySQL: it imposes no index
+  #   key-length limit, has no InnoDB row format, and differs on upsert, JSON
+  #   and strict-mode semantics — so a green SQLite run is not evidence about
+  #   MySQL. This schema carries four composite indexes of three varchar(255)
+  #   utf8mb4 columns (255 x 4 x 3 = 3060 bytes) against InnoDB's 3072-byte key
+  #   limit: a 12-byte margin that only a real server can settle. (P-2.)
+  #
+  #   The SQLite leg above is deliberately left untouched; this job ADDS MySQL
+  #   rather than replacing it, so a future MySQL-only regression becomes
+  #   visible instead of silent.
+  #
+  # ISOLATION
+  #   The container is created empty for this job, holds only demo rows produced
+  #   by the repository's own seeders, and is destroyed with the runner. Every
+  #   credential below is a throwaway value for that ephemeral container; none
+  #   refers to, or can reach, any real system.
+  # ---------------------------------------------------------------------------
+  backend-mysql:
+    name: MySQL 8 — connection, migrations, P-2 indexes, test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-throwaway-not-a-credential
+          MYSQL_DATABASE: parsian_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root --password=ci-throwaway-not-a-credential"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+          --character-set-server=utf8mb4
+          --collation-server=utf8mb4_unicode_ci
+          --default-storage-engine=INNODB
+          --innodb-default-row-format=dynamic
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3 with pdo_mysql
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, pdo_mysql, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Prepare environment (MySQL)
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          php artisan key:generate --force
+          composer dump-autoload --optimize
+          # Rewrite the SQLite defaults IN PLACE rather than appending to the
+          # file: phpdotenv resolves immutably, so a later `DB_CONNECTION=mysql`
+          # line would LOSE to the earlier `DB_CONNECTION=sqlite` that
+          # .env.example already carries, and the job would silently test
+          # SQLite while calling itself MySQL. The grep below makes the
+          # resolved values part of the job log.
+          sed -i \
+            -e 's|^DB_CONNECTION=.*|DB_CONNECTION=mysql|' \
+            -e 's|^#[[:space:]]*DB_HOST=.*|DB_HOST=127.0.0.1|' \
+            -e 's|^#[[:space:]]*DB_PORT=.*|DB_PORT=3306|' \
+            -e 's|^#[[:space:]]*DB_DATABASE=.*|DB_DATABASE=parsian_ci|' \
+            -e 's|^#[[:space:]]*DB_USERNAME=.*|DB_USERNAME=root|' \
+            -e 's|^#[[:space:]]*DB_PASSWORD=.*|DB_PASSWORD=ci-throwaway-not-a-credential|' \
+            .env
+          printf 'DB_CHARSET=utf8mb4\nDB_COLLATION=utf8mb4_unicode_ci\n' >> .env
+          echo "--- resolved DB_* ---"
+          grep -E '^DB_' .env
+
+      # G1 — fail loudly if the resolved driver is anything but MySQL. Without
+      # this, a misconfigured leg could run the whole suite on SQLite and the
+      # result would look identical to a genuine MySQL pass.
+      - name: "G1 — prove the connection is real MySQL"
+        run: |
+          set -euo pipefail
+          php -r '
+            require "vendor/autoload.php";
+            $app = require_once "bootstrap/app.php";
+            $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+            $driver = config("database.default");
+            echo "resolved driver   : {$driver}\n";
+            if ($driver !== "mysql") {
+              fwrite(STDERR, "FATAL: resolved driver is {$driver}, not mysql\n");
+              exit(1);
+            }
+            $row = Illuminate\Support\Facades\DB::selectOne(
+              "SELECT VERSION() AS v, @@innodb_default_row_format AS rf,
+                      @@character_set_server AS cs, @@collation_server AS co"
+            );
+            echo "server version    : {$row->v}\n";
+            echo "innodb row format : {$row->rf}\n";
+            echo "charset/collation : {$row->cs} / {$row->co}\n";
+            // innodb_large_prefix was REMOVED in MySQL 8.0; it is probed here
+            // only so the evidence record states that explicitly rather than
+            // leaving the variable unaccounted for.
+            try {
+              $lp = Illuminate\Support\Facades\DB::selectOne("SELECT @@innodb_large_prefix AS lp");
+              echo "innodb_large_prefix: {$lp->lp}\n";
+            } catch (Throwable $e) {
+              echo "innodb_large_prefix: removed in MySQL 8.0 (not queryable)\n";
+            }
+          '
+
+      # G2 — migrations on a completely empty database. This is also the P-2
+      # gate: if 3060 bytes does not fit, migrate:fresh fails here with the
+      # real server's error rather than a prediction.
+      - name: "G2 — migrate:fresh on MySQL (settles P-2)"
+        run: |
+          set -o pipefail
+          php artisan migrate:fresh --force 2>&1 | tee /tmp/mysql-migrate.log
+
+      # G4 — what MySQL actually built, read back from its own catalogue.
+      - name: "G4 — P-2 index sizes as MySQL built them"
+        run: |
+          set -euo pipefail
+          php -r '
+            require "vendor/autoload.php";
+            $app = require_once "bootstrap/app.php";
+            $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+            $rows = Illuminate\Support\Facades\DB::select("
+              SELECT s.TABLE_NAME  AS tbl,
+                     s.INDEX_NAME  AS idx,
+                     s.COLUMN_NAME AS col,
+                     c.CHARACTER_MAXIMUM_LENGTH AS len
+              FROM information_schema.STATISTICS s
+              JOIN information_schema.COLUMNS c
+                ON c.TABLE_SCHEMA = s.TABLE_SCHEMA
+               AND c.TABLE_NAME   = s.TABLE_NAME
+               AND c.COLUMN_NAME  = s.COLUMN_NAME
+              WHERE s.TABLE_SCHEMA = DATABASE()
+                AND s.INDEX_NAME IN (
+                  \"enrollments_organization_id_class_id_status_index\",
+                  \"class_sessions_organization_id_class_id_date_index\",
+                  \"class_sessions_organization_id_teacher_id_date_index\",
+                  \"class_sessions_organization_id_room_id_date_index\"
+                )
+              ORDER BY s.TABLE_NAME, s.INDEX_NAME, s.SEQ_IN_INDEX
+            ");
+            if (!$rows) { fwrite(STDERR, "FATAL: none of the four P-2 indexes exist\n"); exit(1); }
+            $total = [];
+            foreach ($rows as $r) {
+              printf("  %-16s %-56s %-16s %4d chars\n", $r->tbl, $r->idx, $r->col, $r->len);
+              $total[$r->idx] = ($total[$r->idx] ?? 0) + ($r->len * 4);
+            }
+            echo "\n  utf8mb4 key size per index (limit 3072):\n";
+            $bad = 0;
+            foreach ($total as $idx => $bytes) {
+              $ok = $bytes <= 3072 ? "OK" : "EXCEEDS";
+              if ($bytes > 3072) { $bad++; }
+              printf("  %-56s %5d bytes  %s\n", $idx, $bytes, $ok);
+            }
+            exit($bad === 0 ? 0 : 1);
+          '
+
+      # G3 — the repository's own seeders, against the schema just built.
+      - name: "G3 — seed the demo dataset on MySQL"
+        run: |
+          set -o pipefail
+          php artisan db:seed --force 2>&1 | tee /tmp/mysql-seed.log
+
+      # G5 — the full suite, using the MySQL configuration so "on MySQL" is a
+      # property of the run, not of the shell.
+      - name: "G5 — backend test suite on MySQL"
+        env:
+          APP_ENV: testing
+        run: |
+          set -o pipefail
+          php artisan test --configuration=phpunit.mysql.xml --colors=never 2>&1 | tee /tmp/mysql-test.log
+
+      - name: Publish MySQL failure digest
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          body="--- migrate:fresh ---\n$(tail -n 60 /tmp/mysql-migrate.log 2>/dev/null || echo none)"
+          body="$body\n\n--- db:seed ---\n$(tail -n 60 /tmp/mysql-seed.log 2>/dev/null || echo none)"
+          body="$body\n\n--- php artisan test (mysql) ---\n$(tail -n 120 /tmp/mysql-test.log 2>/dev/null || echo none)"
+          printf "%b" "$body" > /tmp/digest.md
+          gh api "repos/${{ github.repository }}/check-runs" \
+            -f name='backend-mysql-failure-digest' \
+            -f head_sha='${{ github.sha }}' \
+            -f status=completed \
+            -f conclusion=failure \
+            -f 'output[title]=MySQL leg — failure detail' \
+            -F "output[summary]=@/tmp/digest.md" \
+            --silent
+
+  # ---------------------------------------------------------------------------
   # HTTP smoke — the durable form of the manual smoke run the first slice was
   # verified with. It asserts the load-bearing governance rules *over HTTP*,
   # against the committed demo dataset, with expectations computed from the

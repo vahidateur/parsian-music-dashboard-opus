@@ -116,6 +116,9 @@ async function signInAsAdministrator(): Promise<void> {
   const admin = demoStore
     .snapshot()
     .users.find((user) => user.role === "administrator" && user.status === "active");
+  // A missing administrator is a broken environment, not a missing permission:
+  // both DEMO and EMPTY seed one, so say so rather than logging in as undefined.
+  if (!admin) throw new Error("no active administrator in this environment");
   await authRepo.login({ email: admin.email, password: DEMO_PASSPHRASE });
 }
 

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MySQL configuration for the backend test suite.
+
+  WHY A SECOND FILE
+    `phpunit.xml` pins `DB_CONNECTION=sqlite` / `DB_DATABASE=:memory:`. This file
+    is the same suite pointed at the MySQL service container declared in
+    `.github/workflows/backend-tests.yml`, so "the tests ran on MySQL" is a
+    property of the configuration rather than of whatever happened to be
+    exported in the shell.
+
+    It exists to answer one question the SQLite run never could: does this
+    schema, these migrations and these seeders actually work on MySQL? The load
+    bearing case is the P-2 index gate — four composite indexes of three
+    varchar(255) utf8mb4 columns (255 x 4 x 3 = 3060 bytes) against InnoDB's
+    3072-byte key limit, a 12-byte margin. SQLite has no key-length limit at
+    all, so a green SQLite run says nothing about it.
+
+  SCOPE
+    Identical test selection to `phpunit.xml`. No test is added, removed,
+    skipped or weakened here; only the connection differs.
+
+  CREDENTIALS
+    These are throwaway values for an ephemeral container created empty for
+    each job and destroyed with it. They are not credentials for any real
+    system and nothing they protect outlives the job.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="DB_CONNECTION" value="mysql" force="true"/>
+        <env name="DB_HOST" value="127.0.0.1" force="true"/>
+        <env name="DB_PORT" value="3306" force="true"/>
+        <env name="DB_DATABASE" value="parsian_ci" force="true"/>
+        <env name="DB_USERNAME" value="root" force="true"/>
+        <env name="DB_PASSWORD" value="ci-throwaway-not-a-credential" force="true"/>
+        <env name="DB_CHARSET" value="utf8mb4" force="true"/>
+        <env name="DB_COLLATION" value="utf8mb4_unicode_ci" force="true"/>
+        <env name="SANCTUM_TOKEN_EXPIRATION" value="720"/>
+        <env name="DEMO_SEED_PASSWORD" value=""/>
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+    </php>
+</phpunit>
