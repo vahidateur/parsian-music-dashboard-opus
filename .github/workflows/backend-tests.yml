@@ -373,7 +373,8 @@ jobs:
           direct=$?
           set -e
           echo "G5: vendor/bin/phpunit exit code = ${direct}" | tee -a /tmp/mysql-test.log
-          tail -n 20 /tmp/phpunit-direct.log | tee -a /tmp/mysql-test.log
+          echo "G5: deprecation detail:" | tee -a /tmp/mysql-test.log
+          grep -n -A6 -i "deprecat" /tmp/phpunit-direct.log | head -n 80 | tee -a /tmp/mysql-test.log || true
 
           exit "${code}"
 
