@@ -196,6 +196,34 @@ class OrganizationTest extends TestCase
     }
 
     /**
+     * A value LONGER than the column is refused by validation, on every driver.
+     *
+     * `working_day_start` is `string(..., 5)`. SQLite treats a VARCHAR length as
+     * advisory, so an eleven-character literal like this one would be stored
+     * there; MySQL strict mode rejects it with SQLSTATE 22001 (1406 Data too
+     * long). Left to the database, the same request would be a 201 on one driver
+     * and a 500 on the other — the driver, not the contract, would decide the
+     * answer.
+     *
+     * The shape rule runs before the write on both, so the contract is 422
+     * everywhere and the row is never touched. That is the invariant this case
+     * pins: an unstorable value is a validation error, not a storage error.
+     */
+    public function test_a_clock_longer_than_the_column_is_refused_before_it_reaches_the_database(): void
+    {
+        $this->actingAsRole('administrator');
+
+        $before = $this->defaultOrganization()->working_day_start;
+
+        $this->patchJson('/api/v1/organization', ['workingDayStart' => 'not a clock'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ORGANIZATION_INVALID')
+            ->assertJsonStructure(['error' => ['fields' => ['workingDayStart']]]);
+
+        $this->assertSame($before, $this->defaultOrganization()->fresh()->working_day_start);
+    }
+
+    /**
      * The window is validated as a pair, so a one-sided patch is checked against
      * the stored other half — otherwise "start 22:00" would pass on its own and
      * leave the academy with a window that closes before it opens.

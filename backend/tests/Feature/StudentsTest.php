@@ -98,12 +98,30 @@ class StudentsTest extends TestCase
             // so ['day','time','room'] comes back as ['day','room','time'] —
             // while SQLite keeps insertion order and returns them as written.
             // `assertJsonPath` compares with assertSame, which is
-            // order-sensitive, so a nested map is walked key by key instead:
-            // every value is still asserted exactly, only the ordering is not.
+            // order-sensitive, so a nested map cannot be compared whole.
             // JSON object key order is not a product contract on any driver.
             // Lists (notes, activity, skills) keep their order and are
             // compared whole — their sequence does carry meaning.
             if (is_array($value) && ! array_is_list($value)) {
+                // Compare the KEY SET first, then the values:
+                //
+                //   - every key that was sent must be present (nothing missing),
+                //   - no key may be present that was not sent (nothing extra),
+                //   - every value must be exactly equal,
+                //   - only the ORDER the driver returns them in is irrelevant.
+                //
+                // Comparing the sets sorted is what makes "extra" detectable:
+                // walking the expected keys alone would pass a response that
+                // quietly carried one more.
+                $actual = $created->json("data.$key");
+                $this->assertIsArray($actual, "data.$key must come back as a JSON object");
+
+                $expectedKeys = array_keys($value);
+                $actualKeys = array_keys($actual);
+                sort($expectedKeys);
+                sort($actualKeys);
+                $this->assertSame($expectedKeys, $actualKeys, "data.$key must carry exactly the keys that were sent");
+
                 foreach ($value as $nestedKey => $nestedValue) {
                     $created->assertJsonPath("data.$key.$nestedKey", $nestedValue);
                 }
