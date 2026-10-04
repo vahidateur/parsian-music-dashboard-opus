@@ -363,6 +363,18 @@ jobs:
           # worked on from — the failure digest is the only readable copy, and
           # it is built from this file.
           echo "G5: artisan test exit code = ${code}" | tee -a /tmp/mysql-test.log
+
+          # 323 tests pass and the tally reports no failures, yet the wrapper
+          # exits non-zero. Isolate whether that comes from PHPUnit itself or
+          # from the artisan wrapper, by running the very same configuration
+          # through vendor/bin/phpunit.
+          set +e
+          vendor/bin/phpunit --configuration=phpunit.mysql.xml --colors=never > /tmp/phpunit-direct.log 2>&1
+          direct=$?
+          set -e
+          echo "G5: vendor/bin/phpunit exit code = ${direct}" | tee -a /tmp/mysql-test.log
+          tail -n 20 /tmp/phpunit-direct.log | tee -a /tmp/mysql-test.log
+
           exit "${code}"
 
       - name: Publish MySQL failure digest
