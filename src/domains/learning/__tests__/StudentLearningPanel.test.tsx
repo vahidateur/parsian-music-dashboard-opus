@@ -83,7 +83,11 @@ describe("a placed student", () => {
     renderFor(studentId);
     await settle();
 
-    const row = screen.getByText(higher.name).closest("li") as HTMLElement;
+    // Same retry-based rule as the first case in this describe: `settle()` only
+    // proves the loaders are gone, and under load the level list can paint on a
+    // later pass. A synchronous getByText here races that and fails
+    // intermittently in the full suite.
+    const row = (await screen.findByText(higher.name)).closest("li") as HTMLElement;
     fireEvent.click(row.querySelector("button")!);
 
     await waitFor(async () => {
@@ -116,8 +120,8 @@ describe("an unplaced student", () => {
     renderFor(await unplacedStudentId());
     await settle();
 
-    expect(screen.getByText("هنوز در برنامه‌ای قرار نگرفته")).toBeDefined();
-    expect(screen.getByText("منبعی برای این هنرجو باز نشده")).toBeDefined();
+    expect(await screen.findByText("هنوز در برنامه‌ای قرار نگرفته")).toBeDefined();
+    expect(await screen.findByText("منبعی برای این هنرجو باز نشده")).toBeDefined();
   });
 
   it("assigns a program and level from one selector", async () => {
@@ -125,7 +129,7 @@ describe("an unplaced student", () => {
     renderFor(studentId);
     await settle();
 
-    const select = screen.getByLabelText("تعیین دوره و سطح") as HTMLSelectElement;
+    const select = (await screen.findByLabelText("تعیین دوره و سطح")) as HTMLSelectElement;
     await waitFor(() => expect(select.options.length).toBeGreaterThan(1));
 
     const option = [...select.options].find((o) => o.value.includes("|"))!;
