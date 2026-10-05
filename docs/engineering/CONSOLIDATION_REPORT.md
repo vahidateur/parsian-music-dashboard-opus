@@ -43,8 +43,9 @@ stash, no re-clone, and no branch was created. `7eba988` and every ancestor incl
 | AHEAD / BEHIND `main` | **98 ahead / 0 behind** — `git rev-list --left-right --count origin/main...HEAD` |
 | `main` | `15775ea9486cb57fbfb8fefa3268658cbe7eb669` — **unchanged by this pass** |
 | Fast-forwardable? | **Yes** — `git merge-base --is-ancestor origin/main HEAD` → true, so the transfer is a fast-forward |
-| This pass: changed files | **12** (10 modified + 2 new) |
-| This pass: insertions / deletions | **358 / 29** (tracked files; `git diff --shortstat 7eba988`) |
+| This pass: commits | **two**, both on this branch — `f4baf9a` (*feat: consolidate frontend completion, RBAC, and demo removal*) carries the consolidation; `883e0e2` (*test(boundaries): stop the RBAC parity case from restating a drifting count*) is the one accuracy fix the release-candidate audit found, and is separate because an amend would have required the **forbidden** force-push. Amendments to an already-pushed branch are not made here; the checkpoint is the **tip**, and both commits are this phase's |
+| This pass: changed files | **14** (11 modified + 3 new) |
+| This pass: insertions / deletions | **1038 / 30** — `git diff --shortstat 7eba988 <tip>`, measured at `883e0e2` |
 | Whole branch vs `main` | **515 files, +53 565 / −2 833** — the size of the eventual main transfer |
 | Force-push | **None.** No history was rewritten |
 
@@ -277,7 +278,8 @@ The rail's teacher-hidden rule remains **presentation**, deliberately and explic
 | Gate | Result |
 |---|---|
 | `npx tsc --noEmit` | **exit 0** — no errors |
-| Full frontend suite (with build artifacts present) — **final run** | ✅ **206 files passed (206) · 2680 passed · 0 failed · 4 skipped (2684) · exit 0.** An earlier run in the same pass showed 2 failures; both were caused by **this pass's own documentation edits** and were fixed before the final run (§6.3). See the reconciliation in §6.2 |
+| Full frontend suite — **artifact-free, at the final tip `883e0e2`** (this is the true baseline; §6.2) | ✅ **206 files passed (206) · 2666 passed · 0 failed · 18 skipped (2684) · exit 0** |
+| Full frontend suite — **with build artifacts present** (at `f4baf9a`) | ✅ **206 files passed (206) · 2680 passed · 0 failed · 4 skipped (2684) · exit 0.** An earlier run in the same pass showed 2 failures; both were caused by **this pass's own documentation edits** and were fixed before this run (§6.3). See the reconciliation in §6.2 |
 | Focused sweeps | auth/progress/settings/mobile → **263 passed**; F2–F6 evidence → **338 passed**; I22 + gallery + boundaries → **94 passed** |
 | `npm run build` (bare) · `npm run build:client` · `npm run build:demo` | **all three succeeded** — built in that order, because the bare build's in-root `outDir` empties `dist/` |
 | Artifact gates with all three builds present | `bundleBoundary` 8 (2 sentinel skips) · `bundleBudget` 13 (2 sentinel skips) · `cspCompatibility` **17 passed, 0 skipped** · `configGate` 2 — **all passing** |
@@ -289,23 +291,48 @@ The rail's teacher-hidden rule remains **presentation**, deliberately and explic
 
 ### 6.2 Baseline reconciliation — the numbers differ, and here is why
 
-| | declared baseline | measured this pass (final run) |
-|---|---|---|
-| test files | 204 | **206 passed** (+2: the two new guard files) |
-| passed | 2654 | **2680** |
-| failed | 0 | **0** |
-| skipped | 18 (no `dist`) / 12 (with `dist`) | **4** |
+Two measurements were taken, because the count depends on whether `dist/` exists (some gates are
+artifact-conditional by design). §19 of the brief asks for the **artifact-free** figure as the true
+baseline, so `dist/` was removed and the suite re-measured.
 
-**The arithmetic reconciles exactly:** 2654 + 12 new tests = 2666; the 14 tests that were skipped
-without artifacts now **run** and pass (2680 − 2666 = 14), leaving 4 skips. The prompt anticipated 6 moving out of skipped; **14** did, because building all three
-artifacts satisfies **every** conditional group — `cspCompatibility`'s `describe.skipIf(!hasBuild)`
-(8 tests, now 0 skipped) *and* `bundleBudget`'s `hasFixtureBuild` fixture measurement. The 4
-remaining skips are **by design**: paired `it.runIf` sentinels (`bundleBoundary` 2,
-`bundleBudget` 2) where exactly one of each pair runs, plus `bundleBudget`'s empty
-`describe.skipIf(hasFixtureBuild)`. **This is strictly more coverage, not a regression.**
+| | declared baseline | **measured, artifact-free (final tip)** | measured, artifacts present |
+|---|---|---|---|
+| test files | 204 | **206 passed** (+2) | 206 passed |
+| passed | 2654 | **2666** (+12) | 2680 |
+| failed | 0 | **0** | 0 |
+| skipped | **18** | **18** — *identical* | 4 |
+
+**The artifact-free run reconciles exactly, with no residual:**
+
+```text
+declared        204 files · 2654 passed · 18 skipped · 0 failed
+measured        206 files · 2666 passed · 18 skipped · 0 failed
+delta           +2 files   ·  +12 tests   ·   0          ·  0
+```
+
+- **+2 files / +12 tests** is this pass's own added coverage and nothing else:
+  `permissionParity.test.ts` (6) and `demoPermissionPresentation.test.ts` (6).
+- **skipped is unchanged at 18**, so no existing test was disabled, hidden or skipped to reach green.
+- **0 failed**, against the declared 0. The project's own ledger explains the earlier red state:
+  `BACKEND_STATUS.md:37` records **2648 passed / 4 failed / 18 skipped (204 files)** and names the 4
+  as "pre-existing frontend failures", and commit `53959c5` (*"restore the four failing frontend
+  cases without touching production code"*) is the commit in this line that repaired them. So
+  2648 + 4 repaired = **2652**… plus the two Progress-era additions recorded since = the declared
+  2654. The baseline the brief states is the post-repair figure, and it matches this run exactly
+  once this pass's 12 tests are subtracted.
+
+**The artifact-present run is a coverage GAIN, not a different baseline.** With the three builds in
+place, the 14 tests that are *conditional on the artifact* run and pass (2680 − 2666 = 14), leaving
+the 4 paired sentinels. The brief anticipated **6** moving out of skipped; **14** did, because
+building all three artifacts satisfies **every** conditional group —
+`cspCompatibility`'s `describe.skipIf(!hasBuild)` (8 tests, now 0 skipped) **and**
+`bundleBudget`'s `hasFixtureBuild` fixture measurement. The 4 that remain are **by design**: paired
+`it.runIf`/`it.skipIf` sentinels (`bundleBoundary` 2, `bundleBudget` 2) where exactly one of each
+pair runs, plus `bundleBudget`'s empty `describe.skipIf(hasFixtureBuild)` guard. Neither number is
+inferred; both were run.
 
 Two earlier differences were **environmental, not regressions**, and both were resolved by
-correcting the environment rather than the test:
+correcting the environment or the product rather than the test:
 
 - `projectState.test.ts` failed on arrival because the clone was **shallow** and lacked the
   preserved-branch tag object `251af96f…`. Fetching the tags made it pass **52/52**. The test was
@@ -365,7 +392,45 @@ EnrollmentsTest,PrivilegedIdentityPolicyTest,StudentsTest}.php`,
 `backend/database/migrations/2026_*_{class_sessions,attendance_tables,resources,pieces,
 piece_assignments,progress_events}*`, and the backend-slice record at
 `docs/engineering/backend-slice/FINAL_REPORT.md`. **Migrations were not touched by this pass** —
-`git diff --name-only 7eba988 | grep '^backend/'` is **empty**.
+`git diff --name-only 7eba988 HEAD -- backend/` is **empty**.
+
+### 7.1 Re-verified statically in this pass (backend/A–B invariants)
+
+The brief names three backend invariants explicitly. All three were re-read in the committed source
+and are **present as claimed**; none was re-executed, because there is no PHP runtime here (§6.4).
+
+**`working_day_start` is validated before any DB write, and an invalid value is a 422.** The shape
+rules live on the FormRequest (`workingDayStart` carries `date_format`/`regex`, with Persian
+messages), and `UpdateOrganizationRequest::withValidator()` validates the window **as a pair** —
+resolving the missing side from the stored row, so a one-sided patch cannot leave a window that
+closes before it opens. `OrganizationTest` pins the contract at the HTTP boundary:
+`.../organization` with `'۸ صبح'` → **422** + `error.code = ORGANIZATION_INVALID` +
+`error.fields.workingDayStart`; `'not a clock'` → **422** and
+`assertSame($before, …fresh()->working_day_start)`, i.e. **the row is untouched**. The clock values
+used in the direct-model cases are deliberately 5 characters (`'25:99'`) because
+`working_day_start` is `string(…,5)` — the comment records that the longer literal it used to write
+passed on SQLite and failed on MySQL with SQLSTATE 22001, so **model-level and HTTP-level checks are
+kept separate**, exactly as §10 requires.
+
+**P-2 is intact and provably untouched.** P-2 is the four composite indexes of three
+`varchar(255)` utf8mb4 columns (255 × 4 × 3 = **3060 bytes** against InnoDB's **3072-byte** key
+limit — a 12-byte margin that only a real MySQL server can settle). They are
+`teachers(organization_id, phone)`, `rooms(organization_id, name)`,
+`students(organization_id, national_id)` and class_attendance `(session_id, student_id)`, and the CI
+carries a dedicated MySQL 8 leg whose gates G2 (`migrate:fresh` on MySQL) and G4 (index sizes as
+MySQL actually built them) settle them, with a check that `innodb_default_row_format` stays
+`DYNAMIC` (a `REDUNDANT` cap of 767 bytes would blow the 3060-byte keys through). **This pass
+changed no backend file at all**, so the index dimensions are untouched by construction.
+
+**Scope/tenant assertions are structural, not string-fragile.** §12 warns that SQL string formatting
+must not produce false negatives. `StudentScopeTest::test_scope_query_is_sql_only_and_never_reads_
+students_teacher_id` normalises first — `str_replace(['"','`','[',']'], '', strtolower($query->toSql()))`
+— precisely because identifier quoting is dialect-specific (sqlite/pgsql write `"enrollments"."status"`,
+MySQL writes `` `enrollments`.`status` ``), and then asserts **which columns the scope reads**
+(`exists`, `enrollments.status = ?`, `classes.teacher_id = ?`) and, critically, that
+`students.teacher_id` is **absent**. That is the security property stated structurally, with no
+assertion removed; `test_denormalized_teacher_id_filter_cannot_widen_the_scope` is the behavioural
+counterpart that stops a raw `teacher_id` filter from widening scope.
 
 ---
 
@@ -383,6 +448,25 @@ piece_assignments,progress_events}*`, and the backend-slice record at
 | CSP unchanged | ✅ `PRODUCTION_CSP` untouched; `cspCompatibility` 17 passed |
 | No generated artifacts or `node_modules` tracked | ✅ `git ls-files` matches neither |
 | `git diff --check` | ✅ clean — no whitespace errors, no conflict markers |
+
+### 8.1 The demo / fallback sweep (§3, §8) — searched, not assumed
+
+The brief asks for a repository-wide search for demo, seed, fallback and data-source markers, to
+prove that **production behaviour cannot be accidental demo behaviour**. The searches and their
+results:
+
+| Probe | Result |
+|---|---|
+| `VITE_DATA_SOURCE` resolution sites | **one** (`src/api/config.ts`). Unset/`demo`/`local` → local **in the demo composition only**; the production aliases → api; **anything else is a boot error** rendered by `ConfigGate` (DECISIONS §3). In the **client** composition `local`/`demo` are themselves errors — there is no local dataset to select |
+| Demo import specifiers reachable from the client composition | **zero** — `registry.client.ts` imports no store, seed, dataset or demo module; the structural gate `architectureBoundaries.test.ts` ("client composition does not import the fixture graph") scans every `.client.tsx` file plus `registry.client.ts` and fails on any forbidden specifier, with positive controls proving the matcher fires |
+| Domains with no server implementation | reject with a **typed, non-retryable `DOMAIN_UNAVAILABLE`** (`createUnavailableRepository`, a rejecting `Proxy`). The file's own doc comment states the rule: *"The client composition must NEVER fall back to demo data when a backend is missing"* — and because `retryable` is false and the kind is **not** `network`/`server`, no caller can mistake "not built yet" for "the server is down" |
+| The only `catch` in a registry | `registry.ts` → `attendancePresence()` in the **demo** registry, which returns `undefined` ("no opinion") for a non-demo adapter. It fails safe; it never fabricates a local answer |
+| Production mock data | **none** — the only `mock` identifiers are the test helper `src/test/fetchMock.ts` |
+| `demo.manage` holders | held by **administrator only** (`permissions.test.ts`: *"only administrator may manage users, roles and demo data"*, asserted across all five roles), and re-checked at the service layer for every destructive operation (`demoDataManager.ts` returns `OPERATION_BLOCKED` and writes nothing) |
+
+So the four states the brief asks to be deterministic — **DEMO, LOCAL, API, PRODUCTION** — are
+separated by the *bundler*, not by a runtime branch: demo modules are never resolved in the client
+build. A missing API domain reports itself unavailable rather than quietly serving demo records.
 
 ---
 
