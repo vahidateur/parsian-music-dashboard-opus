@@ -152,6 +152,36 @@ export default defineConfig({
       "Referrer-Policy": "no-referrer",
       "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
     },
+
+    /*
+      Development-only API proxy: the Laravel API the `api` data source talks
+      to, on the same port `deploy/nginx.conf` and `docs/engineering/
+      BACKEND_STATUS.md` already agree on (8080).
+
+      Without this, `VITE_DATA_SOURCE=api` in `npm run dev` is a trap. Vite has
+      no `/api` route, so its SPA fallback answers the request with `200` and
+      `Content-Type: text/html` — index.html, not the API. The client then
+      fails parsing HTML as JSON, which reads like a broken backend rather
+      than a missing one.
+
+      Deliberately minimal and same-origin:
+        - `server.*` is dev-server only; `vite build` never reads it, so the
+          production bundles are untouched.
+        - Requests stay same-origin, so the shipped CSP (`connect-src 'self'`)
+          still holds and NO CORS configuration is needed on the Laravel side.
+        - No rewrite, no path stripping: `/api/v1/...` is forwarded verbatim,
+          which is exactly what `VITE_API_BASE_URL=/api/v1` already sends.
+        - When Laravel is not running the proxy errors loudly instead of
+          silently serving the SPA, which is the honest outcome.
+
+      This does not change which data source is selected — that is still
+      `VITE_DATA_SOURCE`, and the demo/local default is untouched.
+    */
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8080",
+      },
+    },
   },
   test: {
     environment: "node",

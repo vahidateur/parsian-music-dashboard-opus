@@ -1,5 +1,73 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-05, CONSOLIDATION CHECKPOINT (authoritative handoff point).**
+> This supersedes the Progress slice 2 pointer immediately below it as the work order. It
+> deletes nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH:
+> arena/01a0f73f-parsian-music-dashboard-opus
+>
+> PARENT:        7eba988a44ffd4ac38c40cc56b9f6717bc3787a7
+> BASE OF BRANCH: 7215633c18550c9faf053e8b2bde5ea2e8da08e8
+>                (55 commits consolidated between base and parent)
+>
+> WHAT THIS CHECKPOINT ADDS
+>   Phase 5.6.2 — two files, +37 lines, 0 deletions:
+>     vite.config.ts   +30  dev-only server.proxy /api -> http://127.0.0.1:8080
+>     .env.example      +7  documentation comment only; no value changed
+>   Plus the evidence record:
+>     docs/engineering/CONSOLIDATION_CHECKPOINT.md  (new)
+>
+> WHY THE PROXY
+>   Without it, VITE_DATA_SOURCE=api under `npm run dev` is a trap: Vite has no
+>   /api route, so its SPA fallback answers 200 with text/html. The client then
+>   fails parsing HTML as JSON, which reads like a broken backend rather than a
+>   missing one. server.* is dev-server only — `vite build` never reads it, and
+>   both production bundles were verified to contain zero occurrences of
+>   127.0.0.1:8080. Requests stay same-origin, so no CORS configuration is
+>   needed on the Laravel side.
+>
+> GATES AT THIS CHECKPOINT
+>   frontend tests: 204 files, 2654 passed, 18 skipped, 0 failed  (dist/ removed)
+>   typecheck:      0 errors
+>   build:demo:     success, 43 files, 0 x 127.0.0.1:8080
+>   build:client:   success, 39 files, 0 x 127.0.0.1:8080
+>   git diff --check: clean
+>   backend CI at 7eba988: 5/5 success, incl. MySQL 8 + P-2 index gate
+>   backend runtime: ENVIRONMENT-BLOCKED in Arena (no PHP/Composer/MySQL) —
+>                    relies on the CI evidence above; not claimed as run here.
+>
+> WORKING-TREE RECOVERY (environment fault, not a repo state)
+>   The sandbox repeatedly reverted the local HEAD pointer to 7215633 while the
+>   working tree held 7eba988 content. Confirmed before acting:
+>     - GitHub API compare 7215633...7eba988 -> behind_by = 0, ahead_by = 55
+>     - byte-compare of all 930 tracked files -> 928 identical, 2 differing, 0 missing
+>     - the 2 differing files were exactly the intended Phase 5.6.2 changes
+>     - the 93 apparently "untracked" files were a stale-index artefact, all
+>       tracked at 7eba988
+>   Recovered non-destructively: manifest -> stash --include-untracked ->
+>   merge --ff-only origin/<branch>. No reset, no rebase, no cherry-pick,
+>   no force-push. Full evidence in CONSOLIDATION_CHECKPOINT.md section 2.
+>
+> INVARIANTS CONFIRMED INTACT
+>   SEED_DATE untouched (2026-09-01) | P-2 untouched (18 migrations, 3060<=3072)
+>   `if (!admin) throw` intact (honestWriteCopy.test.tsx:121)
+>   DemoDataPanel unmodified (0 changes; still mounted)
+>   ConfigGate still fails closed | backend/ and src/ clean at commit
+>
+> STILL OPEN — carried forward, NOT resolved here
+>   O-03 library/gallery visibility | O-07 Tickets vs Chat
+>   Gallery: PARTIAL — frontend only, no backend/permission/tenant scoping
+>   Finance & Reports: no backend (I2, deferred)
+>   I22 & I23: fixed in code with regression guards, still marked OPEN in docs
+>   Progress frontend/backend matrix mismatch
+>
+> NEXT ACTION
+>   Stop at this checkpoint and sync locally. Do not begin a new feature.
+>   Recommended (not started) order is in CONSOLIDATION_CHECKPOINT.md section 8.
+> ```
+
 > **LIVE POINTER — 2026-10-03, Progress slice 2 (append-only event log, history guard, overview).**
 > This supersedes the Progress slice 1 pointer immediately below it as the work order. It
 > deletes nothing below it, deletes no SHA, and merges nothing to `main`.
