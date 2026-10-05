@@ -2312,10 +2312,19 @@ accounting. `progress.write` goes to manager and teacher: repertoire is content 
 (mirroring `library.write`), and assignments are teacher-authored the way attendance entries are
 (mirroring `attendance.write`). Staff is reception and holds no content-authoring write.
 
-**Consequence, deliberate.** The client's `StudentProgressPanel` gates writes on
-`role === "teacher"`. That is a UX gate, not an authorization boundary, and PB-3 is explicit that
-nothing authorizes on role. The permission carries the decision server-side; `teacherId` on an
-assignment is provenance for accountability and authorizes nothing.
+**Consequence, deliberate.** `teacherId` on an assignment is provenance for accountability and
+authorizes nothing; the permission carries the decision.
+
+**Client-side alignment (corrected 2026-10-05).** When this decision was recorded, the client's
+`StudentProgressPanel` gated writes on the `role` **prop** — which chooses the teacher-authoring
+workflow versus the student self-practice workflow, and is not an authorization input at all.
+That was accurate as a description and wrong as an end state: the frontend's matrix had never
+received the two new ids, so the client could not express the decision it was supposed to mirror
+(see OPEN_ITEMS **I24**). The panel now gates the record / assign / complete / edit-with-unit
+controls on `progress.write` and declines to render a student's progress without `progress.read`,
+while `role` continues to select only the workflow and the wording. Nothing authorizes on role; the
+prop and the permission answer different questions. This remains a UX layer — the server is still
+the boundary — but the client can no longer show a Progress surface a role was never granted.
 
 **Implementation consequence — referential validation is partial.** `validatePiece()` in the client
 checks `instrumentId`, `programId` and `recommendedLevelId` against its instruments/programs/levels
@@ -2323,12 +2332,19 @@ stores. No such tables exist on the server (instruments and learning are PB-3), 
 validates shape and length only and stores them as references by value. `contentIds` is likewise an
 opaque list. This is the same boundary `library.instrument` and `mediaId` sit behind.
 
-**Enforced by.** `backend/config/permissions.php` (25 ids, `progress.read` in `$readOnlyCore`,
-`progress.write` on manager and teacher); `App\Domain\Progress\ProgressPolicy`;
+**Enforced by.** Server: `backend/config/permissions.php` (25 ids, `progress.read` in
+`$readOnlyCore`, `progress.write` on manager and teacher); `App\Domain\Progress\ProgressPolicy`;
 `ProgressTest::test_reading_requires_progress_read`, `test_writing_requires_progress_write`,
 `test_deleting_requires_progress_write`, `test_the_permission_check_precedes_validation`, and
 `test_the_permission_vocabulary_is_exactly_twenty_five_ids` (which asserts the diff against the old
 23 is exactly the two new ids).
+
+Client: `src/domains/auth/permissions.ts` (the same 25 ids, `progress.read` in `READ_ONLY_CORE`,
+`progress.write` on manager and teacher); `StudentProgressPanel`'s `progress.read` / `progress.write`
+gates; and — the part that was missing — `src/domains/auth/__tests__/permissionParity.test.ts`,
+which parses the shipped PHP config and fails if either the vocabulary or any role grant drifts from
+this table in either direction. Recorded as **I24**; the frontend half was absent between this
+decision (`2026-10-03`) and its fix (`2026-10-05`).
 
 **Status.** ✅ In force — 2026-10-03. Owner-authorized.
 
@@ -2377,6 +2393,58 @@ null-piece serializer branch, exact agreement with the overview, and that POST/P
 405.
 
 **Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
+## 31. Demo stays a first-class environment, and is not offered by the production-facing product
+
+**Context.** The pre-main consolidation requires that Demo is no longer part of the
+production-facing product (§4A), while §2 above keeps the DemoStore a first-class environment and
+records that it is "not scaffolding to be deleted". These are not in conflict; they are statements
+about two different artifacts, and the distinction has to be made explicitly or one of them gets
+broken while satisfying the other.
+
+**Decision.** The split is by COMPOSITION, not by deleting code:
+
+- The **demo composition** (`APP_TARGET=demo`, the default) keeps the whole demo capability: the
+  dataset, its seed, the data panel, the credentials panel, the delivery/lock lifecycle and the
+  `demo.manage` permission that guards them. Local development and the demonstrable-no-backend
+  build depend on all of it.
+- The **client composition** (`APP_TARGET=client`) presents no demo capability at all. Its demo
+  UI is already absent *physically* — `targetFeatures.client.tsx` returns `null` for
+  `SettingsFeatures`, so no demo panel can render, and the modules are never resolved by the
+  bundler rather than being hidden by a runtime flag.
+- `demo.manage` **stays in the vocabulary** in both compositions. It is the service-layer boundary
+  for the demo dataset, and removing the id would remove the boundary rather than the capability.
+  It is declared a **demo-only permission** (`DEMO_ONLY_PERMISSIONS`) and the role editor filters
+  it out when the composition has no demo capability.
+- **Seeds, fixtures and the demo domain stay.** They are the local-development dataset and the
+  test substrate. §4A's carve-outs — local development fixtures, test fixtures, demo-only seed —
+  are preserved deliberately, not overlooked.
+
+**Why the permission needed its own rule.** Hiding a panel was not sufficient here: the role
+editor (`UsersPanel`, reached through `roles.write`) is SHARED by both compositions, and it was
+rendering a «مدیریت دادهٔ نمایشی» checkbox in the client build, where there is no demo dataset to
+manage. That is a control that can do nothing, which M2 ("no forbidden control should be exposed")
+forbids — and it is exactly the kind of demo surface §4A is about. The gate is the composition
+(`isDemoMode()`), **not** `isDemoCapabilityAvailable()`: the latter answers "has production delivery
+happened yet", which is true in a fresh client build, so gating on it would re-expose the checkbox
+in the one build that must not show it.
+
+**What this is not.** It is not an authorization rule. The demo composition still enforces
+`demo.manage` at the service layer for every destructive operation, the id remains held only by the
+administrator default, and the client's filtering is presentation. Server-side authorization is
+still the only boundary (§16, `docs/security.md`).
+
+**Enforced by.** `src/targets/targetFeatures.client.tsx` (`SettingsFeatures` → `null`);
+`src/__tests__/bundleBoundary.test.ts` against the real `dist/client` (negative probes for
+`DemoDataPanel`, `demoDataManager`, `DemoBackedNotice`, `ava:demo:` … and positive probes in
+`dist/demo`); `src/domains/auth/permissions.ts` (`DEMO_ONLY_PERMISSIONS`,
+`isDemoOnlyPermission`, `permissionsForComposition`);
+`src/components/settings/UsersPanel.tsx` (`permissionsForComposition(group.permissions, isDemoMode())`);
+and `src/domains/auth/__tests__/demoPermissionPresentation.test.ts` — which pins both directions
+(withheld in the client composition, **retained** in the demo one), the no-mutation property, and a
+source assertion that the gate is the composition rather than the runtime lock.
+
+**Status.** ✅ In force — 2026-10-05. Consolidation-phase decision.
 
 ### Adding a decision
 

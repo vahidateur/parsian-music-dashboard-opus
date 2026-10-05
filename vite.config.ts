@@ -127,6 +127,44 @@ export default defineConfig({
     host: true,
     allowedHosts: true,
     /*
+      Dev-only API proxy.
+
+      The app defaults to a RELATIVE api base (`VITE_API_BASE_URL=/api/v1`,
+      .env.example) so the browser never talks to a different origin than the one
+      serving the panel. In production the edge routes `/api` to the backend; in
+      development there is no edge, so without this the dev server would answer
+      `/api/...` itself and every call in api mode would 404.
+
+      WHY THIS IS SAFE:
+
+      - DEV-ONLY BY CONSTRUCTION. `server.proxy` is read by the dev server only.
+        It is not an input to the build, so it cannot reach `dist/` and no
+        production bundle learns about it (`bundleBoundary` still scans the real
+        output for demo/backend leakage).
+      - NO CORS. The browser keeps calling the SAME origin it loaded the panel
+        from; the proxy forwards server-side. No `Access-Control-*` header is
+        added anywhere, and none is needed.
+      - NO CSP CHANGE. Nothing here alters `PRODUCTION_CSP` (still asserted
+        against deploy/nginx.conf by `cspCompatibility.test.ts`), and the dev CSP
+        stays report-only and permissive for HMR as before.
+      - PATH AND QUERY ARE PRESERVED. No `rewrite`, so `/api/v1/students?page=2`
+        arrives at the backend as `/api/v1/students?page=2`. `changeOrigin` only
+        rewrites the `Host` header, which the backend's vhost needs.
+      - LOOPBACK TARGET. 127.0.0.1, not 0.0.0.0: the backend runs on this
+        machine; binding the proxy to a routable interface would be a way to
+        reach a dev backend from outside it.
+
+      `preview` deliberately does NOT get a proxy: a preview of the built client
+      is a static artifact check, not an integration environment, and silently
+      forwarding its /api calls would make an unconfigured deployment look wired.
+    */
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8080",
+        changeOrigin: true,
+      },
+    },
+    /*
       Mirror the production headers in development.
 
       A permissive dev server is exactly how a CSP that breaks production

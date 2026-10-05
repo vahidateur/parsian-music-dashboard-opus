@@ -126,11 +126,12 @@ export function useRoles(): RolesState {
   );
 }
 
-/** Permission ids grouped for the editor, so 23 checkboxes are not one wall. */
+/** Permission ids grouped for the editor, so the whole matrix is not one wall. */
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
   { label: "هنرجویان و مدرسین", permissions: ["students.read", "students.write", "teachers.read", "teachers.write"] },
   { label: "کلاس‌ها و زمان‌بندی", permissions: ["classes.read", "classes.write", "schedule.read", "schedule.write"] },
   { label: "حضور و غیاب", permissions: ["attendance.read", "attendance.write"] },
+  { label: "پیشرفت هنرجو", permissions: ["progress.read", "progress.write"] },
   { label: "مالی و گزارش", permissions: ["finance.read", "finance.write", "reports.read"] },
   { label: "ارتباط و منابع", permissions: ["messages.read", "messages.write", "library.read", "library.write"] },
   { label: "سامانه", permissions: ["settings.read", "settings.write", "users.read", "users.write", "roles.write", "demo.manage"] },
@@ -154,6 +155,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "messages.write": "ارسال پیام",
   "library.read": "مشاهدهٔ کتابخانه",
   "library.write": "مدیریت کتابخانه",
+  "progress.read": "مشاهدهٔ پیشرفت هنرجو",
+  "progress.write": "ثبت و تخصیص پیشرفت",
   "reports.read": "مشاهدهٔ گزارش‌ها",
   "settings.read": "مشاهدهٔ تنظیمات",
   "settings.write": "ویرایش تنظیمات",

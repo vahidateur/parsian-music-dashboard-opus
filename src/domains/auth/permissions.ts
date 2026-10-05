@@ -25,6 +25,12 @@ export const PERMISSIONS = [
   "messages.write",
   "library.read",
   "library.write",
+  // Progress is authorized for v1 (DECISIONS.md §29): PB-3 is lifted for
+  // Progress ONLY. These two ids take the vocabulary from 23 to 25 and must match
+  // `backend/config/permissions.php` exactly — `permissionParity.test.ts` proves
+  // the two vocabularies and the two role matrices never drift.
+  "progress.read",
+  "progress.write",
   "reports.read",
   "settings.read",
   "settings.write",
@@ -54,6 +60,10 @@ const READ_ONLY_CORE: Permission[] = [
   "classes.read",
   "schedule.read",
   "library.read",
+  // Progress is per-student learning data, so it reads like the rest of the
+  // per-student core: everyone who teaches or administers, never accounting.
+  // Mirrors `$readOnlyCore` in backend/config/permissions.php.
+  "progress.read",
 ];
 
 /**
@@ -74,6 +84,8 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
     "messages.read",
     "messages.write",
     "library.write",
+    // Repertoire is content the manager authors, mirroring `library.write`.
+    "progress.write",
     "reports.read",
     "settings.read",
     "users.read",
@@ -84,6 +96,9 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
     "attendance.write",
     "messages.read",
     "messages.write",
+    // Assignments are teacher-authored, the way attendance entries are. The
+    // permission carries this; nothing authorizes on `role === "teacher"`.
+    "progress.write",
   ],
   staff: [
     ...READ_ONLY_CORE,
@@ -236,6 +251,51 @@ export function isRoleId(value: string): value is RoleId {
 
 export function isPermission(value: string): value is Permission {
   return (PERMISSIONS as readonly string[]).includes(value);
+}
+
+/* ------------------------------------------------------------------ */
+/* Demo-only permissions                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Permission ids that authorize a DEMO-COMPOSITION capability only.
+ *
+ * `demo.manage` is the service-layer boundary for the demo dataset: backup,
+ * restore, reset and production delivery all re-check it (§4A). It stays in the
+ * vocabulary because the demo composition genuinely needs it — removing the id
+ * would remove the boundary, not the capability — and because the backend
+ * carries the same id for its own seed/teardown path.
+ *
+ * What it must NOT be is a *production-facing control*. In the client
+ * composition there is no demo dataset to manage, so offering an administrator a
+ * «مدیریت دادهٔ نمایشی» checkbox would expose a control that can do nothing —
+ * exactly the dishonesty M2 ("no forbidden control should be exposed") forbids.
+ * The role editor therefore filters this set out whenever the composition has no
+ * demo capability (`isDemoMode()`).
+ *
+ * This is a presentation/UX distinction only. It is NOT an authorization rule:
+ * the demo target still enforces `demo.manage` at the service layer, and the
+ * server still enforces its own boundary.
+ */
+export const DEMO_ONLY_PERMISSIONS: readonly Permission[] = ["demo.manage"];
+
+/** True when the id authorizes a demo-composition-only capability. */
+export function isDemoOnlyPermission(permission: Permission): boolean {
+  return DEMO_ONLY_PERMISSIONS.includes(permission);
+}
+
+/**
+ * Filters a permission list down to the ones this composition may present.
+ *
+ * `demoCapable` is the composition's own answer (`isDemoMode()`), passed in
+ * rather than read here so the matrix stays a pure module with no build-time
+ * dependency — which is also what lets it be unit-tested for both compositions.
+ */
+export function permissionsForComposition(
+  permissions: readonly Permission[],
+  demoCapable: boolean,
+): Permission[] {
+  return demoCapable ? [...permissions] : permissions.filter((p) => !isDemoOnlyPermission(p));
 }
 
 /* ------------------------------------------------------------------ */

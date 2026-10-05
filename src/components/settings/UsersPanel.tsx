@@ -27,7 +27,14 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Pencil, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { PERMISSIONS, ROLES, roleLabel, type Permission, type RoleId } from "@/domains/auth/permissions";
+import {
+  ROLES,
+  permissionsForComposition,
+  roleLabel,
+  type Permission,
+  type RoleId,
+} from "@/domains/auth/permissions";
+import { isDemoMode } from "@/api/config";
 import { useUsers } from "@/domains/auth/useUsers";
 import { PERMISSION_GROUPS, PERMISSION_LABELS, useRoles } from "@/domains/auth/useRoles";
 import { defaultRoleRecord } from "@/domains/auth/roleRepository";
@@ -321,6 +328,25 @@ function RoleMatrixDialog({
   const defaults = defaultRoleRecord(role);
   const isAdministratorRole = role === "administrator";
 
+  /*
+    The composition decides which permissions are offerable. In the client
+    (production) composition there is no demo dataset to manage, so presenting a
+    «مدیریت دادهٔ نمایشی» checkbox would expose a control that can do nothing —
+    M2: no forbidden control should be exposed. The id stays in the vocabulary
+    (the demo composition and the server still enforce it); only its
+    presentation is withheld. Deriving the visible count from the same filtered
+    list keeps the footer honest.
+  */
+  const visibleGroups = PERMISSION_GROUPS.map((group) => ({
+    label: group.label,
+    permissions: permissionsForComposition(group.permissions, isDemoMode()),
+  })).filter((group) => group.permissions.length > 0);
+  const visiblePermissions = visibleGroups.flatMap((group) => group.permissions);
+  const visibleTotal = visiblePermissions.length;
+  /* Count only what this composition can actually offer, so the footer never
+     claims more granted accesses than it renders controls for. */
+  const grantedVisible = granted.filter((permission) => visiblePermissions.includes(permission)).length;
+
   const toggle = (permission: Permission) => {
     setError(null);
     setGranted((prev) => (prev.includes(permission) ? prev.filter((p) => p !== permission) : [...prev, permission]));
@@ -402,7 +428,7 @@ function RoleMatrixDialog({
       )}
 
       <div className="mt-4 space-y-3">
-        {PERMISSION_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
             <div className="mb-2 text-[11px] font-medium text-ink-300">{group.label}</div>
             <div className="grid gap-1.5 sm:grid-cols-2">
@@ -439,7 +465,7 @@ function RoleMatrixDialog({
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
-        {faNum(granted.length)} دسترسی از {faNum(PERMISSIONS.length)} دسترسی سامانه.{" "}
+        {faNum(grantedVisible)} دسترسی از {faNum(visibleTotal)} دسترسی سامانه.{" "}
         {isAdministratorRole && "نقش مدیر ارشد دسترسی «مدیریت نقش‌ها» را همیشه نگه می‌دارد تا راه بازگشت به این صفحه بسته نشود. "}
         کنترل دسترسی در مرورگر برای تجربهٔ کاربری است؛ اجرای واقعی مجوزها باید سمت سرور انجام شود.
       </p>

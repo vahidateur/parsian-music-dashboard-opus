@@ -56,7 +56,7 @@
  *
  * The layout, spacing and design tokens are unchanged from the original view.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -165,6 +165,8 @@ export function MessagesView() {
   const [mobileThread, setMobileThread] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  /* Synchronous duplicate guard — see `runExport`. */
+  const exportInFlight = useRef(false);
 
   const listParams = useMemo(
     () => ({
@@ -382,17 +384,23 @@ export function MessagesView() {
    * success names the thread that was actually read (`artifact.conversationName`),
    * never whatever happens to be on screen when the promise settles.
    *
-   * `exporting` is the duplicate guard, set before the first await and checked on
-   * entry; the control is disabled while it is true, so repeated clicks cannot
-   * start a second read. The composer is not touched by any of this.
+   * The duplicate guard is a REF, not the `exporting` state, and that distinction
+   * is load-bearing. State updates are asynchronous: two clicks dispatched in the
+   * same tick both close over the same `exporting === false`, so a state-based
+   * guard admits both — producing two repository reads and two downloads from one
+   * double-click. The ref is written synchronously on entry, so the second click
+   * reads the updated value no matter how the render is scheduled. `exporting`
+   * still drives the disabled control and the «در حال تهیه…» label; it is the
+   * presentation of the guard, no longer the guard itself.
    *
    * The download happens after `readChatExport` resolved, so a failed read cannot
    * reach `saveChatExport` — there is no path in this action that reports or
    * performs an export that did not happen.
    */
   const runExport = useCallback(async () => {
-    if (!active || exporting) return;
+    if (!active || exportInFlight.current) return;
     const target = active;
+    exportInFlight.current = true;
     setExporting(true);
     try {
       const artifact = await readChatExport(target.id, academyNow());
@@ -414,9 +422,10 @@ export function MessagesView() {
         detail: apiErrorFromThrown(cause).message,
       });
     } finally {
+      exportInFlight.current = false;
       setExporting(false);
     }
-  }, [active, exporting, notify]);
+  }, [active, notify]);
 
   if (loading) return <LoadingState className="py-32" label="در حال بارگذاری گفتگوها…" />;
   if (error)

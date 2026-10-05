@@ -1543,7 +1543,37 @@ recovery and the zero-record tests both remaining green.
   test renders the panel as a permitted role and reaches «دانلود خروجی» end to end, and a role with
   no export permission still sees the honest empty state. The fix must land **separately from S5-A**:
   a product behaviour change must not ride on a type-fix commit.
-- **Status:** recorded 2026-09-25 as not started. **Frontend holder fixed 2026-09-30** in `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0`; regression `88fee2665434647f81b05b0f1560270ab56b86e3` reaches «دانلود خروجی» for an administrator and the honest empty state when the issued set has no export permission. The item is **not removed**: a downloaded file is still not a server authorization, and export remains BACKEND-ONLY.
+- **Status: CLOSED (2026-10-05, re-verified).** All three *done-when* criteria are met, and
+  re-verified against the current tree rather than carried forward from the commit message:
+
+  1. **The surface filters through the same holder its sibling uses.**
+     `src/domains/import/ImportExportCenter.tsx:40` takes `const auth = useAuth()`,
+     `:64` filters with `can(auth, perm)` and `:147` re-checks `can(auth, required)` — the
+     context value, exactly as `src/domains/export/EntityExportButton.tsx:53` does. The
+     intermediate comment records why the session *user* could never carry permissions.
+  2. **A regression test reaches «دانلود خروجی» as a permitted role.**
+     `src/views/__tests__/phaseBMutationGuards.test.tsx` → *"filters settings export by the
+     session permission set (I22)"* renders the shipped panel as `admin@demo.local` and asserts
+     the button is present **and** the empty-state sentence is absent.
+  3. **A role with no export permission still sees the honest empty state.**
+     Same file → *"shows the honest empty export state when the issued set has no export
+     permission"* pins the accountant policy to `finance.read`/`finance.write` only, then asserts
+     «برای هیچ موجودیتی مجوز خروجی ندارید.» is shown and the button is gone. The sibling case
+     (*"hides student import from a role without students.write…"*) proves the two halves gate
+     independently.
+
+  **Evidence for the fix:** `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0` (holder) and
+  `88fee2665434647f81b05b0f1560270ab56b86e3` (regression). **Re-run 2026-10-05:**
+  `npx vitest run src/views/__tests__/phaseBMutationGuards.test.tsx src/domains/export/` → **13
+  tests passed, 0 failed** (11 + 2). The three cases above are among them.
+
+  **What closing this item does NOT claim — preserved deliberately.** I22 was a *frontend holder*
+  defect: a control that could never render. Closing it is not a statement about export
+  authorization. A downloaded file is still not a server authorization, and **export remains
+  BACKEND-ONLY** (the same boundary `DECISIONS.md` §19 D14/D15 and `F4_REPORT.md` record). That
+  boundary is a product-scope fact, not a defect, and it was never part of this item's *done-when*;
+  it is therefore not carried as an open item here. The `F4_REPORT.md:45` record that overstated
+  the guard is answered by the "Record correction" entry above.
 
 ### I23. `SchedulingTest > reschedule links original and replacement` is date-flaky: a rescheduled session can block its own reschedule (found 2026-10-03 during Progress slice 2 CI triage)
 
@@ -1685,7 +1715,47 @@ recovery and the zero-record tests both remaining green.
   explicit statement that re-rolling the RNG to re-trigger CI would be "editing the test to go
   green by another route". That reasoning was correct at the time: the fix needed owner
   authorization because Scheduling is outside the Progress scope. It was authorized and then made.
-  Compare **I19**, the frontend analogue in the same area, which remains open.
+  Compare **I19**, the frontend analogue in the same area, which remains open — recorded under
+  «LOWER PRIORITY / HYGIENE» below, and owned by
+  `src/views/__tests__/schedulingWrites.test.tsx`.
+
+### I24. The frontend permission vocabulary never received `progress.*`, so the client and the server disagreed about Progress (found 2026-10-05 during the pre-main consolidation audit) — ✅ CLOSED (2026-10-05, same pass)
+
+- **What:** `DECISIONS.md` §29 authorized Progress for v1 and added exactly two permission ids,
+  taking the vocabulary from **23 to 25**. The authorisation was implemented server-side —
+  `backend/config/permissions.php` carries all 25 ids, `progress.read` sits in `$readOnlyCore`,
+  and `progress.write` is granted to manager and teacher — but
+  `src/domains/auth/permissions.ts` still declared the old **23**, with no `progress.*` id at all
+  and the old role matrix. Measured, not inferred: the frontend id list was 23, the backend's 25,
+  and the difference was exactly `progress.read` + `progress.write`.
+- **Why it mattered despite nothing failing:** the two files are hand-maintained copies of one
+  contract with nothing forcing agreement. The server could therefore answer a request the client
+  had no word for — a silent divergence. A user granted Progress by an administrator through the
+  server would have had no client-side vocabulary to express it, and the role editor could not
+  display or grant the two ids at all.
+- **Fix.** `src/domains/auth/permissions.ts` now declares all 25 ids in the backend's order,
+  `progress.read` joins `READ_ONLY_CORE`, and `progress.write` joins manager and teacher — the
+  matrix §29 fixes. The ids are also **wired rather than merely declared**:
+  `src/domains/progress/StudentProgressPanel.tsx` gates the record/assign/complete/edit controls on
+  `progress.write` and refuses to render a student's progress at all without `progress.read`, so
+  accounting (which §29 withholds the id from) can no longer read a per-student progress record in
+  the UI. `useRoles.ts` gained the two labels and a «پیشرفت هنرجو» editor group, and the stale
+  "23 checkboxes" comment is corrected.
+- **The guard that was missing, now added.** `src/domains/auth/__tests__/permissionParity.test.ts`
+  parses the **shipped** `backend/config/permissions.php` and asserts the vocabulary and all five
+  role grants are identical to the frontend's — including `permissionsForRole()`'s live resolution
+  and the explicit §29 table (manager/teacher write, staff read-only, accountant neither). It is a
+  comparison against the real file, not a second hand-written list, because a hand-written list is
+  the artifact that drifted. **Proved non-vacuous:** run against the pre-fix tree the vocabulary
+  comparison fails on exactly `['progress.read', 'progress.write']`. It also asserts no
+  `instruments.*` / `learning.*` / `rooms.*` / `notifications.*` id appears, so PB-3 and PB-5 stay
+  Option A for everything except Progress.
+- **Evidence:** `npx vitest run src/domains/auth/__tests__/permissionParity.test.ts` → **6 passed,
+  0 failed**; the auth + progress + settings + mobile-contract sweep → **263 passed, 0 failed**;
+  `tsc --noEmit` → exit 0.
+- **Docs side (see §29 in DECISIONS.md, updated in this pass):** §29's "Enforced by" line named
+  only the backend and the PHPUnit cases, which is how the frontend half went unnoticed. It now
+  names the frontend matrix and the parity test as well.
 
 ---
 
