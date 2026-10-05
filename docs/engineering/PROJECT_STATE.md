@@ -2242,6 +2242,16 @@ was dropped. **For the Arena Frontend Freeze (2026-09-19, `a3867a60ac25c81adc5c1
 
 ## 9. Immediate next action
 
+**2026-10-05 — the current next action (newest first; the era narratives below are kept for audit).**
+The canonical continuation line is `arena/01a10b63-parsian-music-dashboard-opus`, consolidated and
+pushed — see [CONSOLIDATION_CHECKPOINT.md](CONSOLIDATION_CHECKPOINT.md) and
+[DECISIONS.md](DECISIONS.md) §32. The next action is the **owner's decision**: merge that line to
+`main` by **fast-forward only** (the merge base is `main`'s own tip, so no merge commit is needed) —
+and **do not merge without an explicit instruction**. Until then: do not start a new feature; if a
+session finds the local HEAD reverted, recover non-destructively (checkpoint §3) and report.
+Everything still open is listed in §8 and in [OPEN_ITEMS.md](OPEN_ITEMS.md); nothing is authorized
+by this paragraph.
+
 **Arena Frontend Freeze — 2026-09-19 — ✅ COMPLETE at `a3867a60ac25c81adc5c1bc10122f4eeeedbc0cb` on canonical `arena/01a0b6be-parsian-music-dashboard-opus` — documentation-only closure.** M-1 Quick Actions CLOSED, D7 Accessibility CLOSED, M-2 Teacher Photo CLOSED, M-3 Student Photo CLOSED, M-4 I15 Failure Disclosure CLOSED, M-5 I16 Deep Links CLOSED, M-6 Settings Honesty CLOSED, D9 Performance CLOSED. Frozen HEAD includes M11 (four checkpoints ending at `f7eb867` on `3ed0bfe`) and M10 (`e7a64b7` on `98af31b`) preserved. **No further frontend work authorized until explicit decision to reopen freeze.** Backend boundary: frontend freeze precedes Laravel/backend implementation. Canonical branch policy: all future frontend fixes require explicit decision to reopen freeze. Deferred items do NOT modify frozen frontend: Classes deep-link beyond capped list, Finance/Reports backend/domain, notification server wiring, localization/settings server wiring, working-hours/session-rules server wiring, free-slot search, external browser QA. Browser QA NOT VERIFIED as formal final-audit disposition, no claim of complete browser verification, no claim backend already exists. Known full-suite failure `projectState.test.ts` 10 SHA/branch expectations preserved, test not altered.
 
 **M10 and M11 were both ✅ COMPLETE (M10 on 2026-09-16 at `e7a64b7777be36ddd97fc3337898fad794118e5b`; M11 on 2026-09-17, four checkpoints ending at `f7eb86762dc11f7d5dd3c7218e7c697fad29488e`) — and the phase specification names no milestone beyond M11, so the next phase was NOT STARTED and NOT AUTHORIZED before the freeze.** The

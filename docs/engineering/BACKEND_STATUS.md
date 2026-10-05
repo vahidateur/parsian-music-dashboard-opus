@@ -12,6 +12,13 @@ Implementation record of the first backend slice on branch `cleanup/demo-migrati
 > on one, the server fails closed with that code (see the PB-isolation map). No permission id was
 > created, no existing permission was reinterpreted, and `TenantContext` was not touched.
 
+> **Vocabulary update — 2026-10-05.** The shipped permission vocabulary is **25 ids**, not 23:
+> `progress.read` and `progress.write` were added by [DECISIONS.md](DECISIONS.md) §29/§30 and are
+> present in both `backend/config/permissions.php` and `src/domains/auth/permissions.ts` (parity
+> asserted by `src/domains/auth/__tests__/permissionParity.test.ts`). Any "23-id" phrasing in the
+> slice records below is the state **at that slice**, kept as history. The canonical frontend test
+> baseline is likewise recorded in [CONSOLIDATION_CHECKPOINT.md](CONSOLIDATION_CHECKPOINT.md) §13.
+
 Stack: Laravel 12, Sanctum 4 (Bearer personal access tokens), SQLite for dev and tests, PHPUnit via
 `php artisan test`. 160 backend feature tests pass at the end of the PB-1 enforcement commit
 (158 at the end of the Scheduling + Attendance slice, 122 at the end of the first slice).
@@ -1008,9 +1015,10 @@ value means "no restriction" while an empty array means "restricted to nobody", 
 ### 5. Permissions — reused, not invented
 
 `library.read` for the three read verbs, `library.write` for create, update and delete. Both were
-already in the shipped 23-id vocabulary; **no id was added and none was reinterpreted**. The
-vocabulary is still exactly 23 ids in `backend/config/permissions.php` — no `library.admin`,
-`resource.*` or `resources.*`.
+already in the shipped 23-id vocabulary; **no id was added and none was reinterpreted** — for this
+slice. **Superseded 2026-10-05:** the vocabulary is now **25** ids (`progress.read` /
+`progress.write`, [DECISIONS.md](DECISIONS.md) §29/§30); no `library.admin`, `resource.*` or
+`resources.*` was added then or since.
 
 Resulting matrix, asserted by tests rather than assumed:
 
