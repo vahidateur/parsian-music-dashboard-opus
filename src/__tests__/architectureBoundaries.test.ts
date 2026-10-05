@@ -497,7 +497,16 @@ describe("F9 — Mobile client contract — same backend no second API bearer se
     expect(source).not.toContain("data:image");
   });
 
-  it("same RBAC same permissions — 5 roles 22 perms — same for web and mobile", () => {
+  /*
+    The count is deliberately NOT restated here. It used to read "5 roles 22
+    perms" and went stale the moment DECISIONS §29 added the two Progress ids
+    (22 → 25) — a number in a name is a claim nobody maintains. The vocabulary's
+    size and its agreement with the server are owned by
+    `src/domains/auth/__tests__/permissionParity.test.ts`, which parses the
+    shipped backend config; this case owns the narrower claim its assertions
+    actually make: web and mobile read ONE RBAC model.
+  */
+  it("same RBAC same permissions — one vocabulary for web and mobile", () => {
     const permPath = join(ROOT, "domains", "auth", "permissions.ts");
     const source = readFileSync(permPath, "utf8");
     expect(source).toContain("ROLES");
