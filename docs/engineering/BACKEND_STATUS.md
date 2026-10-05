@@ -34,7 +34,7 @@ as an artifact; "verified in this continuation" means it was re-executed and the
 | Unauthenticated request → 401 | **verified in this continuation, over HTTP** | `401` on `GET students` with no token |
 | All 169 PHP files parse | **verified in this continuation** | PHP 8.3 grammar parse of every `.php` file under `backend/` (the one Blade template excluded). Also enforced in CI by the `PHP syntax lint` step, which runs real `php -l` |
 | `npm run typecheck` clean | **verified in this continuation** | `tsc --noEmit`, no output |
-| `npm test` result | **verified in this continuation** | 2648 passed / 4 failed / 18 skipped (204 files). The 4 failures are **pre-existing frontend failures**, not backend contracts — see "Frontend gates" below. |
+| `npm test` result | **verified in this continuation** | 2648 passed / 4 failed / 18 skipped (204 files). The 4 failures are **pre-existing frontend failures**, not backend contracts — see "Frontend gates" below. **Superseded 2026-10-05:** those failures were repaired and the canonical, artifact-free baseline is now **206 files · 2666 passed · 0 failed · 18 skipped**; see [CONSOLIDATION_CHECKPOINT.md](CONSOLIDATION_CHECKPOINT.md) §13. The value above is kept as the state at that pass. |
 | Everything else in this document | **previously verified**, then re-read and audited in this continuation | code audit against `SESSION_HANDOFF.md` §10, `GOVERNANCE_CHECKPOINT.md` and the committed frontend API repositories |
 
 **Not run / blocked.** The backend suite cannot be executed inside the sandbox this continuation

@@ -1,5 +1,58 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
+> This supersedes the Progress slice 2 pointer immediately below it as the work order. It deletes
+> nothing below it, deletes no SHA, and merges nothing to `main`.
+>
+> ```text
+> BRANCH (canonical):
+> arena/01a10b63-parsian-music-dashboard-opus
+>
+> PARENT OF THIS CHECKPOINT:  bc1ef0ce935fa3c8ab6771a16c6de7ceb75a76b5
+> OTHER LINE, PRESERVED:      arena/01a0f73f-parsian-music-dashboard-opus @ 717533624e00fe574e57ee3764a9fc7978d04a48
+> COMMON BASE:                7eba988a44ffd4ac38c40cc56b9f6717bc3787a7   (main 15775ea is an ancestor of both)
+> TIP:                        read with `git log -1 --format=%H` — a document cannot carry its own SHA
+>
+> WHY THIS POINTER EXISTS
+>   Two continuation lines were both pushed and neither was an ancestor of the other. They are
+>   reconciled, not competing: this line is the superset for every product artifact (25-permission
+>   RBAC including progress.read/progress.write with a non-vacuous parity guard, the demo
+>   de-production, the duplicate-work conversation-export race fix, the dev-only Vite proxy), and the
+>   other line's two unique documents were merged onto it — its checkpoint is Appendix A of
+>   docs/engineering/CONSOLIDATION_CHECKPOINT.md, and this pointer. The other line's branch and
+>   commits are NOT deleted, rewritten or force-pushed. Decision record: DECISIONS.md §32.
+>
+> MEASURED AT THIS CHECKPOINT (artifact-free; dist/ removed afterwards)
+>   frontend suite : 206 files passed · 2666 passed · 0 failed · 18 skipped (2684)
+>   typecheck      : `npx tsc --noEmit` exit 0
+>   builds         : bare + client + demo all succeed; 125 files in dist/
+>   proxy leakage  : 0 files in dist/ contain 127.0.0.1:8080 (and 0 contain `changeOrigin`)
+>   git status     : clean; local branch level with its remote
+>   RBAC           : 25 == 25, order-identical to the backend; demo.manage = administrator only
+>   backend        : byte-identical to 7eba988 (tree 4d3c1db…) — CI run 37240671916 success;
+>                    NO local run (no PHP/Composer/MySQL in the sandbox); no CI run exists for
+>                    either tip, because the workflow triggers on backend/** only
+>
+> ENVIRONMENT NOTE (recovery, non-destructive)
+>   The sandbox again reverted the local HEAD pointer (to 86dab3f) while the working tree held
+>   bc1ef0c content — proved by blob-hash comparison before acting (933 identical, 0 differ,
+>   0 missing, 0 extra). Recovered with: manifest -> stash --include-untracked -> merge --ff-only
+>   -> verify. No reset, no clean, no rebase, no cherry-pick, no force-push. The stash is kept and
+>   holds zero unique content. A tag-less clone also fails projectState.test.ts's preserved-branch
+>   gate — fetch tags and all heads, as section 17 of the checkpoint records.
+>
+> STILL OPEN — carried forward, NOT resolved here
+>   O-03 gallery/library visibility | O-07 Tickets vs Chat | I19 (frontend scheduling analogue)
+>   Finance & Reports backend (I2) | gallery backend | frontend CI (no workflow covers src/)
+>   Browser QA NOT VERIFIED | backend suite not run here
+>
+> NEXT ACTION
+>   Owner decision, then — only if explicitly authorized — merge to `main` by FAST-FORWARD
+>   (`main` is an ancestor: no merge commit is needed). Do not start a new feature. Local sync
+>   commands: docs/engineering/CONSOLIDATION_CHECKPOINT.md, section 17.
+> ```
+>
+
 > **LIVE POINTER — 2026-10-03, Progress slice 2 (append-only event log, history guard, overview).**
 > This supersedes the Progress slice 1 pointer immediately below it as the work order. It
 > deletes nothing below it, deletes no SHA, and merges nothing to `main`.

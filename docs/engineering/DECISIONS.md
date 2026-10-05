@@ -2446,6 +2446,34 @@ source assertion that the gate is the composition rather than the runtime lock.
 
 **Status.** ✅ In force — 2026-10-05. Consolidation-phase decision.
 
+## 32. The canonical continuation line after the two-line divergence (2026-10-05)
+
+**Decision.** Two continuation lines existed above the common base `7eba988` — line A
+(`arena/01a0f73f-…` @ `7175336`, 1 commit, 4 files) and line B (`arena/01a10b63-…`, 3 commits,
+14 files) — and neither was an ancestor of the other. **Line B is canonical**, because it is the
+superset for every product artifact: the 25-id RBAC vocabulary carrying `progress.read` /
+`progress.write` with a parity guard that parses the shipped PHP, the demo de-production (§31), and
+the duplicate-work race fix in the conversation export. Line A's two unique documentation artifacts
+were **merged onto the canonical line rather than dropped**: its checkpoint is reproduced verbatim
+as Appendix A of `docs/engineering/CONSOLIDATION_CHECKPOINT.md`, and its live pointer is merged into
+`SESSION_HANDOFF.md`. Line A's branch, commits and files are **not** deleted, rewritten or
+force-pushed. Its only product change — the proxy — survives in the behaviour-complete form
+(`changeOrigin: true`), because a bare `target` rewrites nothing and leaves the `Host` header
+pointing at the dev server.
+
+**Why.** "One branch, one tip, one checkpoint" is a durability rule, not tidiness: two parallel
+truths are how a later session re-does finished work, or reports a fix that exists on only one line.
+Preserving both lines' content while naming exactly one of them canonical satisfies the rule without
+losing history — and `main` stays untouched until the owner authorizes the fast-forward.
+
+**Enforced by.** `docs/engineering/CONSOLIDATION_CHECKPOINT.md` (identity, reconciliation table,
+measured gates); `src/domains/auth/__tests__/permissionParity.test.ts` (the contract line A lacked);
+`docs/engineering/PROJECT_STATE.md` §2, whose recorded branch is checked against the remote by
+`src/__tests__/projectState.test.ts`.
+
+**Status.** ✅ In force — 2026-10-05. A repository/process decision: it changes no product behaviour,
+authorizes no new feature, and merges nothing to `main`.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and
