@@ -25,6 +25,18 @@ npm run build    # خروجی تک‌فایل در dist/
 npm run typecheck
 ```
 
+### اجرای یکپارچه (Laravel + React)
+
+```bash
+npm run dev:full
+```
+
+- فرانت‌اند: http://localhost:5173 — ترکیب `client` با `APP_TARGET=client` و `VITE_DATA_SOURCE=api` (بدون بازگشت پنهان به دادهٔ نمایشی).
+- API: http://127.0.0.1:8080/api/v1 (بررسی سلامت: `/up`) — درخواست‌های `/api` از طریق پراکسی Vite به Laravel می‌رسد.
+- این دستور **migrate یا seed اجرا نمی‌کند** و کاربر نمی‌سازد؛ پایگاه داده و کاربر ورود باید از قبل وجود داشته باشند.
+- پیش‌نیاز: PHP روی PATH، `composer install` در `backend/`، و فایل `backend/.env` با `APP_KEY`.
+- `npm run dev` بدون تغییر است: ترکیب نمایشی/محلی و بدون نیاز به بک‌اند.
+
 ## ساختار
 
 ```
