@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Block Destructive DB Commands",
+  "description": "Intercepts shell commands containing migrate:fresh, db:wipe, or migrate:fresh --seed and requires explicit user approval before proceeding",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "STOP. Check if the shell command about to run contains any of these destructive patterns: `migrate:fresh`, `db:wipe`, `migrate:fresh --seed`. If it does, DO NOT execute it and instead respond with: \"🚫 این دستور مسدود شده است. اجرای `migrate:fresh`, `db:wipe` یا `migrate:fresh --seed` بدون اجازه صریح کاربر ممنوع است. لطفاً از کاربر تأیید بگیرید.\" If the command does NOT contain these patterns, allow it to proceed normally."
+  }
+}
