@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
-import { useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { instrumentChoices, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import type { Teacher } from "./types";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, inputCls } from "@/components/ds/patterns";
@@ -87,7 +87,7 @@ export function TeacherFormDialog({
   */
   const instrumentOptions = useMemo(() => {
     const current = teacher?.instrument;
-    return catalog.filter((i) => i.active || i.id === current);
+    return instrumentChoices(catalog, current);
   }, [catalog, teacher]);
 
   const repository = useMemo(() => getTeacherRepository(), []);

@@ -195,6 +195,25 @@ export function useInstrumentCatalog(): readonly InstrumentRecord[] {
   return useSyncExternalStore(subscribe, getInstrumentCatalog, getInstrumentCatalog);
 }
 
+/**
+ * Picker options for a record form.
+ *
+ * Active instruments, plus the one the record already uses. When that id is not
+ * in the catalogue at all (a row written elsewhere, or a catalogue that could
+ * not be read because the server has no instruments capability) it is offered
+ * under its own id. Omitting it would make a controlled <select> display the
+ * FIRST option while the draft still holds the stored id: a form that shows one
+ * instrument and saves another. The id is the only truth available, so it is
+ * the label; nothing is invented.
+ */
+export function instrumentChoices(records: readonly InstrumentRecord[], current: string | undefined): InstrumentRecord[] {
+  const choices = records.filter((i) => i.active || i.id === current);
+  if (current && !records.some((i) => i.id === current)) {
+    choices.push({ id: current, slug: current, name: current, description: "", active: true, sortOrder: Number.MAX_SAFE_INTEGER });
+  }
+  return choices;
+}
+
 /** Convenience: a stable name resolver that re-renders on catalogue changes. */
 export function useInstrumentName(): (id: string | undefined) => string {
   useInstrumentCatalog();

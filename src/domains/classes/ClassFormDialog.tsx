@@ -12,7 +12,7 @@
 import { useMemo } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { faNum } from "@/lib/format";
-import { useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { instrumentChoices, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { useLevels, usePrograms } from "@/domains/learning/useLearning";
 import { WEEKDAYS } from "@/domains/scheduling/weekdays";
 import { isHhMm } from "@/domains/scheduling/dateBridge";
@@ -106,15 +106,15 @@ export function ClassFormDialog({
   */
   const instrumentOptions = useMemo(() => {
     const current = academyClass?.instrument;
-    return catalog.filter((i) => i.active || i.id === current);
+    return instrumentChoices(catalog, current);
   }, [catalog, academyClass]);
 
   const repository = useMemo(() => getClassRepository(), []);
   const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
   const { items: rooms, loading: roomsLoading, error: roomsError, reload: reloadRooms } = useRooms({ assignableOnly: true, per_page: 200 });
 
-  const { items: programs } = usePrograms({ per_page: 200 });
-  const { items: allLevels } = useLevels({ per_page: 200 });
+  const { items: programs, error: programsError } = usePrograms({ per_page: 200 });
+  const { items: allLevels, error: levelsError } = useLevels({ per_page: 200 });
   const form = useEntityForm<ClassDraft, AcademyClass>({
     initial: toDraft(academyClass),
     open, // H6: rebuild the draft from this record whenever the dialog opens
@@ -160,6 +160,18 @@ export function ClassFormDialog({
       : [...form.draft.days, index];
     form.set("days", next);
   };
+
+  /*
+    A stored course / level that the learning records cannot name (deleted, or the
+    server has no learning capability) must not render as "none": a controlled
+    <select> whose value matches no option shows its first option, so the form
+    would say "none" while the class still holds the id and saves it. The id
+    stays selectable under an honest label instead.
+  */
+  const programOptions = programs.filter((program) => program.instrumentId === form.draft.instrument);
+  const programUnresolved = form.draft.programId !== "" && !programOptions.some((p) => p.id === form.draft.programId);
+  const levelOptions = allLevels.filter((level) => level.programId === form.draft.programId);
+  const levelUnresolved = form.draft.levelId !== "" && !levelOptions.some((l) => l.id === form.draft.levelId);
 
   return (
     <Dialog
@@ -358,8 +370,8 @@ export function ClassFormDialog({
               }}
             >
               <option value="">— بدون دوره —</option>
-              {programs
-                .filter((program) => program.instrumentId === form.draft.instrument)
+              {programUnresolved && (<option value={form.draft.programId}>{programsError ? "دورهٔ ثبت‌شده — نام در دسترس نیست" : "دورهٔ ثبت‌شده — یافت نشد"}</option>)}
+              {programOptions
                 .map((program) => (
                   <option key={program.id} value={program.id}>
                     {program.name}
@@ -379,8 +391,8 @@ export function ClassFormDialog({
               onChange={(e) => form.set("levelId", e.target.value)}
             >
               <option value="">— بدون سطح —</option>
-              {allLevels
-                .filter((level) => level.programId === form.draft.programId)
+              {levelUnresolved && (<option value={form.draft.levelId}>{levelsError ? "سطح ثبت‌شده — نام در دسترس نیست" : "سطح ثبت‌شده — یافت نشد"}</option>)}
+              {levelOptions
                 .map((level) => (
                   <option key={level.id} value={level.id}>
                     {faNum(level.order)}. {level.name}

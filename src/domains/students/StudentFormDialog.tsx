@@ -11,7 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
-import { useInstrumentCatalog } from "@/domains/instruments/catalog";
+import { instrumentChoices, useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { studentStatusLabel, type Student, type StudentStatus } from "./types";
 import type { PaymentStatus } from "@/lib/financeVocabulary";
 import { nationalIdError, normalizeNationalId } from "@/lib/nationalId";
@@ -103,7 +103,7 @@ export function StudentFormDialog({
   */
   const instrumentOptions = useMemo(() => {
     const current = student?.instrument;
-    return catalog.filter((i) => i.active || i.id === current);
+    return instrumentChoices(catalog, current);
   }, [catalog, student]);
 
   const repository = useMemo(() => getStudentRepository(), []);
