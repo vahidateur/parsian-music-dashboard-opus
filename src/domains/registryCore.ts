@@ -12,6 +12,7 @@
  */
 import { ApiClient } from "@/api/client";
 import { getRuntimeConfig } from "@/api/config";
+import { defaultTokenStore } from "./auth/tokenStore";
 import type { AuthRepository, UserRepository } from "./auth/repository";
 import type { RoleRepository } from "./auth/roleRepository";
 import type { StudentRepository } from "./students/repository";
@@ -68,6 +69,8 @@ export function getApiClient(): ApiClient {
       getToken: () => authToken,
       onUnauthenticated: () => {
         authToken = null;
+        // A rejected token must not be replayed on the next reload.
+        defaultTokenStore.clear();
       },
     });
   }
