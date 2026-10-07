@@ -148,8 +148,23 @@ export function BrandingPanel() {
   };
 
   if (loading) return <LoadingState className="py-24" label="در حال بارگذاری هویت آموزشگاه…" />;
-  if (error)
-    return <ErrorState className="py-24" title="بارگذاری ناموفق بود" description={error.message} onRetry={reload} />;
+  if (error) {
+    // The branding capability has no server in this composition: say so, instead of a generic
+    // failure that invites a pointless retry or shows the internal domain id.
+    const unavailable = error.code === "DOMAIN_UNAVAILABLE";
+    return (
+      <ErrorState
+        className="py-24"
+        title={unavailable ? "هویت آموزشگاه در این نسخه در دسترس نیست" : "بارگذاری ناموفق بود"}
+        description={
+          unavailable
+            ? "هویت آموزشگاه هنوز به سامانهٔ سرور متصل نیست و در این نسخه داده‌ای نمی‌خواند."
+            : error.message
+        }
+        onRetry={unavailable ? undefined : reload}
+      />
+    );
+  }
 
   return (
     <>

@@ -110,7 +110,7 @@ export function extractErrorPayload(body: unknown): ApiErrorPayload | undefined 
  */
 const POLICY_RESTRICTION_MESSAGE: Record<string, string> = {
   OWNER_DECISION_REQUIRED_PB1: "حساب شما به پروندهٔ مدرس متصل نیست؛ برای دسترسی، مدیر سامانه باید آن را به یک مدرس وصل کند.",
-  OWNER_DECISION_REQUIRED_PB2: "تغییر مشخصات یا نقش حساب‌های دارای دسترسی ویژه مطابق سیاست سامانه مجاز نیست.",
+  OWNER_DECISION_REQUIRED_PB2: "ویرایش اطلاعات یا نقش حساب‌های مدیریتی ویژه طبق سیاست امنیتی سامانه مجاز نیست.",
   OWNER_DECISION_REQUIRED_PB3: "این بخش در این نسخه از سامانه در دسترس نیست.",
 };
 const POLICY_RESTRICTION_FALLBACK = "این عملیات مطابق سیاست دسترسی سامانه مجاز نیست.";
