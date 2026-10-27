@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { ApiClient } from "@/api/client";
 import { ApiUserRepository, validateUserInput } from "@/domains/auth/userRepository";
+import type { UpdateUserInput } from "@/domains/auth/types";
 import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
@@ -109,5 +110,35 @@ describe("ApiUserRepository", () => {
     const client = new ApiClient({ baseUrl: "https://x.test/api/v1", fetchImpl: asFetch(mock) });
     await expect(new ApiUserRepository(client).create({ name: "x", email: "bad", role: "staff" })).rejects.toBeInstanceOf(ApiError);
     expect(mock).not.toHaveBeenCalled();
+  });
+
+  it("preserves teacherId through the update wire format", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "usr_1", role: "teacher", teacherId: "t1" } }));
+    const client = new ApiClient({ baseUrl: "https://x.test/api/v1", fetchImpl: asFetch(mock) });
+    const repo = new ApiUserRepository(client);
+
+    await repo.update("usr_1", { name: "مدرس پیانو", teacherId: "t1" });
+    const req = requestOf(mock);
+    expect(req.url).toBe("https://x.test/api/v1/users/usr_1");
+    expect(req.init.method).toBe("PATCH");
+    // The backend accepts, persists and echoes teacherId; dropping it here
+    // would silently discard an assignment the caller explicitly made.
+    expect(JSON.parse(req.init.body as string)).toEqual({ name: "مدرس پیانو", teacherId: "t1" });
+  });
+
+  it("omits an absent teacherId and passes an explicit null through", async () => {
+    const mock = createFetchMock(() => jsonResponse({ data: { id: "usr_1" } }));
+    const client = new ApiClient({ baseUrl: "https://x.test/api/v1", fetchImpl: asFetch(mock) });
+    const repo = new ApiUserRepository(client);
+
+    // Absent: the key must not travel, so the server leaves the link alone
+    // (backend updates teacher_id only when the key is present).
+    await repo.update("usr_1", { status: "active" });
+    expect(JSON.parse(requestOf(mock).init.body as string)).toEqual({ status: "active" });
+
+    // Explicit null: travels as null, which the backend reads as "clear the
+    // link" (nullable rule + array_key_exists gate in UserService::update).
+    await repo.update("usr_1", { teacherId: null } as unknown as UpdateUserInput);
+    expect(JSON.parse(requestOf(mock, 1).init.body as string)).toEqual({ teacherId: null });
   });
 });

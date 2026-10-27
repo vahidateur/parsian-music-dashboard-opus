@@ -3,29 +3,32 @@
 namespace App\Domain\Rooms;
 
 use App\Models\User;
-use App\Support\Authorization\OwnerDecisionRequired;
+use App\Support\Authorization\PermissionGate;
 
 /**
- * PB-3 — UNRESOLVED. No permission in the vocabulary names room read or
- * write, and none may be invented or borrowed (settings.write,
- * library.write, …). Every room endpoint therefore fails closed for every
- * actor, administrator included, until the owner decides PB-3.
+ * Room authorization.
  *
- * When PB-3 is decided, this class is the only place to change: route the
- * checks through App\Support\Authorization\PermissionGate with the decided
- * permission ids.
+ * PB-3 is lifted for Rooms (DECISIONS.md §35): two ids were created —
+ * `rooms.read` and `rooms.write` — because §26.3 forbids reinterpreting
+ * `settings.write` or `library.write` as covering them. PB-3 has no blocked
+ * domain left.
+ *
+ * `rooms.read` is granted to every role (a room is a lookup-table name, not
+ * personal data — every record that carries a `room_id` resolves against it).
+ * `rooms.write` is granted to administrator and manager, who curate academy
+ * configuration the way they curate instruments.
  */
 final class RoomPolicy
 {
-    private const DETAIL = 'No room read/write permission exists in the vocabulary; PB-3 resolved 2026-10-02 as option A (keep blocked, invent no permission id).';
+    public function __construct(private readonly PermissionGate $gate) {}
 
-    public function authorizeRead(User $actor): never
+    public function authorizeRead(User $actor): void
     {
-        throw new OwnerDecisionRequired('PB-3', self::DETAIL);
+        $this->gate->authorize($actor, 'rooms.read');
     }
 
-    public function authorizeWrite(User $actor): never
+    public function authorizeWrite(User $actor): void
     {
-        throw new OwnerDecisionRequired('PB-3', self::DETAIL);
+        $this->gate->authorize($actor, 'rooms.write');
     }
 }

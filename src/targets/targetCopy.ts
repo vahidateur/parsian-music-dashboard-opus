@@ -24,3 +24,76 @@ export const financeDeferredNote =
 export function dataSourceNotice(names: string): string {
   return `این بخش‌ها فعلاً با دادهٔ محلی ذخیره‌شده روی همین دستگاه نمایش داده می‌شوند، نه از سامانهٔ مرکزی: ${names}.`;
 }
+/**
+ * Actions whose backend contract does not exist in this composition. Views ask
+ * the seam (`unavailableActions.has(id)`) instead of offering a control that can
+ * only fail after it is used. Demo target: every action is backed locally.
+ */
+export const unavailableActions: ReadonlySet<string> = new Set<string>();
+
+/**
+ * The demo counterpart of the client's server-claim wording: the demo serves
+ * every capability it offers from the local store, so it must never say a
+ * server is missing. Same slot, honest words for this target.
+ */
+export const brandingUnavailableDescription =
+  "هویت آموزشگاه در این نسخه در دسترس نیست و داده‌ای نمی‌خواند.";
+
+export const unavailableCapabilityDescription =
+  "این قابلیت در این نسخه پیاده‌سازی نشده است و تلاش دوباره نتیجه‌ای نمی‌دهد.";
+
+/**
+ * Where a member's photo ends up — the one sentence that differs between the
+ * two compositions, because the two compositions store it in different
+ * places.
+ *
+ * The demo target keeps the bytes in the BROWSER, so it says so. The client
+ * target sends them to the server, where they are readable only by the people
+ * who may see the record the photo belongs to — so it says THAT.
+ *
+ * The accepted formats and the size limit are the SAME in both compositions,
+ * so they are not in this seam: only what differs belongs here.
+ */
+export function mediaStorageHint(): string {
+  return "در نسخهٔ دمو تصویر فقط در همین مرورگر نگه داشته می‌شود و در پشتیبان قرار نمی‌گیرد.";
+}
+
+/**
+ * The toast's detail line after a catalogue row was added WITH a file.
+ *
+ * The demo keeps the bytes in the browser, so it says so. The client sends
+ * them to the server's media store — and the same sentence there would be a
+ * false claim about where the file lives.
+ */
+export function fileStoredDetail(): string {
+  return "فایل فقط در همین مرورگر ذخیره شد.";
+}
+
+/**
+ * Where a chat attachment lives — the demo half of the seam.
+ *
+ * Nothing here may mention server storage, because in the demo build nothing
+ * is on a server: the slot exists so the same sentence in the shared chat
+ * surfaces stays true in both compositions. Asserted by
+ * `src/targets/__tests__/targetCopy.test.ts` (slot parity) and by
+ * `src/__tests__/bundleBoundary.test.ts` against the real build output.
+ */
+export const attachmentStorageNote =
+  "در این نسخه فایل فقط در همین مرورگر ذخیره شده است؛ روی سرور نگهداری نمی‌شود.";
+
+/**
+ * Where gallery photographs live — the one sentence that differs between
+ * the two compositions, because the two compositions store them in different
+ * places.
+ *
+ * The demo target keeps the bytes in the BROWSER and says so (including the
+ * consequence: no backup, no other device, and a server would still be
+ * needed for a published gallery). The client target sends them to the
+ * server's media store, where they are backed up with the dataset and
+ * readable by whoever may open the showcase — so it says THAT.
+ *
+ * The size ceiling is the SAME in both compositions, so it stays at the call
+ * site: only what differs belongs here.
+ */
+export const galleryStorageNote =
+  "تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد.";

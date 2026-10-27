@@ -66,7 +66,7 @@ import { cn } from "@/utils/cn";
  * `docs/architecture/environments.md`.
  */
 export function LoginView() {
-  const { login, pending, error, clearError } = useAuth();
+  const { login, pending, error, notice, clearError } = useAuth();
   /*
     The academy's own name and tagline (D2 / M8). The login screen is the first
     surface a visitor sees, so it renders the persisted identity — the branding
@@ -97,8 +97,8 @@ export function LoginView() {
   // Keep the submit/error pair reachable when the alert's insertion pushes it past
   // the fold (short viewports). Optional-call: `scrollIntoView` is absent in jsdom.
   useEffect(() => {
-    if (error) submitRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [error]);
+    if (error || notice) submitRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [error, notice]);
 
   // Tick while a wait is active so the countdown stays truthful.
   useEffect(() => {
@@ -323,6 +323,16 @@ export function LoginView() {
                         ? `به دلیل تلاش‌های ناموفق پیاپی، ورود به مدت ${describeWait(throttle.waitMs)} مسدود شده است.`
                         : `تلاش‌های ناموفق زیاد بوده است. ${describeWait(throttle.waitMs)} دیگر دوباره تلاش کنید.`}
                     </span>
+                  </div>
+                )}
+
+                {notice && !error && (
+                  <div
+                    role="status"
+                    className="mt-[var(--p-field-gap)] flex items-start gap-2.5 rounded-xl border border-warn-500/25 bg-warn-500/[0.07] p-[max(10px,calc(var(--form-u)*14))] text-[length:var(--p-text-sm)] leading-relaxed text-ink-100"
+                  >
+                    <ShieldAlert className="mt-0.5 size-4 shrink-0 text-warn-400" aria-hidden />
+                    <span>{notice}</span>
                   </div>
                 )}
 

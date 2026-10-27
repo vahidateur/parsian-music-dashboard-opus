@@ -27,10 +27,12 @@ import { ImagePlus, Loader2, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ds/primitives";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getMediaRepository } from "@/domains/registry";
+import { prepareImageUpload } from "@/domains/media/prepareImage";
 import { useMediaObjectUrl } from "./useMedia";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "./types";
 import { faNum } from "@/lib/format";
 import { cn } from "@/utils/cn";
+import { unavailableActions, mediaStorageHint } from "@/targets/targetCopy";
 
 export function ProfilePhotoField({
   mediaId,
@@ -53,6 +55,8 @@ export function ProfilePhotoField({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // The media binary store has no server here: offer no upload that can only fail after the pick.
+  const uploadUnavailable = unavailableActions.has("media-upload");
 
   const initials = personName.trim().split(" ").slice(0, 2).map((part) => part[0]).join("");
 
@@ -61,11 +65,12 @@ export function ProfilePhotoField({
     setError(null);
     try {
       // Validation (allow-list, magic bytes, size cap) lives in the repository.
+      const prepared = await prepareImageUpload(file);
       const asset = await getMediaRepository().create({
         kind: "image",
-        filename: file.name,
-        mimeType: file.type,
-        bytes: await file.arrayBuffer(),
+        filename: prepared.filename,
+        mimeType: prepared.mimeType,
+        bytes: prepared.bytes,
       });
 
       // The previous photo is handed over, not freed: the record being edited
@@ -115,7 +120,7 @@ export function ProfilePhotoField({
           type="file"
           className="sr-only"
           accept={ALLOWED_IMAGE_TYPES.join(",")}
-          disabled={disabled || busy}
+          disabled={disabled || busy || uploadUnavailable}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) void upload(file);
@@ -125,7 +130,7 @@ export function ProfilePhotoField({
           <Button
             size="sm"
             variant="subtle"
-            disabled={disabled || busy}
+            disabled={disabled || busy || uploadUnavailable}
             onClick={() => input.current?.click()}
           >
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ImagePlus className="size-3.5" />}
@@ -139,8 +144,9 @@ export function ProfilePhotoField({
         </div>
 
         <p className="mt-2 text-[10.5px] leading-relaxed text-ink-400">
-          JPEG، PNG یا WebP تا {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت. در نسخهٔ دمو تصویر فقط در همین
-          مرورگر ذخیره می‌شود و در پشتیبان قرار نمی‌گیرد.
+          {uploadUnavailable
+            ? "بارگذاری تصویر در این نسخه در دسترس نیست؛ سایر اطلاعات بدون تصویر ذخیره می‌شوند."
+            : `JPEG، PNG یا WebP تا ${faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت. ${mediaStorageHint()}`}
         </p>
 
         {error && (

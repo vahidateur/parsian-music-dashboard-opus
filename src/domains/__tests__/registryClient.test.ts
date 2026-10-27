@@ -31,10 +31,19 @@ import { ApiUserRepository } from "@/domains/auth/userRepository";
 import { ApiStudentRepository } from "@/domains/students/apiRepository";
 import { ApiTeacherRepository } from "@/domains/teachers/apiRepository";
 import { ApiProgressRepository } from "@/domains/progress/apiRepository";
+import { ApiChatRepository } from "@/domains/chat/apiRepository";
 import { ApiOrganizationRepository } from "@/domains/organization/apiRepository";
 import { ApiSchedulingRepository } from "@/domains/scheduling/apiRepository";
 import { ApiAttendanceRepository } from "@/domains/attendance/apiRepository";
 import { ApiLibraryRepository } from "@/domains/library/apiRepository";
+import { ApiMediaRepository } from "@/domains/media/apiRepository";
+import { ApiInstrumentRepository } from "@/domains/instruments/apiRepository";
+import { ApiLearningRepository } from "@/domains/learning/apiRepository";
+import { ApiGalleryRepository } from "@/domains/gallery/apiRepository";
+import { ApiBrandingRepository } from "@/domains/branding/apiRepository";
+import { ApiCompensationRepository } from "@/domains/compensation/apiRepository";
+import { ApiFinanceRepository } from "@/domains/finance/apiRepository";
+import { ApiRoomRepository } from "@/domains/rooms/apiRepository";
 import type { ProgressRepository } from "@/domains/progress/repository";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import * as client from "@/domains/registry.client";
@@ -92,38 +101,41 @@ describe("source boundary — no demo capability in the client composition", () 
 });
 
 describe("explicit unavailable — DOMAIN_UNAVAILABLE, never demo data", () => {
-  it("UNAVAILABLE_DOMAINS is the single disclosure enumeration (7 ids, no duplicates)", () => {
+  it("UNAVAILABLE_DOMAINS is the single disclosure enumeration (empty: every domain is served)", () => {
     const ids = UNAVAILABLE_DOMAINS.map((d) => d.id);
-    expect(ids).toHaveLength(7);
+    expect(ids).toHaveLength(0);
     expect(new Set(ids).size).toBe(ids.length);
     // Served domains must NOT be disclosed as unavailable. Progress and
     // organization left on 2026-10-03; scheduling, attendance and library left
     // on 2026-10-04 after their contracts were verified (and, for attendance,
-    // after the server was corrected to emit the authoritative keys).
-    for (const served of ["progress", "organization", "scheduling", "attendance", "library"]) {
+    // after the server was corrected to emit the authoritative keys). Media
+    // left when the server started storing the bytes and authorizing their
+    // reader per object. Instruments left on 2026-10-23 (§33) with their own
+    // `instruments.read` / `instruments.write` ids. Learning left on 2026-10-24
+    // (§34) with its own `learning.read` / `learning.write` ids. Gallery
+    // leaves on 2026-10-24 (§36) with its own `gallery.read` /
+    // `gallery.write` ids. Chat leaves on 2026-10-26 (§37) under the existing
+    // `messages.read` / `messages.write` ids — the vocabulary already names
+    // exactly this capability. Branding leaves on 2026-10-26 (§38) with its
+    // own `branding.read` / `branding.write` ids. Compensation leaves on
+    // 2026-10-28 (§39) under the existing `schedule.read` / `schedule.write`
+    // ids — a make-up IS a session (§26.3 forbids borrowing for a *different*
+    // domain only). Finance leaves with the v1 invoice slice on 2026-10-29
+    // (§40) under the existing `finance.read` / `finance.write` ids — the
+    // vocabulary already names exactly this capability. With nothing left undisclosed, the enumeration is empty
+    // by construction: a domain that regresses to the stub fails the length
+    // assertion below instead of silently vanishing from the login page.
+    for (const served of ["progress", "organization", "scheduling", "attendance", "library", "media", "instruments", "learning", "gallery", "chat", "branding", "compensation", "finance"]) {
       expect(ids).not.toContain(served);
     }
-    // The still-unserved domains remain disclosed, never silently dropped.
-    expect(ids).toContain("instruments");
-    expect(ids).toContain("learning");
-    expect(ids).toContain("chat");
-    expect(ids).toContain("media");
-    expect(ids).toContain("branding");
-    expect(ids).toContain("gallery");
-    expect(ids).toContain("compensation");
   });
 
   it("every unavailable id has a getter whose every call rejects with DOMAIN_UNAVAILABLE", async () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "https://backend.test/api/v1" });
-    const getters: Record<string, () => object> = {
-      instruments: client.getInstrumentRepository,
-      learning: client.getLearningRepository,
-      chat: client.getChatRepository,
-      media: client.getMediaRepository,
-      branding: client.getBrandingRepository,
-      gallery: client.getGalleryRepository,
-      compensation: client.getCompensationRepository,
-    };
+    // Empty while every domain is served: the loop below asserts nothing,
+    // and the key-sorted equality pins that no getter was forgotten while
+    // still resolving to the stub.
+    const getters: Record<string, () => object> = {};
     expect(Object.keys(getters).sort()).toEqual([...UNAVAILABLE_DOMAINS.map((d) => d.id)].sort());
 
     for (const [id, get] of Object.entries(getters)) {
@@ -166,19 +178,36 @@ describe("composition parity — served domains are the real Api classes", () =>
 
   /**
    * Progress and organization joined the served set on 2026-10-03; scheduling,
-   * attendance and library on 2026-10-04. The point of these assertions is the
-   * failure mode they prevent: a domain that reverts to the unavailable stub
-   * still typechecks and still builds, so only an explicit instance check
-   * catches it.
+   * attendance and library on 2026-10-04; media when the server started
+   * storing the bytes; instruments on 2026-10-23 (§33); learning on 2026-10-24
+   * (§34); gallery on 2026-10-24 (§36); chat on 2026-10-26 (§37); branding
+   * on 2026-10-26 (§38); compensation on 2026-10-28 (§39) under the existing
+   * `schedule.read` / `schedule.write` ids — a make-up IS a session, so no
+   * new id is invented; finance on 2026-10-29 (§40) under the existing
+   * `finance.read` / `finance.write` ids, same rule. Rooms were wired to the Api repository from the
+   * start and served once their policy stopped refusing (§35) — no registry
+   * change, only the authorization. The point of these assertions is the
+   * failure mode they prevent: a domain that reverts to the unavailable
+   * stub still typechecks and still builds, so only an explicit instance
+   * check catches it.
    */
   it("every served domain resolves to its Api repository, not the unavailable stub", async () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "https://backend.test/api/v1" });
 
     expect(client.getProgressRepository()).toBeInstanceOf(ApiProgressRepository);
+    expect(client.getChatRepository()).toBeInstanceOf(ApiChatRepository);
     expect(client.getOrganizationRepository()).toBeInstanceOf(ApiOrganizationRepository);
     expect(client.getSchedulingRepository()).toBeInstanceOf(ApiSchedulingRepository);
     expect(client.getAttendanceRepository()).toBeInstanceOf(ApiAttendanceRepository);
     expect(client.getLibraryRepository()).toBeInstanceOf(ApiLibraryRepository);
+    expect(client.getMediaRepository()).toBeInstanceOf(ApiMediaRepository);
+    expect(client.getInstrumentRepository()).toBeInstanceOf(ApiInstrumentRepository);
+    expect(client.getLearningRepository()).toBeInstanceOf(ApiLearningRepository);
+    expect(client.getGalleryRepository()).toBeInstanceOf(ApiGalleryRepository);
+    expect(client.getBrandingRepository()).toBeInstanceOf(ApiBrandingRepository);
+    expect(client.getCompensationRepository()).toBeInstanceOf(ApiCompensationRepository);
+    expect(client.getFinanceRepository()).toBeInstanceOf(ApiFinanceRepository);
+    expect(client.getRoomRepository()).toBeInstanceOf(ApiRoomRepository);
 
     // Not the stub: the stub rejects every call, the real repository must not.
     // A rejection here is a network failure against a fixture base URL, never
@@ -198,6 +227,13 @@ describe("composition parity — served domains are the real Api classes", () =>
     await expect(client.getLibraryRepository().list()).not.rejects.toMatchObject({
       code: DOMAIN_UNAVAILABLE,
     });
+    // The media, instrument, learning, gallery, chat, branding and
+    // compensation domains are guarded by their instance checks above: the
+    // stub is a Proxy, never an Api repository. They get no round-trip of
+    // their own — these five requests already saturate the 5s test budget,
+    // and more would make this test fail on timing rather than on truth.
+    // Rooms needs none either: it was wired to ApiRoomRepository from the
+    // start and only its policy changed.
   });
 
   it("an explicit override still wins over the wired Api repository", () => {

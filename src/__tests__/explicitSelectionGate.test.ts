@@ -34,11 +34,22 @@ describe("explicit selection", () => {
   const aliases = ["api", "production", "prod", "live", "real", "staging", "stage"] as const;
 
   it("reads the production-alias list from config and never maps one to local", () => {
-    const source = readFileSync(join(process.cwd(), "src", "api", "config.ts"), "utf8");
-    const match = source.match(/const PRODUCTION_ALIASES = \[([\s\S]*?)\] as const/);
+    // The alias list has ONE owner: `src/api/dataSourceVocabulary.ts`. The
+    // runtime config resolves it AND the dev-server disclosure classifies it
+    // with the same function, so the two can never disagree about whether a
+    // value means "the real API". The list is therefore read from its owner
+    // here, and `config.ts` is asserted to USE that owner rather than keep a
+    // second copy of the vocabulary.
+    const vocabulary = readFileSync(join(process.cwd(), "src", "api", "dataSourceVocabulary.ts"), "utf8");
+    const match = vocabulary.match(/const API_DATA_SOURCES = \[([\s\S]*?)\] as const/);
     expect(match).not.toBeNull();
     const declared = [...(match?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((item) => item[1]);
     expect(declared).toEqual([...aliases]);
+
+    const config = readFileSync(join(process.cwd(), "src", "api", "config.ts"), "utf8");
+    expect(config).toMatch(/from "\.\/dataSourceVocabulary"/);
+    expect(config).not.toMatch(/const PRODUCTION_ALIASES/);
+
     for (const alias of aliases) {
       for (const target of ["demo", "client"] as const) {
         const config = resolveConfig({ VITE_DATA_SOURCE: alias }, target);

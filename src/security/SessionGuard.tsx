@@ -16,15 +16,17 @@ import { Button } from "@/components/ds/primitives";
 import { useIdleTimeout } from "./useIdleTimeout";
 
 export function SessionGuard() {
-  const { status, logout } = useAuth();
+  const { status, logout, expireSession } = useAuth();
   const [reason, setReason] = useState<"idle" | "absolute" | null>(null);
 
   const handleTimeout = useCallback(
     (cause: "idle" | "absolute") => {
       setReason(cause);
-      void logout();
+      // Expiry (not plain logout): the server has its own ceilings, the
+      // other tabs are told, and the login screen says why.
+      void expireSession(cause);
     },
-    [logout],
+    [expireSession],
   );
 
   const { warning, remainingMs, stayActive } = useIdleTimeout({

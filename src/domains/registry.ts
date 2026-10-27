@@ -45,6 +45,8 @@ import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository"
 import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import type { CompensationRepository } from "@/domains/compensation/repository";
 import { LocalCompensationRepository } from "@/domains/compensation/localRepository";
+import type { FinanceRepository } from "@/domains/finance/repository";
+import { createUnavailableRepository } from "@/domains/shared/unavailableRepository";
 
 /**
  * Composition root. The only place that decides whether a domain is served by
@@ -70,6 +72,7 @@ export {
   setSchedulingRepository,
   setAttendanceRepository,
   setCompensationRepository,
+  setFinanceRepository,
   setInstrumentRepository,
   setLearningRepository,
   setChatRepository,
@@ -262,6 +265,17 @@ export function getCompensationRepository(): CompensationRepository {
       attendance: getAttendanceRepository(),
     })
   );
+}
+
+/*
+ * Invoices — explicitly unserved in the demo composition (D6/I2).
+ *
+ * v1 is client-only by owner decision: the demo keeps its honest deferral
+ * instead of a second local ledger. Every verb rejects DOMAIN_UNAVAILABLE,
+ * which the Finance view renders as its existing deferral surface.
+ */
+export function getFinanceRepository(): FinanceRepository {
+  return overrides.finance ?? createUnavailableRepository<FinanceRepository>("finance", "مالی");
 }
 
 /*

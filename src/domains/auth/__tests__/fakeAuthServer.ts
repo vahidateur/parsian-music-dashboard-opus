@@ -38,6 +38,8 @@ export function createFakeServer() {
   const calls: RecordedCall[] = [];
   let issued = 0;
   let networkDown = false;
+  /** Tokens the server has revoked for age, mapped to the 401 code /auth/me answers. */
+  const expiredAs = new Map<string, string>();
 
   const json = (status: number, body: unknown): Response =>
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -79,6 +81,8 @@ export function createFakeServer() {
     }
     if (path === "/auth/me") {
       if (!bearer || !valid.has(bearer)) return unauthenticated();
+      const code = expiredAs.get(bearer);
+      if (code) return json(401, { error: { code, message: "session ended" } });
       return json(200, { data: session("") }); // the real backend never re-issues on /me
     }
     if (path === "/auth/logout" && method === "POST") {
@@ -94,6 +98,7 @@ export function createFakeServer() {
     valid,
     calls,
     fetchImpl,
+    expiredAs,
     setNetworkDown(down: boolean) {
       networkDown = down;
     },

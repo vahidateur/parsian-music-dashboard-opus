@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { clearAttempts, recordFailure } from "@/security/loginThrottle";
 import { SESSION_TTL_MS } from "@/domains/auth/session";
-import { anchorSessionClock, clearSessionClock, resetSessionClock } from "@/security/useIdleTimeout";
+import { anchorSessionClock, clearSessionClock, notifySessionEnded, readSessionEnded, resetSessionClock, type SessionEndReason } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
+import { setSessionExpiredHandler } from "@/domains/registryCore";
 import { can, canAccessView, canAll, canAny, clearRolePolicies, getRolePolicy, type Permission } from "./permissions";
 import { useRolePolicyVersion } from "./useRoles";
 import type { AuthRepository } from "./repository";
@@ -23,9 +24,23 @@ export interface AuthState {
   user: Session["user"] | null;
   permissions: Permission[];
   error: ApiError | null;
+  /**
+   * Why the last session ended, shown on the login screen. Set by
+   * server-side expiry (idle/absolute), a cross-tab sign-out, or a 401
+   * mid-session — never by a failed login attempt (that stays `error`).
+   * Cleared on the next login attempt.
+   */
+  notice: string | null;
   pending: boolean;
   login: (input: LoginInput) => Promise<boolean>;
   logout: () => Promise<void>;
+  /**
+   * Ends the session with an expiry reason: revokes server-side, clears
+   * locally, broadcasts to other tabs, and leaves `notice` behind so the
+   * login screen can say why. Used by the idle guard, the cross-tab
+   * listener, and the 401 handler — not by the login form.
+   */
+  expireSession: (reason: SessionEndReason) => Promise<void>;
   clearError: () => void;
   can: (permission: Permission) => boolean;
   canAny: (permissions: readonly Permission[]) => boolean;
@@ -40,8 +55,20 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>("restoring");
   const [error, setError] = useState<ApiError | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const mounted = useRef(true);
+  // Synchronous mirror of `session` for event handlers that must decide
+  // re-entrantly: a second 401 (or a second tab's broadcast) arriving while
+  // a sign-out is already in flight must be a no-op, never a loop.
+  const sessionRef = useRef<Session | null>(null);
+  sessionRef.current = session;
+
+  const SESSION_END_NOTICE: Record<SessionEndReason, string> = {
+    idle: "نشست شما به دلیل عدم فعالیت به پایان رسید. برای ادامه وارد شوید.",
+    absolute: "مدت نشست شما به پایان رسید. برای ادامه وارد شوید.",
+    logout: "از حساب خارج شدید. برای ادامه وارد شوید.",
+  };
 
   useEffect(() => {
     mounted.current = true;
@@ -54,8 +81,8 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
   useEffect(() => {
     let active = true;
     repo
-      .restore()
-      .then((restored) => {
+      .restoreDetailed()
+      .then(({ session: restored, expiredReason }) => {
         if (!active) return;
         if (restored) {
           // Re-anchor the absolute clock to the token's own expiry. Without
@@ -71,11 +98,16 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
         clearRolePolicies();
         setSession(restored);
         setStatus(restored ? "authenticated" : "unauthenticated");
+        // A stored session that provably outlived a lifetime ceiling says so
+        // on the login screen (idle vs absolute); any other boot failure
+        // stays silent, exactly as before — boot must not probe credentials.
+        setNotice(!restored && expiredReason ? SESSION_END_NOTICE[expiredReason] : null);
       })
       .catch(() => {
         if (!active) return;
         setSession(null);
         setStatus("unauthenticated");
+        setNotice(null);
       });
     return () => {
       active = false;
@@ -86,6 +118,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     async (input: LoginInput): Promise<boolean> => {
       setPending(true);
       setError(null);
+      setNotice(null);
       try {
         const next = await repo.login(input);
         if (!mounted.current) return true;
@@ -110,19 +143,93 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     [repo],
   );
 
+  const clearSessionState = useCallback(() => {
+    clearSessionClock();
+    clearRolePolicies();
+    if (mounted.current) {
+      sessionRef.current = null;
+      setSession(null);
+      setStatus("unauthenticated");
+      setError(null);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await repo.logout();
     } finally {
-      clearSessionClock();
-      clearRolePolicies();
-      if (mounted.current) {
-        setSession(null);
-        setStatus("unauthenticated");
-        setError(null);
-      }
+      notifySessionEnded("logout");
+      clearSessionState();
     }
-  }, [repo]);
+  }, [repo, clearSessionState]);
+
+  /*
+   * Server-side expiry (or another tab) ended the session. Unlike logout —
+   * an explicit act that needs no explanation — this leaves `notice` behind
+   * so the login screen can say why. Guarded by sessionRef: concurrent 401s
+   * (every in-flight request fails at once) and repeat broadcasts collapse
+   * into a single sign-out instead of a logout loop.
+   */
+  const expireSession = useCallback(
+    async (reason: SessionEndReason) => {
+      if (sessionRef.current === null) return;
+      sessionRef.current = null;
+      try {
+        // Best-effort server revocation: the token may already be dead
+        // (that is why we are here), and a flaky network must not block
+        // the local sign-out that actually protects the machine.
+        await repo.logout().catch(() => undefined);
+      } finally {
+        notifySessionEnded(reason);
+        clearSessionClock();
+        clearRolePolicies();
+        if (mounted.current) {
+          setSession(null);
+          setStatus("unauthenticated");
+          setError(null);
+          setNotice(SESSION_END_NOTICE[reason]);
+        }
+      }
+    },
+    [repo],
+  );
+
+  /*
+   * Two push paths converge here: the ApiClient's 401 hook (any protected
+   * request rejected mid-session, including the new idle/absolute codes)
+   * and other tabs' session-end broadcasts. Both are no-ops once signed
+   * out, and neither navigates explicitly — AuthGate renders the login
+   * view for `unauthenticated`, so flipping status IS the redirect, and it
+   * cannot loop (no retry-on-401 exists anywhere in src/).
+   */
+  useEffect(() => {
+    setSessionExpiredHandler((apiError?: { code?: string }) => {
+      if (sessionRef.current === null) return;
+      const code = apiError?.code;
+      // Unknown 401s (revoked elsewhere, malformed session) end here with
+      // the generic sign-out notice — silent would hide a real state change.
+      const reason: SessionEndReason =
+        code === "AUTH_SESSION_ABSOLUTE_EXPIRED"
+          ? "absolute"
+          : code === "AUTH_SESSION_IDLE_EXPIRED"
+            ? "idle"
+            : "logout";
+      void expireSession(reason);
+    });
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "ava:session:ended") return;
+      const reason = readSessionEnded();
+      if (reason === null || sessionRef.current === null) return;
+      // Reason travels with the broadcast so every tab reports honestly;
+      // a plain logout elsewhere signs out here silently (no notice).
+      void expireSession(reason);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      setSessionExpiredHandler(null);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [expireSession]);
 
   /*
     THE MATRIX IS LIVE, NOT FROZEN AT LOGIN.
@@ -155,16 +262,18 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       user: session?.user ?? null,
       permissions,
       error,
+      notice,
       pending,
       login,
       logout,
+      expireSession,
       clearError: () => setError(null),
       can: (permission) => can(holder, permission),
       canAny: (list) => canAny(holder, list),
       canAll: (list) => canAll(holder, list),
       canAccess: (view) => canAccessView(holder, view),
     }),
-    [status, session, permissions, error, pending, login, logout, holder],
+    [status, session, permissions, error, notice, pending, login, logout, expireSession, holder],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

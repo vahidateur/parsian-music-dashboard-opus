@@ -1,6 +1,7 @@
 import { ApiError } from "@/api/errors";
 import type { Page, QueryParams } from "@/api/types";
 import type { ApiClient } from "@/api/client";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import { isAcceptablePassphrase } from "./passphrase";
 import { isRoleId } from "./permissions";
 import type { UserRepository } from "./repository";
@@ -47,20 +48,25 @@ export class ApiUserRepository implements UserRepository {
     return this.client.get<AuthUser>(`users/${encodeURIComponent(id)}`);
   }
 
-  create(input: CreateUserInput): Promise<AuthUser> {
+  async create(input: CreateUserInput): Promise<AuthUser> {
     const invalid = validateUserInput(input, true);
     if (invalid) return Promise.reject(invalid);
-    return this.client.post<AuthUser>("users", toWire(input));
+    const created = await this.client.post<AuthUser>("users", toWire(input));
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateUserInput): Promise<AuthUser> {
+  async update(id: string, input: UpdateUserInput): Promise<AuthUser> {
     const invalid = validateUserInput(input, false);
     if (invalid) return Promise.reject(invalid);
-    return this.client.patch<AuthUser>(`users/${encodeURIComponent(id)}`, toWire(input));
+    const updated = await this.client.patch<AuthUser>(`users/${encodeURIComponent(id)}`, toWire(input));
+    bumpDataVersion();
+    return updated;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`users/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /** BACKEND REQUIRED: `POST /users/{id}/password`, verified server-side. */
@@ -87,6 +93,11 @@ function toWire(input: UpdateUserInput | CreateUserInput): QueryParams {
     phone: input.phone?.trim(),
     role: input.role,
     status: input.status,
+    // Passed through untouched (never trimmed: it is an opaque id, and the
+    // backend validates existence + tenancy itself). Absent stays absent so
+    // the server leaves the link alone; an explicit null travels as null,
+    // which the server reads as "clear the link".
+    teacherId: input.teacherId,
   };
   return wire as QueryParams;
 }

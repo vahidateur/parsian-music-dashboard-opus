@@ -24,6 +24,7 @@
  *     galleryAlbums.coverMediaId     album cover (a row that need not have images)
  *     branding.logoMediaId           academy logo (singleton, not a collection)
  *     branding.faviconMediaId        academy favicon (singleton, not a collection)
+ *     instruments.imageId            instrument card image
  *
  *   A new media-bearing record type must be added here in the same change that
  *   introduces it. That obligation is the cost of a single global check; the
@@ -64,6 +65,7 @@ export function mediaStillReferenced(store: LocalDataStore, mediaId: string): bo
     store.chatMessages.all().some((row) => row.mediaId === id) ||
     store.galleryImages.all().some((row) => row.mediaId === id) ||
     store.galleryAlbums.all().some((row) => row.coverMediaId === id) ||
+    store.instruments.all().some((row) => row.imageId === id) ||
     brandingReferences(store, id)
   );
 }

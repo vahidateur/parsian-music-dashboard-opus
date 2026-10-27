@@ -25,14 +25,17 @@
  *     plainly, with the reference itself shown so it can be traced; the message
  *     is not hidden, because it did happen.
  *
- * In the current build the bytes live in this browser's blob store (IndexedDB, or
- * an in-memory store where IndexedDB is unavailable). That is what the copy says
- * — «در همین مرورگر» — and it does not claim server storage, delivery or scanning,
- * none of which the media or chat contracts provide today.
+ * In the demo composition the bytes live in this browser's blob store
+ * (IndexedDB, or an in-memory store where IndexedDB is unavailable) — that is
+ * what the storage copy says (`attachmentStorageNote` in the target seam).
+ * In the client composition they live on the server's private disk. Neither
+ * claim here is about delivery or scanning, none of which the media or chat
+ * contracts provide.
  */
 import { useEffect, useState } from "react";
 import { FileText, Image as ImageIcon, Music, TriangleAlert } from "lucide-react";
 import { getMediaRepository } from "@/domains/registry";
+import { attachmentStorageNote } from "@/targets/targetCopy";
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
 import type { MediaAsset, MediaKind } from "@/domains/media/types";
 import { cn } from "@/utils/cn";
@@ -145,7 +148,7 @@ export function MessageAttachment({ mediaId }: { mediaId: string }) {
             باز کردن فایل
           </a>
           <p className="mt-1 text-[10px] leading-relaxed text-ink-500">
-            در این نسخه فایل فقط در همین مرورگر ذخیره شده است؛ روی سرور نگهداری نمی‌شود.
+            {attachmentStorageNote}
           </p>
         </>
       ) : bytes === "absent" ? (

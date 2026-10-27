@@ -31,8 +31,10 @@ final class StudentRules
             'guardian' => ['nullable', 'string', 'max:120'],
             'since' => ['string', 'max:32'],
 
-            // Deferred fields: type-only (plan section 7).
-            'photoMediaId' => ['nullable', 'string', 'max:64'],
+            // Deferred fields: type-only (plan section 7), except the photo,
+            // whose asset must exist in this organization — a row that names a
+            // missing file would render "no image" forever.
+            'photoMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
             'sessionsUsed' => ['integer'],
             'sessionsTotal' => ['integer'],
             'attendance' => ['integer'],

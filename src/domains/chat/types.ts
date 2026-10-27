@@ -94,6 +94,14 @@ export interface CreateConversationInput {
   role: ChatParticipantRole;
   topic: string;
   subjectId?: string;
+  /**
+   * User ids to add besides the creator. The creator is always added
+   * server-side — a thread with only its creator is a notebook, not a
+   * conversation, until someone else can be named. There is deliberately no
+   * add/remove-participant verb yet: naming members at creation is the whole
+   * of the v1 membership surface (DECISIONS.md §37).
+   */
+  participantIds?: string[];
 }
 
 export interface SendMessageInput {

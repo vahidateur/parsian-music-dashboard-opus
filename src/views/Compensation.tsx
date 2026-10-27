@@ -650,7 +650,7 @@ export function CompensationView() {
         />
         <ErrorState
           title="فهرست جبرانی‌ها خوانده نشد"
-          description={ledger.error.message}
+          error={ledger.error}
           onRetry={() => ledger.reload()}
         />
       </>

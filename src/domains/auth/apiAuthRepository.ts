@@ -34,6 +34,16 @@ interface WireSession {
 }
 
 export class ApiAuthRepository implements AuthRepository {
+  /**
+   * In-flight restore shared by concurrent callers. Boot (StrictMode
+   * double-mount included) and a 401-triggered refresh can otherwise race:
+   * the first flight revokes/discards while the second still reads the old
+   * store, and the second's silent outcome would overwrite the first's
+   * reason. Sharing one flight makes every concurrent caller observe the
+   * same outcome.
+   */
+  private restoreFlight: Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> | null = null;
+
   constructor(
     private readonly client: ApiClient,
     /** Lets the composition root learn about a new token. */
@@ -71,11 +81,33 @@ export class ApiAuthRepository implements AuthRepository {
    * sign the user out for good; the caller still ends up unauthenticated.
    */
   async restore(): Promise<Session | null> {
+    return (await this.restoreDetailed()).session;
+  }
+
+  /**
+   * `restore()` plus the expiry reason for the login-screen notice.
+   *
+   * Only a provable ceiling breach names a reason: a locally past expiry
+   * (the token outlived even its own issued lifetime — the server's 10 h
+   * absolute fires first whenever a request actually ran) or the server's
+   * own idle/absolute 401 codes, which are emitted exclusively for a token
+   * the server just revoked for age. Any other rejection stays silent,
+   * exactly like `restore()`: boot must not distinguish revoked or
+   * malformed credentials from absent ones.
+   */
+  async restoreDetailed(): Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> {
+    this.restoreFlight ??= this.restoreOnce().finally(() => {
+      this.restoreFlight = null;
+    });
+    return this.restoreFlight;
+  }
+
+  private async restoreOnce(): Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> {
     const stored = this.store.read();
-    if (stored === null) return null;
+    if (stored === null) return { session: null, expiredReason: null };
     if (isExpired(stored.expiresAt)) {
       this.discard();
-      return null;
+      return { session: null, expiredReason: "absolute" };
     }
     try {
       // The in-memory token is empty after a reload, so present the stored one
@@ -87,11 +119,19 @@ export class ApiAuthRepository implements AuthRepository {
       const session: Session = { ...toSession(raw), token: stored.token };
       this.onSession(session);
       this.persist(session);
-      return session;
+      return { session, expiredReason: null };
     } catch (error) {
       if (isApiError(error) && (error.kind === "authentication" || error.kind === "authorization")) {
         this.discard();
-        return null;
+        return {
+          session: null,
+          expiredReason:
+            error.code === "AUTH_SESSION_IDLE_EXPIRED"
+              ? "idle"
+              : error.code === "AUTH_SESSION_ABSOLUTE_EXPIRED"
+                ? "absolute"
+                : null,
+        };
       }
       throw error;
     }

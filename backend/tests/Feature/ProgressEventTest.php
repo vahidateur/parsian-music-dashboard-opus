@@ -799,13 +799,15 @@ class ProgressEventTest extends TestCase
     }
 
     /**
-     * DEFERRED BEHAVIOUR, asserted rather than invented: learning has no
-     * server-side representation (PB-3 stays Option A for it), so nothing is
-     * eligible and `suggestedContentIds` is always empty. That is the safe
-     * direction — a recommendation must never surface material the student is
-     * not permitted to open (§21).
+     * DEFERRED BEHAVIOUR, asserted rather than invented: the recommendation
+     * engine does not query the learning tables, so `suggestedContentIds`
+     * is always empty. That is the safe direction — a recommendation must
+     * never surface material the student is not permitted to open (§21) — and
+     * wiring recommendations into eligibility is workflow automation, which
+     * §30 defers. (An older revision of this comment cited PB-3; learning has
+     * been authorized since §34.)
      */
-    public function test_suggested_content_is_always_empty_because_learning_has_no_server_tables(): void
+    public function test_suggested_content_is_always_empty_because_recommendations_do_not_query_learning(): void
     {
         $org = $this->defaultOrganization();
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
@@ -859,12 +861,12 @@ class ProgressEventTest extends TestCase
     /* governance                                                          */
     /* ------------------------------------------------------------------ */
 
-    /** Slice 2 added no permission: the vocabulary is still exactly 25 ids. */
-    public function test_the_permission_vocabulary_is_still_exactly_twenty_five_ids(): void
+    /** Slice 2 added no permission: the vocabulary grew only via §33 + §34 + §35 + §36 + §37 + §38 + §41. */
+    public function test_the_permission_vocabulary_is_still_exactly_thirty_seven_ids(): void
     {
         $vocabulary = config('permissions.vocabulary');
 
-        $this->assertCount(25, $vocabulary);
+        $this->assertCount(37, $vocabulary);
         $this->assertContains('progress.read', $vocabulary);
         $this->assertContains('progress.write', $vocabulary);
         $this->assertNotContains('progress.admin', $vocabulary);

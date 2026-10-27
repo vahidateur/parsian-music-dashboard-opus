@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Teachers;
 
+use App\Http\Requests\TenantRules;
 use App\Models\Teacher;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,7 @@ final class TeacherRules
     {
         return [
             'name' => ['string', 'min:2', 'max:120'],
-            'photoMediaId' => ['nullable', 'string', 'max:64'],
+            'photoMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
             'instrument' => ['string', 'max:64'],
             'title' => ['string', 'max:120'],
             'students' => ['integer', 'min:0'],

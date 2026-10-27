@@ -221,6 +221,15 @@ const PARENTS: ParentFixture[] = [
       return () => demoStore.branding.update({ faviconMediaId: "" });
     },
   },
+  {
+    name: "instrument image",
+    attach: (mediaId) => {
+      const row = demoStore.instruments.all()[0];
+      expect(row).toBeDefined();
+      demoStore.instruments.update(row.id, { imageId: mediaId });
+      return () => demoStore.instruments.update(row.id, { imageId: "" });
+    },
+  },
 ];
 
 describe("X1 — one parent is enough", () => {

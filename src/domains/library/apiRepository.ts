@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { LibraryRepository } from "./repository";
 import type { CreateLibraryItemInput, LibraryItem, LibraryListParams, UpdateLibraryItemInput } from "./types";
 
@@ -68,16 +69,21 @@ export class ApiLibraryRepository implements LibraryRepository {
     return this.client.get<LibraryItem>(`${RESOURCE}/${encodeURIComponent(id)}`, { signal });
   }
 
-  create(input: CreateLibraryItemInput): Promise<LibraryItem> {
-    return this.client.post<LibraryItem>(RESOURCE, input);
+  async create(input: CreateLibraryItemInput): Promise<LibraryItem> {
+    const created = await this.client.post<LibraryItem>(RESOURCE, input);
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateLibraryItemInput): Promise<LibraryItem> {
-    return this.client.patch<LibraryItem>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateLibraryItemInput): Promise<LibraryItem> {
+    const updated = await this.client.patch<LibraryItem>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`${RESOURCE}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 }
 

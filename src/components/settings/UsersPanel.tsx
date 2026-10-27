@@ -37,7 +37,6 @@ import {
 import { isDemoMode } from "@/api/config";
 import { useUsers } from "@/domains/auth/useUsers";
 import { PERMISSION_GROUPS, PERMISSION_LABELS, useRoles } from "@/domains/auth/useRoles";
-import { defaultRoleRecord } from "@/domains/auth/roleRepository";
 import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/passphrase";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import type { AuthUser } from "@/domains/auth/types";
@@ -299,8 +298,8 @@ function UserFormDialog({
   );
 }
 
-/** One role's access, edited by an administrator. */
-function RoleMatrixDialog({
+/** One role's access, edited by an administrator. Exported for focused tests. */
+export function RoleMatrixDialog({
   role,
   onClose,
 }: {
@@ -325,7 +324,6 @@ function RoleMatrixDialog({
 
   if (!role || !record) return null;
   const busy = roles.saving;
-  const defaults = defaultRoleRecord(role);
   const isAdministratorRole = role === "administrator";
 
   /*
@@ -366,6 +364,28 @@ function RoleMatrixDialog({
     onClose();
   };
 
+  /*
+   * True reset: delete the stored override on the server (the shipped matrix
+   * is what "default" means — rolePolicy pins that reset deletes the override
+   * rather than copying defaults into it). Merely staging defaults in this
+   * form and saving would persist them AS an override and keep the edited
+   * badge; the hook's list update clears it because the server answers
+   * customized: false.
+   */
+  const resetToDefaults = async () => {
+    const failure = await roles.reset(role);
+    if (failure) {
+      setError(failure.message);
+      return;
+    }
+    notify({
+      tone: "success",
+      title: `دسترسی‌های «${record.label}» به پیش‌فرض برگشت`,
+      detail: "سفارشی‌سازی این نقش حذف شد؛ دسترسی‌های پیش‌فرض سامانه اعمال می‌شود.",
+    });
+    onClose();
+  };
+
   return (
     <Dialog
       open
@@ -378,10 +398,8 @@ function RoleMatrixDialog({
             variant="ghost"
             disabled={busy}
             onClick={() => {
-              setLabel(defaults.label);
-              setScope(defaults.scope);
-              setGranted([...defaults.permissions]);
               setError(null);
+              void resetToDefaults();
             }}
           >
             بازنشانی به پیش‌فرض
@@ -542,7 +560,7 @@ export function UsersPanel() {
         {users.loading ? (
           <LoadingState label="در حال بارگذاری کاربران…" />
         ) : users.error ? (
-          <ErrorState title="بارگذاری کاربران ناموفق بود" description={users.error.message} onRetry={users.reload} />
+          <ErrorState title="بارگذاری کاربران ناموفق بود" error={users.error} onRetry={users.reload} />
         ) : users.users.length === 0 ? (
           <EmptyState
             title="کاربری وجود ندارد"

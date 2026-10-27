@@ -11,6 +11,7 @@
  * No demo implementation may ever be imported by this file.
  */
 import { ApiClient } from "@/api/client";
+import type { ApiError } from "@/api/errors";
 import { getRuntimeConfig } from "@/api/config";
 import { defaultTokenStore } from "./auth/tokenStore";
 import type { AuthRepository, UserRepository } from "./auth/repository";
@@ -32,9 +33,28 @@ import type { ProgressRepository } from "@/domains/progress/repository";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import type { CompensationRepository } from "@/domains/compensation/repository";
+import type { FinanceRepository } from "@/domains/finance/repository";
 
 let client: ApiClient | null = null;
 let authToken: string | null = null;
+
+/**
+ * Notified whenever the server answers 401 — including the new
+ * AUTH_SESSION_IDLE_EXPIRED / AUTH_SESSION_ABSOLUTE_EXPIRED codes, which
+ * the ApiClient already classifies as `authentication`. The AuthProvider
+ * subscribes and flips to unauthenticated; without a subscriber the client
+ * still clears the dead token, so nothing can replay it.
+ */
+let sessionExpiredHandler: ((error?: ApiError) => void) | null = null;
+
+export function setSessionExpiredHandler(handler: ((error?: ApiError) => void) | null): void {
+  sessionExpiredHandler = handler;
+}
+
+/** Test seam: drive the 401 path without a network round trip. */
+export function notifySessionExpired(error?: ApiError): void {
+  sessionExpiredHandler?.(error);
+}
 
 interface Overrides {
   students?: StudentRepository;
@@ -57,6 +77,7 @@ interface Overrides {
   scheduling?: SchedulingRepository;
   attendance?: AttendanceRepository;
   compensation?: CompensationRepository;
+  finance?: FinanceRepository;
 }
 const overrides: Overrides = {};
 
@@ -67,10 +88,11 @@ export function getApiClient(): ApiClient {
     client = new ApiClient({
       baseUrl: getRuntimeConfig().apiBaseUrl,
       getToken: () => authToken,
-      onUnauthenticated: () => {
+      onUnauthenticated: (error) => {
         authToken = null;
         // A rejected token must not be replayed on the next reload.
         defaultTokenStore.clear();
+        sessionExpiredHandler?.(error);
       },
     });
   }
@@ -94,6 +116,9 @@ export function setAttendanceRepository(repository: AttendanceRepository | undef
 }
 export function setCompensationRepository(repository: CompensationRepository | undefined): void {
   overrides.compensation = repository;
+}
+export function setFinanceRepository(repository: FinanceRepository | undefined): void {
+  overrides.finance = repository;
 }
 export function setInstrumentRepository(repository: InstrumentRepository | undefined): void {
   overrides.instruments = repository;
@@ -148,6 +173,7 @@ export function setRoleRepository(repository: RoleRepository | undefined): void 
 export function resetRegistry(): void {
   client = null;
   authToken = null;
+  sessionExpiredHandler = null;
   overrides.students = undefined;
   overrides.teachers = undefined;
   overrides.rooms = undefined;
@@ -168,6 +194,7 @@ export function resetRegistry(): void {
   overrides.scheduling = undefined;
   overrides.attendance = undefined;
   overrides.compensation = undefined;
+  overrides.finance = undefined;
 }
 
 /* Internal selection accessors — used by the target composition roots only. */

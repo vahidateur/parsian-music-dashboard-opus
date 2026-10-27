@@ -94,6 +94,9 @@ describe("AuthProvider lifecycle", () => {
       restore: vi.fn(async () => {
         throw new ApiError({ kind: "server", message: "boom" });
       }),
+      restoreDetailed: vi.fn(async () => {
+        throw new ApiError({ kind: "server", message: "boom" });
+      }),
       login: vi.fn(),
       logout: vi.fn(),
       me: vi.fn(),

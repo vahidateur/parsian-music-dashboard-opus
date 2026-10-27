@@ -28,8 +28,10 @@ import { Button, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Field, Panel, inputCls, SearchInput } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
+import { fileStoredDetail, galleryStorageNote } from "@/targets/targetCopy";
 import { getGalleryRepository, getMediaRepository } from "@/domains/registry";
 import { releaseStagedMedia } from "@/domains/media/release";
+import { prepareImageUpload } from "@/domains/media/prepareImage";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
 import { useAlbums, useGalleryImages } from "./useGallery";
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
@@ -132,8 +134,13 @@ function AlbumImages({
       {imagesNote && <p className="mb-3 text-[11px] text-ink-400">{imagesNote}</p>}
 
       {imagesError ? (
-        <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" description={imagesError.message} onRetry={reloadImages} />
-      ) : imagesLoading ? (
+        <ErrorState title="بارگذاری تصاویر این آلبوم ناموفق بود" error={imagesError} onRetry={reloadImages} />
+      ) : imagesLoading && images.length === 0 ? (
+        // A params change (album switch, new search) empties the page, so the
+        // switch still reads as loading — pinned by staleQueryGates. A
+        // background refetch after a write anywhere keeps the page (see
+        // useResourceList), so the grid stays instead of flashing once per
+        // photo of a batch upload.
         <LoadingState label="در حال بارگذاری تصاویر این آلبوم…" />
       ) : images.length === 0 ? (
         <EmptyState
@@ -149,7 +156,7 @@ function AlbumImages({
           </ul>
 
           <Surface className="mt-4 border-warn-500/20 bg-warn-500/[0.05] p-3.5 text-[11.5px] leading-relaxed text-ink-200">
-            تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد.
+            {galleryStorageNote} حداکثر حجم هر تصویر {faNum(MAX_IMAGE_BYTES / (1024 * 1024))} مگابایت است.
           </Surface>
         </>
       )}
@@ -159,8 +166,10 @@ function AlbumImages({
 
 export function GalleryPanel() {
   const { notify } = useApp();
-  // X-02: gallery writes borrow library.write. Reading albums does not.
-  const mayWrite = useCan("library.write");
+  // Gallery curation is its own permission since §36 (before that the panel
+  // borrowed library.write — X-02, retired). Reading albums needs no gate:
+  // the view itself is gated, and every reader of the view may read.
+  const mayWrite = useCan("gallery.write");
   const [albumSearch, setAlbumSearch] = useState("");
   const { items: albums, total: albumsTotal, loading, error, reload } = useAlbums({ per_page: 100, search: albumSearch || undefined });
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -207,11 +216,12 @@ export function GalleryPanel() {
     */
     let stagedMediaId: string | undefined;
     try {
+      const prepared = await prepareImageUpload(file);
       const asset = await getMediaRepository().create({
         kind: "image",
-        filename: file.name,
-        mimeType: file.type,
-        bytes: await file.arrayBuffer(),
+        filename: prepared.filename,
+        mimeType: prepared.mimeType,
+        bytes: prepared.bytes,
       });
       stagedMediaId = asset.id;
       await getGalleryRepository().addImage({
@@ -221,7 +231,7 @@ export function GalleryPanel() {
         alt,
       });
       setCaption("");
-      notify({ tone: "success", title: "تصویر افزوده شد", detail: "فایل فقط در همین مرورگر ذخیره شده است." });
+      notify({ tone: "success", title: "تصویر افزوده شد", detail: fileStoredDetail() });
     } catch (cause) {
       // The image row was never written, so the staged upload must not linger.
       await releaseStagedMedia(stagedMediaId, getMediaRepository());
@@ -246,7 +256,7 @@ export function GalleryPanel() {
   };
 
   if (loading) return <LoadingState className="py-16" label="در حال بارگذاری گالری…" />;
-  if (error) return <ErrorState className="py-16" title="بارگذاری گالری ناموفق بود" description={error.message} onRetry={reload} />;
+  if (error) return <ErrorState className="py-16" title="بارگذاری گالری ناموفق بود" error={error} onRetry={reload} />;
 
   return (
     <Panel title="گالری تصاویر" kicker="تصاویر آموزشگاه، اجراها و کلاس‌ها">

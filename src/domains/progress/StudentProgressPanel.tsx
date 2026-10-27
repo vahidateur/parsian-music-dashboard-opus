@@ -111,7 +111,7 @@ export function StudentProgressPanel({
   if (loading) return <LoadingState className="py-20" label="در حال بارگذاری پیشرفت…" />;
   if (error)
     return (
-      <ErrorState className="py-20" title="بارگذاری پیشرفت ناموفق بود" description={error.message} onRetry={reload} />
+      <ErrorState className="py-20" title="بارگذاری پیشرفت ناموفق بود" error={error} onRetry={reload} />
     );
 
   /*
@@ -321,7 +321,7 @@ export function StudentProgressPanel({
         {timelineError ? (
           <ErrorState
             title="بارگذاری سابقهٔ پیشرفت ناموفق بود"
-            description={timelineError.message}
+            error={timelineError}
             onRetry={reloadTimeline}
           />
         ) : timelineLoading ? (

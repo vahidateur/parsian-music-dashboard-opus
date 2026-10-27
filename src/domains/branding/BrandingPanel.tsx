@@ -12,8 +12,9 @@ import { Field, Panel, inputCls } from "@/components/ds/patterns";
 import { ErrorState, LoadingState } from "@/components/ds/states";
 import { useApp } from "@/context/AppContext";
 import { useCan } from "@/domains/auth/AuthContext";
-import { getBrandingRepository } from "@/domains/registry";
+import { getBrandingRepository, getOrganizationRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/targets/environment";
+import { brandingUnavailableDescription } from "@/targets/targetCopy";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
@@ -81,11 +82,13 @@ function ColorField({
 
 export function BrandingPanel() {
   const { notify } = useApp();
-  // X-06 / M-03: settings identity writes are settings.write. A settings reader
-  // may see the record and must not be offered a save.
-  const mayWrite = useCan("settings.write");
+  // Branding writes require branding.write (DECISIONS.md §38): the panel's
+  // own permission id, never the neighbouring settings.write. Reading
+  // needs no gate here: the view itself requires settings.read, and every
+  // reader of the view may read.
+  const mayWrite = useCan("branding.write");
   const demoEnvironment = useIsDemoEnvironment();
-  const { branding, loading, error, reload } = useBranding();
+  const { branding, loading, error, reload, visualsAvailable } = useBranding();
   const [draft, setDraft] = useState<Draft>(() => toDraft(branding));
   const [fields, setFields] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
@@ -113,7 +116,7 @@ export function BrandingPanel() {
   };
 
   const resetToDefaults = () => {
-    if (!mayWrite) return;
+    if (!mayWrite || !visualsAvailable) return;
     setDraft(toDraft(DEFAULT_BRANDING));
     setFields({});
     notify({
@@ -128,7 +131,14 @@ export function BrandingPanel() {
     setSaving(true);
     setFields({});
     try {
-      const saved = await getBrandingRepository().update(draft);
+      let saved: { updatedAt: string };
+      if (visualsAvailable) {
+        saved = await getBrandingRepository().update(draft);
+      } else {
+        // No branding server: the academy's name and tagline are the organization record's own fields.
+        saved = await getOrganizationRepository().update({ name: draft.academyName.trim(), tagline: draft.tagline.trim() });
+        reload();
+      }
       setSavedAt(saved.updatedAt);
       // The awaited write is real in every environment, so the confirmation may
       // only call it demo data where it is demo data: in an EMPTY environment
@@ -158,7 +168,7 @@ export function BrandingPanel() {
         title={unavailable ? "هویت آموزشگاه در این نسخه در دسترس نیست" : "بارگذاری ناموفق بود"}
         description={
           unavailable
-            ? "هویت آموزشگاه هنوز به سامانهٔ سرور متصل نیست و در این نسخه داده‌ای نمی‌خواند."
+            ? brandingUnavailableDescription
             : error.message
         }
         onRetry={unavailable ? undefined : reload}
@@ -197,26 +207,31 @@ export function BrandingPanel() {
       </Panel>
 
       <Panel title="رنگ و تایپوگرافی" kicker="رنگ‌های برند و فونت فارسی سامانه">
+        {!visualsAvailable && (
+          <p role="note" className="mb-3 text-[11.5px] leading-relaxed text-ink-300">
+            ذخیرهٔ رنگ‌ها و فونت برند در این نسخه در دسترس نیست؛ مقدارهای زیر پیش‌فرض خود سامانه‌اند، نه دادهٔ ذخیره‌شدهٔ آموزشگاه. نام و شعار بالا ذخیره می‌شوند.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField
             label="رنگ اصلی"
             value={draft.primaryColor}
             error={fields.primaryColor?.[0]}
-            disabled={saving || !mayWrite}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("primaryColor")}
           />
           <ColorField
             label="رنگ مکمل"
             value={draft.accentColor}
             error={fields.accentColor?.[0]}
-            disabled={saving || !mayWrite}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("accentColor")}
           />
           <ColorField
             label="رنگ متن"
             value={draft.textColor}
             error={fields.textColor?.[0]}
-            disabled={saving || !mayWrite}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("textColor")}
           />
           <Field label="فونت فارسی" error={fields.persianFont?.[0]}>
@@ -225,7 +240,7 @@ export function BrandingPanel() {
                 {...control}
                 className={inputCls}
                 value={draft.persianFont}
-                disabled={saving || !mayWrite}
+                disabled={saving || !mayWrite || !visualsAvailable}
                 onChange={(e) => set("persianFont")(e.target.value)}
               >
                 {PERSIAN_FONTS.map((font) => (
@@ -244,7 +259,7 @@ export function BrandingPanel() {
           </p>
           {mayWrite ? (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={resetToDefaults} disabled={saving}>
+              <Button variant="ghost" size="sm" onClick={resetToDefaults} disabled={saving || !visualsAvailable}>
                 بازنشانی به پیش‌فرض
               </Button>
               <Button variant="primary" size="sm" onClick={() => void save()} disabled={!dirty || saving}>

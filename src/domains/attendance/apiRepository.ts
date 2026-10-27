@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { AttendanceRepository } from "./repository";
 import type {
   AttendanceCorrection,
@@ -86,21 +87,27 @@ export class ApiAttendanceRepository implements AttendanceRepository {
     return this.client.get<AttendanceRecord>(`${ATTENDANCE}/${encodeURIComponent(id)}`, { signal });
   }
 
-  record(input: RecordAttendanceInput): Promise<AttendanceRecord> {
-    return this.client.post<AttendanceRecord>(ATTENDANCE, input);
+  async record(input: RecordAttendanceInput): Promise<AttendanceRecord> {
+    const created = await this.client.post<AttendanceRecord>(ATTENDANCE, input);
+    bumpDataVersion();
+    return created;
   }
 
   /** MUST be one transaction server-side. */
-  bulkRecord(input: BulkRecordInput): Promise<AttendanceRecord[]> {
-    return this.client.post<AttendanceRecord[]>(`${ATTENDANCE}/bulk`, input);
+  async bulkRecord(input: BulkRecordInput): Promise<AttendanceRecord[]> {
+    const created = await this.client.post<AttendanceRecord[]>(`${ATTENDANCE}/bulk`, input);
+    bumpDataVersion();
+    return created;
   }
 
   /** A verb, not a patch: the server appends the correction atomically. */
-  correct(id: string, input: CorrectionInput): Promise<AttendanceRecord> {
-    return this.client.post<AttendanceRecord>(
+  async correct(id: string, input: CorrectionInput): Promise<AttendanceRecord> {
+    const updated = await this.client.post<AttendanceRecord>(
       `${ATTENDANCE}/${encodeURIComponent(id)}/correct`,
       input,
     );
+    bumpDataVersion();
+    return updated;
   }
 
   /* ---------------- audit trail ---------------- */

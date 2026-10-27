@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceSessionExpiry;
 use App\Http\Middleware\ResolveTenant;
 use App\Support\Api\ApiException;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -34,7 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->alias(['tenant' => ResolveTenant::class]);
+        // Session expiry runs BEFORE auth:sanctum (see the middleware's
+        // docblock: Sanctum touches last_used_at while authenticating, so a
+        // check placed after it could never observe staleness).
+        $middleware->alias(['tenant' => ResolveTenant::class, 'session.expiry' => EnforceSessionExpiry::class]);
         // API guests get a 401 envelope, never a redirect to a login page.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/');
     })

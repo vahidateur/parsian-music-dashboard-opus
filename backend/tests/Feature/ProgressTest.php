@@ -843,14 +843,24 @@ class ProgressTest extends TestCase
         $this->getJson('/api/v1/students/st1/assignments')->assertStatus(404);
     }
 
-    /** The vocabulary grew by exactly two ids, and only those two. */
-    public function test_the_permission_vocabulary_is_exactly_twenty_five_ids(): void
+    /** The vocabulary grew by exactly fourteen ids, and only those fourteen. */
+    public function test_the_permission_vocabulary_is_exactly_thirty_seven_ids(): void
     {
         $vocabulary = config('permissions.vocabulary');
 
-        $this->assertCount(25, $vocabulary);
+        $this->assertCount(37, $vocabulary);
         $this->assertContains('progress.read', $vocabulary);
         $this->assertContains('progress.write', $vocabulary);
+        $this->assertContains('instruments.read', $vocabulary);
+        $this->assertContains('instruments.write', $vocabulary);
+        $this->assertContains('learning.read', $vocabulary);
+        $this->assertContains('learning.write', $vocabulary);
+        $this->assertContains('rooms.read', $vocabulary);
+        $this->assertContains('rooms.write', $vocabulary);
+        $this->assertContains('gallery.read', $vocabulary);
+        $this->assertContains('gallery.write', $vocabulary);
+        $this->assertContains('branding.read', $vocabulary);
+        $this->assertContains('branding.write', $vocabulary);
 
         $added = array_values(array_diff($vocabulary, [
             'students.read', 'students.write', 'teachers.read', 'teachers.write',
@@ -861,6 +871,6 @@ class ProgressTest extends TestCase
             'users.write', 'roles.write', 'demo.manage',
         ]));
 
-        $this->assertSame(['progress.read', 'progress.write'], $added);
+        $this->assertSame(['finance.pay', 'progress.read', 'progress.write', 'instruments.read', 'instruments.write', 'learning.read', 'learning.write', 'rooms.read', 'rooms.write', 'gallery.read', 'gallery.write', 'gallery.details', 'branding.read', 'branding.write'], $added);
     }
 }

@@ -11,7 +11,7 @@ final class UpdateRoomRequest extends ApiFormRequest
 
     protected string $errorMessage = 'اطلاعات اتاق معتبر نیست.';
 
-    /** PB-3: blocked for every actor; never reaches validation. */
+    /** Policy first: an unauthorized caller gets 403 before any 422. */
     protected function authorizeBeforeValidation(): void
     {
         app(RoomPolicy::class)->authorizeWrite($this->user());

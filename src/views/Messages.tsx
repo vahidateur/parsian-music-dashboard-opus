@@ -76,6 +76,7 @@ import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
 import { getChatRepository, getMediaRepository } from "@/domains/registry";
+import { fileStoredDetail } from "@/targets/targetCopy";
 import { releaseStagedMedia } from "@/domains/media/release";
 import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
@@ -315,14 +316,16 @@ export function MessagesView() {
         ...(storedMediaId ? { mediaId: storedMediaId } : {}),
       });
       composer.clearFor(target);
-      // The toast reports what actually happened, per message status.
+      // The toast reports what actually happened, per message status. Where
+      // the bytes live differs by composition, so the detail comes from the
+      // target seam rather than a hardcoded browser claim.
       if (message.status === "sent") {
         notify(
           storedMediaId
             ? {
                 tone: "success",
                 title: "پیام و پیوست ثبت شد",
-                detail: "پیام ذخیره شد و فایل پیوست در همین مرورگر نگهداری می‌شود.",
+                detail: fileStoredDetail(),
               }
             : { tone: "success", title: "پیام ارسال شد", detail: "پیام در گفتگوی داخلی ثبت و ذخیره شد." },
         );
@@ -433,7 +436,7 @@ export function MessagesView() {
       <ErrorState
         className="py-32"
         title="بارگذاری گفتگوها ناموفق بود"
-        description={error.message}
+        error={error}
         onRetry={reload}
       />
     );
@@ -602,7 +605,7 @@ export function MessagesView() {
                   <ErrorState
                     className="m-2"
                     title="بارگذاری پیام‌های این گفتگو ناموفق بود"
-                    description={messagesError.message}
+                    error={messagesError}
                     onRetry={reloadMessages}
                   />
                 ) : messages.length === 0 ? (

@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { TeacherRepository } from "./repository";
 import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput } from "./types";
 
@@ -27,20 +28,27 @@ export class ApiTeacherRepository implements TeacherRepository {
     return this.client.get<Teacher>(`${RESOURCE}/${encodeURIComponent(id)}`, { signal });
   }
 
-  create(input: CreateTeacherInput): Promise<Teacher> {
-    return this.client.post<Teacher>(RESOURCE, input);
+  async create(input: CreateTeacherInput): Promise<Teacher> {
+    const created = await this.client.post<Teacher>(RESOURCE, input);
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateTeacherInput): Promise<Teacher> {
-    return this.client.patch<Teacher>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateTeacherInput): Promise<Teacher> {
+    const updated = await this.client.patch<Teacher>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
-  deactivate(id: string): Promise<Teacher> {
-    return this.client.post<Teacher>(`${RESOURCE}/${encodeURIComponent(id)}/deactivate`, {});
+  async deactivate(id: string): Promise<Teacher> {
+    const updated = await this.client.post<Teacher>(`${RESOURCE}/${encodeURIComponent(id)}/deactivate`, {});
+    bumpDataVersion();
+    return updated;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`${RESOURCE}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 }
 

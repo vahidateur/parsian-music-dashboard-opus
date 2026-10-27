@@ -146,21 +146,31 @@ export class LocalAuthRepository implements AuthRepository {
   }
 
   async restore(): Promise<Session | null> {
+    return (await this.restoreDetailed()).session;
+  }
+
+  /**
+   * `restore()` plus the expiry reason. The demo TTL is a lifetime ceiling
+   * like the server's absolute one, so an outlived TTL names "absolute"; a
+   * missing, malformed, or disowned credential stays silent — boot must not
+   * distinguish those states.
+   */
+  async restoreDetailed(): Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> {
     const persisted = this.readPersisted();
-    if (!persisted) return null;
+    if (!persisted) return { session: null, expiredReason: null };
 
     if (Date.parse(persisted.expiresAt) <= this.now()) {
       this.storage.removeItem(AUTH_SESSION_KEY);
-      return null;
+      return { session: null, expiredReason: "absolute" };
     }
     // The user list is authoritative: a user deleted/disabled since login
     // must not keep a working session.
     const user = this.store.snapshot().users.find((u) => u.id === persisted.userId);
     if (!user || user.status !== "active") {
       this.storage.removeItem(AUTH_SESSION_KEY);
-      return null;
+      return { session: null, expiredReason: null };
     }
-    return this.sessionFor(user, persisted.token, persisted.expiresAt);
+    return { session: this.sessionFor(user, persisted.token, persisted.expiresAt), expiredReason: null };
   }
 
   async me(): Promise<Session> {

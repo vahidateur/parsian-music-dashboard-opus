@@ -125,7 +125,7 @@ export function WorkingHoursPanel() {
         <div className="mb-4">
           <ErrorState
             title="خواندن ساعات کاری ناموفق بود"
-            description={organization.error.message}
+            error={organization.error}
             onRetry={organization.reload}
           />
         </div>
@@ -230,7 +230,7 @@ export function WorkingHoursPanel() {
       <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
         {demoEnvironment
           ? "ساعات کاری بخشی از دادهٔ آموزشگاه است و در همین محیط ذخیره می‌شود."
-          : "ذخیرهٔ سراسری ساعات کاری به سرور نیاز دارد؛ تا اتصال endpoint سازمان، این مقادیر روی دادهٔ همین دستگاه اعمال می‌شود."}
+          : "ساعات کاری بخشی از دادهٔ آموزشگاه است و پس از ذخیره برای همهٔ بخش‌های سامانه اعمال می‌شود."}
       </p>
 
       {!mayWrite && <p className="mt-2 text-[11px] text-warn-400">برای تغییر ساعات کاری به دسترسی «تنظیمات» نیاز دارید.</p>}

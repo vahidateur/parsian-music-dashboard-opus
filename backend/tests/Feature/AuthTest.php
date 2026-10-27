@@ -156,6 +156,12 @@ class AuthTest extends TestCase
 
         $this->travel(config('sanctum.expiration') + 1)->minutes();
 
+        // Past Sanctum's own 720-minute window, its guard rejects before the
+        // session-expiry middleware runs (framework middleware priority) —
+        // the legacy code is preserved there. Our absolute ceiling (600 min)
+        // fires first whenever a request actually arrives inside Sanctum's
+        // window; see SessionExpiryTest's absolute cases for the distinct
+        // AUTH_SESSION_ABSOLUTE_EXPIRED code.
         $this->getJson('/api/v1/auth/me')->assertStatus(401)->assertJsonPath('error.code', 'AUTH_UNAUTHENTICATED');
     }
 

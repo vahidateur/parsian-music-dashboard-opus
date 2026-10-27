@@ -54,6 +54,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Track Last Used At
+    |--------------------------------------------------------------------------
+    |
+    | When disabled, Sanctum no longer writes `last_used_at` while
+    | authenticating. The write is owned instead by
+    | App\Http\Middleware\EnforceSessionExpiry, which must observe the
+    | pre-request timestamp to enforce the idle ceiling and only then record
+    | the activity. Re-enabling this without moving the check would silently
+    | break idle expiry (every observation would be freshly touched).
+    |
+    */
+
+    'last_used_at' => env('SANCTUM_TRACK_LAST_USED_AT', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Token Prefix
     |--------------------------------------------------------------------------
     |

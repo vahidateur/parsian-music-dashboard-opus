@@ -188,7 +188,7 @@ export function LevelContentPanel({
       {linkedError ? (
         <ErrorState
           title="بارگذاری منابع این سطح ناموفق بود"
-          description={linkedError.message}
+          error={linkedError}
           onRetry={reload}
         />
       ) : linkedLoading ? (
@@ -240,7 +240,7 @@ export function LevelContentPanel({
         <ErrorState
           className="mt-3 px-4 py-6"
           title="فهرست منابع قابل اتصال خوانده نشد"
-          description={catalogueError.message}
+          error={catalogueError}
           onRetry={reloadCatalogue}
         />
       ) : (

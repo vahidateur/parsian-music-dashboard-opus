@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\ClassSession;
+use App\Models\GalleryAlbum;
+use App\Models\MediaAsset;
 use App\Models\Piece;
 use App\Models\Room;
 use App\Models\Student;
@@ -97,7 +99,8 @@ final class TenantRules
 
     /**
      * Room must exist in the organization and be active. Data integrity only:
-     * this is a model query, not room authorization (rooms stay PB-3 blocked).
+     * this is a model query, not room authorization (that lives in
+     * RoomPolicy, checked before any request reaches validation).
      */
     public static function assignableRoom(): Closure
     {
@@ -107,6 +110,49 @@ final class TenantRules
                 $fail('اتاق یافت نشد.');
             } elseif (! $room->active) {
                 $fail('اتاق غیرفعال است.');
+            }
+        };
+    }
+
+    /**
+     * The gallery album must exist in the caller's organization. Data
+     * integrity only: an image row that names a missing album would render
+     * under no heading, and a cross-tenant id must fail the same way an
+     * unknown one does.
+     */
+    public static function galleryAlbumExists(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if (! is_string($value) || ! GalleryAlbum::query()->whereKey(trim($value))->exists()) {
+                $fail('آلبوم یافت نشد.');
+            }
+        };
+    }
+
+    /**
+     * The referenced media asset must exist in the caller's organization.
+     *
+     * The tenant-scoped model query means an id from ANOTHER organization
+     * fails the same way an unknown one does, and so does an id whose asset
+     * was deleted after upload. Without this rule a record could carry a
+     * `photoMediaId` that names nothing — the UI would render "no image"
+     * forever and the row would point at bytes that may never have existed.
+     *
+     * A CLEARED field travels as `''` or `null` and never fails: the media
+     * domain stores a cleared photo as an empty string, which is "no photo",
+     * not "a photo that is missing".
+     *
+     * This is an existence check, not an authorization decision: whether the
+     * actor may READ the asset is decided when the bytes are fetched.
+     */
+    public static function mediaAssetExists(): Closure
+    {
+        return function (string $attribute, mixed $value, Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+            if (! is_string($value) || ! MediaAsset::query()->whereKey(trim($value))->exists()) {
+                $fail('فایل ارسالی یافت نشد.');
             }
         };
     }

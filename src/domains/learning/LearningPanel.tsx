@@ -248,7 +248,7 @@ export function LearningPanel() {
       <ErrorState
         className="py-16"
         title="بارگذاری دوره‌ها ناموفق بود"
-        description={error.message}
+        error={error}
         onRetry={reload}
       />
     );
@@ -257,7 +257,7 @@ export function LearningPanel() {
       <ErrorState
         className="py-16"
         title="بارگذاری سازها ناموفق بود"
-        description={instrumentsError.message}
+        error={instrumentsError}
         onRetry={reloadInstruments}
       />
     );
@@ -358,7 +358,7 @@ export function LearningPanel() {
               {levelsError ? (
                 <ErrorState
                   title="بارگذاری سطوح ناموفق بود"
-                  description={levelsError.message}
+                  error={levelsError}
                   onRetry={reloadLevels}
                 />
               ) : levelsLoading ? (

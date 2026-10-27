@@ -29,39 +29,104 @@ class RoomsTest extends TestCase
         ];
     }
 
-    public function test_every_room_endpoint_is_blocked_by_pb3_for_admin_and_manager(): void
+    public function test_reading_requires_rooms_read(): void
     {
-        $room = Room::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
-
-        foreach (['administrator', 'manager'] as $role) {
+        // Every role may read: a room is a lookup-table name, not personal
+        // data, and every record that carries a `room_id` resolves against it.
+        foreach (['administrator', 'manager', 'teacher', 'staff', 'accountant'] as $role) {
             $this->actingAsRole($role);
-            foreach ($this->endpoints($room->id) as [$method, $uri, $body]) {
-                $this->json($method, $uri, $body)
-                    ->assertStatus(403)
-                    ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB3')
-                    ->assertJsonPath('error.decision', 'PB-3');
-            }
+            $this->getJson('/api/v1/rooms')
+                ->assertOk()
+                ->assertJsonPath('meta.page', 1);
         }
-
-        // Nothing was written through the blocked endpoints.
-        $this->assertSame(1, DB::table('rooms')->count());
-        $this->assertTrue((bool) DB::table('rooms')->where('id', $room->id)->value('active'));
-        $this->assertSame(6, (int) DB::table('rooms')->where('id', $room->id)->value('capacity'));
     }
 
-    public function test_block_precedes_validation_and_not_found(): void
+    public function test_writing_requires_rooms_write(): void
     {
-        $this->actingAsRole('administrator');
+        foreach (['administrator', 'manager'] as $role) {
+            $this->actingAsRole($role);
+            $this->postJson('/api/v1/rooms', ['name' => "اتاق تست $role", 'kind' => 'تمرین', 'capacity' => 4])
+                ->assertCreated()
+                ->assertJsonPath('data.name', "اتاق تست $role");
+        }
+
+        foreach (['teacher', 'staff', 'accountant'] as $role) {
+            $this->actingAsRole($role);
+            $this->postJson('/api/v1/rooms', ['name' => 'اتاق تست', 'kind' => 'تمرین', 'capacity' => 4])
+                ->assertStatus(403)
+                ->assertJsonPath('error.permission', 'rooms.write');
+            $this->patchJson('/api/v1/rooms/r1', ['capacity' => 8])
+                ->assertStatus(403)
+                ->assertJsonPath('error.permission', 'rooms.write');
+            $this->postJson('/api/v1/rooms/r1/deactivate', [])
+                ->assertStatus(403)
+                ->assertJsonPath('error.permission', 'rooms.write');
+            $this->deleteJson('/api/v1/rooms/r1')->assertStatus(403);
+        }
+    }
+
+    public function test_forbidden_precedes_validation_and_not_found(): void
+    {
+        // The policy runs before validation and before the lookup, so an
+        // unauthorized caller learns nothing about field rules or ids.
+        $this->actingAsRole('teacher');
 
         $this->postJson('/api/v1/rooms', ['capacity' => 'many'])
             ->assertStatus(403)
-            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB3');
+            ->assertJsonPath('error.permission', 'rooms.write');
         $this->patchJson('/api/v1/rooms/r_missing', ['capacity' => -1])
             ->assertStatus(403)
-            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB3');
-        $this->getJson('/api/v1/rooms/r_missing')
+            ->assertJsonPath('error.permission', 'rooms.write');
+        $this->postJson('/api/v1/rooms/r_missing/deactivate', [])
             ->assertStatus(403)
-            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB3');
+            ->assertJsonPath('error.permission', 'rooms.write');
+        $this->deleteJson('/api/v1/rooms/r_missing')
+            ->assertStatus(403)
+            ->assertJsonPath('error.permission', 'rooms.write');
+    }
+
+    public function test_unknown_room_is_404(): void
+    {
+        $this->actingAsRole('administrator');
+
+        $this->getJson('/api/v1/rooms/r_missing')
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ROOM_NOT_FOUND');
+        $this->patchJson('/api/v1/rooms/r_missing', ['capacity' => 8])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ROOM_NOT_FOUND');
+    }
+
+    public function test_admin_crud_round_trip(): void
+    {
+        $this->actingAsRole('administrator');
+
+        $created = $this->postJson('/api/v1/rooms', ['name' => 'اتاق ۷', 'kind' => 'تمرین', 'capacity' => 6])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'اتاق ۷')
+            ->assertJsonPath('data.capacity', 6)
+            ->assertJsonPath('data.active', true)
+            ->assertJsonPath('data.occupancy', 0);
+        $id = $created->json('data.id');
+        $this->assertStringStartsWith('r_', $id);
+
+        $this->getJson("/api/v1/rooms/$id")->assertOk()->assertJsonPath('data', $created->json('data'));
+
+        $this->patchJson("/api/v1/rooms/$id", ['capacity' => 10])
+            ->assertOk()
+            ->assertJsonPath('data.capacity', 10);
+
+        // Duplicate names are refused per organization, with the field named.
+        $this->postJson('/api/v1/rooms', ['name' => 'اتاق ۷', 'kind' => 'x', 'capacity' => 1])
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'ROOM_NAME_TAKEN');
+
+        $this->postJson("/api/v1/rooms/$id/deactivate")
+            ->assertOk()
+            ->assertJsonPath('data.active', false);
+
+        $this->deleteJson("/api/v1/rooms/$id")->assertNoContent();
+        $this->getJson("/api/v1/rooms/$id")->assertStatus(404);
     }
 
     public function test_unauthenticated_is_401_before_the_policy(): void
@@ -71,11 +136,10 @@ class RoomsTest extends TestCase
         }
     }
 
-    public function test_no_room_permission_exists_in_the_vocabulary(): void
+    public function test_rooms_permissions_exist_in_the_vocabulary(): void
     {
-        foreach (config('permissions.vocabulary') as $permission) {
-            $this->assertStringStartsNotWith('rooms.', $permission);
-        }
+        $this->assertContains('rooms.read', config('permissions.vocabulary'));
+        $this->assertContains('rooms.write', config('permissions.vocabulary'));
     }
 
     public function test_room_service_persistence_round_trip_without_http(): void

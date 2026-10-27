@@ -30,6 +30,7 @@ export function GalleryLightbox({
   index,
   albumTitle,
   canWrite,
+  canSeeDetails,
   onIndex,
   onClose,
   onChanged,
@@ -38,6 +39,8 @@ export function GalleryLightbox({
   index: number;
   albumTitle: (image: GalleryImage) => string | undefined;
   canWrite: boolean;
+  /** Teachers open the showcase but see bare photographs: no furnished readout. */
+  canSeeDetails: boolean;
   onIndex: (index: number) => void;
   onClose: () => void;
   onChanged: () => void;
@@ -140,17 +143,17 @@ export function GalleryLightbox({
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`تصویر ${faNum(index + 1)} از ${faNum(total)}: ${image.caption}`} className="fixed inset-0 z-50 flex items-center justify-center bg-black/92 p-3 backdrop-blur-md sm:p-6" onClick={onClose}>
-      <button type="button" onClick={onClose} aria-label="بستن نمایش بزرگ" className="absolute left-4 top-4 z-10 rounded-full border border-photo-fg/25 bg-photo-fg/10 p-2 text-photo-muted hover:bg-photo-fg/20 hover:text-photo-fg"><X className="size-5" /></button>
+    <div role="dialog" aria-modal="true" aria-label={`تصویر ${faNum(index + 1)} از ${faNum(total)}: ${image.caption}`} className="fixed inset-0 z-50 flex justify-center overflow-y-auto bg-black/92 p-3 backdrop-blur-md sm:p-6" onClick={onClose}>
+      <button type="button" onClick={onClose} aria-label="بستن نمایش بزرگ" className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-photo-fg/25 bg-black/60 px-3.5 py-2 text-[12px] font-medium text-photo-muted backdrop-blur-md hover:border-gold-400/50 hover:text-gold-100"><X className="size-4" />بستن</button>
       {total > 1 && <><LightboxNav side="next" onClick={() => onIndex((index + 1) % total)} /><LightboxNav side="previous" onClick={() => onIndex((index - 1 + total) % total)} /></>}
-      <div className="grid max-h-full w-full max-w-6xl gap-0 overflow-hidden rounded-3xl border border-white/[0.08] bg-ink-900/95 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)] lg:grid-cols-[minmax(0,1fr)_340px]" onClick={(event) => event.stopPropagation()}>
+      <div className={cn("my-auto grid w-full max-w-6xl gap-0 overflow-hidden rounded-3xl border border-white/[0.08] bg-ink-900/95 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]", canSeeDetails && "lg:grid-cols-[minmax(0,1fr)_340px]")} onClick={(event) => event.stopPropagation()}>
         <div ref={frameRef} className="relative flex min-h-[42vh] items-center justify-center bg-black/60 p-3 sm:min-h-[62vh] sm:p-6">
           {url ? <img src={url} alt={image.alt} className="max-h-[70vh] rounded-2xl object-contain shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)]" /> : <span className="flex h-[46vh] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-photo-fg/15 text-center text-[11.5px] text-photo-muted"><ImageOff className="size-7 opacity-70" /> فایل تصویر در این مرورگر در دسترس نیست<span className="text-[10.5px] text-photo-faint">شناسنامهٔ تصویر همچنان معتبر است.</span></span>}
           <button type="button" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? "خروج از تمام‌صفحه" : "نمایش تمام‌صفحه"} className="absolute bottom-4 left-4 rounded-xl border border-white/15 bg-black/55 p-2 text-photo-muted backdrop-blur-sm hover:border-gold-400/50 hover:text-gold-100">{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</button>
         </div>
-        <aside className="flex max-h-[70vh] flex-col overflow-y-auto border-t border-white/[0.06] bg-white/[0.02] p-5 lg:max-h-none lg:border-r lg:border-t-0">
+        {canSeeDetails && <aside className="flex max-h-[70vh] flex-col overflow-y-auto border-t border-white/[0.06] bg-white/[0.02] p-5 lg:max-h-none lg:border-r lg:border-t-0">
           {editing ? <div className="space-y-3"><Field label="عنوان"><input className={inputCls} value={caption} onChange={(event) => setCaption(event.target.value)} /></Field><Field label="متن جایگزین" hint="برای صفحه‌خوان؛ الزامی."><input className={inputCls} value={alt} onChange={(event) => setAlt(event.target.value)} /></Field><p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[10.5px] leading-relaxed text-ink-500">دسته، برچسب، منتخب و موجودیت‌های مرتبط در مدل فعلی GalleryRepository ذخیره نمی‌شوند؛ برای فعال‌شدن‌شان backend لازم است.</p><div className="flex gap-2"><Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>لغو</Button><Button size="sm" variant="primary" onClick={() => void save()} disabled={busy}>{busy ? <Loader2 className="size-3.5 animate-spin" /> : null} ذخیرهٔ شناسنامه</Button></div></div> : <div className="space-y-4"><div><p className="text-[10px] tracking-[0.22em] text-gold-300/80">آرشیو تصویر</p><h2 className="mt-2 text-[17px] font-semibold leading-snug text-ink-50">{image.caption}</h2><p className="mt-1 text-[11px] text-ink-500">{albumTitle(image) ?? "بدون آلبوم"}</p></div><dl className="grid grid-cols-2 gap-2.5"><InfoCell label="تاریخ ثبت" value={galleryDate(image.createdAt.slice(0, 10))} /><InfoCell label="آلبوم" value={albumTitle(image) ?? "—"} /><InfoCell label="شماره" value={`${faNum(index + 1)} از ${faNum(total)}`} /></dl><p className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-[11px] leading-relaxed text-ink-400">این تصویر با فایل واقعی در لایهٔ رسانه پیوند دارد. دسته‌بندی موضوعی، برچسب، تصویر منتخب، تاریخ عکاسی و ارتباط با هنرجو/مدرس/کلاس/رویداد در architecture فعلی پشتیبانی نمی‌شوند.</p>{canWrite && <div className="space-y-2 border-t border-white/[0.06] pt-4"><div className="flex flex-wrap gap-2"><Button size="sm" variant="subtle" onClick={() => setEditing(true)}><Pencil className="size-3.5" /> ویرایش شناسنامه</Button><Button size="sm" variant="subtle" onClick={() => void setAlbumCover()} disabled={busy}><span className="text-[11px]" aria-hidden>◈</span> تنظیم جلد آلبوم</Button></div>{confirmDelete ? <div className="rounded-xl border border-danger-500/30 bg-danger-500/[0.07] p-3"><p className="text-[11px] leading-relaxed text-danger-300">تصویر و فایل متصل حذف می‌شود و بازگردانی در مدل فعلی وجود ندارد.</p><div className="mt-2.5 flex gap-2"><Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)} disabled={busy}>انصراف</Button><Button size="sm" variant="subtle" className="border-danger-500/40 bg-danger-500/10 text-danger-200" onClick={() => void remove()} disabled={busy}><Trash2 className="size-3.5" /> حذف قطعی</Button></div></div> : <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(true)}><Trash2 className="size-3.5" /> حذف تصویر</Button>}</div>}</div>}
-        </aside>
+        </aside>}
       </div>
     </div>
   );

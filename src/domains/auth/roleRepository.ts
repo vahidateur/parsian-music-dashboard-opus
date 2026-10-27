@@ -20,6 +20,7 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import type { ApiClient } from "@/api/client";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import {
   isPermission,
   isRoleId,
@@ -125,11 +126,15 @@ export class ApiRoleRepository implements RoleRepository {
   */
   async update(id: RoleId, input: UpdateRoleInput): Promise<RolePolicyRecord> {
     validate(id, input);
-    return this.client.patch<RolePolicyRecord>(`roles/${encodeURIComponent(id)}`, input);
+    const updated = await this.client.patch<RolePolicyRecord>(`roles/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
-  reset(id: RoleId): Promise<RolePolicyRecord> {
-    return this.client.post<RolePolicyRecord>(`roles/${encodeURIComponent(id)}/reset`);
+  async reset(id: RoleId): Promise<RolePolicyRecord> {
+    const restored = await this.client.post<RolePolicyRecord>(`roles/${encodeURIComponent(id)}/reset`);
+    bumpDataVersion();
+    return restored;
   }
 }
 

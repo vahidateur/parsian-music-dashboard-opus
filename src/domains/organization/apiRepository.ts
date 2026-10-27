@@ -16,6 +16,7 @@
  */
 import type { ApiClient } from "@/api/client";
 import type { OrganizationRepository } from "./repository";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import { validateOrganizationInput, withRuleDefaults, type OrganizationSettings, type UpdateOrganizationInput } from "./types";
 import { ApiError } from "@/api/errors";
 
@@ -38,6 +39,7 @@ export class ApiOrganizationRepository implements OrganizationRepository {
       });
     }
     const settings = await this.client.patch<OrganizationSettings>("organization", input, { signal });
+    bumpDataVersion();
     return withRuleDefaults(settings);
   }
 }

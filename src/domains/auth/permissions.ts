@@ -21,6 +21,10 @@ export const PERMISSIONS = [
   "attendance.write",
   "finance.read",
   "finance.write",
+  // Paying is a desk verb, not an accounting verb (§41): the receptionist
+  // at the academy's terminal (and the manager overseeing them) confirms
+  // card and POS payments, while issuing stays administrator/accountant.
+  "finance.pay",
   "messages.read",
   "messages.write",
   "library.read",
@@ -31,6 +35,37 @@ export const PERMISSIONS = [
   // the two vocabularies and the two role matrices never drift.
   "progress.read",
   "progress.write",
+  // Instruments are authorized for v1 (DECISIONS.md §33): PB-3 is lifted for
+  // Instruments. These two ids take the vocabulary from 25 to 27 and must match
+  // `backend/config/permissions.php` exactly — `permissionParity.test.ts` proves
+  // the two vocabularies and the two role matrices never drift.
+  "instruments.read",
+  "instruments.write",
+  // Learning is authorized for v1 (DECISIONS.md §34): PB-3 is lifted for
+  // Learning. These two ids take the vocabulary from 27 to 29 and must match
+  // `backend/config/permissions.php` exactly — `permissionParity.test.ts` proves
+  // the two vocabularies and the two role matrices never drift.
+  "learning.read",
+  "learning.write",
+  // Rooms are authorized for v1 (DECISIONS.md §35): PB-3 is lifted for
+  // Rooms, the last blocked domain. These two ids take the vocabulary from
+  // 29 to 31 and must match `backend/config/permissions.php` exactly.
+  "rooms.read",
+  "rooms.write",
+  // Gallery is authorized for v1 (DECISIONS.md §36): the showcase leaves the
+  // unavailable list. These two ids take the vocabulary from 31 to 33 and
+  // must match `backend/config/permissions.php` exactly.
+  "gallery.read",
+  "gallery.write",
+  // The furnished gallery readout (caption, album, date) is shown down to
+  // reception; teachers open the showcase but see bare photographs. Display
+  // only — bytes and metadata stay authorized by gallery.read (§40 follow-up).
+  "gallery.details",
+  // Branding is authorized for v1 (DECISIONS.md §38): the academy identity
+  // leaves the unavailable list. These two ids take the vocabulary from
+  // 33 to 35 and must match `backend/config/permissions.php` exactly.
+  "branding.read",
+  "branding.write",
   "reports.read",
   "settings.read",
   "settings.write",
@@ -64,6 +99,28 @@ const READ_ONLY_CORE: Permission[] = [
   // per-student core: everyone who teaches or administers, never accounting.
   // Mirrors `$readOnlyCore` in backend/config/permissions.php.
   "progress.read",
+  // Instruments are a lookup table every record that carries an `instrument`
+  // field resolves against; reading one is reading a name, not personal data.
+  // Mirrors `$readOnlyCore` in backend/config/permissions.php.
+  "instruments.read",
+  // Learning programs, levels and their material are the curriculum every
+  // teaching and reception role works with. Mirrors `$readOnlyCore` in
+  // backend/config/permissions.php.
+  "learning.read",
+  // Rooms are the lookup table every record that carries a `roomId` field
+  // resolves against (classes, sessions). Reading one is reading a name,
+  // never personal data — the same reason instruments.read is universal,
+  // and why §35 grants it explicitly to `accountant` as well.
+  "rooms.read",
+  // Gallery albums and images are the academy's showcase, opened by every
+  // teaching and reception role. Mirrors `$readOnlyCore` in
+  // backend/config/permissions.php. Accounting never opens the gallery.
+  "gallery.read",
+  // The academy's own identity renders on every authenticated surface, so
+  // reading it is never personal data — the strongest case of all: the name
+  // is already on the public login page. Mirrors `$readOnlyCore`; accountant
+  // holds it explicitly like rooms and instruments (§38).
+  "branding.read",
 ];
 
 /**
@@ -81,14 +138,31 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
     "attendance.read",
     "attendance.write",
     "finance.read",
+    // The manager oversees desk payments as well as reading finance.
+    "finance.pay",
     "messages.read",
     "messages.write",
     "library.write",
     // Repertoire is content the manager authors, mirroring `library.write`.
     "progress.write",
+    // The curriculum is authored like repertoire: the manager curates it the
+    // way they curate the library. Mirrors `library.write`.
+    "learning.write",
+    // Rooms are academy configuration, curated like instruments: the manager
+    // defines them, nobody else writes them.
+    "rooms.write",
+    // The showcase is curated the same way: the manager composes albums,
+    // nobody else writes them.
+    "gallery.write",
+    // The furnished readout is shown down to reception.
+    "gallery.details",
+    // No `branding.write` here: identity writes stay administrator-only,
+    // mirroring `settings.write`. Whoever may write the name through the
+    // organization record may write it here, and nobody new is added.
     "reports.read",
     "settings.read",
     "users.read",
+    "instruments.write",
   ],
   teacher: [
     ...READ_ONLY_CORE,
@@ -99,6 +173,9 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
     // Assignments are teacher-authored, the way attendance entries are. The
     // permission carries this; nothing authorizes on `role === "teacher"`.
     "progress.write",
+    // Placements are teacher-authored the same way: a teacher may legitimately
+    // place a transferring student without owning the curriculum.
+    "learning.write",
   ],
   staff: [
     ...READ_ONLY_CORE,
@@ -108,12 +185,24 @@ export const rolePermissions: Record<RoleId, readonly Permission[]> = {
     "messages.read",
     "messages.write",
     "reports.read",
+    // The desk confirms POS and card-to-card payments on the spot.
+    "finance.pay",
+    // The furnished gallery readout is shown down to reception.
+    "gallery.details",
   ],
   accountant: [
     "students.read",
     "classes.read",
+    "instruments.read",
+    "rooms.read",
+    // The academy's own name renders on every authenticated surface, so
+    // accounting reads it too — the same explicit grant as rooms and
+    // instruments (§38).
+    "branding.read",
     "finance.read",
     "finance.write",
+    // Accounting issues and confirms; the token user is recorded.
+    "finance.pay",
     "reports.read",
     "messages.read",
   ],
@@ -339,8 +428,9 @@ export const viewPermissions: Record<ViewId, Permission> = {
   reports: "reports.read",
   messages: "messages.read",
   library: "library.read",
-  // The gallery shows the library's media; managing it stays library.write in Settings.
-  gallery: "library.read",
+  // The gallery shows the academy's own showcase; reading it is its own
+  // permission since §36 (before that the view borrowed library.read).
+  gallery: "gallery.read",
   settings: "settings.read",
   "design-system": "settings.read",
 };

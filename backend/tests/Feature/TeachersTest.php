@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AcademyClass;
+use App\Models\MediaAsset;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -88,16 +89,48 @@ class TeachersTest extends TestCase
 
         $this->getJson("/api/v1/teachers/$id")->assertOk()->assertJsonPath('data', $created->json('data'));
 
-        $this->patchJson("/api/v1/teachers/$id", ['title' => 'سرپرست', 'utilization' => 70, 'photoMediaId' => 'med_1'])
+        $this->patchJson("/api/v1/teachers/$id", ['title' => 'سرپرست', 'utilization' => 70])
             ->assertOk()
             ->assertJsonPath('data.title', 'سرپرست')
             ->assertJsonPath('data.utilization', 70)
-            ->assertJsonPath('data.photoMediaId', 'med_1')
             ->assertJsonPath('data.name', 'مریم رضایی');
         $this->getJson("/api/v1/teachers/$id")->assertJsonPath('data.title', 'سرپرست');
 
         $this->deleteJson("/api/v1/teachers/$id")->assertNoContent();
         $this->getJson("/api/v1/teachers/$id")->assertStatus(404)->assertJsonPath('error.code', 'TEACHER_NOT_FOUND');
+    }
+
+    /**
+     * The photo reference must name an asset THAT EXISTS in this organization:
+     * a row pointing at a missing (or deleted, or cross-tenant) file would
+     * render "no image" forever and nothing would tell the operator why.
+     */
+    public function test_a_photo_must_reference_an_existing_asset(): void
+    {
+        $this->actingAsRole('administrator');
+
+        $created = $this->postJson('/api/v1/teachers', $this->payload())->assertCreated();
+        $id = $created->json('data.id');
+
+        // A media id nothing backs is refused.
+        $this->patchJson("/api/v1/teachers/$id", ['photoMediaId' => 'med_missing'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'TEACHER_INVALID');
+
+        $this->assertSame('مریم رضایی', DB::table('teachers')->where('id', $id)->value('name'));
+        $this->assertNull(DB::table('teachers')->where('id', $id)->value('photo_media_id'));
+
+        // The same id, backed by an asset in this organization, is accepted.
+        MediaAsset::factory()->create(['id' => 'med_1', 'organization_id' => $this->defaultOrganization()->id]);
+        $this->patchJson("/api/v1/teachers/$id", ['photoMediaId' => 'med_1'])
+            ->assertOk()
+            ->assertJsonPath('data.photoMediaId', 'med_1');
+
+        // And one backed by an asset in ANOTHER organization is refused too.
+        MediaAsset::factory()->create(['id' => 'med_other', 'organization_id' => $this->makeOrganization()->id]);
+        $this->patchJson("/api/v1/teachers/$id", ['photoMediaId' => 'med_other'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'TEACHER_INVALID');
     }
 
     public function test_create_defaults_optional_fields(): void

@@ -5,7 +5,10 @@
  *   npm run dev:full
  *
  * Starts
- *   - the API:      php artisan serve --host=127.0.0.1 --port=8080   (cwd: backend/)
+ *   - the API:      PHP's built-in server (the framework's resources/server.php)
+ *                     on 127.0.0.1:8080, cwd backend/public, with the panel's
+ *                     upload ceilings set via -d (see the comment below —
+ *                     `artisan serve` cannot pass them to the serving process)
  *   - the frontend: vite, with APP_TARGET=client and VITE_DATA_SOURCE=api
  *
  * The port is not arbitrary: vite.config.ts proxies /api to http://127.0.0.1:8080,
@@ -89,8 +92,8 @@ async function preflight() {
     problems.push(error.message);
   }
   if (!(await portIsFree(API_PORT, API_HOST))) {
-    // `php artisan serve` silently moves to the next free port, which would leave
-    // the Vite proxy pointing at nothing — so refuse instead of drifting.
+    // The built-in server would fail to bind and leave the Vite proxy pointing
+    // at nothing — so refuse instead of drifting.
     problems.push(
       `Port ${API_PORT} on ${API_HOST} is already in use. Stop the process using it; the Vite proxy expects the API there.`,
     );
@@ -210,8 +213,43 @@ await preflight();
 
 say("dev", "Starting Laravel API and the Vite client composition…");
 
-start("api", "php", ["artisan", "serve", `--host=${API_HOST}`, `--port=${API_PORT}`], {
-  cwd: BACKEND,
+/*
+ * The dev API must accept what the panel allows. The product's upload caps
+ * live in src/domains/media/types.ts (MAX_IMAGE_BYTES 5 MB, MAX_AUDIO_BYTES
+ * 25 MB, MAX_DOCUMENT_BYTES 20 MB); PHP's stock ini allows 2 MB per upload,
+ * which would refuse a photo the panel offered to take and hand the user a
+ * confusing error instead of the file's own.
+ *
+ * WHY NOT `php -d … artisan serve`: `artisan serve` spawns `php -S …` as a
+ * CHILD process, and `-d` modifies only the PARENT's ini — the child comes up
+ * with the stock limits anyway (verified by probe). So this script starts the
+ * SAME built-in server (the framework's own `resources/server.php`, cwd
+ * `backend/public`, the same command ServeCommand builds) with the limits on
+ * the serving process itself.
+ *
+ * A deployment must set the same ceilings in its own php.ini — see
+ * deploy/nginx.conf's client_max_body_size, which must stay consistent with it.
+ */
+const PHP_UPLOAD_LIMITS = [
+  "-d",
+  "upload_max_filesize=25M",
+  "-d",
+  "post_max_size=26M",
+];
+const PHP_SERVER_SCRIPT = join(
+  BACKEND,
+  "vendor",
+  "laravel",
+  "framework",
+  "src",
+  "Illuminate",
+  "Foundation",
+  "resources",
+  "server.php",
+);
+
+start("api", "php", [...PHP_UPLOAD_LIMITS, "-S", `${API_HOST}:${API_PORT}`, PHP_SERVER_SCRIPT], {
+  cwd: join(BACKEND, "public"),
   env: process.env,
 });
 

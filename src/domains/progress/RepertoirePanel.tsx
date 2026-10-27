@@ -93,7 +93,7 @@ export function RepertoirePanel() {
       {loading ? (
         <LoadingState label="در حال بارگذاری رپرتوار…" />
       ) : error ? (
-        <ErrorState title="بارگذاری رپرتوار ناموفق بود" description={error.message} onRetry={reload} />
+        <ErrorState title="بارگذاری رپرتوار ناموفق بود" error={error} onRetry={reload} />
       ) : items.length === 0 ? (
         <EmptyState
           title="قطعه‌ای ثبت نشده"

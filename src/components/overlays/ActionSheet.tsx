@@ -8,6 +8,7 @@ import { cn } from "@/utils/cn";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
 import { ClassFormDialog } from "@/domains/classes/ClassFormDialog";
 import { useIsDemoEnvironment } from "@/targets/environment";
+import { unavailableActions } from "@/targets/targetCopy";
 
 /* ------------------------------------------------------------------ */
 /* Quick-action definitions (M-1)                                       */
@@ -19,7 +20,7 @@ import { useIsDemoEnvironment } from "@/targets/environment";
 /* from the repositories. The definitions carry only id/label/hint,     */
 /* no fields, no options, no counts.                                    */
 /* ------------------------------------------------------------------ */
-export const quickActions: QuickActionDef[] = [
+const allQuickActions: QuickActionDef[] = [
   {
     id: "student",
     label: "افزودن هنرجو",
@@ -41,6 +42,9 @@ export const quickActions: QuickActionDef[] = [
     hint: "به هنرجو یا مدرس",
   },
 ];
+
+/** Quick actions whose backend contract exists in this composition. */
+export const quickActions: QuickActionDef[] = allQuickActions.filter((a) => !unavailableActions.has(a.id));
 
 /* ------------------------------------------------------------------ */
 /* Action sheet — M-1 routes to real dialogs/views                      */
@@ -78,9 +82,23 @@ export function ActionSheet() {
     return () => window.clearTimeout(id);
   }, [sheet, closeSheet, navigate]);
 
-  // Payment quick action: honest Finance deferral per D6/I2.
-  // No repository exists, so we show an info dialog and offer to go to Finance.
-  if (sheet === "payment") {
+  // Payment quick action: finance is served in this composition (§40), so go
+  // to the real surface. In demo the repository rejects everything, so the
+  // honest deferral dialog below stays (pinned by navigationCounts).
+  useEffect(() => {
+    if (sheet !== "payment" || demoEnvironment) return;
+    const id = window.setTimeout(() => {
+      closeSheet();
+      navigate({ view: "finance" });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [sheet, demoEnvironment, closeSheet, navigate]);
+
+  // Payment quick action: honest Finance deferral per D6/I2 (demo only —
+  // the client composition navigates to the served surface via the effect
+  // above). No repository exists here, so we show an info dialog and offer
+  // to go to Finance.
+  if (sheet === "payment" && demoEnvironment) {
     return (
       <Dialog
         open={true}
@@ -160,7 +178,8 @@ export function ActionSheet() {
 
   // Message is handled by the effect above (navigates away). While the timeout
   // is pending, render nothing to avoid a flash of the old fake form.
-  if (sheet === "message") {
+  // Payment in the client composition likewise navigates (see above).
+  if (sheet === "message" || (sheet === "payment" && !demoEnvironment)) {
     return null;
   }
 

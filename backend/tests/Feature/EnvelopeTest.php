@@ -84,6 +84,7 @@ class EnvelopeTest extends TestCase
         $this->assertSame(1, DB::table('organizations')->count());
         $this->assertSame(12, DB::table('users')->count());
         $this->assertSame(5, DB::table('roles')->count());
+        $this->assertSame(6, DB::table('instruments')->count());
         $this->assertSame('t1', DB::table('users')->where('email', 'teacher1@demo.local')->value('teacher_id'));
         // Blank seed password: nobody can sign in.
         $this->assertSame(0, DB::table('users')->whereNotNull('password')->count());

@@ -13,6 +13,8 @@
  * absent/empty value selects local, and only in the demo composition.
  */
 
+import { API_DATA_SOURCES, classifyDataSource } from "./dataSourceVocabulary";
+
 export type DataSourceMode = "local" | "api";
 
 export interface RuntimeConfig {
@@ -27,9 +29,6 @@ export interface RuntimeConfig {
 }
 
 const DEFAULT_BASE_URL = "/api/v1";
-
-/** Values people plausibly type meaning "real data". None may map to local. */
-const PRODUCTION_ALIASES = ["api", "production", "prod", "live", "real", "staging", "stage"] as const;
 
 interface RawEnv {
   VITE_DATA_SOURCE?: string;
@@ -64,10 +63,15 @@ export function resolveConfig(env: RawEnv = readEnv(), target: "demo" | "client"
   if (target === "client") return resolveClientConfig(raw, apiBaseUrl, supplied);
 
   // Demo/fixture composition. W6: `demo` aliases to `local`. Unset is local.
-  if (raw === "") return { mode: "local", apiBaseUrl, error: null };
-  if (raw === "local" || raw === "demo") return { mode: "local", apiBaseUrl, error: null };
+  //
+  // The CLASSIFICATION comes from the shared vocabulary (one owner, so the
+  // dev-server disclosure in vite.config.ts can never say something different
+  // from what the panel actually does). The messages stay here, because they
+  // are the user's copy, not the rule.
+  const kind = classifyDataSource(raw, "demo");
+  if (kind === "local") return { mode: "local", apiBaseUrl, error: null };
 
-  if ((PRODUCTION_ALIASES as readonly string[]).includes(raw)) {
+  if (kind === "api") {
     // `staging`/`production` are not distinct data sources: both mean "use the
     // real API". They are accepted rather than silently downgraded to local.
     return { mode: "api", apiBaseUrl, error: null };
@@ -78,13 +82,13 @@ export function resolveConfig(env: RawEnv = readEnv(), target: "demo" | "client"
     apiBaseUrl,
     error:
       `VITE_DATA_SOURCE="${supplied ?? ""}" is not a valid data source. ` +
-      `Use "local" or "demo", or one of: ${PRODUCTION_ALIASES.join(", ")}. ` +
+      `Use "local" or "demo", or one of: ${API_DATA_SOURCES.join(", ")}. ` +
       `Refusing to start: falling back to local data here could present fabricated records as real.`,
   };
 }
 
 function resolveClientConfig(raw: string, apiBaseUrl: string, supplied: string | undefined): RuntimeConfig {
-  if (raw === "" || (PRODUCTION_ALIASES as readonly string[]).includes(raw)) {
+  if (classifyDataSource(raw, "client") === "api") {
     return { mode: "api", apiBaseUrl, error: null };
   }
   return {
@@ -93,7 +97,7 @@ function resolveClientConfig(raw: string, apiBaseUrl: string, supplied: string |
     error:
       `VITE_DATA_SOURCE="${supplied ?? raw}" is not available in the client composition. ` +
       `This build is API-only and has no local dataset. ` +
-      `Use one of: ${PRODUCTION_ALIASES.join(", ")}. Refusing to start.`,
+      `Use one of: ${API_DATA_SOURCES.join(", ")}. Refusing to start.`,
   };
 }
 

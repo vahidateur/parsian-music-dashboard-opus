@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AcademyClass;
 use App\Models\Enrollment;
+use App\Models\MediaAsset;
 use App\Models\Student;
 use App\Models\Teacher;
 use Database\Seeders\DatabaseSeeder;
@@ -134,14 +135,27 @@ class StudentsTest extends TestCase
 
         $this->getJson("/api/v1/students/$id")->assertOk()->assertJsonPath('data', $created->json('data'));
 
-        $this->patchJson("/api/v1/students/$id", ['name' => 'نیما ک.', 'progress' => 55, 'nextClass' => null, 'photoMediaId' => 'med_9'])
+        $this->patchJson("/api/v1/students/$id", ['name' => 'نیما ک.', 'progress' => 55, 'nextClass' => null])
             ->assertOk()
             ->assertJsonPath('data.name', 'نیما ک.')
             ->assertJsonPath('data.progress', 55)
-            ->assertJsonPath('data.photoMediaId', 'med_9')
             ->assertJsonMissingPath('data.nextClass')
             ->assertJsonPath('data.balance', -500000)
             ->assertJsonPath('data.skills', [['label' => 'ریتم', 'value' => 40]]);
+
+        // A photo reference must name an asset THAT EXISTS in this
+        // organization (see TeachersTest for the same rule on the teacher).
+        MediaAsset::factory()->create(['id' => 'med_9', 'organization_id' => $this->defaultOrganization()->id]);
+        $this->patchJson("/api/v1/students/$id", ['photoMediaId' => 'med_9'])
+            ->assertOk()
+            ->assertJsonPath('data.photoMediaId', 'med_9');
+        $this->patchJson("/api/v1/students/$id", ['photoMediaId' => 'med_missing'])
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'STUDENT_INVALID');
+        $this->assertSame(
+            'med_9',
+            \Illuminate\Support\Facades\DB::table('students')->where('id', $id)->value('deferred->photoMediaId'),
+        );
 
         $this->deleteJson("/api/v1/students/$id")->assertNoContent();
         $this->getJson("/api/v1/students/$id")->assertStatus(404)->assertJsonPath('error.code', 'STUDENT_NOT_FOUND');

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\MediaAsset;
 use App\Models\Resource;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -215,6 +216,10 @@ class ResourceTest extends TestCase
             'name' => 'سارا احمدی',
         ]);
         $student = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
+
+        // The media table is served now, so the reference must be backed by a
+        // real asset in this organization.
+        MediaAsset::factory()->create(['id' => 'md_demo_res1', 'organization_id' => $this->defaultOrganization()->id]);
 
         $response = $this->postJson(self::BASE, $this->payload([
             'teacherId' => $teacher->id,

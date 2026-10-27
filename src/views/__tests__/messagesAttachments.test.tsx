@@ -19,14 +19,18 @@
  * The failure cases assert the opposite direction: a repository refusal never
  * becomes a success, and never becomes an empty conversation either.
  *
- * THE ENVIRONMENT'S ONE LIMITATION, STATED NOT HIDDEN
+ * THE ENVIRONMENT, STATED NOT HIDDEN
  *
- * jsdom does not implement `URL.createObjectURL`, so the object URL that
- * `useMediaObjectUrl` produces for stored bytes cannot exist here. The tests
- * therefore assert the two states jsdom CAN reach honestly: metadata present with
- * the open affordance withheld (no fabricated URL, no false "you can open this"),
- * and metadata present with the bytes removed — the real post-restore state — where
- * the unavailable wording is required and must not offer opening or downloading.
+ * The jsdom version pinned when these tests were written did not implement
+ * `URL.createObjectURL`, so the object URL that `useMediaObjectUrl` produces
+ * for stored bytes could not exist here and the open affordance was asserted
+ * absent. The current toolchain (Vitest 5 + jsdom 30) DOES implement it, so a
+ * present-bytes attachment now honestly renders its open link in tests — the
+ * same state a real browser reaches. The tests therefore assert all three
+ * honest states: metadata present with bytes present (open link rendered, href
+ * is the object URL for the stored bytes), metadata present with the bytes
+ * removed — the real post-restore state — where the unavailable wording is
+ * required and must not offer opening or downloading, and metadata loading.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -331,8 +335,11 @@ describe("send with an attachment", () => {
     // The composer is cleared — the pending file is a persisted attachment now.
     expect(screen.queryByText(/در انتظار ارسال/)).toBeNull();
     expect(composer().value).toBe("");
-    // And nothing claims the file can be opened in this environment (see header).
-    expect(screen.queryByRole("link", { name: /باز کردن فایل/ })).toBeNull();
+    // The environment can create object URLs, so the stored bytes honestly
+    // resolve to an open link pointing at the object URL (not at the local
+    // File object the operator picked — the href carries no trace of it).
+    const openLink = screen.getByRole("link", { name: /باز کردن فایل/ });
+    expect(openLink.getAttribute("href")).toMatch(/^blob:/);
   });
 
   it("claims nothing until the upload AND the message write have resolved", async () => {

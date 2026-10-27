@@ -42,9 +42,11 @@ final class StoreResourceRequest extends ApiFormRequest
             'kind' => ['required', Rule::in(ResourceRules::KINDS)],
             'instrument' => ['required', 'string', 'min:1', 'max:'.ResourceRules::MAX_INSTRUMENT],
             'level' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_LEVEL],
-            // An opaque reference into the media domain — no media table exists
-            // on the server yet, so this is a shape check, not an existence one.
-            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID],
+            // An opaque reference into the media domain. The media table IS
+            // served now, so the asset must exist in this organization — a row
+            // naming a missing (or deleted, or cross-tenant) file would render
+            // "no file" forever and nothing would tell the operator why.
+            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID, TenantRules::mediaAssetExists()],
             'pages' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_PAGES],
             'durationSeconds' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_DURATION_SECONDS],
             'peaks' => ['sometimes', 'nullable', 'array', 'max:'.ResourceRules::MAX_PEAKS],

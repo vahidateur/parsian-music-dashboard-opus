@@ -8,6 +8,7 @@ import { EmptyState, LoadingState } from "@/components/ds/states";
 import { SectionHeader, Surface } from "@/components/ds/primitives";
 import type { DashboardCounts, FlowRow, FlowSummary } from "@/domains/shared/dashboardInsights";
 import { cn } from "@/utils/cn";
+import { unavailableActions } from "@/targets/targetCopy";
 
 /* ------------------------------------------------------------------ */
 /* نیازمند توجه                                                         */
@@ -193,7 +194,7 @@ export function QuickActions({ className }: { className?: string }) {
     <div className={cn("flex items-center gap-3", className)} aria-label="اقدامات سریع">
       <span className="hidden shrink-0 text-xs text-ink-400 sm:inline">اقدامات سریع</span>
       <div className="no-scrollbar -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 py-1">
-        {QUICK_ACTIONS.map((action) => (
+        {QUICK_ACTIONS.filter((action) => !unavailableActions.has(action.id)).map((action) => (
           <QuickAction key={action.id} label={action.label} hint={action.hint} onClick={() => openSheet(action.id)} />
         ))}
       </div>

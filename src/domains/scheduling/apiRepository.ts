@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { SchedulingRepository } from "./repository";
 import type {
   ConflictReport,
@@ -90,26 +91,35 @@ export class ApiSchedulingRepository implements SchedulingRepository {
     return this.client.get<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, { signal });
   }
 
-  create(input: CreateSessionInput): Promise<Session> {
-    return this.client.post<Session>(SESSIONS, input);
+  async create(input: CreateSessionInput): Promise<Session> {
+    const created = await this.client.post<Session>(SESSIONS, input);
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateSessionInput): Promise<Session> {
-    return this.client.patch<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateSessionInput): Promise<Session> {
+    const updated = await this.client.patch<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   /** A verb, not a status patch: the server records the reason atomically. */
-  cancelSession(id: string, reason: string): Promise<Session> {
-    return this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/cancel`, { reason });
+  async cancelSession(id: string, reason: string): Promise<Session> {
+    const updated = await this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/cancel`, { reason });
+    bumpDataVersion();
+    return updated;
   }
 
   /** Returns the NEW session; the server links it to the cancelled original. */
-  rescheduleSession(id: string, input: RescheduleInput): Promise<Session> {
-    return this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/reschedule`, input);
+  async rescheduleSession(id: string, input: RescheduleInput): Promise<Session> {
+    const created = await this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/reschedule`, input);
+    bumpDataVersion();
+    return created;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`${SESSIONS}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---------------- generation ---------------- */
@@ -122,8 +132,10 @@ export class ApiSchedulingRepository implements SchedulingRepository {
     });
   }
 
-  generateSessions(input: GenerateInput): Promise<GenerationResult> {
-    return this.client.post<GenerationResult>(`${SESSIONS}/generate`, input);
+  async generateSessions(input: GenerateInput): Promise<GenerationResult> {
+    const result = await this.client.post<GenerationResult>(`${SESSIONS}/generate`, input);
+    bumpDataVersion();
+    return result;
   }
 
   /* ---------------- derived ---------------- */

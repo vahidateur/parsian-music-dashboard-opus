@@ -23,6 +23,7 @@ import { EntityExportButton } from "@/domains/export/EntityExportButton";
 import { Button } from "@/components/ds/primitives";
 import { Panel, Field, inputCls } from "@/components/ds/patterns";
 import { addDays, isoToJalaliDisplay, jalaliToIso } from "@/domains/scheduling/dateBridge";
+import { unavailableActions } from "@/targets/targetCopy";
 
 /** Mobile-only: the pulse + today's numbers as a compact card (desktop shows them inside the hero). */
 /**
@@ -286,6 +287,7 @@ function ManagementDashboard() {
             halves of what is on screen, the aggregate read included.
           */
           <ErrorState
+            error={heroError}
             title="خواندن رکوردها کامل نشد"
             description="خواندن بعضی از رکوردها ناموفق بود؛ هر شاخص روی این صفحه فقط وقتی عدد دارد که خواندنش موفق بوده باشد، وگرنه «—» می‌ماند؛ صفر، اندازه‌گیری نیست."
             onRetry={() => {
@@ -376,7 +378,7 @@ function ManagementDashboard() {
         <QuickActions />
       </div>
       <div className="order-9 lg:order-none lg:col-span-12">
-        <EcosystemStrip counts={insights.counts} />
+        {!unavailableActions.has("portals") && <EcosystemStrip counts={insights.counts} />}
       </div>
     </div>
   );

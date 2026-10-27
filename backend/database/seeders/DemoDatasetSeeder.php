@@ -36,6 +36,7 @@ class DemoDatasetSeeder extends Seeder
             $this->seedUsers();
             $this->seedRoles();
             $this->seedRooms();
+            $this->seedInstruments();
             $this->seedStudents();
             $this->seedClasses();
             $this->seedEnrollments();
@@ -83,6 +84,30 @@ class DemoDatasetSeeder extends Seeder
                 'occupancy' => (int) ($room['occupancy'] ?? 0),
                 // The dataset omits `active` for assignable rooms.
                 'active' => ($room['active'] ?? true) !== false,
+                'created_at' => $this->timestamp(null),
+                'updated_at' => $this->timestamp(null),
+            ]);
+        }
+    }
+
+    /**
+     * Instruments come from `instruments.json`, whose six seeded rows keep the
+     * historical ids (`piano`, `violin`, …) that every seeded student, teacher,
+     * class and resource row stores. Without them a fresh seed would leave
+     * those references dangling.
+     */
+    protected function seedInstruments(): void
+    {
+        foreach ($this->dataset('instruments') as $instrument) {
+            DB::table('instruments')->insert([
+                'id' => (string) $instrument['id'],
+                'organization_id' => self::ORGANIZATION_ID,
+                'slug' => (string) $instrument['slug'],
+                'name' => (string) $instrument['name'],
+                'description' => (string) ($instrument['description'] ?? ''),
+                'image_id' => $instrument['imageId'] ?? null,
+                'active' => ($instrument['active'] ?? true) !== false,
+                'sort_order' => (int) ($instrument['sortOrder'] ?? 0),
                 'created_at' => $this->timestamp(null),
                 'updated_at' => $this->timestamp(null),
             ]);

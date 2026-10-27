@@ -15,9 +15,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
- * Every action asks RoomPolicy FIRST (PB-3: currently blocked for every
- * actor → 403 OWNER_DECISION_REQUIRED_PB3). FormRequests are resolved only
- * after that check, so an invalid body never turns the block into a 422.
+ * Every action asks RoomPolicy FIRST (reads need `rooms.read`, writes need
+ * `rooms.write`). FormRequests are resolved only after that check, so an
+ * invalid body never turns a 403 into a 422.
  */
 final class RoomController extends Controller
 {

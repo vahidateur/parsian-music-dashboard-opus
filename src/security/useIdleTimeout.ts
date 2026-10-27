@@ -11,18 +11,22 @@
  *
  * SCOPE
  *
- * This signs the user out in the BROWSER. It is a usability and
- * shoulder-surfing control, not a security boundary: the server must expire
- * the session independently and reject the token afterwards, or an attacker
- * who copied the token simply keeps using it. Documented in docs/security.md.
+ * This signs the user out in the BROWSER. It is a usability control, not the
+ * security boundary: the server enforces its own idle (30 min) and absolute
+ * (10 h) ceilings independently and rejects expired tokens afterwards, so an
+ * attacker who copied a token cannot keep using it past those ceilings. The
+ * browser countdown exists so a human is warned first and never loses work
+ * to a surprise sign-out.
  *
- * Cross-tab: the countdown is shared through a storage event, so activity in
- * one tab keeps the others alive and a sign-out in one signs out all.
+ * Cross-tab: every tab polls the shared localStorage clock each second, so
+ * activity in one tab is visible to the others within a second; session END
+ * is pushed immediately through a `storage` event (see notifySessionEnded)
+ * so all tabs sign out together instead of waiting for their next poll.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Inactivity before automatic sign-out. */
-export const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
+/** Inactivity before automatic sign-out. Mirrors the server idle ceiling. */
+export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 /** Warning shown this long before the timeout fires. */
 export const IDLE_WARNING_MS = 2 * 60 * 1000;
@@ -36,6 +40,37 @@ export const ABSOLUTE_SESSION_MS = 10 * 60 * 60 * 1000;
 
 const ACTIVITY_KEY = "ava:session:activity";
 const START_KEY = "ava:session:start";
+
+/** Broadcast when a session ends, so every tab signs out together at once. */
+export const SESSION_ENDED_KEY = "ava:session:ended";
+
+export type SessionEndReason = "idle" | "absolute" | "logout";
+
+/**
+ * Announces a session end to every other tab of this browser. `storage`
+ * events do not fire in the tab that wrote the key, so the writer never
+ * double-handles its own broadcast; receivers whose stored value is missing
+ * or unreadable ignore it (their next clock poll ends the session anyway).
+ */
+export function notifySessionEnded(reason: SessionEndReason): void {
+  try {
+    localStorage.setItem(SESSION_ENDED_KEY, JSON.stringify({ at: Date.now(), reason }));
+  } catch {
+    /* private mode or quota — the local poll still signs this tab out */
+  }
+}
+
+/** Reads a session-end broadcast; null when absent or tampered. */
+export function readSessionEnded(): SessionEndReason | null {
+  try {
+    const raw = localStorage.getItem(SESSION_ENDED_KEY);
+    if (!raw) return null;
+    const reason = (JSON.parse(raw) as { reason?: unknown }).reason;
+    return reason === "idle" || reason === "absolute" || reason === "logout" ? reason : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Events that count as the user being present. */
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "wheel", "touchstart", "visibilitychange"] as const;
@@ -207,6 +242,7 @@ export function clearSessionClock(): void {
   try {
     localStorage.removeItem(ACTIVITY_KEY);
     localStorage.removeItem(START_KEY);
+    localStorage.removeItem(SESSION_ENDED_KEY);
   } catch {
     /* nothing to clean up */
   }

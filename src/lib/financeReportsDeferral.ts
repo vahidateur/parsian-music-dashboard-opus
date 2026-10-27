@@ -17,7 +17,12 @@
 export const FINANCE_REPORTS_DEFERRAL = {
   decision: "D6",
   workItem: "I2",
-  surfaces: ["src/views/Finance.tsx", "src/views/Reports.tsx"],
+  // Finance left this list with the v1 invoice slice (DECISIONS §40): the
+  // client composition serves it through the finance domain, so the view
+  // reads a repository — while the demo composition keeps the honest
+  // deferral in the same file's fallback branch (pinned by
+  // noSuccessWithoutWrite). Reports stays: no reports domain exists.
+  surfaces: ["src/views/Reports.tsx"],
   entries: [
     {
       export: "invoices",

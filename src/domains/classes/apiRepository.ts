@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { ClassRepository } from "./repository";
 import type { AcademyClass, ClassListParams, CreateClassInput, UpdateClassInput } from "./types";
 
@@ -14,17 +15,24 @@ export class ApiClassRepository implements ClassRepository {
   get(id: string, signal?: AbortSignal): Promise<AcademyClass> {
     return this.client.get<AcademyClass>(`${RESOURCE}/${encodeURIComponent(id)}`, { signal });
   }
-  create(input: CreateClassInput): Promise<AcademyClass> {
-    return this.client.post<AcademyClass>(RESOURCE, input);
+  async create(input: CreateClassInput): Promise<AcademyClass> {
+    const created = await this.client.post<AcademyClass>(RESOURCE, input);
+    bumpDataVersion();
+    return created;
   }
-  update(id: string, input: UpdateClassInput): Promise<AcademyClass> {
-    return this.client.patch<AcademyClass>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateClassInput): Promise<AcademyClass> {
+    const updated = await this.client.patch<AcademyClass>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
-  archive(id: string): Promise<AcademyClass> {
-    return this.client.post<AcademyClass>(`${RESOURCE}/${encodeURIComponent(id)}/archive`, {});
+  async archive(id: string): Promise<AcademyClass> {
+    const archived = await this.client.post<AcademyClass>(`${RESOURCE}/${encodeURIComponent(id)}/archive`, {});
+    bumpDataVersion();
+    return archived;
   }
   async delete(id: string): Promise<void> {
     await this.client.delete(`${RESOURCE}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 }
 

@@ -50,6 +50,7 @@
  */
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { AssignmentWithPiece, ProgressRepository, StudentProgressOverview } from "./repository";
 import type {
   AssignmentListParams,
@@ -82,16 +83,21 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.get<Piece>(`${PIECES}/${encodeURIComponent(id)}`, { signal });
   }
 
-  createPiece(input: CreatePieceInput): Promise<Piece> {
-    return this.client.post<Piece>(PIECES, input);
+  async createPiece(input: CreatePieceInput): Promise<Piece> {
+    const created = await this.client.post<Piece>(PIECES, input);
+    bumpDataVersion();
+    return created;
   }
 
-  updatePiece(id: string, input: UpdatePieceInput): Promise<Piece> {
-    return this.client.patch<Piece>(`${PIECES}/${encodeURIComponent(id)}`, input);
+  async updatePiece(id: string, input: UpdatePieceInput): Promise<Piece> {
+    const updated = await this.client.patch<Piece>(`${PIECES}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async deletePiece(id: string): Promise<void> {
     await this.client.delete(`${PIECES}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---- assignments ---- */
@@ -104,16 +110,21 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.get<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, { signal });
   }
 
-  assignPiece(input: CreateAssignmentInput): Promise<PieceAssignment> {
-    return this.client.post<PieceAssignment>(ASSIGNMENTS, input);
+  async assignPiece(input: CreateAssignmentInput): Promise<PieceAssignment> {
+    const created = await this.client.post<PieceAssignment>(ASSIGNMENTS, input);
+    bumpDataVersion();
+    return created;
   }
 
-  updateAssignment(id: string, input: UpdateAssignmentInput): Promise<PieceAssignment> {
-    return this.client.patch<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, input);
+  async updateAssignment(id: string, input: UpdateAssignmentInput): Promise<PieceAssignment> {
+    const updated = await this.client.patch<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async deleteAssignment(id: string): Promise<void> {
     await this.client.delete(`${ASSIGNMENTS}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---- events ---- */
@@ -122,8 +133,10 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.getPage<ProgressEvent>(EVENTS, { query: eventQuery(params), signal });
   }
 
-  recordProgress(input: RecordProgressInput): Promise<ProgressEvent> {
-    return this.client.post<ProgressEvent>(EVENTS, input);
+  async recordProgress(input: RecordProgressInput): Promise<ProgressEvent> {
+    const created = await this.client.post<ProgressEvent>(EVENTS, input);
+    bumpDataVersion();
+    return created;
   }
 
   /* ---- derived ---- */
