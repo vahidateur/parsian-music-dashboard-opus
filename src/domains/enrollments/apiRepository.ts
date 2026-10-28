@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { EnrollmentRepository } from "./repository";
 import type { CreateEnrollmentInput, Enrollment, EnrollmentListParams, UpdateEnrollmentInput } from "./types";
 
@@ -18,17 +19,24 @@ export class ApiEnrollmentRepository implements EnrollmentRepository {
   get(id: string, signal?: AbortSignal): Promise<Enrollment> {
     return this.client.get<Enrollment>(`${RESOURCE}/${encodeURIComponent(id)}`, { signal });
   }
-  enroll(input: CreateEnrollmentInput): Promise<Enrollment> {
-    return this.client.post<Enrollment>(RESOURCE, input);
+  async enroll(input: CreateEnrollmentInput): Promise<Enrollment> {
+    const created = await this.client.post<Enrollment>(RESOURCE, input);
+    bumpDataVersion();
+    return created;
   }
-  update(id: string, input: UpdateEnrollmentInput): Promise<Enrollment> {
-    return this.client.patch<Enrollment>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateEnrollmentInput): Promise<Enrollment> {
+    const updated = await this.client.patch<Enrollment>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
-  withdraw(id: string): Promise<Enrollment> {
-    return this.client.post<Enrollment>(`${RESOURCE}/${encodeURIComponent(id)}/withdraw`, {});
+  async withdraw(id: string): Promise<Enrollment> {
+    const result = await this.client.post<Enrollment>(`${RESOURCE}/${encodeURIComponent(id)}/withdraw`, {});
+    bumpDataVersion();
+    return result;
   }
   async delete(id: string): Promise<void> {
     await this.client.delete(`${RESOURCE}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 }
 

@@ -1,0 +1,30 @@
+[
+  {
+    "id": "r1",
+    "name": "اتاق ۱",
+    "kind": "پیانو · آکوستیک",
+    "capacity": 6,
+    "occupancy": 94
+  },
+  {
+    "id": "r2",
+    "name": "اتاق ۲",
+    "kind": "سازهای زهی و مضرابی",
+    "capacity": 8,
+    "occupancy": 86
+  },
+  {
+    "id": "r3",
+    "name": "اتاق ۳",
+    "kind": "آواز · تئوری",
+    "capacity": 12,
+    "occupancy": 78
+  },
+  {
+    "id": "r4",
+    "name": "اتاق ۴",
+    "kind": "درامز · عایق صوتی",
+    "capacity": 5,
+    "occupancy": 58
+  }
+]

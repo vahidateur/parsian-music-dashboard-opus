@@ -126,7 +126,7 @@ describe("the academy day comes from the clock, in the product's weekday convent
       vi.useFakeTimers();
       vi.setSystemTime(new Date(2026, 8, 1, 0, 0, 0));
 
-      setRuntimeConfig({ mode: "demo" });
+      setRuntimeConfig({ mode: "local" });
       const demoDay = academyIsoDate();
       const demoMinutes = academyNowMinutes();
 

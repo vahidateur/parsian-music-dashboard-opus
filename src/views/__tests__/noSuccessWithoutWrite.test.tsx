@@ -34,9 +34,9 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import {
   ATTENDANCE_ERRORS,
@@ -542,9 +542,9 @@ describe("attendance", () => {
 
   /** Writes need a principal: `recordedByUserId` is required by the repository. */
   async function signIn() {
-    const auth = new DemoAuthRepository(demoStore, memoryStorage());
+    const auth = new LocalAuthRepository(demoStore, memoryStorage());
     setAuthRepository(auth);
-    setUserRepository(new DemoUserRepository(demoStore));
+    setUserRepository(new LocalUserRepository(demoStore));
     await auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
   }
 

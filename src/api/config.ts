@@ -1,17 +1,21 @@
 /**
  * Data-source configuration.
  *
- * `demo` — everything is served by the localStorage-backed DemoStore.
+ * `local` — the on-device implementation of the demo/fixture composition.
+ * `VITE_DATA_SOURCE=demo` is the legacy alias and resolves to the same mode
+ * there. It is not a second application, and it is not a client data source.
  * `api`  — repositories talk to a real REST backend at VITE_API_BASE_URL.
  *
  * SAFETY RULE (see docs/architecture/environments.md):
- * Production must never silently fall back to Demo. An unrecognised or
+ * Production must never silently fall back to local data. An unrecognised or
  * misspelled `VITE_DATA_SOURCE` is a configuration error, not a cue to serve
  * fabricated data — `resolveConfig` reports it instead of guessing. Only an
- * absent/empty value selects demo, which keeps `npm run dev` convenient.
+ * absent/empty value selects local, and only in the demo composition.
  */
 
-export type DataSourceMode = "demo" | "api";
+import { API_DATA_SOURCES, classifyDataSource } from "./dataSourceVocabulary";
+
+export type DataSourceMode = "local" | "api";
 
 export interface RuntimeConfig {
   mode: DataSourceMode;
@@ -26,9 +30,6 @@ export interface RuntimeConfig {
 
 const DEFAULT_BASE_URL = "/api/v1";
 
-/** Values people plausibly type meaning "real data". None may map to demo. */
-const PRODUCTION_ALIASES = ["api", "production", "prod", "live", "real", "staging", "stage"] as const;
-
 interface RawEnv {
   VITE_DATA_SOURCE?: string;
   VITE_API_BASE_URL?: string;
@@ -42,35 +43,61 @@ function readEnv(): RawEnv {
   }
 }
 
-export function resolveConfig(env: RawEnv = readEnv()): RuntimeConfig {
+/**
+ * Resolves the data source for one composition.
+ *
+ * The second argument exists so tests can prove the client rule without a
+ * second Vitest project. Production code omits it: the build injects
+ * `__APP_TARGET__`, and the aliases — not this string — keep demo modules out
+ * of the client bundle.
+ */
+export function resolveConfig(env: RawEnv = readEnv(), target: "demo" | "client" = __APP_TARGET__): RuntimeConfig {
   const raw = (env.VITE_DATA_SOURCE ?? "").trim().toLowerCase();
   const apiBaseUrl = (env.VITE_API_BASE_URL ?? "").trim() || DEFAULT_BASE_URL;
+  const supplied = env.VITE_DATA_SOURCE;
 
-  // Unset → demo… but ONLY in the demo composition. The client build has no
-  // demo capability at all (its target files and demo repositories are not in
-  // the bundle), so an unset data source there means the API — falling back to
-  // demo here would be exactly the silent downgrade this module exists to
-  // prevent, and could not work anyway.
-  if (raw === "") {
-    if (__APP_TARGET__ === "client") return { mode: "api", apiBaseUrl, error: null };
-    return { mode: "demo", apiBaseUrl, error: null };
-  }
+  // The client composition has no local store and no demo fixture. `local` and
+  // the legacy `demo` alias must not become a hidden path back into one.
+  // Unset still means the API. Any other non-API value sets `error` so boot
+  // refuses; `mode` stays `api` only so a missed guard cannot select local.
+  if (target === "client") return resolveClientConfig(raw, apiBaseUrl, supplied);
 
-  if (raw === "demo") return { mode: "demo", apiBaseUrl, error: null };
+  // Demo/fixture composition. W6: `demo` aliases to `local`. Unset is local.
+  //
+  // The CLASSIFICATION comes from the shared vocabulary (one owner, so the
+  // dev-server disclosure in vite.config.ts can never say something different
+  // from what the panel actually does). The messages stay here, because they
+  // are the user's copy, not the rule.
+  const kind = classifyDataSource(raw, "demo");
+  if (kind === "local") return { mode: "local", apiBaseUrl, error: null };
 
-  if ((PRODUCTION_ALIASES as readonly string[]).includes(raw)) {
+  if (kind === "api") {
     // `staging`/`production` are not distinct data sources: both mean "use the
-    // real API". They are accepted rather than silently downgraded to demo.
+    // real API". They are accepted rather than silently downgraded to local.
     return { mode: "api", apiBaseUrl, error: null };
   }
 
   return {
-    mode: "demo",
+    mode: "local",
     apiBaseUrl,
     error:
-      `VITE_DATA_SOURCE="${env.VITE_DATA_SOURCE ?? ""}" is not a valid data source. ` +
-      `Use "demo" or one of: ${PRODUCTION_ALIASES.join(", ")}. ` +
-      `Refusing to start: falling back to demo data here could present fabricated records as real.`,
+      `VITE_DATA_SOURCE="${supplied ?? ""}" is not a valid data source. ` +
+      `Use "local" or "demo", or one of: ${API_DATA_SOURCES.join(", ")}. ` +
+      `Refusing to start: falling back to local data here could present fabricated records as real.`,
+  };
+}
+
+function resolveClientConfig(raw: string, apiBaseUrl: string, supplied: string | undefined): RuntimeConfig {
+  if (classifyDataSource(raw, "client") === "api") {
+    return { mode: "api", apiBaseUrl, error: null };
+  }
+  return {
+    mode: "api",
+    apiBaseUrl,
+    error:
+      `VITE_DATA_SOURCE="${supplied ?? raw}" is not available in the client composition. ` +
+      `This build is API-only and has no local dataset. ` +
+      `Use one of: ${API_DATA_SOURCES.join(", ")}. Refusing to start.`,
   };
 }
 
@@ -91,7 +118,8 @@ export function resetRuntimeConfig(): RuntimeConfig {
   return current;
 }
 
-export const isDemoMode = (): boolean => current.mode === "demo";
+/** True for the local data-source mode, including the legacy `demo` env alias. */
+export const isDemoMode = (): boolean => current.mode === "local";
 
 /** True when the app must refuse to boot because the environment is invalid. */
 export const hasConfigError = (): boolean => current.error !== null;

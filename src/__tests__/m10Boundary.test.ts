@@ -49,6 +49,12 @@ import { FINANCE_REPORTS_DEFERRAL } from "../lib/financeReportsDeferral";
 
 const ROOT = process.cwd();
 const SRC = join(ROOT, "src");
+/**
+ * The permission hook's module. It is the one `@/domains/` import a deferred
+ * surface may carry: it exposes `useCan`, not data, so importing it cannot put
+ * an invoice or a payment on screen.
+ */
+const AUTHORIZATION_MODULE = "@/domains/auth/AuthContext";
 const GATE_FILE = "src/__tests__/m10Boundary.test.ts";
 const LEDGER_FILE = "src/lib/financeReportsDeferral.ts";
 
@@ -358,9 +364,19 @@ describe("the deferral ledger is the deferral — not hidden fixtures", () => {
       expect(source, `${surface} does not carry the I2 work item`).toContain("I2");
       // No domain read and no seed read: the deferral means there is nothing
       // to show — reading a repository would make the screen lie.
+      //
+      // Authorization is not a read. `@/domains/auth/AuthContext` carries
+      // `useCan`, the permission hook every gated surface uses; importing it
+      // cannot surface an invoice or a payment, and the deferred panels still
+      // have to know which controls the viewer is entitled to. The ban is on
+      // reaching DATA — the data domains and the store — which is what the
+      // deferral ("no invoice repository exists… no view read until I2 designs
+      // the read seam") is actually about.
       const imports = [...code(source).matchAll(/\bfrom\s*"([^"]+)"/g)].map((m) => m[1]);
       expect(
-        imports.filter((module) => module.startsWith("@/domains/")),
+        imports.filter(
+          (module) => module.startsWith("@/domains/") && module !== AUTHORIZATION_MODULE,
+        ),
         `${surface} reads a domain`,
       ).toEqual([]);
       expect(

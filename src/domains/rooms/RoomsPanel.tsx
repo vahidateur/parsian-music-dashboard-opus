@@ -61,7 +61,7 @@ export function RoomsPanel() {
       {loading ? (
         <LoadingState label="در حال بارگذاری اتاق‌ها…" />
       ) : error ? (
-        <ErrorState title="بارگذاری اتاق‌ها ناموفق بود" description={error.message} onRetry={reload} />
+        <ErrorState title="بارگذاری اتاق‌ها ناموفق بود" error={error} onRetry={reload} />
       ) : rooms.length === 0 ? (
         <EmptyState
           title="هنوز اتاقی ثبت نشده"

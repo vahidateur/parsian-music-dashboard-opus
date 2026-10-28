@@ -8,11 +8,19 @@
  *
  * SECURITY: `role` is a UX affordance only. Hiding a control is not access
  * control; the server must enforce who may write what (§31).
+ *
+ * `role` chooses the WORKFLOW (teacher authoring vs. student self-practice); it
+ * is a prop, never an authorization input (DECISIONS §29: "nothing authorizes on
+ * role"). What a person may actually read and write is decided by the
+ * `progress.read` / `progress.write` permissions — the same ids the server
+ * enforces — so a read-only role sees the evidence without the authoring
+ * controls, and a role without `progress.read` sees no progress data at all.
  */
 import { useMemo, useState } from "react";
 import { Activity, ArrowLeft, BookOpen, MessageSquare, Music4, Pencil, Plus, TrendingUp } from "lucide-react";
 import { faNum, toFa } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useCan } from "@/domains/auth/AuthContext";
 import { Button, StatusBadge, Surface, type Tone } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { ListRow, Meter, Panel } from "@/components/ds/patterns";
@@ -71,6 +79,11 @@ export function StudentProgressPanel({
   role: "teacher" | "student";
 }) {
   const { notify, navigate } = useApp();
+  /* The authorization boundary, in the UI layer: same two ids the server checks. */
+  const mayRead = useCan("progress.read");
+  const mayWrite = useCan("progress.write");
+  /** Authoring is a teacher-workflow capability that additionally needs the write permission. */
+  const canAuthor = role === "teacher" && mayWrite;
   const { overview, loading, error, reload } = useStudentProgress(studentId);
   const { items: libraryItems } = useLibraryList({ per_page: 200 });
   const [recording, setRecording] = useState<{ assignment: PieceAssignment; piece?: Piece } | null>(null);
@@ -98,7 +111,22 @@ export function StudentProgressPanel({
   if (loading) return <LoadingState className="py-20" label="در حال بارگذاری پیشرفت…" />;
   if (error)
     return (
-      <ErrorState className="py-20" title="بارگذاری پیشرفت ناموفق بود" description={error.message} onRetry={reload} />
+      <ErrorState className="py-20" title="بارگذاری پیشرفت ناموفق بود" error={error} onRetry={reload} />
+    );
+
+  /*
+    No `progress.read`, no progress record. §29 withholds the id from accounting
+    on purpose, and a per-student panel is exactly where that has to be visible:
+    rendering the evidence anyway would make the matrix's own row untrue. The
+    server refuses the read regardless — this is the honest surface for it, not
+    the boundary itself.
+  */
+  if (!mayRead)
+    return (
+      <EmptyState
+        title="دسترسی به پیشرفت هنرجو ندارید"
+        description="نمایش پیشرفت هنرجو به مجوز «مشاهدهٔ پیشرفت هنرجو» نیاز دارد. برای دریافت دسترسی با مدیر آموزشگاه تماس بگیرید."
+      />
     );
 
   /*
@@ -122,19 +150,21 @@ export function StudentProgressPanel({
           className="lg:col-span-2"
           title="قطعات در دست کار"
           kicker="آنچه هنرجو هم‌اکنون تمرین می‌کند"
-          action={role === "teacher" ? "افزودن قطعه" : undefined}
-          onAction={role === "teacher" ? () => setAssignOpen(true) : undefined}
+          action={canAuthor ? "افزودن قطعه" : undefined}
+          onAction={canAuthor ? () => setAssignOpen(true) : undefined}
         >
           {active.length === 0 ? (
             <EmptyState
               title="قطعه‌ای در دست کار نیست"
               description={
-                role === "teacher"
+                canAuthor
                   ? "یک قطعه از رپرتوار به این هنرجو تخصیص دهید."
-                  : "هنوز قطعه‌ای برای شما تعیین نشده است."
+                  : role === "teacher"
+                    ? "هنوز قطعه‌ای برای این هنرجو تعیین نشده است."
+                    : "هنوز قطعه‌ای برای شما تعیین نشده است."
               }
-              action={role === "teacher" ? "افزودن قطعه" : undefined}
-              onAction={role === "teacher" ? () => setAssignOpen(true) : undefined}
+              action={canAuthor ? "افزودن قطعه" : undefined}
+              onAction={canAuthor ? () => setAssignOpen(true) : undefined}
             />
           ) : (
             <ul className="space-y-3">
@@ -172,7 +202,7 @@ export function StudentProgressPanel({
                           label={PROGRESS_STATUS_LABEL[insight.status]}
                         />
                       )}
-                      {role === "teacher" && piece && (
+                      {canAuthor && piece && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -204,10 +234,12 @@ export function StudentProgressPanel({
                     {latest && <Meter className="mt-3" value={latest.mastery} tone="violet" />}
 
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Button size="sm" variant="subtle" onClick={() => setRecording({ assignment, piece })}>
-                        <Plus className="size-3.5" /> ثبت پیشرفت
-                      </Button>
-                      {role === "teacher" && (
+                      {mayWrite && (
+                        <Button size="sm" variant="subtle" onClick={() => setRecording({ assignment, piece })}>
+                          <Plus className="size-3.5" /> ثبت پیشرفت
+                        </Button>
+                      )}
+                      {canAuthor && (
                         <>
                           <Button
                             size="sm"
@@ -289,7 +321,7 @@ export function StudentProgressPanel({
         {timelineError ? (
           <ErrorState
             title="بارگذاری سابقهٔ پیشرفت ناموفق بود"
-            description={timelineError.message}
+            error={timelineError}
             onRetry={reloadTimeline}
           />
         ) : timelineLoading ? (

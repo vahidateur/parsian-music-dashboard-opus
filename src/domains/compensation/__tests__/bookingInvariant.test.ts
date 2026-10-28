@@ -2,7 +2,7 @@
  * C-1 — at most one live attempt per obligation, and one writer at a time.
  *
  * These are the cases that need a REAL interleaving, so they live in their own
- * file rather than beside the sequential rules in `demoRepository.test.ts` (the
+ * file rather than beside the sequential rules in `localRepository.test.ts` (the
  * project's rule: new cases go in new files).
  *
  * What is pinned here:
@@ -33,12 +33,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { permissionsForRole } from "@/domains/auth/permissions";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import type { CreateSessionInput } from "@/domains/scheduling/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 import {
   COMPENSATION_ERRORS,
   type CompensationActor,
@@ -57,17 +57,17 @@ const ACTOR: CompensationActor = {
   permissions: permissionsForRole("administrator"),
 };
 
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
-let attendance: DemoAttendanceRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
+let attendance: LocalAttendanceRepository;
 let store: DemoStore;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  attendance = new DemoAttendanceRepository(store);
-  scheduling = new DemoSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
-  repo = new DemoCompensationRepository(store, { scheduling, attendance });
+  attendance = new LocalAttendanceRepository(store);
+  scheduling = new LocalSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
+  repo = new LocalCompensationRepository(store, { scheduling, attendance });
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -137,7 +137,7 @@ describe("a second booking is refused while the current attempt is live", () => 
 
     // The rule is a property of the RECORD, not of the object that booked first:
     // a second adapter over the same store is refused the same way.
-    const other = new DemoCompensationRepository(store, { scheduling, attendance });
+    const other = new LocalCompensationRepository(store, { scheduling, attendance });
     const error = await (async () => {
       try {
         await other.schedule(compensation.id, {
@@ -178,7 +178,7 @@ describe("two concurrent bookings of the same obligation", () => {
      */
     let inFlight = 0;
     let peakInFlight = 0;
-    const instrumented = Object.create(scheduling) as DemoSchedulingRepository;
+    const instrumented = Object.create(scheduling) as LocalSchedulingRepository;
     instrumented.create = async (input: CreateSessionInput) => {
       inFlight += 1;
       peakInFlight = Math.max(peakInFlight, inFlight);
@@ -192,8 +192,8 @@ describe("two concurrent bookings of the same obligation", () => {
     // Two ADAPTERS, one store and one section: a double submit does not have to
     // come from the same object, and the guarantee is about the data.
     const deps = { scheduling: instrumented, attendance };
-    const first = new DemoCompensationRepository(store, deps);
-    const second = new DemoCompensationRepository(store, deps);
+    const first = new LocalCompensationRepository(store, deps);
+    const second = new LocalCompensationRepository(store, deps);
 
     const outcomes = await Promise.allSettled([
       first.schedule(compensation.id, {
@@ -284,13 +284,13 @@ describe("a booking racing a discharge", () => {
      * a second caller, and it waits in the section like any other.
      */
     let discharge: Promise<SessionCompensation> | undefined;
-    const instrumented = Object.create(scheduling) as DemoSchedulingRepository;
+    const instrumented = Object.create(scheduling) as LocalSchedulingRepository;
     instrumented.create = async (input: CreateSessionInput) => {
       const session = await scheduling.create(input);
       discharge = repo.complete(compensation.id, { actor: ACTOR });
       return session;
     };
-    const racing = new DemoCompensationRepository(store, { scheduling: instrumented, attendance });
+    const racing = new LocalCompensationRepository(store, { scheduling: instrumented, attendance });
 
     const booking = await racing.schedule(compensation.id, {
       date: ON_SCHEDULE_DATE,
@@ -435,7 +435,7 @@ describe("a moved make-up is still the make-up", () => {
     // a second make-up if the rule read the ledger's session instead of the chain.
     expect(store.scheduledSessions.find(entrySessionId)?.status).toBe("cancelled");
 
-    const other = new DemoCompensationRepository(store, { scheduling, attendance });
+    const other = new LocalCompensationRepository(store, { scheduling, attendance });
     expect(
       await codeOf(
         other.schedule(compensation.id, {

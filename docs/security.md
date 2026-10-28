@@ -121,15 +121,22 @@ still surface in the console, and the build-artifact test is the binding check.
 
 ## 4. Authentication
 
-### Password storage — NOT IMPLEMENTED IN THE FRONTEND
+### Password storage — frontend holds none; the server bcrypt-hashes
 
-**There is no password hashing in this repository, by design.**
+**There is no password hashing in the frontend, by design.**
 
 An earlier iteration shipped a browser-side PBKDF2 module. An audit found it
 was never called by any production code path — the demo login is still a
 plaintext comparison against a public constant — so it was **removed**. Unused
 cryptography is worse than none: it reads like protection in a code review and
 protects nothing at runtime.
+
+The **server** hashes with bcrypt (`User` cast `'hashed'`,
+`BCRYPT_ROUNDS=12`): verification is `Hash::check` with a dummy hash for
+unknown emails (timing flattening, `AuthService.php`), and setting a password
+revokes all of the target's tokens. What is still missing server-side: NIST
+12+ length floor (current floor is 6 at set-password), breached-password
+(HIBV k-anonymity) check, and context-term rejection.
 
 Browser-side hashing is not password storage in any case:
 
@@ -143,14 +150,17 @@ Browser-side hashing is not password storage in any case:
 > and a work factor tuned on production hardware. Nothing in this repository
 > should be extended to approximate it.
 
-### Password policy — BACKEND REQUIRED
+### Password policy — PARTIALLY IMPLEMENTED (server)
 
 Length floor (NIST SP 800-63B suggests 12+ characters and no composition
 rules), a breached-password check against Have I Been Pwned's k-anonymity range
 API, and rejection of context terms (the user's own email or name) all belong
-on the server, at the point where a password is actually set. No public
-password-setting flow exists in the frontend today — accounts are created by
-staff (§6) — so there is nothing for a client-side policy to guard.
+on the server, at the point where a password is actually set. What exists
+today: the server refuses passwords shorter than 6 characters at set-password
+time (`SetPasswordRequest`), and a null/blank password means the account
+cannot sign in (fail closed). No public password-setting flow exists in the
+frontend — accounts are created by staff (§6) — so there is nothing for a
+client-side policy to guard.
 
 ### Rate limiting — `src/security/loginThrottle.ts`
 
@@ -164,16 +174,28 @@ fails open to "allowed" — because it was never the real control.
 > a human an honest message. **The enforcing limit is `limit_req` at the edge
 > (5/min on `/auth/login`) and per-account + per-IP limiting in the backend.**
 
-### Sessions — `src/security/useIdleTimeout.ts`
+### Sessions — `src/security/useIdleTimeout.ts` + server enforcement
 
-20-minute idle timeout with a 2-minute warning, and a 10-hour absolute lifetime
-that a page reload cannot extend. Shared across tabs via storage events. Both
-clocks reset on sign-in so a new session never inherits the old one's remaining
-lifetime.
+**Enforced by the server** (`EnforceSessionExpiry` middleware, every
+protected request): **30-minute idle timeout** and **10-hour absolute
+lifetime** from token creation. Breach revokes the token and answers 401
+with a distinct code — `AUTH_SESSION_IDLE_EXPIRED` or
+`AUTH_SESSION_ABSOLUTE_EXPIRED` — in the standard error envelope, with no
+token or account detail. Missing, malformed, or already-revoked tokens keep
+the legacy `AUTH_UNAUTHENTICATED`. Sanctum's own 12-hour expiry still owns
+the far tail. Logout deletes the current token; the client clears its copy
+even when the server is unreachable.
 
-> **BACKEND REQUIRED.** This signs the user out in the browser. The server must
-> expire the session independently and reject the token afterwards, or an
-> attacker holding a copied token is entirely unaffected.
+The browser mirrors the same ceilings for UX only: 30-minute idle
+countdown with a 2-minute warning (`SessionGuard`), 10-hour absolute clock
+anchored to the token's own expiry on restore. Activity is any authenticated
+request (the app performs no background API polling). Cross-tab: activity
+is shared by polling the shared clock keys each second; session END is
+pushed immediately through a `storage` event so all tabs sign out together,
+each showing why. A 401 mid-session flips the app to the login flow with
+the reason; a dead token found at boot lands on the same login with the
+same reason. The browser timers never extend, shorten, or substitute for
+the server's decision.
 
 ## 5. What the demo mode is
 
@@ -217,22 +239,32 @@ in access logs, proxy logs and browser history.
 
 ## 8. Backend requirements — none of these are optional
 
-1. **Argon2id/bcrypt** password hashing, server-side.
-2. **Server-enforced authorization on every endpoint.** Client-side roles are
-   UX only. Never trust a role, permission or ownership claim from the browser.
-3. **Rate limiting** per account and per IP, with lockout and alerting.
-4. **Session expiry and revocation** server-side; `HttpOnly`, `Secure`,
-   `SameSite=Strict` cookies rather than `localStorage` tokens.
+1. **Password hashing, server-side: DONE (bcrypt).** Remaining: 12+
+   length floor (currently 6), breached-password check, context rules.
+2. **Server-enforced authorization on every endpoint: DONE.** Domain
+   policies + tenant middleware + participation/resource scoping, enforced
+   by per-slice feature tests. Client-side roles are UX only. Never trust
+   a role, permission or ownership claim from the browser.
+3. **Rate limiting per account and per IP: PARTIAL.** Login is 5/min
+   (email+IP app-side, IP at the edge) with 429 envelopes. No lockout
+   counter, no alerting, no other per-endpoint limits yet.
+4. **Session expiry and revocation: DONE (Bearer).** Idle 30 min + absolute
+   10 h enforced per request with revocation and distinct codes; logout
+   deletes the current token. `HttpOnly`/`Secure` cookies remain unbuilt
+   (O-12 residue) — CSRF is not applicable until cookie auth ships.
 5. **CSRF protection** if cookie auth is used (double-submit or `SameSite`
    plus origin checking).
-6. **Tenant isolation** — `organization_id` on every row and every query.
-7. **IDOR prevention** — object ownership verified server-side; eligibility and
-   visibility rules re-applied in the query, never trusted from the client.
+6. **Tenant isolation** — `organization_id` on every row and every query:
+   DONE (fail-closed tenant middleware + model global scope).
+7. **IDOR prevention — DONE via server policies:** ownership and eligibility
+   re-applied in the query, never trusted from the client.
 8. **Append-only progress log** enforced by database grants, not app discipline.
 9. **Audit logging** for sign-in, account creation, role change, export and
-   deletion.
-10. **Breached-password check** at set-password time.
-11. **MFA (TOTP)** for admin accounts. Not implemented; recommended before
+   deletion: MISSING server-side (expected 401/403s are explicitly not
+   reported; nothing logs security events).
+10. **Breached-password check** at set-password time: MISSING.
+11. **MFA (TOTP)** for admin accounts. Not implemented (passkeys are the
+    planned phishing-resistant path; neither is begun); recommended before
     handling real student data.
 12. **Upload pipeline**: server MIME + magic-byte re-validation, AV scan, EXIF
     strip, served from a separate origin with `Content-Disposition: attachment`.
@@ -247,15 +279,16 @@ in access logs, proxy logs and browser history.
 | Secret access path — in-app gate | **IMPLEMENTED** (obscurity only) |
 | Secret access path — edge enforcement | **IMPLEMENTED** in configs; **not deployed by me** |
 | Security headers (nginx + Caddy + dev report-only) | **IMPLEMENTED**, not deployed by me |
-| Password hashing | **NOT IMPLEMENTED** — removed as dead code; backend responsibility |
-| Login throttle / lockout | **DEMO/CLIENT ONLY** — bypass proven by test; backend required |
-| Idle + absolute session timeout | **DEMO/CLIENT ONLY** — absolute clock now anchored to token expiry |
+| Password hashing | **IMPLEMENTED server-side (bcrypt)** — no browser hashing by design |
+| Login throttle / lockout | **PARTIAL** — UX backoff in-browser; enforcing limit is 5/min login (edge + per-email+IP server) with 429; no lockout counter or alerting |
+| Idle + absolute session timeout | **IMPLEMENTED + VERIFIED** — 30 min idle / 10 h absolute enforced per request, token revoked, distinct 401 codes; browser countdown is UX only |
 | Secure random for demo tokens | **IMPLEMENTED** — fails loudly, no `Math.random` downgrade |
 | Demo/production credential isolation | **IMPLEMENTED**, regression-tested |
 | Staff-only registration | **IMPLEMENTED** (no public signup exists) |
 | Fixture data shown as real measurement | **REMOVED** — guarded by architectureBoundaries |
-| MFA | **NOT IMPLEMENTED** |
-| Server-side authz, tenant isolation, audit log | **BACKEND REQUIRED** |
+| MFA | **NOT IMPLEMENTED** (passkeys planned, not begun) |
+| Server-side authz, tenant isolation | **IMPLEMENTED + VERIFIED** — policies, tenant middleware, per-slice tests |
+| Security-event audit log | **NOT IMPLEMENTED** — no server logging of auth/security events |
 | Penetration test | **NOT DONE** |
 | Browser QA | **NOT VERIFIED** — no browser automation available in this environment |
 

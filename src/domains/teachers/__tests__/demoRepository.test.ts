@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { teachers as seedTeachers } from "@/domains/demo/academySeed";
-import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
+import { LocalTeacherRepository } from "@/domains/teachers/localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -15,11 +15,11 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected the promise to reject");
 }
 
-describe("DemoTeacherRepository", () => {
-  let repo: DemoTeacherRepository;
+describe("LocalTeacherRepository", () => {
+  let repo: LocalTeacherRepository;
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoTeacherRepository();
+    repo = new LocalTeacherRepository();
   });
 
   it("lists seeded teachers", async () => {

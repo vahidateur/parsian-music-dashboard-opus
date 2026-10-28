@@ -9,11 +9,11 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  DemoSchedulingRepository,
+  LocalSchedulingRepository,
   denyAllMutationsWhenUnknown,
   noAttendanceRecorded,
   type AttendancePresenceProvider,
-} from "../demoRepository";
+} from "../localRepository";
 import { deterministicSessionId } from "../generation";
 import { addDays } from "../dateBridge";
 import { SESSION_ERRORS } from "../types";
@@ -21,7 +21,7 @@ import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoSchedulingRepository;
+let repo: LocalSchedulingRepository;
 
 /**
  * Sessions the fake attendance provider reports as attendance-bearing.
@@ -36,7 +36,7 @@ beforeEach(() => {
   // Most tests need destructive operations to work, so they run against a
   // provider that can actually answer the question. The fail-safe default is
   // exercised explicitly in its own describe block below.
-  repo = new DemoSchedulingRepository(demoStore, () => attendedIds);
+  repo = new LocalSchedulingRepository(demoStore, () => attendedIds);
 });
 
 /** Resolves an ApiError code, or "OK" when the promise succeeds. */
@@ -397,7 +397,7 @@ describe("attendance protection", () => {
     // The provider is the ONLY channel. A repository built with a provider
     // that reports nothing must permit deletion even while the legacy roster
     // fixture is populated with marks.
-    const permissive = new DemoSchedulingRepository(demoStore, noAttendanceRecorded);
+    const permissive = new LocalSchedulingRepository(demoStore, noAttendanceRecorded);
     expect(demoStore.snapshot().attendance.length).toBeGreaterThan(0);
     return manualSession().then(async (session) => {
       await permissive.delete(session.id);
@@ -412,10 +412,10 @@ describe("fail-safe default", () => {
    * operation must refuse: an over-cautious block is visible and recoverable,
    * whereas silently destroying attendance evidence is neither.
    */
-  let safeRepo: DemoSchedulingRepository;
+  let safeRepo: LocalSchedulingRepository;
 
   beforeEach(() => {
-    safeRepo = new DemoSchedulingRepository(demoStore);
+    safeRepo = new LocalSchedulingRepository(demoStore);
   });
 
   it("uses the deny-when-unknown provider by default", () => {

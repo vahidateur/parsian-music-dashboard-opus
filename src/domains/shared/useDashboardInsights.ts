@@ -59,6 +59,7 @@ import {
 import type { AttentionItem, Signal } from "@/lib/viewContracts";
 import type { IntelligenceCard } from "./dashboardInsights";
 import { useAcademyMetrics } from "./useAcademyMetrics";
+import { blockingFailure } from "@/domains/shared/errorAvailability";
 
 /** Page size for the whole-dataset reads. Same ceiling the metrics hook states. */
 const PAGE = 500;
@@ -240,7 +241,7 @@ export function useDashboardInsights({
     // reaches the view instead of being absorbed into `metrics: null`. D12's rule
     // applies to this read set as a whole: a failed read is a failure, not an
     // empty one — and not a zero one either.
-    error: metricsError ?? students.error ?? classes.error ?? rooms.error ?? teachers.error ?? sessions.error,
+    error: metricsError ?? students.error ?? classes.error ?? blockingFailure(rooms.error) ?? teachers.error ?? sessions.error,
     counts,
     hasRecords: counts.records > 0,
     signals,

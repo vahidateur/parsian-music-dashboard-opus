@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { SchedulingRepository } from "./repository";
 import type {
   ConflictReport,
@@ -20,12 +21,26 @@ const SESSIONS = "sessions";
 /**
  * Implementation #2 — REST backend for scheduling.
  *
- * **No server implements these endpoints, and this class is deliberately NOT
- * registered in `registry.ts`.** Wiring it would produce failing requests
- * dressed up as a feature, which §37 forbids. It exists so the boundary is
- * real rather than hypothetical: it compiles against the same interface the
- * demo satisfies, uses the shared `ApiClient`, and pins the contract a backend
- * must honour.
+ * **Served since 2026-10-04.** The historical note below is retained because
+ * it explains why this class was built before its server existed; the "no
+ * server implements these endpoints" clause no longer describes the present:
+ *
+ * > **No server implements these endpoints, and this class is deliberately NOT
+ * > registered in `registry.ts`.** Wiring it would produce failing requests
+ * > dressed up as a feature, which §37 forbids.
+ *
+ * Every endpoint below now has a route, and `registry.client.ts` (the
+ * production composition) resolves this domain to this class. `registry.ts` —
+ * the DEMO composition — still selects `LocalSchedulingRepository` and
+ * discloses that through `DEMO_SERVED_DOMAINS`; a deliberate, separately-tested
+ * choice, not an oversight.
+ *
+ * Wiring followed a field-by-field comparison of every wire shape against the
+ * backend: `Session`, `ConflictReport` / `ConflictItem`, `RosterEntry`,
+ * `GenerationPlan` with its four nested item shapes, and `GenerationResult` all
+ * match exactly, including the hard/warning conflict split and the conditional
+ * emission of `cancelReason` / `rescheduledFromId` / `rescheduledToId` /
+ * `notes`, which is precisely the TS optionality.
  *
  * ENDPOINTS
  *
@@ -76,26 +91,35 @@ export class ApiSchedulingRepository implements SchedulingRepository {
     return this.client.get<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, { signal });
   }
 
-  create(input: CreateSessionInput): Promise<Session> {
-    return this.client.post<Session>(SESSIONS, input);
+  async create(input: CreateSessionInput): Promise<Session> {
+    const created = await this.client.post<Session>(SESSIONS, input);
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateSessionInput): Promise<Session> {
-    return this.client.patch<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateSessionInput): Promise<Session> {
+    const updated = await this.client.patch<Session>(`${SESSIONS}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   /** A verb, not a status patch: the server records the reason atomically. */
-  cancelSession(id: string, reason: string): Promise<Session> {
-    return this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/cancel`, { reason });
+  async cancelSession(id: string, reason: string): Promise<Session> {
+    const updated = await this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/cancel`, { reason });
+    bumpDataVersion();
+    return updated;
   }
 
   /** Returns the NEW session; the server links it to the cancelled original. */
-  rescheduleSession(id: string, input: RescheduleInput): Promise<Session> {
-    return this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/reschedule`, input);
+  async rescheduleSession(id: string, input: RescheduleInput): Promise<Session> {
+    const created = await this.client.post<Session>(`${SESSIONS}/${encodeURIComponent(id)}/reschedule`, input);
+    bumpDataVersion();
+    return created;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`${SESSIONS}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---------------- generation ---------------- */
@@ -108,8 +132,10 @@ export class ApiSchedulingRepository implements SchedulingRepository {
     });
   }
 
-  generateSessions(input: GenerateInput): Promise<GenerationResult> {
-    return this.client.post<GenerationResult>(`${SESSIONS}/generate`, input);
+  async generateSessions(input: GenerateInput): Promise<GenerationResult> {
+    const result = await this.client.post<GenerationResult>(`${SESSIONS}/generate`, input);
+    bumpDataVersion();
+    return result;
   }
 
   /* ---------------- derived ---------------- */

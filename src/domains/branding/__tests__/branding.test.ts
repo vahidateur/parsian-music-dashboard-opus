@@ -6,17 +6,17 @@
  * validation tests matter as much as the persistence ones.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoBrandingRepository } from "../demoRepository";
+import { LocalBrandingRepository } from "../localRepository";
 import { applyBranding } from "../useBranding";
 import { DEFAULT_BRANDING, isHexColor } from "../types";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoBrandingRepository;
+let repo: LocalBrandingRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoBrandingRepository();
+  repo = new LocalBrandingRepository();
 });
 
 async function fieldsOf(promise: Promise<unknown>): Promise<Record<string, string[]> | undefined> {
@@ -39,8 +39,8 @@ describe("persistence", () => {
     expect((await repo.get()).academyName).toBe("آموزشگاه موسیقی نوا");
 
     // Persisted in the store, not just in the instance.
-    expect(new DemoBrandingRepository()).toBeDefined();
-    expect((await new DemoBrandingRepository().get()).academyName).toBe("آموزشگاه موسیقی نوا");
+    expect(new LocalBrandingRepository()).toBeDefined();
+    expect((await new LocalBrandingRepository().get()).academyName).toBe("آموزشگاه موسیقی نوا");
   });
 
   it("saves colours and the Persian font", async () => {
@@ -68,7 +68,7 @@ describe("persistence", () => {
   it("survives a demo reset by returning to the default", async () => {
     await repo.update({ academyName: "موقت" });
     resetToDemoEnvironment();
-    expect((await new DemoBrandingRepository().get()).academyName).toBe(DEFAULT_BRANDING.academyName);
+    expect((await new LocalBrandingRepository().get()).academyName).toBe(DEFAULT_BRANDING.academyName);
   });
 });
 

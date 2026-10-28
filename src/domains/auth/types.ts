@@ -59,6 +59,8 @@ export interface CreateUserInput {
   role: RoleId;
   phone?: string;
   status?: UserStatus;
+  /** Optional link to a teacher record; the backend validates tenancy. */
+  teacherId?: string;
 }
 
 export type UpdateUserInput = Partial<Omit<AuthUser, "id" | "createdAt">>;

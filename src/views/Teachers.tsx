@@ -32,6 +32,7 @@ import { apiErrorFromThrown } from "@/api/errors";
 import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDay";
 import { indexById } from "@/views/relations/indexById";
 import { cn } from "@/utils/cn";
+import { blockingFailure } from "@/domains/shared/errorAvailability";
 
 /**
  * EVERY LIST THIS VIEW READS IS BOUNDED, AND EVERY RELATION COMES FROM A DOMAIN.
@@ -438,7 +439,8 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
    */
   const relationsLoading =
     classes.loading || enrollments.loading || rooms.loading || sessions.loading || studentRows.loading;
-  const relationsError = classes.error ?? enrollments.error ?? rooms.error ?? sessions.error ?? studentRows.error;
+  // Rooms only name a room here: an unavailable or policy-blocked rooms read must not take the file down.
+  const relationsError = classes.error ?? enrollments.error ?? blockingFailure(rooms.error) ?? sessions.error ?? studentRows.error;
   const reloadRelations = () => {
     classes.reload();
     enrollments.reload();
@@ -850,7 +852,7 @@ function TeachersRoster({ teachers, onAdd }: { teachers: Teacher[]; onAdd: () =>
       <ErrorState
         className="py-32"
         title="خواندن برنامه‌ها و رابطه‌های مدرسین ناموفق بود"
-        description={rosterError.message}
+        error={rosterError}
         onRetry={reloadRelations}
       />
     );
@@ -1005,7 +1007,18 @@ export function TeachersView() {
     });
 
   const dialog = (
-    <TeacherFormDialog open={formOpen} teacher={editing} onClose={() => setFormOpen(false)} onSaved={savedToast} />
+    <TeacherFormDialog
+      open={formOpen}
+      teacher={editing}
+      onClose={() => setFormOpen(false)}
+      onSaved={(saved, mode) => {
+        // The form writes straight to the repository, and only the demo store announces writes.
+        // Re-read exactly the two reads on screen (the list and the open file), nothing else.
+        reload();
+        reloadDetail();
+        savedToast(saved, mode);
+      }}
+    />
   );
 
   const detailFromList = detailId ? teachers.find((t) => t.id === detailId) : undefined;
@@ -1029,7 +1042,7 @@ export function TeachersView() {
         <ErrorState
           className="py-32"
           title="بارگذاری پروندهٔ مدرس ناموفق بود"
-          description={detailError.message}
+          error={detailError}
           onRetry={reloadDetail}
         />
       );
@@ -1074,7 +1087,7 @@ export function TeachersView() {
   if (loading) return <LoadingState className="py-32" label="در حال آماده‌سازی میز کار مدرسین…" />;
   if (error)
     return (
-      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" description={error.message} onRetry={reload} />
+      <ErrorState className="py-32" title="بارگذاری مدرسین ناموفق بود" error={error} onRetry={reload} />
     );
 
   return (

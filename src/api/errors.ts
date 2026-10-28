@@ -101,6 +101,28 @@ export function extractErrorPayload(body: unknown): ApiErrorPayload | undefined 
   return undefined;
 }
 
+/**
+ * The server fails closed with `OWNER_DECISION_REQUIRED_PB<n>` (403) where a
+ * resolved product policy still restricts an operation. Its stock message says
+ * the decision is pending, which is no longer true (PB-1..PB-5 resolved
+ * 2026-10-02). Code, kind, status and payload are untouched; only the
+ * user-facing text is replaced.
+ */
+const POLICY_RESTRICTION_MESSAGE: Record<string, string> = {
+  OWNER_DECISION_REQUIRED_PB1: "حساب شما به پروندهٔ مدرس متصل نیست؛ برای دسترسی، مدیر سامانه باید آن را به یک مدرس وصل کند.",
+  OWNER_DECISION_REQUIRED_PB2: "ویرایش اطلاعات یا نقش حساب‌های مدیریتی ویژه طبق سیاست امنیتی سامانه مجاز نیست.",
+  OWNER_DECISION_REQUIRED_PB3: "این بخش در این نسخه از سامانه در دسترس نیست.",
+};
+const POLICY_RESTRICTION_FALLBACK = "این عملیات مطابق سیاست دسترسی سامانه مجاز نیست.";
+const POLICY_RESTRICTION_PREFIX = "OWNER_DECISION_REQUIRED_PB";
+
+function messageForPayload(payload: ApiErrorPayload | undefined, kind: ApiErrorKind): string {
+  const code = typeof payload?.code === "string" ? payload.code : undefined;
+  if (code !== undefined && code.startsWith(POLICY_RESTRICTION_PREFIX)) {
+    return POLICY_RESTRICTION_MESSAGE[code] ?? POLICY_RESTRICTION_FALLBACK;
+  }
+  return typeof payload?.message === "string" && payload.message ? payload.message : DEFAULT_MESSAGE[kind];
+}
 /** Build an ApiError from an HTTP response body. */
 export function apiErrorFromResponse(status: number, body: unknown): ApiError {
   const payload = extractErrorPayload(body);
@@ -109,7 +131,7 @@ export function apiErrorFromResponse(status: number, body: unknown): ApiError {
     kind,
     status,
     code: typeof payload?.code === "string" ? payload.code : undefined,
-    message: typeof payload?.message === "string" && payload.message ? payload.message : DEFAULT_MESSAGE[kind],
+    message: messageForPayload(payload, kind),
     fields: normalizeFields(payload),
     payload: body,
   });

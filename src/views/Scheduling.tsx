@@ -576,18 +576,18 @@ export function SchedulingView() {
         <ErrorState
           className="mt-4"
           title="کلاس‌ها خوانده نشد"
-          description={classes.error.message}
+          error={classes.error}
           onRetry={classes.reload}
         />
       )}
       {rooms.error !== null && (
-        <ErrorState className="mt-4" title="اتاق‌ها خوانده نشد" description={rooms.error.message} onRetry={rooms.reload} />
+        <ErrorState className="mt-4" title="اتاق‌ها خوانده نشد" error={rooms.error} onRetry={rooms.reload} />
       )}
       {teachers.error !== null && (
         <ErrorState
           className="mt-4"
           title="مدرسین خوانده نشد"
-          description={teachers.error.message}
+          error={teachers.error}
           onRetry={teachers.reload}
         />
       )}
@@ -665,7 +665,7 @@ export function SchedulingView() {
         <ErrorState
           className="mt-5"
           title="جلسات این بازه خوانده نشد"
-          description={sessions.error.message}
+          error={sessions.error}
           onRetry={sessions.reload}
         />
       ) : sessions.items.length === 0 ? (

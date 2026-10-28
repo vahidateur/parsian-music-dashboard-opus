@@ -30,6 +30,7 @@ import {
 import { ATTENDED_STATUSES, type AttendanceRecord } from "@/domains/attendance/types";
 import type { Target } from "@/lib/viewContracts";
 import { useDataVersion } from "./dataVersion";
+import { blockingFailure } from "@/domains/shared/errorAvailability";
 
 export interface AcademyMetrics {
   students: number;
@@ -38,7 +39,8 @@ export interface AcademyMetrics {
   teachers: number;
   activeTeachers: number;
   classes: number;
-  rooms: number;
+  /** `null` when the rooms read is unavailable or policy-blocked: unknown, never 0. */
+  rooms: number | null;
   activeEnrollments: number;
   waitlisted: number;
   /** Seats filled across all active classes, as a percentage. */
@@ -200,7 +202,12 @@ export function useAcademyMetrics(): AcademyMetricsState {
       repositories.students.list(all, controller.signal),
       repositories.teachers.list(all, controller.signal),
       repositories.classes.list(all, controller.signal),
-      repositories.rooms.list(all, controller.signal),
+      // Rooms feed only the room count: an unavailable or policy-blocked read leaves that one
+      // figure unknown (null) instead of blanking the tiles the other reads can answer.
+      repositories.rooms.list(all, controller.signal).catch((cause: unknown) => {
+        if (blockingFailure(apiErrorFromThrown(cause)) !== null) throw cause;
+        return null;
+      }),
       repositories.enrollments.list(all, controller.signal),
       repositories.attendance.list(all, controller.signal),
     ])
@@ -216,7 +223,7 @@ export function useAcademyMetrics(): AcademyMetricsState {
           teachers: teachers.meta.total,
           activeTeachers: teachers.data.filter((t) => t.status !== "inactive").length,
           classes: classes.meta.total,
-          rooms: rooms.meta.total,
+          rooms: rooms === null ? null : rooms.meta.total,
           activeEnrollments: enrollments.data.filter((e) => e.status === "active").length,
           waitlisted: enrollments.data.filter((e) => e.status === "waitlist").length,
           attendanceRatePct: attendanceRate.pct,

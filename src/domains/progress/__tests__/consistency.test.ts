@@ -7,22 +7,22 @@
  * may not become meaningless because the curriculum changed afterwards.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoProgressRepository } from "../demoRepository";
-import { DemoLearningRepository } from "@/domains/learning/demoRepository";
-import { DemoInstrumentRepository } from "@/domains/instruments/demoRepository";
+import { LocalProgressRepository } from "../localRepository";
+import { LocalLearningRepository } from "@/domains/learning/localRepository";
+import { LocalInstrumentRepository } from "@/domains/instruments/localRepository";
 import { demoStore } from "@/services/demoStore";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let progress: DemoProgressRepository;
-let learning: DemoLearningRepository;
-let instruments: DemoInstrumentRepository;
+let progress: LocalProgressRepository;
+let learning: LocalLearningRepository;
+let instruments: LocalInstrumentRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  progress = new DemoProgressRepository();
-  learning = new DemoLearningRepository();
-  instruments = new DemoInstrumentRepository();
+  progress = new LocalProgressRepository();
+  learning = new LocalLearningRepository();
+  instruments = new LocalInstrumentRepository();
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {

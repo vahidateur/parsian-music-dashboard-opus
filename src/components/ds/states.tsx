@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { CircleOff, Inbox, RotateCcw } from "lucide-react";
+import type { ApiError } from "@/api/errors";
+import { POLICY_TITLE, UNAVAILABLE_DESCRIPTION, UNAVAILABLE_TITLE, classifyError } from "@/domains/shared/errorAvailability";
 import { cn } from "@/utils/cn";
 import { Button } from "./primitives";
 
@@ -79,24 +81,42 @@ export function EmptyState({
 /* ------------------------------------------------------------------ */
 export function ErrorState({
   title = "داده‌ها در دسترس نیستند",
-  description = "ارتباط با سرویس تحلیل برقرار نشد. اطلاعات قبلی همچنان معتبرند.",
+  description,
   onRetry,
+  error,
   className,
 }: {
   title?: string;
   description?: string;
   onRetry?: () => void;
+  /**
+   * The failure being presented. An unavailable capability or a policy refusal
+   * is NOT a failed load: it gets its own title, says what is actually true, and
+   * offers no retry (which could not succeed). Any other failure keeps the
+   * caller's title and retry, and defaults its description to the error message.
+   */
+  error?: ApiError | null;
   className?: string;
 }) {
+  const kind = classifyError(error);
+  const notRetryable = error != null && kind !== "failure";
+  const shownTitle = kind === "unavailable" ? UNAVAILABLE_TITLE : kind === "policy" ? POLICY_TITLE : title;
+  const shownDescription =
+    kind === "unavailable"
+      ? UNAVAILABLE_DESCRIPTION
+      : kind === "policy"
+        ? (error?.message ?? "")
+        : (description ?? error?.message ?? "ارتباط با سرویس تحلیل برقرار نشد. اطلاعات قبلی همچنان معتبرند.");
+  const retry = notRetryable ? undefined : onRetry;
   return (
     <div role="alert" className={cn("flex flex-col items-center justify-center rounded-2xl border border-danger-500/20 bg-danger-500/[0.04] px-6 py-10 text-center", className)}>
       <div className="mb-3 flex size-11 items-center justify-center rounded-2xl border border-danger-500/25 bg-danger-500/10 text-danger-400">
         <CircleOff className="size-5" strokeWidth={1.7} />
       </div>
-      <h3 className="text-sm font-semibold text-ink-50">{title}</h3>
-      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-ink-300">{description}</p>
-      {onRetry && (
-        <Button variant="subtle" size="sm" className="mt-4" onClick={onRetry}>
+      <h3 className="text-sm font-semibold text-ink-50">{shownTitle}</h3>
+      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-ink-300">{shownDescription}</p>
+      {retry && (
+        <Button variant="subtle" size="sm" className="mt-4" onClick={retry}>
           <RotateCcw className="size-3.5" />
           تلاش دوباره
         </Button>

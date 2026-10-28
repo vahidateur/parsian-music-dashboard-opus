@@ -1,0 +1,65 @@
+[
+  {
+    "id": "msg_m1_1",
+    "conversationId": "cv_m1",
+    "from": "them",
+    "body": "سلام. متأسفانه فردا به دلیل مشکل خانوادگی نمی‌توانم کلاس‌ها را برگزار کنم.",
+    "sentAt": "2026-09-01T00:00:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m1_2",
+    "conversationId": "cv_m1",
+    "from": "them",
+    "body": "سه کلاس گیتار دارم؛ اگر امکان جایگزینی هست لطفاً هماهنگ کنید.",
+    "sentAt": "2026-09-01T00:01:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m2_1",
+    "conversationId": "cv_m2",
+    "from": "me",
+    "body": "سلام. جای شما در کلاس خالی است 🎵 اگر برنامه‌تان تغییر کرده، می‌توانیم بازهٔ جدیدی برایتان در نظر بگیریم.",
+    "sentAt": "2026-09-01T00:37:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m3_1",
+    "conversationId": "cv_m3",
+    "from": "them",
+    "body": "سلام. امکان تقسیط شهریه‌ی این دوره وجود دارد؟",
+    "sentAt": "2026-09-01T01:14:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m4_1",
+    "conversationId": "cv_m4",
+    "from": "me",
+    "body": "اجرای شما برای رسیتال فصل تأیید شد. تاریخ: ۲۸ اسفند، سالن اصلی.",
+    "sentAt": "2026-09-01T01:51:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m4_2",
+    "conversationId": "cv_m4",
+    "from": "them",
+    "body": "ممنون! رپرتوار را آماده می‌کنم.",
+    "sentAt": "2026-09-01T01:52:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  },
+  {
+    "id": "msg_m5_1",
+    "conversationId": "cv_m5",
+    "from": "them",
+    "body": "لیست انتظار پیانو سه‌شنبه به ۴ نفر رسیده. اگر اتاق ۴ آزاد است می‌توانم یک بازهٔ دیگر بردارم.",
+    "sentAt": "2026-09-01T02:28:00.000Z",
+    "provider": "in_app",
+    "status": "sent"
+  }
+]

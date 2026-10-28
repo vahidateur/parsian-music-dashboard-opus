@@ -20,21 +20,21 @@
  *    — the check would compare a value with itself and prove nothing. Every
  *    intent here is a program the test resolved separately from the level, which
  *    is the only shape a real caller can honestly produce.
- *  - they do not re-assert the pre-existing behaviour from `demoRepository.test.ts`
+ *  - they do not re-assert the pre-existing behaviour from `localRepository.test.ts`
  *    as their own proof; that file keeps its 24 tests and they still pass
  *    unchanged, which is the regression evidence. What is added here is the
  *    adversarial half: that a wrong intent is refused *and writes nothing*.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoLearningRepository } from "../demoRepository";
+import { LocalLearningRepository } from "../localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoLearningRepository;
+let repo: LocalLearningRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoLearningRepository();
+  repo = new LocalLearningRepository();
 });
 
 /** Resolves an ApiError instead of letting a rejection escape the test. */

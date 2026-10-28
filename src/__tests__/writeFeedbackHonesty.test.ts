@@ -70,9 +70,9 @@ const views = sourceFiles(join(SRC, "views"));
 
 describe("no success toast without a write", () => {
   /**
-   * These two render `src/data/records.ts` fixtures and have no domain behind them
-   * (finance and reports have none). Nothing in them can write, so any success
-   * toast there is by definition a false claim.
+   * This view remains on the fixture list, and it has no domain behind it
+   * (reports has none). Nothing in it can write, so any success toast there
+   * is by definition a false claim.
    *
    * `views/Scheduling.tsx` was on this list until M4's CP1 replaced its fixture
    * week with reads from the scheduling domain, and left it in CP2 when the view
@@ -84,11 +84,15 @@ describe("no success toast without a write", () => {
    * `bulkRecord` and `correct`. Its «ثبت نهایی» local state flip, the hardcoded
    * recorder name and the fabricated 92٪ rate went with it (H1b, I12).
    *
-   * Both are tracked in GRADUATED_VIEWS below rather than simply deleted, so losing
+   * `views/Finance.tsx` left it with the v1 invoice slice (DECISIONS §40),
+   * which replaced the deferral panel with reads through the finance domain
+   * and two real writes — issue (`create`) and discharge (`pay`).
+   *
+   * All three are tracked in GRADUATED_VIEWS below rather than simply deleted, so losing
    * the write again fails the suite instead of silently returning the view to the
    * fixture list's meaning.
    */
-  const FIXTURE_DRIVEN_VIEWS = ["views/Finance.tsx", "views/Reports.tsx"];
+  const FIXTURE_DRIVEN_VIEWS = ["views/Reports.tsx"];
 
   it("the fixture-driven views report no success at all", () => {
     const offenders = views.filter((file) => FIXTURE_DRIVEN_VIEWS.includes(rel(file)) && reportsSuccess(file));
@@ -105,6 +109,7 @@ describe("no success toast without a write", () => {
   const GRADUATED_VIEWS = [
     { file: "views/Scheduling.tsx", repository: "getSchedulingRepository(" },
     { file: "views/Attendance.tsx", repository: "getAttendanceRepository(" },
+    { file: "views/Finance.tsx", repository: "getFinanceRepository(" },
   ];
 
   it("a view that left the fixture list writes through its own domain", () => {

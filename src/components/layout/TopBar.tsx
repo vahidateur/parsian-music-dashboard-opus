@@ -13,6 +13,7 @@ import { Kbd } from "@/components/ds/primitives";
 import { Avatar } from "@/components/ds/patterns";
 import { BrandMark } from "@/components/layout/Sidebar";
 import { cn } from "@/utils/cn";
+import { unavailableActions } from "@/targets/targetCopy";
 
 /* ------------------------------------------------------------------ */
 /* Command search trigger — a door to the command palette              */
@@ -124,6 +125,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
               {faNum(live)} کلاس در حال برگزاری
             </span>
           )}
+          {!unavailableActions.has("notifications") && (
           <button
             type="button"
             aria-label="اعلان‌ها — ۳ اعلان جدید"
@@ -136,6 +138,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
             <Bell className="size-[18px]" strokeWidth={1.8} />
             {!notified && <span className="absolute right-2.5 top-2.5 size-1.5 rounded-full bg-gold-400 ring-2 ring-ink-950" />}
           </button>
+          )}
 
           {/* the operator card: who is signed in, and which section they are in */}
           <div className="flex items-center gap-2.5 rounded-xl border border-white/[0.07] bg-white/[0.02] py-1.5 pe-1.5 ps-3">

@@ -1,0 +1,118 @@
+[
+  {
+    "id": "usr_admin",
+    "name": "آرمان احمدی",
+    "email": "admin@demo.local",
+    "role": "administrator",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_manager",
+    "name": "مدیر آموزشگاه",
+    "email": "manager@demo.local",
+    "role": "manager",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_desk",
+    "name": "پذیرش آموزشگاه",
+    "email": "desk@demo.local",
+    "role": "staff",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_finance",
+    "name": "واحد مالی",
+    "email": "finance@demo.local",
+    "role": "accountant",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "usr_t1",
+    "name": "سارا احمدی",
+    "email": "teacher1@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t1"
+  },
+  {
+    "id": "usr_t2",
+    "name": "محمد رضایی",
+    "email": "teacher2@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t2"
+  },
+  {
+    "id": "usr_t3",
+    "name": "علی موسوی",
+    "email": "teacher3@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t3"
+  },
+  {
+    "id": "usr_t4",
+    "name": "نرگس حسینی",
+    "email": "teacher4@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t4"
+  },
+  {
+    "id": "usr_t5",
+    "name": "بهرام نیک‌نژاد",
+    "email": "teacher5@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t5"
+  },
+  {
+    "id": "usr_t6",
+    "name": "کاوه کاظمی",
+    "email": "teacher6@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t6"
+  },
+  {
+    "id": "usr_t7",
+    "name": "رامین صادقی",
+    "email": "teacher7@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t7"
+  },
+  {
+    "id": "usr_t8",
+    "name": "مینا فرهادی",
+    "email": "teacher8@demo.local",
+    "role": "teacher",
+    "status": "active",
+    "createdAt": "2026-09-01T00:00:00.000Z",
+    "updatedAt": "2026-09-01T00:00:00.000Z",
+    "teacherId": "t8"
+  }
+]

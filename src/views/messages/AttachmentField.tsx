@@ -28,6 +28,7 @@
 import { useRef } from "react";
 import { FileText, Image as ImageIcon, Music, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ds/primitives";
+import { attachmentStorageNote } from "@/targets/targetCopy";
 import type { MediaKind } from "@/domains/media/types";
 import { cn } from "@/utils/cn";
 import { ATTACHMENT_ACCEPT, ATTACHMENT_SIZE_LIMITS, ATTACHMENT_TYPE_LIMITS, KIND_LABEL, attachmentKindFor, formatBytes } from "./attachmentRules";
@@ -148,8 +149,8 @@ export function AttachmentStatus({
       )}
 
       <p className="mt-1.5 text-[10px] leading-relaxed text-ink-500">
-        پیوست: {ATTACHMENT_SIZE_LIMITS}. قالب‌های مجاز: {ATTACHMENT_TYPE_LIMITS}. در این نسخه فایل پیوست در همین
-        مرورگر ذخیره می‌شود، روی سرور نگهداری نمی‌شود و اسکن ویروس ندارد.
+        پیوست: {ATTACHMENT_SIZE_LIMITS}. قالب‌های مجاز: {ATTACHMENT_TYPE_LIMITS}. {attachmentStorageNote} اسکن
+        ویروس ندارد.
       </p>
     </div>
   );

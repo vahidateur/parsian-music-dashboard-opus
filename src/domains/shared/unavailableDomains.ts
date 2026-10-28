@@ -18,17 +18,4 @@ export interface UnavailableDomain {
   label: string;
 }
 
-export const UNAVAILABLE_DOMAINS: readonly UnavailableDomain[] = [
-  { id: "instruments", label: "سازها" },
-  { id: "learning", label: "مسیرهای یادگیری" },
-  { id: "chat", label: "پیام‌ها" },
-  { id: "media", label: "رسانه" },
-  { id: "library", label: "کتابخانه" },
-  { id: "branding", label: "هویت آموزشگاه" },
-  { id: "organization", label: "قواعد آموزشگاه" },
-  { id: "gallery", label: "گالری" },
-  { id: "progress", label: "پیشرفت هنرجویان" },
-  { id: "scheduling", label: "برنامه‌ریزی" },
-  { id: "attendance", label: "حضور و غیاب" },
-  { id: "compensation", label: "جبرانی" },
-] as const;
+export const UNAVAILABLE_DOMAINS: readonly UnavailableDomain[] = [] as const;

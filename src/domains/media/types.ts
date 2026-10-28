@@ -98,7 +98,7 @@ export const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp4", "audio/ogg", "aud
  * because it is an XML document that can carry `<script>`, a text file rendered
  * as text cannot execute. It has no magic-byte signature, so validation falls
  * back to the declared type having passed this allow-list (see `SIGNATURES` in
- * `demoRepository.ts`).
+ * `localRepository.ts`).
  */
 export const ALLOWED_DOCUMENT_TYPES = ["application/pdf", "text/plain"] as const;
 

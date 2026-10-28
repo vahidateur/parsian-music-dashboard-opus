@@ -1,9 +1,17 @@
 /**
- * The demo dataset — a snapshot of the whole demo environment expressed in
- * *domain entities*, never in localStorage details.
+ * The dataset ENVELOPE — the shape a snapshot of the whole demo environment has
+ * when it is expressed in *domain entities*, never in localStorage details.
  *
  * A future backend can serve exactly this shape from `GET /demo/export` and
  * accept it at `POST /demo/import`; nothing here mentions storage keys.
+ *
+ * W2 split: the dataset SCHEMA (the member enumeration and the artifact
+ * contract) now lives in `src/dataset/schema.ts` — the lowest layer of the data
+ * plane, which imports nothing. The envelope composed here stays in the demo
+ * domain: its rows ARE domain entities (one model, not two), and its per-domain
+ * record shapes are the ones D6/I2's deferral ledger names this file as the
+ * owner of. `DEMO_COLLECTIONS` and `DemoCollectionName` are re-exported below,
+ * so every import path that has always named this module keeps working.
  */
 import type { AcademyClass } from "@/domains/classes/types";
 import type { Student } from "@/domains/students/types";
@@ -30,6 +38,18 @@ import type { BrandingSettings } from "@/domains/branding/types";
 import type { OrganizationSettings } from "@/domains/organization/types";
 import type { Permission, RoleId } from "@/domains/auth/permissions";
 import type { AuthUser } from "@/domains/auth/types";
+
+/*
+  The dataset schema's enumeration, re-exported from its new owner. A VALUE
+  re-export plus a LOCAL type import: the type is used by `DemoDatasetStats`
+  below, and the re-export keeps `import { DEMO_COLLECTIONS } from
+  "@/domains/demo/types"` — the path the store, the panel and the suites have
+  always used — resolving unchanged.
+*/
+import type { DemoCollectionName } from "@/dataset/schema";
+
+export { DEMO_COLLECTIONS } from "@/dataset/schema";
+export type { DemoCollectionName } from "@/dataset/schema";
 
 export interface DemoRoom {
   id: string;
@@ -234,42 +254,6 @@ export interface DemoDataset {
   progressEvents: ProgressEvent[];
 }
 
-/** Names of the array-shaped collections — used by validation and clearing. */
-export const DEMO_COLLECTIONS = [
-  "rooms",
-  "teachers",
-  "students",
-  "classes",
-  "enrollments",
-  "sessions",
-  "attendance",
-  "invoices",
-  "payments",
-  "conversations",
-  "resources",
-  "users",
-  "roles",
-  "media",
-  "instruments",
-  "programs",
-  "levels",
-  "learningContent",
-  "levelContent",
-  "placements",
-  "chatConversations",
-  "chatMessages",
-  "galleryAlbums",
-  "galleryImages",
-  "pieces",
-  "pieceAssignments",
-  "progressEvents",
-  "scheduledSessions",
-  "attendanceRecords",
-  "attendanceCorrections",
-  "sessionCompensations",
-] as const;
-
-export type DemoCollectionName = (typeof DEMO_COLLECTIONS)[number];
 
 export interface DemoDatasetStats {
   seedVersion: string;
@@ -286,15 +270,47 @@ export interface DemoDatasetStats {
  *
  * `empty` — a real/customer environment: a valid dataset with zero academy
  * records, ready for the customer's own data.
- * `demo`  — the explicit showcase/QA dataset (`createSeedDataset()`).
+ * `sample` — the explicit showcase/QA dataset (`createSeedDataset()`), imported
+ * for preview. It is not a permanent mode of the product.
  *
  * The mode is a persisted FACT about the environment, never a guess from how
  * many rows it happens to hold: an EMPTY academy with zero students is still
- * EMPTY, and a DEMO dataset emptied during testing is still DEMO.
+ * EMPTY, and a SAMPLE dataset emptied during testing is still SAMPLE.
+ *
+ * Builds before this wave wrote the marker `"demo"`. That string is a read
+ * alias for `sample` and is never written again. The storage key stays
+ * `ava:demo:lifecycle`.
  */
-export const LIFECYCLE_MODES = ["empty", "demo"] as const;
+export const LIFECYCLE_MODES = ["empty", "sample"] as const;
 
 export type DataLifecycleMode = (typeof LIFECYCLE_MODES)[number];
+
+/** Persisted marker from earlier builds. Read as `sample`. Never written. */
+export const LEGACY_SAMPLE_MARKER = "demo";
+
+/** Canonical kind, or `null` when the stored string is not a known marker. */
+export function canonicalLifecycleMarker(raw: string | null): DataLifecycleMode | null {
+  if (raw === "empty" || raw === "sample") return raw;
+  if (raw === LEGACY_SAMPLE_MARKER) return "sample";
+  return null;
+}
+
+/**
+ * Provenance stamp for a lifecycle write.
+ *
+ * The stored owner token stays `"demo" | "customer"`. Renaming that field is a
+ * separate compatibility decision. A `sample` environment is still the showcase
+ * dataset, so it keeps the existing `"demo"` owner stamp; delivery relies on that
+ * match. `empty` stays `"customer"`.
+ */
+export function provenanceForLifecycle(mode: DataLifecycleMode): {
+  owner: "demo" | "customer";
+  origin: "seed" | "first-run";
+} {
+  return mode === "sample"
+    ? { owner: "demo", origin: "seed" }
+    : { owner: "customer", origin: "first-run" };
+}
 
 /**
  * `uninitialized` — no lifecycle choice has been made yet, so nothing has been

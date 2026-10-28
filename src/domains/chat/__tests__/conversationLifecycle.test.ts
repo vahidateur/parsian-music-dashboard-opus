@@ -13,20 +13,20 @@
  *   - nothing is written for an unknown thread, and a refusal leaves the record
  *     exactly as it was.
  *
- * A fresh instance is the point throughout: `DemoChatRepository` reads the same
+ * A fresh instance is the point throughout: `LocalChatRepository` reads the same
  * persisted dataset, so "persisted" is asserted where a caller would actually
  * observe it, not where the write happened.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoChatRepository } from "../demoRepository";
+import { LocalChatRepository } from "../localRepository";
 import { ApiError } from "@/api/errors";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoChatRepository;
+let repo: LocalChatRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
-  repo = new DemoChatRepository();
+  repo = new LocalChatRepository();
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
@@ -40,7 +40,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string | undefined> {
 
 /** Reads through a NEW repository, i.e. what survives a reload. */
 async function reread(id: string) {
-  return new DemoChatRepository().getConversation(id);
+  return new LocalChatRepository().getConversation(id);
 }
 
 async function firstThread() {
@@ -167,7 +167,7 @@ describe("archive and restore", () => {
     await repo.updateConversation(thread.id, { archived: false });
 
     expect((await reread(thread.id)).archived).toBe(false);
-    const visible = await new DemoChatRepository().listConversations({ per_page: 100 });
+    const visible = await new LocalChatRepository().listConversations({ per_page: 100 });
     expect(visible.data.some((c) => c.id === thread.id)).toBe(true);
   });
 

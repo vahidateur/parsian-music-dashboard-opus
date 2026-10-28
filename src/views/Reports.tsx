@@ -2,6 +2,7 @@ import { Download, FileBarChart, Info } from "lucide-react";
 import { useApp } from "@/context/AppContext";
 import { Button } from "@/components/ds/primitives";
 import { DemoNote } from "@/targets/environment";
+import { unavailableActions } from "@/targets/targetCopy";
 import { PageHeader, Panel } from "@/components/ds/patterns";
 
 /* ------------------------------------------------------------------ */
@@ -30,9 +31,11 @@ export function ReportsView() {
         title="گزارش‌ها"
         description="گزارش‌های تحلیلی به سامانهٔ گزارش‌گیری سرور نیاز دارند (I2)."
         actions={
-          <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی گزارش نیازمند سرور است", detail: "تولید PDF در سرور انجام می‌شود و در دمو فعال نیست." })}>
-            <Download className="size-3.5" /> خروجی
-          </Button>
+          unavailableActions.has("reports-export") ? undefined : (
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "خروجی گزارش نیازمند سرور است", detail: "تولید PDF در سرور انجام می‌شود و در دمو فعال نیست." })}>
+              <Download className="size-3.5" /> خروجی
+            </Button>
+          )
         }
       />
 

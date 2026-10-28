@@ -1,8 +1,8 @@
 /** §11 class invariants: capacity is bounded by the room, archive is non-destructive. */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoClassRepository } from "@/domains/classes/demoRepository";
-import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
+import { LocalClassRepository } from "@/domains/classes/localRepository";
+import { LocalTeacherRepository } from "@/domains/teachers/localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -15,11 +15,11 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
   throw new Error("expected the promise to reject");
 }
 
-describe("DemoClassRepository", () => {
-  let repo: DemoClassRepository;
+describe("LocalClassRepository", () => {
+  let repo: LocalClassRepository;
   beforeEach(() => {
     resetToDemoEnvironment();
-    repo = new DemoClassRepository();
+    repo = new LocalClassRepository();
   });
 
   it("rejects an unknown teacher or room", async () => {
@@ -40,7 +40,7 @@ describe("DemoClassRepository", () => {
   });
 
   it("refuses to assign an inactive teacher", async () => {
-    await new DemoTeacherRepository().deactivate("t5");
+    await new LocalTeacherRepository().deactivate("t5");
     expect(await codeOf(repo.update("cl1", { teacherId: "t5" }))).toBe("CLASS_INVALID");
   });
 

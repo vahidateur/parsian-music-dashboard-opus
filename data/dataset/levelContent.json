@@ -1,0 +1,74 @@
+[
+  {
+    "id": "lcl_res1",
+    "levelId": "lv_piano_7",
+    "contentId": "lc_res1",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res2",
+    "levelId": "lv_piano_2",
+    "contentId": "lc_res2",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res3",
+    "levelId": "lv_guitar_2",
+    "contentId": "lc_res3",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res4",
+    "levelId": "lv_drums_2",
+    "contentId": "lc_res4",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res5",
+    "levelId": "lv_voice_2",
+    "contentId": "lc_res5",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res6",
+    "levelId": "lv_violin_2",
+    "contentId": "lc_res6",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res7",
+    "levelId": "lv_violin_7",
+    "contentId": "lc_res7",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res8",
+    "levelId": "lv_theory_2",
+    "contentId": "lc_res8",
+    "sortOrder": 0
+  },
+  {
+    "id": "lcl_res9",
+    "levelId": "lv_theory_2",
+    "contentId": "lc_res9",
+    "sortOrder": 1
+  },
+  {
+    "id": "lcl_res10",
+    "levelId": "lv_piano_2",
+    "contentId": "lc_res10",
+    "sortOrder": 1
+  },
+  {
+    "id": "lcl_res11",
+    "levelId": "lv_guitar_2",
+    "contentId": "lc_res11",
+    "sortOrder": 1
+  },
+  {
+    "id": "lcl_res12",
+    "levelId": "lv_violin_2",
+    "contentId": "lc_res12",
+    "sortOrder": 1
+  }
+]

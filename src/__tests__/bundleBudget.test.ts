@@ -39,9 +39,15 @@
  *   JS+CSS+HTML total    gzip 297835  (+2.26% vs baseline, within +5%)
  *   dist total raw       1963240     (−10.3% vs baseline)
  *
- * If `dist/` is absent the suite SKIPS rather than silently passing — a
- * green check that ran no assertions is worse than a red one
- * (same convention as cspCompatibility.test.ts).
+ * W7A retargets the production gate onto the client artifact (`dist/client`).
+ * The cap number is unchanged. The demo/fixture artifact (`dist/demo`, else
+ * the bare `dist/`) is measured with the same `gzip -6 -n` method and reported
+ * by name; the production cap is not applied to it.
+ *
+ * If `dist/client` is absent the production suite SKIPS rather than silently
+ * passing — a green check that ran no assertions is worse than a red one
+ * (same convention as cspCompatibility.test.ts). Build it with
+ * `npm run build:client`. The fixture report uses `npm run build:demo`.
  */
 import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -49,10 +55,15 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
-const DIST = join(ROOT, "dist");
-const ASSETS = join(DIST, "assets");
-const DIST_HTML = join(DIST, "index.html");
-const hasBuild = existsSync(DIST_HTML);
+const CLIENT_DIST = join(ROOT, "dist", "client");
+const CLIENT_ASSETS = join(CLIENT_DIST, "assets");
+const CLIENT_HTML = join(CLIENT_DIST, "index.html");
+const hasClientBuild = existsSync(CLIENT_HTML);
+const FIXTURE_DIST = existsSync(join(ROOT, "dist", "demo", "index.html"))
+  ? join(ROOT, "dist", "demo")
+  : join(ROOT, "dist");
+const FIXTURE_HTML = join(FIXTURE_DIST, "index.html");
+const hasFixtureBuild = existsSync(FIXTURE_HTML) && FIXTURE_DIST !== CLIENT_DIST;
 
 /* ---------------- methodology: IDENTICAL to the c16890f baseline -------- */
 
@@ -74,30 +85,34 @@ interface AssetStat {
   gzip: number;
 }
 
-function jsChunks(): AssetStat[] {
-  return readdirSync(ASSETS)
+function jsChunks(assets: string): AssetStat[] {
+  return readdirSync(assets)
     .filter((f) => f.endsWith(".js"))
     .map((f) => ({
       file: f,
-      raw: statSync(join(ASSETS, f)).size,
-      gzip: gzipSize(join(ASSETS, f)),
+      raw: statSync(join(assets, f)).size,
+      gzip: gzipSize(join(assets, f)),
     }))
     .sort((a, b) => b.gzip - a.gzip);
 }
 
-function cssTotalGzip(): number {
-  return readdirSync(ASSETS)
+function cssTotalGzip(assets: string): number {
+  return readdirSync(assets)
     .filter((f) => f.endsWith(".css"))
-    .reduce((total, f) => total + gzipSize(join(ASSETS, f)), 0);
+    .reduce((total, f) => total + gzipSize(join(assets, f)), 0);
+}
+
+/** JS+CSS+HTML gzip total. Same method as the D9 baseline. Does not apply a cap. */
+function artifactGzip(root: string): number {
+  const assets = join(root, "assets");
+  return jsChunks(assets).reduce((total, chunk) => total + chunk.gzip, 0) + cssTotalGzip(assets) + gzipSize(join(root, "index.html"));
 }
 
 /* ------------------------------ the budget ------------------------------ */
 
-describe.skipIf(!hasBuild)("bundle budget (D9, measured anchors)", () => {
-  const chunks = hasBuild ? jsChunks() : [];
-  const totalGzip = hasBuild
-    ? chunks.reduce((a, c) => a + c.gzip, 0) + cssTotalGzip() + gzipSize(DIST_HTML)
-    : 0;
+describe.skipIf(!hasClientBuild)("bundle budget (D9, client/production artifact)", () => {
+  const chunks = hasClientBuild ? jsChunks(CLIENT_ASSETS) : [];
+  const totalGzip = hasClientBuild ? artifactGzip(CLIENT_DIST) : 0;
 
   it("the entry chunk strictly decreased from the recorded 273791", () => {
     const entries = chunks.filter((c) => /^index-[A-Za-z0-9_-]+\.js$/.test(c.file));
@@ -105,7 +120,7 @@ describe.skipIf(!hasBuild)("bundle budget (D9, measured anchors)", () => {
     expect(entries[0].gzip).toBeLessThan(ENTRY_GZIP_BASELINE);
   });
 
-  it("total gzip (JS+CSS+HTML) stays within the +5% allowance", () => {
+  it("production/client gzip (JS+CSS+HTML) stays within the cap 361144", () => {
     expect(totalGzip).toBeLessThanOrEqual(GZIP_TOTAL_CAP);
   });
 
@@ -116,10 +131,34 @@ describe.skipIf(!hasBuild)("bundle budget (D9, measured anchors)", () => {
   });
 
   it("vazirmatn weights 300 and 800 are removed from the build", () => {
-    const assets = readdirSync(ASSETS);
+    const assets = readdirSync(CLIENT_ASSETS);
     expect(assets.filter((f) => f.includes("-300-"))).toEqual([]);
     expect(assets.filter((f) => f.includes("-800-"))).toEqual([]);
   });
+});
+
+describe("bundle budget artifact presence", () => {
+  it.skipIf(hasClientBuild)("skipped — dist/client absent (run npm run build:client)", (ctx) => {
+    ctx.skip();
+  });
+});
+
+describe.skipIf(!hasFixtureBuild)("demo fixture measurement (reported, not capped at 361144)", () => {
+  const fixtureGzip = hasFixtureBuild ? artifactGzip(FIXTURE_DIST) : 0;
+
+  it(`reports demo fixture gzip JS+CSS+HTML as ${fixtureGzip}; the production cap does not apply`, () => {
+    expect(fixtureGzip, `demo fixture ${FIXTURE_DIST} gzip ${fixtureGzip}`).toBeGreaterThan(0);
+  });
+});
+
+describe.skipIf(hasFixtureBuild)("demo fixture measurement", () => {
+  it("skipped — dist/demo and dist/ absent (run npm run build:demo)", (ctx) => {
+    ctx.skip();
+  });
+});
+
+describe.skipIf(!hasClientBuild)("bundle budget split shape (client/production artifact)", () => {
+  const chunks = hasClientBuild ? jsChunks(CLIENT_ASSETS) : [];
 
   it("the routed views really are split (the entry is not the app)", () => {
     const entry = chunks.find((c) => /^index-[A-Za-z0-9_-]+\.js$/.test(c.file))!;
@@ -146,6 +185,31 @@ describe("the budget cannot be lifted by configuration", () => {
 
   it("sourcemap stays disabled for the private panel", () => {
     expect(viteConfig).toMatch(/sourcemap:\s*false/);
+  });
+});
+
+describe("D9 subject and cap stay the recorded two-composition contract", () => {
+  it("the production cap is exactly 361144 and the subject is dist/client", () => {
+    expect(GZIP_TOTAL_CAP).toBe(361144);
+    expect(GZIP_TOTAL_BASELINE).toBe(343947);
+    expect(ENTRY_GZIP_BASELINE).toBe(273791);
+    expect(CLIENT_DIST).toBe(join(ROOT, "dist", "client"));
+    expect(existsSync(join(ROOT, "dist", "customer"))).toBe(false);
+    expect(existsSync(join(ROOT, "dist", "operator"))).toBe(false);
+  });
+
+  it("the fixture measurement does not apply the production cap", () => {
+    const source = readFileSync(join(ROOT, "src", "__tests__", "bundleBudget.test.ts"), "utf8");
+    const fixtureAt = source.indexOf('describe.skipIf(!hasFixtureBuild)("demo fixture measurement');
+    const fixtureEnd = source.indexOf('describe.skipIf(hasFixtureBuild)("demo fixture measurement');
+    expect(fixtureAt).toBeGreaterThan(0);
+    expect(fixtureEnd).toBeGreaterThan(fixtureAt);
+    const fixture = source.slice(fixtureAt, fixtureEnd);
+    const production = source.slice(0, fixtureAt);
+    expect(production).toContain("toBeLessThanOrEqual(GZIP_TOTAL_CAP)");
+    expect(production).toContain('join(ROOT, "dist", "client")');
+    expect(fixture).toContain("the production cap does not apply");
+    expect(fixture).not.toContain("toBeLessThanOrEqual(GZIP_TOTAL_CAP)");
   });
 });
 

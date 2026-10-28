@@ -27,10 +27,16 @@
 import { useEffect, useState } from "react";
 import { KeyRound, Pencil, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { PERMISSIONS, ROLES, roleLabel, type Permission, type RoleId } from "@/domains/auth/permissions";
+import {
+  ROLES,
+  permissionsForComposition,
+  roleLabel,
+  type Permission,
+  type RoleId,
+} from "@/domains/auth/permissions";
+import { isDemoMode } from "@/api/config";
 import { useUsers } from "@/domains/auth/useUsers";
 import { PERMISSION_GROUPS, PERMISSION_LABELS, useRoles } from "@/domains/auth/useRoles";
-import { defaultRoleRecord } from "@/domains/auth/roleRepository";
 import { MIN_PASSPHRASE_LENGTH } from "@/domains/auth/passphrase";
 import { useTeachers } from "@/domains/teachers/useTeachers";
 import type { AuthUser } from "@/domains/auth/types";
@@ -292,8 +298,8 @@ function UserFormDialog({
   );
 }
 
-/** One role's access, edited by an administrator. */
-function RoleMatrixDialog({
+/** One role's access, edited by an administrator. Exported for focused tests. */
+export function RoleMatrixDialog({
   role,
   onClose,
 }: {
@@ -318,8 +324,26 @@ function RoleMatrixDialog({
 
   if (!role || !record) return null;
   const busy = roles.saving;
-  const defaults = defaultRoleRecord(role);
   const isAdministratorRole = role === "administrator";
+
+  /*
+    The composition decides which permissions are offerable. In the client
+    (production) composition there is no demo dataset to manage, so presenting a
+    «مدیریت دادهٔ نمایشی» checkbox would expose a control that can do nothing —
+    M2: no forbidden control should be exposed. The id stays in the vocabulary
+    (the demo composition and the server still enforce it); only its
+    presentation is withheld. Deriving the visible count from the same filtered
+    list keeps the footer honest.
+  */
+  const visibleGroups = PERMISSION_GROUPS.map((group) => ({
+    label: group.label,
+    permissions: permissionsForComposition(group.permissions, isDemoMode()),
+  })).filter((group) => group.permissions.length > 0);
+  const visiblePermissions = visibleGroups.flatMap((group) => group.permissions);
+  const visibleTotal = visiblePermissions.length;
+  /* Count only what this composition can actually offer, so the footer never
+     claims more granted accesses than it renders controls for. */
+  const grantedVisible = granted.filter((permission) => visiblePermissions.includes(permission)).length;
 
   const toggle = (permission: Permission) => {
     setError(null);
@@ -340,6 +364,28 @@ function RoleMatrixDialog({
     onClose();
   };
 
+  /*
+   * True reset: delete the stored override on the server (the shipped matrix
+   * is what "default" means — rolePolicy pins that reset deletes the override
+   * rather than copying defaults into it). Merely staging defaults in this
+   * form and saving would persist them AS an override and keep the edited
+   * badge; the hook's list update clears it because the server answers
+   * customized: false.
+   */
+  const resetToDefaults = async () => {
+    const failure = await roles.reset(role);
+    if (failure) {
+      setError(failure.message);
+      return;
+    }
+    notify({
+      tone: "success",
+      title: `دسترسی‌های «${record.label}» به پیش‌فرض برگشت`,
+      detail: "سفارشی‌سازی این نقش حذف شد؛ دسترسی‌های پیش‌فرض سامانه اعمال می‌شود.",
+    });
+    onClose();
+  };
+
   return (
     <Dialog
       open
@@ -352,10 +398,8 @@ function RoleMatrixDialog({
             variant="ghost"
             disabled={busy}
             onClick={() => {
-              setLabel(defaults.label);
-              setScope(defaults.scope);
-              setGranted([...defaults.permissions]);
               setError(null);
+              void resetToDefaults();
             }}
           >
             بازنشانی به پیش‌فرض
@@ -402,7 +446,7 @@ function RoleMatrixDialog({
       )}
 
       <div className="mt-4 space-y-3">
-        {PERMISSION_GROUPS.map((group) => (
+        {visibleGroups.map((group) => (
           <div key={group.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
             <div className="mb-2 text-[11px] font-medium text-ink-300">{group.label}</div>
             <div className="grid gap-1.5 sm:grid-cols-2">
@@ -439,7 +483,7 @@ function RoleMatrixDialog({
       </div>
 
       <p className="mt-3 text-[11px] leading-relaxed text-ink-400">
-        {faNum(granted.length)} دسترسی از {faNum(PERMISSIONS.length)} دسترسی سامانه.{" "}
+        {faNum(grantedVisible)} دسترسی از {faNum(visibleTotal)} دسترسی سامانه.{" "}
         {isAdministratorRole && "نقش مدیر ارشد دسترسی «مدیریت نقش‌ها» را همیشه نگه می‌دارد تا راه بازگشت به این صفحه بسته نشود. "}
         کنترل دسترسی در مرورگر برای تجربهٔ کاربری است؛ اجرای واقعی مجوزها باید سمت سرور انجام شود.
       </p>
@@ -516,7 +560,7 @@ export function UsersPanel() {
         {users.loading ? (
           <LoadingState label="در حال بارگذاری کاربران…" />
         ) : users.error ? (
-          <ErrorState title="بارگذاری کاربران ناموفق بود" description={users.error.message} onRetry={users.reload} />
+          <ErrorState title="بارگذاری کاربران ناموفق بود" error={users.error} onRetry={users.reload} />
         ) : users.users.length === 0 ? (
           <EmptyState
             title="کاربری وجود ندارد"

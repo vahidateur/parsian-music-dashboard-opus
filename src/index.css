@@ -10,6 +10,7 @@
 @source not "./utils/mergeClassNames.ts";
 @source not "./**/*.test.ts";
 @source not "./**/*.test.tsx";
+@source not "../backend";
 /*
   M11/I6: weights 300 and 800 are NOT imported. A census of every font-weight
   utility and custom class in src/ showed the interface only ever sets

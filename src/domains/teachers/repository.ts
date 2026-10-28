@@ -3,7 +3,7 @@ import type { CreateTeacherInput, Teacher, TeacherListParams, UpdateTeacherInput
 
 /**
  * Business-facing contract for teacher persistence.
- * Implementations: DemoTeacherRepository (#1) and ApiTeacherRepository (#2).
+ * Implementations: LocalTeacherRepository (#1) and ApiTeacherRepository (#2).
  * Methods speak in domain ids ("t1"), never URLs or storage keys.
  */
 export interface TeacherRepository {

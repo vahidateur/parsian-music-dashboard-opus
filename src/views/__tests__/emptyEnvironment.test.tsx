@@ -24,8 +24,8 @@ import App from "@/App";
 import { viewTitles } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { createSeedDataset } from "@/domains/demo/seed";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { getTeacherRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
@@ -89,9 +89,9 @@ function expectNoArtefacts(container: HTMLElement, surface: string): void {
 /** Signs in as the EMPTY bootstrap administrator and opens one view. */
 async function renderShell(hash: string) {
   window.location.hash = hash;
-  const auth = new DemoAuthRepository(demoStore, memoryStorage());
+  const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   await auth.login({ email: BOOTSTRAP_ADMIN_EMAIL, password: DEMO_PASSPHRASE });
 
   const rendered = render(<App />);

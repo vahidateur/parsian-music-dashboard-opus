@@ -2,11 +2,11 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "@/App";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
 import { resetRegistry, setAuthRepository, setClassRepository, setEnrollmentRepository, setStudentRepository, setTeacherRepository, setUserRepository } from "@/domains/registry";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { Student } from "@/domains/students/types";
 import type { AcademyClass } from "@/domains/classes/types";
@@ -91,9 +91,9 @@ function fakeTeacherRepo(rows: Teacher[]) {
 
 function useIsolatedTeacherAuth() {
   const sessionStore = memoryStorage();
-  const repo = new DemoAuthRepository(demoStore, sessionStore);
+  const repo = new LocalAuthRepository(demoStore, sessionStore);
   setAuthRepository(repo);
-  setUserRepository(new DemoUserRepository(demoStore));
+  setUserRepository(new LocalUserRepository(demoStore));
   return repo;
 }
 

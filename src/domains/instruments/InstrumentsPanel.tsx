@@ -94,7 +94,7 @@ export function InstrumentsPanel() {
       ) : error ? (
         <ErrorState
           title="بارگذاری سازها ناموفق بود"
-          description={error.message}
+          error={error}
           onRetry={reload}
         />
       ) : items.length === 0 ? (

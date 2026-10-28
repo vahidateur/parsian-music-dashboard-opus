@@ -17,12 +17,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { permissionsForRole } from "@/domains/auth/permissions";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
-import { DemoOrganizationRepository } from "@/domains/organization/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
+import { LocalOrganizationRepository } from "@/domains/organization/localRepository";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 import { COMPENSATION_ERRORS, type CompensationActor } from "../types";
 
 /** A seeded PRIVATE class with exactly one enrolled student. */
@@ -37,17 +37,17 @@ const ACTOR: CompensationActor = {
 };
 
 let store: DemoStore;
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
-let organization: DemoOrganizationRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
+let organization: LocalOrganizationRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  const attendance = new DemoAttendanceRepository(store);
-  scheduling = new DemoSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
-  repo = new DemoCompensationRepository(store, { scheduling, attendance });
-  organization = new DemoOrganizationRepository(store);
+  const attendance = new LocalAttendanceRepository(store);
+  scheduling = new LocalSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
+  repo = new LocalCompensationRepository(store, { scheduling, attendance });
+  organization = new LocalOrganizationRepository(store);
 });
 
 /** Cancels a fresh private session and registers the make-up it entitles. */

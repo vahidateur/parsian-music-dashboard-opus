@@ -135,4 +135,16 @@ describe("ApiClient error normalization", () => {
     await makeClient(mock, { onUnauthenticated }).get("auth/me").catch(() => undefined);
     expect(onUnauthenticated).toHaveBeenCalledTimes(1);
   });
+
+  it("classifies session-expiry codes as authentication and passes the error through", async () => {
+    for (const code of ["AUTH_SESSION_IDLE_EXPIRED", "AUTH_SESSION_ABSOLUTE_EXPIRED"]) {
+      const onUnauthenticated = vi.fn();
+      const mock = createFetchMock(() => jsonResponse({ error: { code, message: "پایان نشست." } }, 401));
+      const error = (await makeClient(mock, { onUnauthenticated }).get("auth/me").catch((e: unknown) => e)) as ApiError;
+      expect(error.kind).toBe("authentication");
+      expect(error.code).toBe(code);
+      expect(onUnauthenticated).toHaveBeenCalledTimes(1);
+      expect(onUnauthenticated.mock.calls[0][0]).toBe(error);
+    }
+  });
 });

@@ -221,6 +221,7 @@ describe("the attachment surface is repository-backed", () => {
       // No store access, no browser storage, no second clock, no faked latency,
       // no test-only branch: each of these has a sanctioned seam elsewhere.
       expect(file.source, `${file.name} reads the demo store`).not.toContain("services/demoStore");
+      expect(file.source, `${file.name} reads the local store`).not.toContain("services/localStore");
       expect(file.source, `${file.name} writes browser storage`).not.toContain("localStorage");
       expect(file.source, `${file.name} reads the wall clock`).not.toMatch(/new Date\(\s*\)/);
       expect(file.source, `${file.name} reads the wall clock`).not.toMatch(/Date\.now\(/);

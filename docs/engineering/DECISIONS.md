@@ -1959,6 +1959,1247 @@ deferred, because `PROJECT_STATE.md` was excluded from this change by the owner 
 deviation §23 records. This entry amends no D-entry, changes no `O-*` or `T-02` status, touches no
 branch or tag, and authorizes no product, dependency, test-weakening, back-end or history change.
 
+## 25. The demo → data migration boundary: local is a name for the implementation, demo is a name for the data
+
+**Decision.** Recorded 2026-09-29, by owner authorization at the migration plan's first checkpoint (W1). Five
+clauses, documentation only — this entry changes no product behaviour.
+
+(1) **One application, one canonical codebase; demo data stays.** The product's on-device implementation is
+categorised as the **local** implementation of each existing domain contract — not a second application and
+not scaffolding. "Demo" survives only where it names **data**: the shipped sample dataset, its bytes, its
+version and its history.
+
+(2) **Canonical vocabulary.** The data-source value becomes `local` (with `demo` kept as a working alias),
+the store becomes `localStore` behind a canonical `LocalDataStore` interface, each `Demo<Domain>Repository`
+becomes the canonical `Local<Domain>Repository` with its logic preserved, and the shipped dataset becomes an
+importable **sample dataset**. Historical documents, handoffs and reports are never retro-edited to match
+the new vocabulary.
+
+(3) **Compatibility is a contract, not a preference.** `VITE_DATA_SOURCE=demo`, the `ava:demo:*` storage
+keys (including the lifecycle marker and its persisted `empty`/`demo` values), the `ava:delivery:*` keys, the
+`demo.manage` permission id and the seed's own identity (`SEED_VERSION`, `SEED_DATE`) must keep working.
+Renaming any of them without a read-both/migrate path is a compatibility decision, not a cleanup, and is
+rejected.
+
+(4) **The owner's decisions stay the owner's.** D8 (including the 11-vs-12 enumeration discrepancy around
+`organization`, and the drift that says "seven getters" where the code has eight), the build strategy
+(B1 two builds as today / B2 one build with a lazy dataset / B3 one build with an eager dataset — with B1
+remaining in force until decided), and whether the shipped dataset keeps usable sign-in material are all
+**recorded as pending**, with deadlines before W5, W5 and W7 respectively. D8's text, its enumeration and
+the organization getter are untouched by this entry.
+
+(5) **The plan is ratified, the implementation is not.** The target architecture
+(`docs/migration/DEMO_TO_DATA_TARGET_ARCHITECTURE.md`) and the W1–W10 wave model
+(`docs/migration/DEMO_MIGRATION_WAVES.md`) are the migration plan of record
+(`docs/migration/W1_DECISION_BOUNDARY.md`). Waves run **one at a time**, each on its own authorization,
+each with its own verification; W1 is the only wave executed at this entry's date and the rest are
+NOT AUTHORIZED.
+
+**Why.** The discovery audit (`docs/migration/DEMO_INVENTORY.md`, 92 classified rows) established that the
+repository's demo surface is five different things at once — data (keep), a second implementation of the
+business layer (rename and keep), presentation, control flow, and build/composition — and that its safety
+work was already done by Phase 2A (a client build with no demo capability, pinned by two gates). Without a
+recorded boundary, every later wave would be free to redefine the vocabulary, resolve D8 by accident, or
+choose a build strategy for convenience — the exact failure this migration must not repeat.
+
+**Enforced by.** `docs/migration/W1_DECISION_BOUNDARY.md` (the boundary and its compatibility register), the
+wave definitions in `docs/migration/DEMO_MIGRATION_WAVES.md` (which carry the D8, D9, security and
+authorization fields per wave), and the gates named for W8 — none of which exist yet. No existing test
+enforces this entry: it is a documentation decision boundary, and its enforcement is review plus the wave
+protocol.
+
+**Status.** ✅ Recorded — 2026-09-29 (W1, on the migration branch docs/demo-migration-plan), documentation only. This entry amends
+no D-entry, changes no `O-*` or `T-02` status, moves no D9 constant, resolves no open item (I15, I19, I22 and
+the DOCUMENTATION DRIFT set are untouched), touches no branch, tag or PR, and authorizes no source, test,
+build, back-end, RBAC, D8 or D9 change. It is **not** linked from `PROJECT_STATE.md` §6, on the same
+deliberate deviation §23 and §24 record: `PROJECT_STATE.md` was excluded from this change by the owner.
+
+---
+
+## 26. Phase B governance decisions: PB-1 … PB-5 (resolved 2026-10-02)
+
+**Five owner decisions, all option A — keep the existing restrictive behaviour.**
+They close the set recorded in [OPEN_ITEMS.md](OPEN_ITEMS.md) §PB-1..PB-5, where the original
+sheets, evidence and reasoning are preserved verbatim.
+
+`PB-*` is its own namespace: it is **not** a `D`-number, **not** an `O-*` id, and it does not amend
+any D-entry. These five entries change **no** `T-02` or `O-*` status. They are recorded here because
+each one is load-bearing for the server and is now enforced by tests rather than by convention.
+
+The governing rule across all five: **fail closed, invent nothing.** Where the live documents
+disagreed or named no rule, the decision is to leave the restrictive behaviour in place rather than
+to widen it, and to refuse rather than to guess. No permission id was created, no existing
+permission was reinterpreted, and `TenantContext` was not touched.
+
+---
+
+### 26.1 PB-1 — Teacher with no `teacherId`: fail-closed
+
+- **Decision id.** PB-1
+- **Decision.** **Option A — fail-closed.** A teacher account with no linked `teacherId` sees **no**
+  records — never organization-wide. The server answers `403 OWNER_DECISION_REQUIRED_PB1`.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-1: *"Does a teacher account with no linked teacher id
+  see no students, or every student?"* `GOVERNANCE_CHECKPOINT.md` states T-02 is fail-closed and
+  must not be revisited. Server and shipped frontend disagreed: `src/domains/auth/scope.ts` fell
+  through to org-wide, the server refused. Option A adopts the server's behaviour as the policy.
+- **Affected scope.** Applied **consistently** to students, scheduling sessions, attendance,
+  attendance corrections and related attendance reads, and `sessions/with-attendance`.
+- **Implementation consequence.** One real gap was found and closed (`a43ac33`): `sessions/generate`
+  (reachable by a teacher through `schedule.read`) and the five session write verbs did not enforce
+  the decision — the preview returned a plan, and the writes answered a bare `403 FORBIDDEN`.
+  `SessionPolicy::assertTeacherLinked()` is now called by all seven scheduling Form Requests, before
+  the permission check, and by the service methods. No schema, contract or permission change.
+  `students.teacher_id` remains a non-authorization column.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (fail-closed, not org-wide)
+
+**Enforced by.** `SchedulingTest::test_pb1_closes_generation_and_every_session_write`,
+`SchedulingTest::test_teacher_without_teacher_id_is_pb1_403`, `StudentScopeTest`,
+`AttendanceTest::test_teacher_without_teacher_id_is_pb1_403`, and the HTTP smoke step
+`PB-1 — teacher with no teacherId fails closed`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.2 PB-2 — Privileged account identity: keep the restrictions
+
+- **Decision id.** PB-2
+- **Decision.** **Option A.** `PrivilegedIdentityPolicy` keeps all four restrictions: (a) self-edit,
+  (b) administrator→administrator edit, (c) assigning `administrator`, (d) privileged email change.
+  The server is **not** relaxed to match the frontend panel.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-2 lists five sub-questions no product document
+  answers (one `name` field? admin→admin? manager→admin? privileged email change? current
+  password?). `UsersPanel.tsx` renders role and email controls for every row including self;
+  `userRepository.ts` posts `{ password }` with no current password. Option A answers all five by
+  keeping today's server behaviour, so the frontend stays the more permissive surface.
+- **Affected scope.** `users.write`, `roles.write`; `UserController`, `PrivilegedIdentityPolicy`.
+- **Implementation consequence.** **No code change.** `OWNER_DECISION_REQUIRED_PB2` continues to be
+  returned; it is now the implemented policy rather than a placeholder. The single `name` field and
+  the absence of a current-password field are retained as current contract.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the restrictions)
+
+**Enforced by.** `PrivilegedIdentityPolicyTest` (all four cases assert
+`403 OWNER_DECISION_REQUIRED_PB2`).
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.3 PB-3 — Writes with no permission id: keep blocked, invent none
+
+- **Decision id.** PB-3
+- **Decision.** **Option A.** Room, instrument, learning-curriculum and progress writes stay
+  blocked. **No** `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-3: *"Which existing permission, if any, hides each of
+  those writes? `settings.write` and `library.write` are already used by other panels and must not
+  be assumed."* Because reuse is explicitly unsupported by the evidence, the only options were
+  "keep blocked" or "name new ids" — and the owner chose to keep blocked.
+- **Affected scope.** `RoomsPanel`, `InstrumentsPanel`, `LearningPanel`, `StudentProgressPanel`,
+  `RepertoirePanel`; `RoomPolicy`, `RoomController`.
+- **Implementation consequence.** **No code change, and no new permission id.** `settings.write`
+  and `library.write` are **not** reinterpreted as covering these domains, and nothing authorizes on
+  `role === "teacher"`. The permission vocabulary remains the **23** ids in
+  `backend/config/permissions.php`. `OWNER_DECISION_REQUIRED_PB3` is still returned on all six rooms
+  endpoints for every role, administrator included.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep blocked, invent no permission id)
+
+**Enforced by.** `RoomsTest` and the HTTP smoke step `PB-3 — rooms stay blocked for every role`.
+
+**Status.** ✅ Resolved and enforced — 2026-10-02.
+
+---
+
+### 26.4 PB-4 — `useCan(...) || !user`: keep the test seam
+
+- **Decision id.** PB-4
+- **Decision.** **Option A — keep the idiom** as the documented test seam. Do not remove it, and do
+  not weaken backend authentication to match it.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-4: `useCan` returns true outside `AuthProvider`
+  *"by an explicit comment, so legacy view tests keep their controls"*, and `AuthGate` never renders
+  those views with a null user. The idiom therefore has no production reach.
+- **Affected scope.** `src/views/Classes.tsx`, `src/views/Students.tsx`,
+  `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`.
+- **Implementation consequence.** **No code change**, frontend or backend. Every route except login
+  still requires a Bearer token and answers `401` without one, so the seam remains frontend-only.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (keep the test seam)
+
+**Enforced by.** The `401` assertion in the HTTP smoke job. No test asserts the idiom itself — it is
+retained deliberately, not pinned.
+
+**Status.** ✅ Resolved — 2026-10-02. Left untouched by design.
+
+---
+
+### 26.5 PB-5 — Notifications: no domain in v1
+
+- **Decision id.** PB-5
+- **Decision.** **Option A.** v1 has **no** notifications domain, inbox, table, permission or
+  delivery implementation. Telegram / Bale / SMS / email remain **later adapter capabilities only**.
+- **Rationale / evidence.** `OPEN_ITEMS.md` PB-5 records a live conflict: `GOVERNANCE_CHECKPOINT.md`
+  **O-17** says no notifications domain in v1, while
+  `docs/frontend-completion/10-integration-architecture.md` classifies Telegram/Bale/SMS/email
+  delivery as a required later capability.
+- **Affected scope.** Notification settings toggles (which already disclose they do not save); any
+  future adapter work.
+- **Implementation consequence.** **No code change.** The conflict is reconciled by reading **both**
+  documents as *"required later capability, not in v1"*: O-17's v1 exclusion stands, the integration
+  architecture's REQUIRED classification stands as a future-capability claim, and neither document is
+  rewritten. Only the sequencing question was open, and this decision settles it.
+- **Date.** 2026-10-02
+- **Owner decision.** **A** (no notifications domain in v1)
+
+**Enforced by.** Absence: no notification table, migration, route, permission or domain exists. Push
+stays not started.
+
+**Status.** ✅ Resolved — 2026-10-02.
+
+---
+
+## 27. Organization settings — three decisions of the slice
+
+Recorded 2026-10-03 with the Organization settings slice (BACKEND_STATUS.md §Slice 4).
+These are implementation decisions the owner's authorization left open, not new
+product policy: no permission id was created, no rule was reinterpreted, and
+PB-1..PB-5 were not reopened.
+
+### 27.1 The settings ARE the organization row, not a child of it
+
+**Decision.** The `OrganizationSettings` columns live on `organizations`. There is
+no `organization_settings` table.
+
+**Why.** An academy has exactly one set of rules and exactly one organization row,
+so the settings are the tenant record rather than a satellite of it. Two concrete
+consequences drove it: `organizations.name` already is the `name` field of
+`OrganizationSettings`, so a side table would create a second source of truth for
+the academy's name; and `BelongsToOrganization` cannot apply to `organizations`
+(no `organization_id` column exists), so a separate table would have been the only
+scoped model in the codebase without the trait's global scope — the one place where
+a missing `where` clause would leak across tenants. Loading by
+`whereKey(TenantContext::organizationId())` makes isolation structural: another
+organization's settings are never queried, not merely filtered out.
+
+**Enforced by.** `OrganizationService::get()`; `OrganizationTest::test_settings_never_cross_organizations`
+and `test_the_service_scopes_its_row_to_the_tenant_in_context`.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.2 The server copies the existing rules; it does not reinterpret them
+
+**Decision.** `OrganizationRules` is a translation of `src/domains/organization/rules.ts`
+— same fields, same arithmetic, same defaults. No new business semantics.
+
+**Why.** The rules already existed and are already consumed by the frontend; a
+server-side "interpretation" would have produced two answers to one question
+("is this session inside the bookable window?"). The translation keeps the
+frontend's own null-discipline: when a value cannot be read, the rule answers
+`null`, and `null` means "not evaluated", never "allowed".
+
+**Enforced by.** `OrganizationRules`; `OrganizationTest` cases for an unreadable
+clock, a window that closes before it opens, and the closed-weekday fallback.
+
+**Status.** ✅ In force — 2026-10-03.
+
+### 27.3 The two working-hours conflict kinds are WARNINGS, not refusals
+
+**Decision.** `SESSION_OUTSIDE_WORKING_HOURS` and `SESSION_TIGHT_TURNAROUND` are
+emitted as warnings. Neither can block a booking.
+
+**Why.** Taken from evidence, not preference: `src/domains/scheduling/conflicts.ts`
+states "a session outside it is a warning, never a refusal", and
+`academyRules.test.ts` asserts both kinds inside `report.warnings`. The rationale
+that file gives is the one adopted — an academy that stays open late for a concert,
+or a make-up lesson at 21:30, is a real thing that happens, and the rule exists to
+tell the operator what they are doing rather than to police the schedule with a
+number from Settings.
+
+**Consequence, deliberate.** A booking adjacent to an existing session is still not
+a hard conflict, but is now advisory — which is the entire point of
+`sessionGapMinutes`. `SchedulingTest::test_adjacent_slot_is_not_a_conflict` therefore
+sends `acknowledgeWarnings`. Both kinds are appended last in the warnings array, so
+no existing caller's first warning moves.
+
+**Enforced by.** `ConflictDetector::appendOrganizationRuleWarnings()`; three tests
+in `SchedulingTest`, including one that widens the academy's window and watches the
+same 22:00 booking become unremarkable — proving the rule reads the academy's own
+settings rather than a hard-coded value.
+
+**Status.** ✅ In force — 2026-10-03.
+
+## 28. Library resources — the slice is metadata-only, and the bytes stay behind a declared boundary
+
+**Context.** `src/domains/library/apiRepository.ts` was written with five metadata verbs
+(`GET|POST /resources`, `GET|PATCH|DELETE /resources/{id}`) and declares two file endpoints —
+`POST /uploads` and `GET /resources/{id}/download` — that it explicitly does **not** call, because
+its `ApiClient` is JSON-only. A contract test asserts those two paths are never hit.
+`src/domains/library/repository.ts` states that bytes are not part of the contract.
+`docs/frontend-completion/06-library-gallery-spec.md` classifies the binary storage provider,
+signed URLs, per-object auth and virus scanning as **"Contract Now Backend Later (B)"**.
+
+That left a real question: does implementing `/resources` mean also implementing upload and
+download? Building storage would have meant inventing a provider, an access model for signed URLs
+and a scanning policy — none of which the repository requires and all of which are governance
+decisions, not implementation details.
+
+**Decision.** The slice is **metadata-only**. `mediaId` is persisted as an opaque string reference
+into the media domain. `POST /uploads` and `GET /resources/{id}/download` are **not routed**, and no
+storage provider, signed URL, per-object authorization or scanning is introduced. Because the
+server therefore holds no bytes, `size` is **not** a column: every row reports the catalogue's own
+unknown marker (`نامشخص`), the same value `localRepository.ts` emits when a row has no media asset.
+
+**Why.** Reporting "unknown" is the honest answer and the contract already defines it; a fabricated
+byte count would be a number the server cannot defend. This is the same rule that governs every
+other derived figure in this codebase — an absent measurement is not a zero measurement, and
+«نامشخص» is not «۰».
+
+**Consequence, deliberate.** `uses` is stored but permanently 0 for now, because the count grows on
+a download and that endpoint is not built (the spec lists "uses count increment on download" as
+back-end-later too). `instrument` is validated for shape but not existence, because `InstrumentId`
+is an open `string` whose validity comes from the academy's instruments collection and no
+instruments table exists on the server (PB-3). Both are recorded as limitations rather than papered
+over, and neither is presented as implemented behaviour.
+
+**Enforced by.** `ResourceService` (no byte handling, `uses` set to 0 on create and not in the
+writable column map); `ResourceResource::toWire` (calls `ResourcePresenter::sizeLabel(null)`);
+`routes/api.php` (no `uploads` or `download` route, with the omission explained in a comment);
+`ResourceTest::test_the_file_endpoints_are_not_part_of_this_slice` asserts **both** paths are 404;
+`test_uses_is_not_a_settable_field` asserts a posted `uses` is ignored;
+`test_create_returns_the_exact_contract_shape` asserts `size === 'نامشخص'`.
+
+**Status.** ✅ In force — 2026-10-03.
+
+## 29. Progress is authorized for v1: PB-3 is lifted for Progress only, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning and
+progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. `src/domains/progress/apiRepository.ts` has existed throughout with a
+complete 13-endpoint contract and an explicit "no server implements these endpoints yet" note, so
+Progress has been the one fully-specified domain with no path forward.
+
+The owner has now decided, explicitly and for v1 only, that Progress is in scope.
+
+**Decision.** Progress is authorized for v1. Exactly two permission ids are added — `progress.read`
+and `progress.write` — taking the vocabulary from **23 to 25**. Nothing else changes.
+
+- PB-3 remains **Option A** for **instruments** and **learning**. Neither is implemented, and no
+  `instruments.*` or `learning.*` id exists.
+- PB-5 remains **Option A**: no notifications domain, and Telegram/Bale/push stay later adapter
+  capabilities.
+- No other permission family is touched: not `finance.*`, `reports.*`, `messages.*`, `rooms.*`,
+  `resource.*`, and no media/storage permission.
+
+**Why.** The Progress contract is the only unbuilt domain that is fully specified by an existing
+committed `apiRepository.ts`, so implementing it invents no endpoint, no field and no error code.
+Every other candidate would have required inventing both permissions and an API shape.
+
+**Role matrix, derived from existing conventions rather than invented.**
+
+| role | progress.read | progress.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | yes |
+| staff | yes | no |
+| accountant | no | no |
+
+`progress.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`students.read`, `teachers.read`, `classes.read`, `schedule.read` and `library.read` — Progress is
+per-student learning data, so it reads like the rest of the per-student core and is withheld from
+accounting. `progress.write` goes to manager and teacher: repertoire is content the manager authors
+(mirroring `library.write`), and assignments are teacher-authored the way attendance entries are
+(mirroring `attendance.write`). Staff is reception and holds no content-authoring write.
+
+**Consequence, deliberate.** `teacherId` on an assignment is provenance for accountability and
+authorizes nothing; the permission carries the decision.
+
+**Client-side alignment (corrected 2026-10-05).** When this decision was recorded, the client's
+`StudentProgressPanel` gated writes on the `role` **prop** — which chooses the teacher-authoring
+workflow versus the student self-practice workflow, and is not an authorization input at all.
+That was accurate as a description and wrong as an end state: the frontend's matrix had never
+received the two new ids, so the client could not express the decision it was supposed to mirror
+(see OPEN_ITEMS **I24**). The panel now gates the record / assign / complete / edit-with-unit
+controls on `progress.write` and declines to render a student's progress without `progress.read`,
+while `role` continues to select only the workflow and the wording. Nothing authorizes on role; the
+prop and the permission answer different questions. This remains a UX layer — the server is still
+the boundary — but the client can no longer show a Progress surface a role was never granted.
+
+**Implementation consequence — referential validation is partial.** `validatePiece()` in the client
+checks `instrumentId`, `programId` and `recommendedLevelId` against its instruments/programs/levels
+stores. No such tables exist on the server (instruments and learning are PB-3), so the server
+validates shape and length only and stores them as references by value. `contentIds` is likewise an
+opaque list. This is the same boundary `library.instrument` and `mediaId` sit behind.
+
+**Enforced by.** Server: `backend/config/permissions.php` (25 ids, `progress.read` in
+`$readOnlyCore`, `progress.write` on manager and teacher); `App\Domain\Progress\ProgressPolicy`;
+`ProgressTest::test_reading_requires_progress_read`, `test_writing_requires_progress_write`,
+`test_deleting_requires_progress_write`, `test_the_permission_check_precedes_validation`, and
+`test_the_permission_vocabulary_is_exactly_twenty_five_ids` (which asserts the diff against the old
+23 is exactly the two new ids).
+
+Client: `src/domains/auth/permissions.ts` (the same 25 ids, `progress.read` in `READ_ONLY_CORE`,
+`progress.write` on manager and teacher); `StudentProgressPanel`'s `progress.read` / `progress.write`
+gates; and — the part that was missing — `src/domains/auth/__tests__/permissionParity.test.ts`,
+which parses the shipped PHP config and fails if either the vocabulary or any role grant drifts from
+this table in either direction. Recorded as **I24**; the frontend half was absent between this
+decision (`2026-10-03`) and its fix (`2026-10-05`).
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
+## 30. Progress is authorized with a 14th endpoint: `GET /students/{id}/assignments`
+
+**Context.** §29 authorized Progress as a *"complete 13-endpoint contract"*, taking the permission
+vocabulary from 23 to 25. A post-closure audit then found that the contract is in fact 14
+endpoints, and that the 14th is the only contracted route in the whole repository with no server
+implementation:
+
+- `ProgressRepository` (`src/domains/progress/repository.ts:72`) **requires** `studentAssignments()`;
+- `ApiProgressRepository.studentAssignments()` implements it as `GET students/{id}/assignments`;
+- no backend route served it — so the API repository was not a complete implementation of its own
+  interface, even though nothing called it (the registry resolves Progress to
+  `LocalProgressRepository`).
+
+A mechanical comparison of every `apiRepository.ts` against `routes/api.php` — 68 endpoint calls
+across ten domains — returned exactly this one gap. Everything else was already served.
+
+**Decision.** `GET /api/v1/students/{id}/assignments` is authorized as the **14th Progress
+endpoint**, and Progress is now canonically a **14-endpoint** contract. The response is a plain,
+unpaginated `AssignmentWithPiece[]` = `[{assignment, piece|null}]`, ordered `assignedAt` DESC with
+an `id` DESC tie-break. It is read-only: no mutation verb is registered.
+
+**Permissions.** **No new permission.** The endpoint is governed by `progress.read`, which §29
+already created. The vocabulary remains **25**. Nothing else in §29 changes: PB-3 stays Option A
+for instruments and learning, PB-5 stays Option A, TenantContext is untouched, and no new table is
+introduced.
+
+**Why this was not folded into §29 silently.** §29 was numerically explicit — *"13-endpoint
+contract"*, *"Nothing else changes"* — and a frontend contract does not by itself authorize backend
+implementation. The 14th endpoint was therefore surfaced as an owner decision rather than
+implemented on inference. This entry records that decision.
+
+**Scope discipline.** This authorizes **one endpoint**. It does not reopen §29 generally, and does
+not authorize workflow automation, standalone analytics/plateau endpoints, Learning, Instruments,
+Rooms, media/storage, notifications, the student portal, finance, reports, or frontend registry
+wiring.
+
+**Enforced by.** `backend/routes/api.php` (a single `GET`, no mutation verb),
+`backend/app/Http/Controllers/Api/V1/StudentAssignmentController.php`,
+`backend/app/Domain/Progress/ProgressEventService::assignmentsFor()`, and
+`backend/tests/Feature/ProgressEventTest.php` — which covers the happy path, ordering and the id
+tie-break, the empty state, cross-tenant 404, `progress.read` across the §29 role matrix, the
+null-piece serializer branch, exact agreement with the overview, and that POST/PATCH/DELETE are
+405.
+
+**Status.** ✅ In force — 2026-10-03. Owner-authorized.
+
+## 31. Demo stays a first-class environment, and is not offered by the production-facing product
+
+**Context.** The pre-main consolidation requires that Demo is no longer part of the
+production-facing product (§4A), while §2 above keeps the DemoStore a first-class environment and
+records that it is "not scaffolding to be deleted". These are not in conflict; they are statements
+about two different artifacts, and the distinction has to be made explicitly or one of them gets
+broken while satisfying the other.
+
+**Decision.** The split is by COMPOSITION, not by deleting code:
+
+- The **demo composition** (`APP_TARGET=demo`, the default) keeps the whole demo capability: the
+  dataset, its seed, the data panel, the credentials panel, the delivery/lock lifecycle and the
+  `demo.manage` permission that guards them. Local development and the demonstrable-no-backend
+  build depend on all of it.
+- The **client composition** (`APP_TARGET=client`) presents no demo capability at all. Its demo
+  UI is already absent *physically* — `targetFeatures.client.tsx` returns `null` for
+  `SettingsFeatures`, so no demo panel can render, and the modules are never resolved by the
+  bundler rather than being hidden by a runtime flag.
+- `demo.manage` **stays in the vocabulary** in both compositions. It is the service-layer boundary
+  for the demo dataset, and removing the id would remove the boundary rather than the capability.
+  It is declared a **demo-only permission** (`DEMO_ONLY_PERMISSIONS`) and the role editor filters
+  it out when the composition has no demo capability.
+- **Seeds, fixtures and the demo domain stay.** They are the local-development dataset and the
+  test substrate. §4A's carve-outs — local development fixtures, test fixtures, demo-only seed —
+  are preserved deliberately, not overlooked.
+
+**Why the permission needed its own rule.** Hiding a panel was not sufficient here: the role
+editor (`UsersPanel`, reached through `roles.write`) is SHARED by both compositions, and it was
+rendering a «مدیریت دادهٔ نمایشی» checkbox in the client build, where there is no demo dataset to
+manage. That is a control that can do nothing, which M2 ("no forbidden control should be exposed")
+forbids — and it is exactly the kind of demo surface §4A is about. The gate is the composition
+(`isDemoMode()`), **not** `isDemoCapabilityAvailable()`: the latter answers "has production delivery
+happened yet", which is true in a fresh client build, so gating on it would re-expose the checkbox
+in the one build that must not show it.
+
+**What this is not.** It is not an authorization rule. The demo composition still enforces
+`demo.manage` at the service layer for every destructive operation, the id remains held only by the
+administrator default, and the client's filtering is presentation. Server-side authorization is
+still the only boundary (§16, `docs/security.md`).
+
+**Enforced by.** `src/targets/targetFeatures.client.tsx` (`SettingsFeatures` → `null`);
+`src/__tests__/bundleBoundary.test.ts` against the real `dist/client` (negative probes for
+`DemoDataPanel`, `demoDataManager`, `DemoBackedNotice`, `ava:demo:` … and positive probes in
+`dist/demo`); `src/domains/auth/permissions.ts` (`DEMO_ONLY_PERMISSIONS`,
+`isDemoOnlyPermission`, `permissionsForComposition`);
+`src/components/settings/UsersPanel.tsx` (`permissionsForComposition(group.permissions, isDemoMode())`);
+and `src/domains/auth/__tests__/demoPermissionPresentation.test.ts` — which pins both directions
+(withheld in the client composition, **retained** in the demo one), the no-mutation property, and a
+source assertion that the gate is the composition rather than the runtime lock.
+
+**Status.** ✅ In force — 2026-10-05. Consolidation-phase decision.
+
+## 32. The canonical continuation line after the two-line divergence (2026-10-05)
+
+**Decision.** Two continuation lines existed above the common base `7eba988` — line A
+(`arena/01a0f73f-…` @ `7175336`, 1 commit, 4 files) and line B (`arena/01a10b63-…`, 3 commits,
+14 files) — and neither was an ancestor of the other. **Line B is canonical**, because it is the
+superset for every product artifact: the 25-id RBAC vocabulary carrying `progress.read` /
+`progress.write` with a parity guard that parses the shipped PHP, the demo de-production (§31), and
+the duplicate-work race fix in the conversation export. Line A's two unique documentation artifacts
+were **merged onto the canonical line rather than dropped**: its checkpoint is reproduced verbatim
+as Appendix A of `docs/engineering/CONSOLIDATION_CHECKPOINT.md`, and its live pointer is merged into
+`SESSION_HANDOFF.md`. Line A's branch, commits and files are **not** deleted, rewritten or
+force-pushed. Its only product change — the proxy — survives in the behaviour-complete form
+(`changeOrigin: true`), because a bare `target` rewrites nothing and leaves the `Host` header
+pointing at the dev server.
+
+**Why.** "One branch, one tip, one checkpoint" is a durability rule, not tidiness: two parallel
+truths are how a later session re-does finished work, or reports a fix that exists on only one line.
+Preserving both lines' content while naming exactly one of them canonical satisfies the rule without
+losing history — and `main` stays untouched until the owner authorizes the fast-forward.
+
+**Enforced by.** `docs/engineering/CONSOLIDATION_CHECKPOINT.md` (identity, reconciliation table,
+measured gates); `src/domains/auth/__tests__/permissionParity.test.ts` (the contract line A lacked);
+`docs/engineering/PROJECT_STATE.md` §2, whose recorded branch is checked against the remote by
+`src/__tests__/projectState.test.ts`.
+
+**Status.** ✅ In force — 2026-10-05. A repository/process decision: it changes no product behaviour,
+authorizes no new feature, and merges nothing to `main`.
+
+## 33. Instruments are authorized for v1: PB-3 is lifted for Instruments, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning-progress
+and progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. §29 lifted the block for Progress only (25 ids). Instruments is the
+second domain to meet the §29 bar: `src/domains/instruments/apiRepository.ts` is a complete
+contract (list/get/create/update/setActive/delete), so implementing it invents no endpoint, no
+field and no error code — the REST shape is the repository's own.
+
+**Decision.** Instruments are authorized for v1. Exactly two permission ids are added —
+`instruments.read` and `instruments.write` — taking the vocabulary from **25 to 27**. Nothing
+else changes.
+
+- PB-3 remains **Option A** for **learning** (and rooms). Neither is implemented, and no
+  `learning.*` or `rooms.*` id exists.
+- PB-5 remains **Option A**: no notifications domain.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §29 derived its own.**
+
+| role | instruments.read | instruments.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | no |
+| staff | yes | no |
+| accountant | yes | no |
+
+`instruments.read` joins `$readOnlyCore` in `backend/config/permissions.php`. Rationale: an
+instrument is a name in a lookup table, not personal data — every record that carries an
+`instrument` field (a student row, a class row, a catalogue row) is readable by every role that
+may see that record, including accounting, so the catalogue must resolve for them too. Staff and
+teacher read through the same core as the rest of the lookup data they already see.
+`instruments.write` goes to administrator and manager only: the catalogue is academy
+configuration, authored the way organization settings are (which the manager cannot write but the
+instrument catalogue — a teaching catalogue, not academy identity — the manager curates, mirroring
+`library.write`).
+
+**Consequence, deliberate.** `imageId` on an instrument is validated the same way `photoMediaId`
+and `mediaId` are: the asset must exist in the caller's organization. Media authorization grows
+one branch — an instrument image is readable by `instruments.read` — because a card image has the
+same shape as a catalogue file: public within the academy, personal to nobody.
+
+**The starter program is NOT part of this authorization.** `InstrumentFormDialog` offers (opt-in,
+default on) to create a learning program + first level after creating an instrument. Learning is
+still PB-3: in the client composition `getLearningRepository()` rejects with
+`DOMAIN_UNAVAILABLE`, the dialog catches it, and the operator is told the instrument was saved
+but the starter program was not. The demo composition still creates it locally. When learning is
+authorized, that path starts working with no dialog change — the seam is the repository, not a
+target branch.
+
+**Enforced by.** Server: `backend/config/permissions.php` (27 ids, `instruments.read` in
+`$readOnlyCore`, `instruments.write` on administrator + manager); `App\Domain\Instruments\InstrumentPolicy`;
+`InstrumentsTest::test_writing_requires_instruments_write` and
+`test_every_role_may_read`; `ProgressTest::test_the_permission_vocabulary_is_exactly_twenty_seven_ids`.
+
+Client: `src/domains/auth/permissions.ts` (the same 27 ids, `instruments.read` in
+`READ_ONLY_CORE`, `instruments.write` on administrator + manager);
+`src/domains/auth/__tests__/permissionParity.test.ts` (vocabulary, per-role grants, and the
+§31 instruments grant table); `src/domains/__tests__/registryClient.test.ts` (the client
+composition resolves the real `ApiInstrumentRepository`, and `instruments` left
+`UNAVAILABLE_DOMAINS`).
+
+**Status.** ✅ In force — 2026-10-23. Owner-authorized (this session records the owner's explicit
+authorization to implement instruments end-to-end, including the vocabulary change).
+
+## 34. Learning is authorized for v1: PB-3 is lifted for Learning, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning-progress
+and progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. §29 lifted the block for Progress only (25 ids), §33 for Instruments
+(27 ids). Learning is the third domain to meet the bar: `src/domains/learning/apiRepository.ts`
+existed with a complete 22-method contract and an explicit "no server implements these endpoints"
+note, so implementing it invents no endpoint, no field and no error code — the REST shape is the
+repository's own, one endpoint per method.
+
+**Decision.** Learning is authorized for v1. Exactly two permission ids are added —
+`learning.read` and `learning.write` — taking the vocabulary from **27 to 29**. Nothing else
+changes.
+
+- PB-3 remains **Option A** for **rooms only**. No `rooms.*` id exists.
+- PB-5 remains **Option A**: no notifications domain.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §29 derived its own.**
+
+| role | learning.read | learning.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | yes |
+| staff | yes | no |
+| accountant | no | no |
+
+`learning.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`progress.read` and the rest of the lookup core. `learning.write` goes to administrator,
+manager and teacher: the curriculum is authored the way repertoire is (mirroring
+`progress.write`), and placements are teacher-authored the way assignments are — a teacher
+may legitimately place a transferring student without owning the curriculum. Staff holds no
+content-authoring write, mirroring progress; a staff write is refused with `learning.write`
+named, which the panels surface verbatim.
+
+**Consequence, deliberate.** Eligibility is computed server-side by the same rule the client
+uses (`LearningEligibility`, a line-for-line port of `eligibility.ts`): active levels at or
+below the student's level, exclusive opt-out, teacher-only material hidden from the student
+audience, inactive excluded, lowest-level dedup, `levelOrder / sortOrder / title` ordering.
+The one deliberate divergence: title tie-breaks sort byte-wise, not with the `fa` locale —
+the server has no `intl` extension — so two items sharing level order AND link order may tie
+differently than on the client. Deterministic on both sides; documented here, not hidden.
+
+Two server-side rules are stricter than the local repository, on purpose. First, prerequisite
+ids must exist and must not close a loop (the local check is advisory-only and the types file
+already calls a loop "always a data error"). Second, content `mediaId` and program
+`instrumentId` must reference existing rows in the caller's organization. Both refusals are
+honest 422s with the field named, never silent drops.
+
+**The starter-program checkbox needs no change.** `InstrumentFormDialog` offers (opt-in,
+default on) a program plus first level on instrument creation. In the client composition that
+call now succeeds against the real API; where learning is still unavailable it would have
+failed honestly with the instrument kept — the seam was always the repository, never a target
+branch. Covered by `starterProgram.test.tsx` (wires the ids program→instrument and
+level→returned-program; unchecked writes nothing; a level failure keeps the saved instrument
+and says so).
+
+**Enforced by.** Server: `backend/config/permissions.php` (29 ids, `learning.read` in
+`$readOnlyCore`, `learning.write` on administrator/manager/teacher);
+`App\Domain\Learning\LearningPolicy`; `LearningTest` (auth matrix, all error codes,
+renumbering, history append, eligibility/locked/eligible-students against hand-computed
+expectations); `ProgressTest::test_the_permission_vocabulary_is_exactly_twenty_nine_ids`.
+
+Client: `src/domains/auth/permissions.ts` (the same 29 ids); `permissionParity.test.ts`
+(vocabulary, per-role grants incl. the §34 learning table, and the tightened no-invention
+regex); `registryClient.test.ts` (the client resolves the real `ApiLearningRepository`;
+`learning` left `UNAVAILABLE_DOMAINS`); `apiRepository.test.ts` (every verb's URL/method/body
+and the 404→undefined placement mapping).
+
+**Status.** ✅ In force — 2026-10-24. Owner-authorized (this session records the owner's explicit
+authorization to implement learning end-to-end, including the vocabulary change).
+
+## 34. Learning is authorized for v1: PB-3 is lifted for Learning, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning-progress
+and progress together, and stated that no `rooms.*`, `instruments.*`, `learning.*` or `progress.*`
+permission would be created. §29 lifted the block for Progress only (25 ids), §33 for Instruments
+(27 ids). Learning is the third domain to meet the bar: `src/domains/learning/apiRepository.ts`
+existed with a complete 22-method contract and an explicit "no server implements these endpoints"
+note, so implementing it invents no endpoint, no field and no error code — the REST shape is the
+repository's own, one endpoint per method.
+
+**Decision.** Learning is authorized for v1. Exactly two permission ids are added —
+`learning.read` and `learning.write` — taking the vocabulary from **27 to 29**. Nothing else
+changes.
+
+- PB-3 remains **Option A** for **rooms only**. No `rooms.*` id exists.
+- PB-5 remains **Option A**: no notifications domain.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §29 derived its own.**
+
+| role | learning.read | learning.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | yes |
+| staff | yes | no |
+| accountant | no | no |
+
+`learning.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`progress.read` and the rest of the lookup core. `learning.write` goes to administrator,
+manager and teacher: the curriculum is authored the way repertoire is (mirroring
+`progress.write`), and placements are teacher-authored the way assignments are — a teacher
+may legitimately place a transferring student without owning the curriculum. Staff holds no
+content-authoring write, mirroring progress; a staff write is refused with `learning.write`
+named, which the panels surface verbatim.
+
+**Consequence, deliberate.** Eligibility is computed server-side by the same rule the client
+uses (`LearningEligibility`, a line-for-line port of `eligibility.ts`): active levels at or
+below the student's level, exclusive opt-out, teacher-only material hidden from the student
+audience, inactive excluded, lowest-level dedup, `levelOrder / sortOrder / title` ordering.
+The one deliberate divergence: title tie-breaks sort byte-wise, not with the `fa` locale —
+the server has no `intl` extension — so two items sharing level order AND link order may tie
+differently than on the client. Deterministic on both sides; documented here, not hidden.
+
+Two server-side rules are stricter than the local repository, on purpose. First, prerequisite
+ids must exist and must not close a loop (the local check is advisory-only and the types file
+already calls a loop "always a data error"). Second, content `mediaId` and program
+`instrumentId` must reference existing rows in the caller's organization. Both refusals are
+honest 422s with the field named, never silent drops.
+
+**The starter-program checkbox needs no change.** `InstrumentFormDialog` offers (opt-in,
+default on) a program plus first level on instrument creation. In the client composition that
+call now succeeds against the real API; where learning is still unavailable it would have
+failed honestly with the instrument kept — the seam was always the repository, never a target
+branch. Covered by `starterProgram.test.tsx` (wires the ids program→instrument and
+level→returned-program; unchecked writes nothing; a level failure keeps the saved instrument
+and says so).
+
+**Enforced by.** Server: `backend/config/permissions.php` (29 ids, `learning.read` in
+`$readOnlyCore`, `learning.write` on administrator/manager/teacher);
+`App\Domain\Learning\LearningPolicy`; `LearningTest` (auth matrix, all error codes,
+renumbering, history append, eligibility/locked/eligible-students against hand-computed
+expectations); `ProgressTest::test_the_permission_vocabulary_is_exactly_twenty_nine_ids`.
+
+Client: `src/domains/auth/permissions.ts` (the same 29 ids); `permissionParity.test.ts`
+(vocabulary, per-role grants incl. the §34 learning table, and the tightened no-invention
+regex); `registryClient.test.ts` (the client resolves the real `ApiLearningRepository`;
+`learning` left `UNAVAILABLE_DOMAINS`); `apiRepository.test.ts` (every verb's URL/method/body
+and the 404→undefined placement mapping).
+
+**Status.** ✅ In force — 2026-10-24. Owner-authorized (this session records the owner's explicit
+authorization to implement learning end-to-end, including the vocabulary change).
+
+## 35. Rooms are authorized for v1: PB-3 is lifted for Rooms, adding exactly two permission ids
+
+**Context.** PB-3 (resolved 2026-10-02, Option A) blocked rooms, instruments, learning-progress
+and progress together. §29 lifted the block for Progress (25 ids), §33 for Instruments (27),
+§34 for Learning (29). Rooms are the last domain still blocked — while every other domain
+graduated, every room call has failed closed for every actor, administrator included, and every
+surface that names a room has rendered a policy-blocked or unavailable disclosure instead of
+data.
+
+The blocker was exactly one class: `App\Domain\Rooms\RoomPolicy`, whose two methods threw
+`OwnerDecisionRequired('PB-3')` unconditionally. Everything around it already existed and was
+already tested: `RoomService` (persistence, unique-name, in-use refusal, deactivate),
+`Store/UpdateRoomRequest` (field validation), `RoomController` (policy-first, so an invalid
+body never turns a refusal into a 422), the six `api/v1/rooms` routes, the `rooms` table and
+its demo seed, the `Room` factory, and the complete `ApiRoomRepository` already wired into
+the client composition. Unblocking therefore changes the authorization and nothing else — no
+endpoint, field, table, or client module is invented here.
+
+**Decision.** Rooms are authorized for v1. Exactly two permission ids are added —
+`rooms.read` and `rooms.write` — taking the vocabulary from **29 to 31**. Nothing else changes.
+
+- PB-3 has no blocked domain left. The decision itself stands as the standing rule — block
+  without a permission id — but its scope is empty: every domain it ever covered now carries
+  its own ids.
+- PB-5 remains Option A: no notifications domain.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §33 derived its own.**
+
+| role | rooms.read | rooms.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | no |
+| staff | yes | no |
+| accountant | yes | no |
+
+`rooms.read` joins `$readOnlyCore` in `backend/config/permissions.php`, alongside
+`instruments.read` and the rest of the lookup core: a room is a name on a class or a
+session, not personal data, and every role that opens such a record — scheduling,
+classes, the teacher desk, the academy metrics — already does. `rooms.write` goes to
+administrator and manager only: rooms are academy configuration, curated the way
+instruments are.
+
+**Consequence, deliberate.** Nothing about validation changes: `TenantRules::assignableRoom`
+(class/session room links) and `ConflictDetector` keep reading rooms as data-integrity
+checks, exactly as before — they never were the authorization, and the policy stays the
+single place that decides. The FormRequests keep calling the policy first, so the
+forbidden-before-validation ordering the old tests pinned is preserved with a real
+`rooms.write` refusal instead of the PB-3 one.
+
+**Enforced by.** Server: `backend/config/permissions.php` (31 ids, `rooms.read` in
+`$readOnlyCore`, `rooms.write` on administrator/manager); `App\Domain\Rooms\RoomPolicy`;
+rewritten `RoomsTest` (auth matrix across all five roles, forbidden-before-validation,
+unknown-is-404, admin CRUD round trip with deactivation, name-taken conflict, and the
+untouched service-level round trip/conflict/isolation cases);
+`ProgressTest::test_the_permission_vocabulary_is_exactly_thirty_one_ids`.
+
+Client: `src/domains/auth/permissions.ts` (the same 31 ids); `permissionParity.test.ts`
+(vocabulary, per-role grants incl. the §35 rooms table, and the no-invention regex now
+that rooms are lifted too); `registryClient.test.ts` (the client resolves the real
+`ApiRoomRepository` — wired since before the policy changed, now pinned by an instance
+check like every other served domain).
+
+**Status.** ✅ In force — 2026-10-24. Owner-authorized (this session records the owner's explicit
+authorization to implement rooms end-to-end, including the vocabulary change).
+
+## 36. Gallery is authorized for v1: the showcase leaves the unavailable list, adding exactly two permission ids
+
+**Context.** Gallery was the last demo-only showcase: albums and images lived in
+the demo store, writes borrowed `library.write` in the frontend (X-02), and the
+client composition disclosed the whole domain as unavailable. Unlike rooms,
+nothing server-side existed — no table, no policy, no route — so this slice
+invents the persistence the contract always described (`GalleryRepository`):
+two tables, a service, a policy, five request classes, a controller with eleven
+routes, and the media wiring the domain always assumed (images name a
+`mediaId`; bytes live in the media domain, never here).
+
+**Decision.** Gallery is authorized for v1. Exactly two permission ids are added —
+`gallery.read` and `gallery.write` — taking the vocabulary from **31 to 33**.
+Nothing else changes.
+
+- §26.3 forbids reinterpreting `library.write` as gallery management, which is
+  what X-02 did. The demo-era borrow is retired on both sides: the frontend
+  gates (`GalleryPanel`, `GalleryView`) ask `gallery.write`, and the server
+  enforces it. The behavior for today's holders does not move — manager and
+  administrator hold both the old borrowed id and the new one — but the ids
+  mean what they say now.
+- PB-5 remains Option A: no notifications domain.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §33 derived its own.**
+
+| role | gallery.read | gallery.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | no |
+| staff | yes | no |
+| accountant | no | no |
+
+`gallery.read` joins `$readOnlyCore`: the showcase opens for every teaching and
+reception role, the same audience that reads the library. Accounting never
+opens the gallery (it holds no `library.read` either), so — unlike rooms and
+instruments — there is no explicit accountant grant. `gallery.write` goes to
+administrator and manager only: the showcase is curated the way instruments
+and rooms are. Teachers open the view but do not curate it — the sidebar
+never offered them the controls, and the server does not either.
+
+**Media consequences, deliberate.**
+
+- A gallery image's (or album cover's) bytes are readable by whoever holds
+  `gallery.read` — the same per-object rule as every other parent, decided in
+  `MediaPolicy` against the record that shows the asset.
+- `gallery.write` joins the compound upload gate: staging a binary requires
+  writing at least one record that can carry one, and a gallery image is such
+  a record. No current holder loses or gains upload beyond what they had —
+  the manager and the administrator already uploaded through other writes.
+- Deleting an image (or an album) frees its media asset only when no record
+  still references it (the global parent check, now including both gallery
+  tables). A cover or image that a student photo, library file or instrument
+  image still points at is kept. Update verbs never drop a media reference,
+  so they never free anything — parity with the demo repository.
+- A still-referenced asset is refused with 409 `MEDIA_IN_USE`, never freed
+  under a record that points at it.
+
+**Consequence, deliberate.** The demo composition is untouched: it keeps the
+local repository, the bundled seed photographs and the browser-storage copy.
+The demo-only sentences move behind the target seam (`galleryStorageNote`)
+so the client bundle carries no browser-storage claim; the upload toast uses
+the existing `fileStoredDetail()` slot. The login disclosure drops gallery
+and now names exactly three unavailable domains.
+
+**Enforced by.** Server: `backend/config/permissions.php` (33 ids,
+`gallery.read` in `$readOnlyCore`, `gallery.write` on administrator/manager);
+`App\Domain\Gallery\GalleryPolicy`; `GalleryController` + 11 routes + 5
+FormRequests (policy-first); `TenantRules::galleryAlbumExists`;
+`MediaReferences` + `MediaPolicy` gallery branches; `GalleryTest` (auth matrix
+across all five roles incl. accountant read refusal, forbidden-before-
+validation, unknown-is-404, album CRUD with cover validation, image CRUD with
+album/media/alt validation, album filter, update, reorder incl. out-of-range,
+renumber-after-remove, media release vs. retention incl. album cascade,
+gallery-bytes readability per role incl. the unlinked-teacher PB-1 close,
+tenant isolation, and the service-level round trip);
+`ProgressTest::test_the_permission_vocabulary_is_exactly_thirty_three_ids`.
+
+Client: `src/domains/auth/permissions.ts` (the same 33 ids, `gallery` view
+requirement); `permissionParity.test.ts` (vocabulary, per-role grants incl.
+the §36 gallery table); `useRoles.ts` (gallery group + labels);
+`registryClient.test.ts` (the client resolves the real `ApiGalleryRepository`);
+`unavailableDomains.ts` (gallery removed — three ids left);
+`apiRepository.test.ts` (every verb's URL/method/body and the bump-after-
+accepted-write / no-bump-after-refusal contract);
+`cacheInvalidationAudit.test.ts` (album create + image reorder bump);
+`targetCopy.test.ts` (the new `galleryStorageNote` slot on both variants).
+
+**Status.** ✅ In force — 2026-10-24. Owner-authorized (this session records the owner's explicit
+authorization to implement gallery end-to-end, including the vocabulary change).
+
+## 37. Chat is authorized for v1 under the existing messages ids: no new permission is added
+
+**Context.** Chat was the last demo-only messaging surface: threads and messages
+lived in the demo store, every send was single-viewer, and the client
+composition disclosed the whole domain as unavailable. Unlike gallery, no
+vocabulary change is needed: `messages.read` / `messages.write` already name
+exactly this capability, and §26.3 only forbids borrowing an id for a
+DIFFERENT domain — using a domain's own ids is what they are for. The
+vocabulary stays at **33 ids**; the role matrix is untouched.
+
+**Decision.** Chat is authorized for v1. Three tables
+(`chat_conversations`, `chat_participants`, `chat_messages`), a service, a
+policy, three FormRequests (policy-first), a controller with eight routes,
+and the media wiring the domain always assumed (attachments name a `mediaId`;
+bytes live in the media domain, never here).
+
+**Authorization model, decided the same fail-closed way as every slice.**
+
+- Reads need `messages.read`, writes need `messages.write` (the X-04 gate the
+  view already used). The accountant opens the view but cannot send — exactly
+  what the matrix already said.
+- **Participation is the read boundary, for every role including
+  administrator.** A thread is visible only to its participants; a
+  non-participant gets 404 (`CONVERSATION_NOT_FOUND`), never another user's
+  messages — knowing an id never grants a read. There is deliberately no
+  admin/manager bypass: whether oversight tooling needs a wider read is an
+  OWNER decision, recorded here as open, not something the service invents.
+- **The sender is the authenticated user.** The wire carries no sender (and no
+  `from`): a client-supplied sender would be an unverified claim, so there is
+  no field for one to arrive in. `from` (`"me"`/`"them"`) is derived per
+  viewer at read time.
+- **Unread is a per-participant cursor** (`last_read_at`), not a counter:
+  unread counts the other side's messages after the cursor, and `markRead`
+  moves only the caller's own cursor.
+- **Only `in_app` delivers.** Any other provider is recorded with
+  `unavailable` and a reason naming it (demo parity) — nothing fakes an
+  external send. External delivery, provider webhooks and per-provider rate
+  limits remain unbuilt, as the provider header always said.
+
+**Consequences, deliberate.**
+
+- `createConversation` accepts optional `participantIds` (validated org users;
+  the creator is always added). There is deliberately no add/remove-
+  participant verb yet: naming members at creation is the whole of the v1
+  membership surface, and a thread the UI creates solo behaves as it always
+  did. The in-app way to add people to an existing thread is an open
+  follow-up, not a silent omission.
+- Message order is `(sent_at, id)` ascending (demo parity); `sent_at` is
+  server-generated — a browser clock is user-controlled. `lastMessagePreview`
+  updates atomically with the send.
+- Deleting a message or a thread is not offered (the repo has no such verb):
+  archive hides reversibly; the same patch restores.
+- A still-referenced attachment is refused with 409 `MEDIA_IN_USE`, never
+  freed under a message that points at it. `messages.write` joins the
+  compound media-upload gate (a message is a record that can carry a binary);
+  no current holder gains a surprising capability — the manager and staff
+  already uploaded through other writes, and the teacher, who could not
+  upload at all, now can only through their own threads.
+- The demo composition is untouched: it keeps the local repository, the seed
+  threads and the browser-storage copy. Chat copy that claimed browser-only
+  storage moves behind the seam (`attachmentStorageNote` on both variants;
+  the send toast reuses `fileStoredDetail()`); the export's server sentence
+  is reworded to a both-compositions truth; the transcript's byte exclusion
+  stands. The `message` quick action leaves the client `unavailableActions`
+  set: with §37 the navigation it performs is served.
+
+**Enforced by.** Server: `ChatPolicy` (existing ids); `ChatController` + 8
+routes + 3 FormRequests (policy-first); `ChatService` (participant check on
+every read/write, server sender, per-viewer `from`, cursor unread,
+provider parity); `MediaReferences` + `MediaPolicy` chat branches;
+`ChatTest` (auth matrix across all five roles, forbidden-before-validation,
+unknown→404, cross-user 404-not-leak, participant sharing with per-viewer
+`from`, unknown/cross-org participant 422, thread CRUD incl. archive
+hide/reveal/restore, body/provider/media validation, non-in-app
+`unavailable`, per-caller markRead, attachment bytes per participation,
+tenant isolation, vocabulary contains `messages.*`, service round trip).
+
+Client: `src/domains/chat/apiRepository.ts` (+ bump after every accepted
+write, never after refusal/reads) + `apiRepository.test.ts` (every verb's
+URL/method/body, the no-sender-on-the-wire assertion, and the
+bump-after-accepted / no-bump-after-refusal contract);
+`registry.client.ts` (the client resolves the real `ApiChatRepository`);
+`unavailableDomains.ts` (chat removed — two ids left);
+`registryClient.test.ts`; `cacheInvalidationAudit.test.ts` (send bump).
+
+**Status.** ✅ In force — 2026-10-26. Owner-authorized (this session records the owner's explicit
+authorization to implement chat end-to-end under the existing messages ids).
+
+## 38. Branding is authorized for v1: the academy identity leaves the unavailable list, adding exactly two permission ids
+
+**Context.** Branding was the last demo-only identity surface: the name,
+tagline, colours, font and (future) logo lived in the demo store, every write
+went through `LocalBrandingRepository`, and the client composition disclosed
+the whole domain as unavailable while the panel gated writes on the
+neighbouring `settings.write` (X-06) — explicitly unsupported per §26.3.
+Unlike gallery and chat, no media bytes flow yet (no logo picker UI exists),
+but the contract already names `logoMediaId`/`faviconMediaId`, so this slice
+wires the references end-to-end rather than leaving them dangling.
+
+**Decision.** Branding is authorized for v1. Exactly two permission ids are
+added — `branding.read` and `branding.write` — taking the vocabulary from
+**33 to 35**. Nothing else changes.
+
+- §26.3 forbids reinterpreting `settings.write` as branding management, which
+  is what X-06 did. The frontend gates (`BrandingPanel`) ask `branding.write`,
+  and the server enforces it. The effective behaviour for today's holders
+  does not move: the administrator already wrote identity (via `settings.write`
+  then, via `branding.write` now) and nobody else did.
+- No other permission family is touched.
+
+**Role matrix, derived the same way §33 derived its own.**
+
+| role | branding.read | branding.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | no |
+| teacher | yes | no |
+| staff | yes | no |
+| accountant | yes | no |
+
+`branding.read` joins `$readOnlyCore` and is granted explicitly to
+`accountant` as well: identity renders on every authenticated surface
+(sidebar, top bar, hero, login-adjacent views) — reading it is never personal
+data, the strongest case of all, since the name is already on the public
+login page. `branding.write` goes to the administrator only, mirroring
+`settings.write`: whoever may write the name through the organization record
+may write it here, and the manager — who opens Settings read-only today —
+gains no new write.
+
+**Consequence, deliberate.** The organization domain is untouched:
+`OrganizationPolicy` still answers `settings.*`, and the two singletons stay
+separate records (identity vs. operating rules) with separate writers. The
+table is keyed by `organization_id` itself — no surrogate id. `GET` returns
+the shipped defaults when no row exists yet (an uncustomized academy, not a
+failure); the first `PATCH` persists. `PATCH` is a partial patch, validated
+field-by-field against the same bounds as the client (hex shape, font
+allow-list, resolving media reference).
+
+**Media consequences, deliberate.**
+
+- A logo/favicon's bytes are readable by whoever holds `branding.read` —
+  the same per-object rule as every other parent, decided in `MediaPolicy`
+  against the record that shows the asset.
+- `branding.write` joins the compound upload gate: a logo is a record that
+  can carry a binary, so staging one requires writing at least one such
+  record. No current holder gains a surprising capability — only the
+  administrator holds it, and uploading was already possible for them.
+- A still-referenced logo is refused with 409 `MEDIA_IN_USE`, never freed
+  under the identity that points at it. Update verbs never drop a reference
+  without validating the replacement, so a validated write cannot strand a
+  dangling id.
+
+**Consequence, deliberate.** The demo composition is untouched: it keeps the
+local repository, the seed identity and the browser fallback copy. The client
+fallback path in `useBranding` (organization identity when branding is
+unavailable) stays as a safety net — it is unreachable while the server
+serves the domain, and the stubbed test still pins it. The login disclosure
+now names exactly one unavailable domain.
+
+**Enforced by.** Server: `backend/config/permissions.php` (35 ids,
+`branding.read` in `$readOnlyCore` + explicit accountant grant,
+`branding.write` on administrator only); `App\Domain\Branding\BrandingPolicy`;
+`BrandingController` + 2 routes + 1 policy-first FormRequest;
+`TenantRules` reused for media existence (`mediaAssetExists`);
+`MediaReferences` + `MediaPolicy` branding branches; `BrandingTest` (auth
+matrix across all five roles incl. accountant read, forbidden-before-
+validation, unknown→defaults, admin PATCH round trip with validation,
+tenant isolation, logo 409-while-referenced + per-role bytes, vocabulary
+contains `branding.*`); `ProgressTest::…_thirty_five_ids`.
+
+Client: `src/domains/branding/apiRepository.ts` (+ bump after accepted
+write, never after refusal/reads) + `apiRepository.test.ts` (both verbs'
+URL/method/body and the bump-after-accepted / no-bump-after-refusal
+contract); `permissions.ts` (the same 35 ids); `permissionParity.test.ts`
+(vocabulary, per-role grants incl. the §38 branding table);
+`useRoles.ts` (branding group + labels); `registryClient.test.ts` (the
+client resolves the real `ApiBrandingRepository`;
+`unavailableDomains.ts` (branding removed — one id left));
+`cacheInvalidationAudit.test.ts` (update bump).
+
+**Status.** ✅ In force — 2026-10-26. Owner-authorized (this session records
+the owner's explicit authorization to implement branding end-to-end,
+including the vocabulary change, with `branding.write` on administrator
+only).
+
+## 39. Compensation is authorized for v1 under the existing `schedule.*` ids: no new permission is added
+
+**Context.** Compensation was the last demo-only domain: obligations and the
+booking ledger lived in the demo store, writes were validated client-side
+only, and the client composition disclosed the whole domain as unavailable.
+Unlike every slice since §29, no vocabulary change is needed: the
+repository contract itself designates `schedule.write` as the gate ("no
+second, compensation-specific permission... a make-up IS a session"), the
+view already gates on it (X-04: `compensation: "schedule.read"`, writes on
+`schedule.write`), and the shipped matrix already grants it to exactly the
+operating roles. §26.3 forbids reinterpreting an id for a *different*
+domain; using a domain's own declared gate is what the permission is for.
+
+**Decision.** Compensation is authorized for v1 under the existing
+`schedule.read` / `schedule.write` ids. The vocabulary stays at **35 ids**.
+No other permission family is touched.
+
+**Role matrix — verified identical to the shipped `schedule.*` matrix, not
+invented:**
+
+| role | schedule.read | schedule.write |
+| --- | --- | --- |
+| administrator | yes | yes |
+| manager | yes | yes |
+| teacher | yes | no |
+| staff | yes | yes |
+| accountant | no | no |
+
+Reads are organization-wide for non-teachers; **teachers see only their own
+classes' obligations** (T-02, enforced in SQL via the class's `teacher_id`),
+and a teacher account with no linked `teacherId` gets
+`OWNER_DECISION_REQUIRED_PB1` — fail closed, exactly like sessions.
+Accountants hold neither id and are refused before any lookup.
+
+**Consequence, deliberate.** A teacher who can open the schedule now sees
+only their own make-up obligations, where the demo showed every record to
+everyone — the single behavioural narrowing, required by T-02 consistency,
+and asserted by test rather than assumed. Managers, staff and
+administrators see the whole organization, as before. Non-participation is
+not a concept here (unlike chat): any holder of the read id may read, and
+the write verbs are the only ones that mutate.
+
+**Enforced by.** Server: `CompensationPolicy` (`schedule.read`/`write`);
+PB-1-first ordering in every FormRequest and every service verb (mirroring
+`StoreSessionRequest`); `CompensationService` (tenant + teacher scoping,
+pair-lifetime unique key, transactional schedule/complete with
+`lockForUpdate`, derived read model ported from `derive.ts`);
+`CompensationController` + 5 routes; `CompensationTest` (auth matrix,
+PB-1, forbidden-before-validation, unknown→404, tenant isolation,
+409/422 catalogue, cap, attendance acknowledgement, actor-identity,
+lineage/reschedule/cancel round trips, service round trip).
+No `MediaReferences`/`MediaPolicy` change: attachments are out of contract.
+
+Client: `src/domains/compensation/apiRepository.ts` (actor stripped from the
+wire, + bump after accepted write only) + `apiRepository.test.ts` (every
+verb's URL/method/body, the no-actor-on-the-wire assertion, bump/no-bump);
+`registryClient.test.ts` (real `ApiCompensationRepository`;
+`unavailableDomains.ts` empty — 0 ids left);
+`cacheInvalidationAudit.test.ts` (register bump + refused-write no-bump);
+`targetFeatures.client.test.tsx` (empty login disclosure renders no note).
+
+**Status.** ✅ In force — 2026-10-28. Owner-authorized (this session: reuse
+the existing `schedule.read`/`schedule.write` with no new permission ids;
+teacher read-scope option B with PB-1 fail-closed for unlinked accounts).
+
+## 40. Invoices are authorized for v1 under the existing `finance.read` / `finance.write` ids: no new permission is added
+
+**Context.** Finance was the last deferred surface (D6/I2): the view rendered
+an honest deferral, no repository existed in either composition, and the demo
+dataset carried no invoices. v1 issues due invoices and discharges each with
+exactly one accepted payment. Partial payments and student-balance sync are
+explicitly out — a partial would need instalment bookkeeping the wire does
+not carry, and silent balance mutation would be a side effect smuggled into
+a receipt, so both wait for an owner decision with their own contract.
+
+**Decision.** Invoices are authorized for v1 under the existing
+`finance.read` / `finance.write` ids. The vocabulary stays at **35 ids**.
+No other permission family is touched. The demo composition keeps its
+honest deferral (no demo ledger is built); only the client composition is
+served.
+
+**Role matrix — the shipped matrix, unchanged (verified, not invented):**
+reads (`finance.read`) go to administrator, manager and accountant; writes
+(`finance.write`) to administrator and accountant only. Teachers and staff
+hold neither id and are refused before any lookup.
+
+**Enforced by.** Server: `InvoicePolicy` (`finance.read`/`write`);
+policy-first FormRequests (`Store/UpdateInvoiceRequest`); `InvoiceService`
+(tenant-scoped reads, due-only update/pay with `lockForUpdate`, actor taken
+from the token on pay, `studentId` validated tenant-scoped);
+`InvoiceController` + 5 routes; `InvoiceTest` (auth matrix, validation
+catalogue, snake_case filter regression, double-pay 409, missing→404,
+tenant isolation).
+Client: `src/domains/finance/apiRepository.ts` (+ bump after accepted write
+only) + `apiRepository.test.ts` (every verb's URL/method/body,
+bump/no-bump); `FinanceView` graduated in `writeFeedbackHonesty.test.ts`
+(reaches `getFinanceRepository(` and reports the success it can claim);
+`financeInvoices.test.tsx` (list/filter/issue/pay through fakes);
+`registryClient.test.ts` (real `ApiFinanceRepository` instance).
+
+**Status.** ✅ In force — 2026-10-29. Owner-authorized (this session: v1 =
+issue + full payment + receipt; no partials; no balance sync; client only,
+demo stays deferred).
+
+## 41. Payment confirmation splits from invoice authoring: new `finance.pay` id held by staff, manager, accountant and administrator
+
+**Context.** §40 put issue, update and pay behind `finance.write`, held only
+by administrator and accountant. The academy runs differently: the desk
+(receptionist) takes the card and the POS terminal lives at the academy, so
+the person who *confirms* a payment is usually staff or the manager — while
+*issuing* an invoice stays an accountant/administrator act. One id for both
+would let the desk issue invoices; borrowing another domain's id for the
+difference is forbidden (§26.3).
+
+**Decision.** A verb-scoped `finance.pay` id is created (same domain, new
+verb — the `roles.write` precedent, not a borrow). Holders: administrator,
+manager, accountant **and staff**; teachers hold neither finance id. The
+vocabulary grows **35 → 36 ids**. `finance.write` keeps issue/update and
+stays administrator/accountant-only. Teacher read rules, tenant isolation
+and the no-partial/no-sync v1 limits (§40) are unchanged.
+
+**Channels.** `POST /invoices/{id}/pay` is the channel-agnostic contract:
+it records the authenticated user however they authenticated. The future
+app and the Telegram bot will call this same verb (with their own auth);
+only the manual web panel of this slice exists today. The receipt carries
+the method (`pos` = in-academy terminal, `transfer` = verified
+card-to-card) and the transfer tracking code when there is one — the bot
+and the app will parse the same fields, so no second shape is invented
+for them later.
+
+**Enforced by.** Backend: `InvoicePolicy::authorizePay`; `PayInvoiceRequest`
+(method enum + optional reference, policy-first); `InvoiceService::pay`
+(lockForUpdate, terminal refusal, actor + method + reference on the row);
+`InvoiceTest` (pay matrix across all five roles, method validation,
+method/reference round trip). Frontend: `finance.pay` in `permissions.ts`
++ matrix + group + label; parity `holds Finance exactly as §41`;
+FinanceView gates *create* on `finance.write` and *pay* on `finance.pay`.
+
+**Status.** ✅ In force — 2026-10-30. Owner-authorized (this session:
+staff-and-above confirm via manual web panel now, future app and Telegram
+bot on the same verb later; overdue stays a derived display badge, no
+enforcement gate).
+
+## 42. Gallery details are display-gated for teachers: new `gallery.details` id held by administrator, manager and staff
+
+**Context.** The gallery lightbox grew a furnished readout (caption, album,
+date, number, notes, curation actions). The owner wants that readout shown
+only down to reception: teachers open the showcase but must see the bare
+photograph. Display-only — bytes and metadata stay authorized by
+`gallery.read` (§36), which teachers keep; this id controls *only*
+the furnished panel, never access to the file itself. Reusing an unrelated
+write id (for example `schedule.write`, which the same roles happen to hold)
+would be borrowing for a different domain (§26.3), so a verb-scoped
+id is created instead, mirroring §41's `finance.pay`.
+
+**Decision.** `gallery.details` is added (administrator, manager, staff;
+teachers hold no gallery id beyond `gallery.read`; accountants hold none).
+The vocabulary goes **36 to 37 ids**. The view renders the aside only for
+holders; non-holders get the image, its navigation and a close affordance.
+No backend authorization change: the bytes endpoint is unchanged and still
+gated by `gallery.read`.
+
+**Enforced by.** `permissionParity.test.ts` ("holds Gallery details ...");
+`useRoles` group and label; the demo and seeded matrices match by
+construction (single `rolePermissions` source). A teacher-role browser check
+covers the hidden aside; a manager-role check covers the shown one.
+
+**Status.** ✅ In force — 2026-10-26. Owner-authorized (this session: bare
+photo for teachers, furnished readout down to reception).
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

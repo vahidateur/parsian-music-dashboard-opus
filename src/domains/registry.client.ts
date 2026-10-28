@@ -1,18 +1,19 @@
 /**
  * Composition root — CLIENT target.
  *
- * The client build is API-oriented and contains no demo capability:
+ * The client build is API-oriented and contains no demo capability: every
+ * domain resolves to its real, served REST implementation (the same classes
+ * the demo composition selects in `api` mode) — never to demo data, never to
+ * a speculative endpoint. Domains with no server implementation left resolve
+ * to an explicit DOMAIN_UNAVAILABLE repository; with the last one served,
+ * `UNAVAILABLE_DOMAINS` is empty and the shell discloses nothing. The list
+ * stays the single enumeration for this composition (the mirror of the demo
+ * composition's `DEMO_SERVED_DOMAINS`), so a future regression re-appears
+ * in exactly one place.
  *
- *   - domains with a real, served REST implementation resolve to their Api*
- *     repository (the same classes the demo composition selects in `api` mode);
- *   - every other domain resolves to an explicit DOMAIN_UNAVAILABLE repository
- *     — never to demo data, never to a speculative endpoint. The shell
- *     discloses the list through `UNAVAILABLE_DOMAINS`, the single enumeration
- *     for this composition (the mirror of the demo composition's
- *     `DEMO_SERVED_DOMAINS`).
- *
- * This file must never import a `demoRepository`, the demo store, the seed, or
- * demo credentials — asserted by `src/domains/__tests__/registryClient.test.ts`
+ * This file must never import a `demoRepository` or a `localRepository`, the
+ * demo/local store, the seed, or demo credentials — asserted by
+ * `src/domains/__tests__/registryClient.test.ts`
  * and by the bundle boundary test that scans the real client build output.
  *
  * Shared plumbing (ApiClient, token, override seams, reset) comes from
@@ -35,18 +36,31 @@ import type { ClassRepository } from "./classes/repository";
 import { ApiEnrollmentRepository } from "./enrollments/apiRepository";
 import type { EnrollmentRepository } from "./enrollments/repository";
 import type { InstrumentRepository } from "./instruments/repository";
+import { ApiInstrumentRepository } from "./instruments/apiRepository";
 import type { LearningRepository } from "./learning/repository";
+import { ApiLearningRepository } from "./learning/apiRepository";
 import type { ChatRepository } from "./chat/repository";
+import { ApiChatRepository } from "./chat/apiRepository";
 import type { MediaRepository } from "./media/repository";
+import { ApiMediaRepository } from "./media/apiRepository";
+import { ApiOrganizationRepository } from "./organization/apiRepository";
+import { ApiSchedulingRepository } from "./scheduling/apiRepository";
+import { ApiAttendanceRepository } from "./attendance/apiRepository";
+import { ApiLibraryRepository } from "./library/apiRepository";
 import type { LibraryRepository } from "./library/repository";
 import type { BrandingRepository } from "./branding/repository";
+import { ApiBrandingRepository } from "./branding/apiRepository";
 import type { OrganizationRepository } from "./organization/repository";
 import type { GalleryRepository } from "./gallery/repository";
+import { ApiGalleryRepository } from "./gallery/apiRepository";
 import type { ProgressRepository } from "@/domains/progress/repository";
 import type { SchedulingRepository } from "@/domains/scheduling/repository";
 import type { AttendanceRepository } from "@/domains/attendance/repository";
 import type { CompensationRepository } from "@/domains/compensation/repository";
-import { createUnavailableRepository } from "@/domains/shared/unavailableRepository";
+import { ApiCompensationRepository } from "@/domains/compensation/apiRepository";
+import type { FinanceRepository } from "@/domains/finance/repository";
+import { ApiFinanceRepository } from "@/domains/finance/apiRepository";
+import { ApiProgressRepository } from "@/domains/progress/apiRepository";
 import { UNAVAILABLE_DOMAINS, type UnavailableDomain } from "@/domains/shared/unavailableDomains";
 
 export {
@@ -56,6 +70,7 @@ export {
   setSchedulingRepository,
   setAttendanceRepository,
   setCompensationRepository,
+  setFinanceRepository,
   setInstrumentRepository,
   setLearningRepository,
   setChatRepository,
@@ -89,11 +104,6 @@ export interface DemoServedDomain {
   label: string;
 }
 export const DEMO_SERVED_DOMAINS: readonly DemoServedDomain[] = [];
-
-const unavailable = <T extends object>(id: string): T => {
-  const label = UNAVAILABLE_DOMAINS.find((d) => d.id === id)?.label ?? id;
-  return createUnavailableRepository<T>(id, label);
-};
 
 /* ------------------------------------------------------------------ */
 /* Served domains — the real REST implementations                      */
@@ -146,43 +156,148 @@ export function getEnrollmentRepository(): EnrollmentRepository {
   return new ApiEnrollmentRepository(getApiClient());
 }
 
+/*
+ * Progress — served since 2026-10-03 (DECISIONS.md §29 and §30).
+ *
+ * The backend exposes 14 authorized endpoints under `progress.read` /
+ * `progress.write`, and the wire shapes match the TS types field-for-field
+ * (`Piece`, `PieceAssignment`, `ProgressEvent` and the nested
+ * `ProgressSnapshot`, plus `AssignmentWithPiece`). Contract verification
+ * preceded wiring; the endpoint list is asserted against `routes/api.php`.
+ */
+export function getProgressRepository(): ProgressRepository {
+  if (overrides.progress) return overrides.progress;
+  return new ApiProgressRepository(getApiClient());
+}
+
+/*
+ * Organization — served: `GET` and `PATCH /api/v1/organization`.
+ *
+ * `OrganizationResource` emits exactly the 16 fields of the TS
+ * `OrganizationSettings` interface, with no gaps either way.
+ */
+export function getOrganizationRepository(): OrganizationRepository {
+  if (overrides.organization) return overrides.organization;
+  return new ApiOrganizationRepository(getApiClient());
+}
+
+/*
+ * Scheduling — served: 11 endpoints under `sessions`.
+ *
+ * Every wire shape was compared field-by-field against the backend Resources
+ * and DTOs and matches exactly: `Session` (the four conditional keys are
+ * emitted only when non-empty, which is precisely the TS optionality),
+ * `ConflictReport`, `ConflictItem` (all ten `ConflictKind` values, with the
+ * hard/warning split identical), `RosterEntry`, `GenerationPlan` and its four
+ * nested item shapes, and `GenerationResult`. `?preview=1` returns the plan as
+ * the item, which is what `previewGeneration()` unwraps.
+ */
+export function getSchedulingRepository(): SchedulingRepository {
+  if (overrides.scheduling) return overrides.scheduling;
+  return new ApiSchedulingRepository(getApiClient());
+}
+
+/*
+ * Attendance — served: 8 endpoints, contract-corrected 2026-10-04.
+ *
+ * Wired only after a contract-authority audit resolved which side defines the
+ * wire (see `AttendanceResource`): the TS types are authoritative, and the
+ * server now emits `recordedByUserId` / `changedByUserId` / `note` /
+ * `attendanceRecordId`, and returns the pre-joined `SessionAttendance` view
+ * with its derived `recorded` / `expected` / `locked` fields.
+ */
+export function getAttendanceRepository(): AttendanceRepository {
+  if (overrides.attendance) return overrides.attendance;
+  return new ApiAttendanceRepository(getApiClient());
+}
+
+/*
+ * Library — served: `GET|POST /resources`, `GET|PATCH|DELETE /resources/{id}`.
+ *
+ * `ResourceResource` emits exactly the eighteen fields of the TS
+ * `LibraryItem` — `Resource` plus the five `LibraryItem` additions — with no
+ * gaps either way. Optional values arrive as `null` rather than being omitted,
+ * and `studentCanAccess` treats `null` as "no restriction" through `!restricted`,
+ * so the null/absent distinction the server documents is preserved.
+ *
+ * The bytes still are not served: this slice is metadata-only, so `mediaId`
+ * names a file the server does not hold and downloads remain unavailable.
+ */
+export function getLibraryRepository(): LibraryRepository {
+  if (overrides.library) return overrides.library;
+  return new ApiLibraryRepository(getApiClient());
+}
+
 /* ------------------------------------------------------------------ */
 /* Unavailable domains — explicit DOMAIN_UNAVAILABLE, never demo       */
 /* ------------------------------------------------------------------ */
 
 export function getInstrumentRepository(): InstrumentRepository {
-  return overrides.instruments ?? unavailable<InstrumentRepository>("instruments");
+  if (overrides.instruments) return overrides.instruments;
+  return new ApiInstrumentRepository(getApiClient());
 }
 export function getLearningRepository(): LearningRepository {
-  return overrides.learning ?? unavailable<LearningRepository>("learning");
+  if (overrides.learning) return overrides.learning;
+  return new ApiLearningRepository(getApiClient());
 }
 export function getChatRepository(): ChatRepository {
-  return overrides.chat ?? unavailable<ChatRepository>("chat");
+  if (overrides.chat) return overrides.chat;
+  return new ApiChatRepository(getApiClient());
 }
+
+/**
+ * Media — the binary store, served by the API.
+ *
+ * The server holds the metadata in `media_assets` and the bytes on its
+ * private disk; the only way to read them is the authenticated
+ * `GET /media/{id}/bytes`, which authorizes the READER against the record
+ * that shows the file. So a member's photo is reachable for the people who
+ * may see that member, and for nobody else.
+ */
 export function getMediaRepository(): MediaRepository {
-  return overrides.media ?? unavailable<MediaRepository>("media");
-}
-export function getLibraryRepository(): LibraryRepository {
-  return overrides.library ?? unavailable<LibraryRepository>("library");
+  if (overrides.media) return overrides.media;
+  return new ApiMediaRepository(getApiClient());
 }
 export function getBrandingRepository(): BrandingRepository {
-  return overrides.branding ?? unavailable<BrandingRepository>("branding");
+  if (overrides.branding) return overrides.branding;
+  return new ApiBrandingRepository(getApiClient());
 }
-export function getOrganizationRepository(): OrganizationRepository {
-  return overrides.organization ?? unavailable<OrganizationRepository>("organization");
-}
+/**
+ * Gallery — the academy's showcase, served by the API.
+ *
+ * Two aggregates behind one repository: albums own their images. Uploads
+ * still stage bytes through `MediaRepository` first (multipart), then write
+ * the image row that references the asset; a row write that fails releases
+ * the staged upload. Reads resolve bytes through `useMediaObjectUrl`, the
+ * same seam profile photos and library files use.
+ */
 export function getGalleryRepository(): GalleryRepository {
-  return overrides.gallery ?? unavailable<GalleryRepository>("gallery");
+  if (overrides.gallery) return overrides.gallery;
+  return new ApiGalleryRepository(getApiClient());
 }
-export function getProgressRepository(): ProgressRepository {
-  return overrides.progress ?? unavailable<ProgressRepository>("progress");
-}
-export function getSchedulingRepository(): SchedulingRepository {
-  return overrides.scheduling ?? unavailable<SchedulingRepository>("scheduling");
-}
-export function getAttendanceRepository(): AttendanceRepository {
-  return overrides.attendance ?? unavailable<AttendanceRepository>("attendance");
-}
+
+/*
+ * Compensation — private make-up obligations, served by the API.
+ *
+ * The domain composes scheduling (the make-up session) and attendance (the
+ * mark on the cancelled original) read-only; it never re-implements their
+ * rules. Registration, booking and discharge are its own three writes, all
+ * under the scheduling domain's `schedule.write` (there is no
+ * compensation-specific permission id, by the domain's own contract).
+ */
 export function getCompensationRepository(): CompensationRepository {
-  return overrides.compensation ?? unavailable<CompensationRepository>("compensation");
+  if (overrides.compensation) return overrides.compensation;
+  return new ApiCompensationRepository(getApiClient());
+}
+
+/*
+ * Invoices — served by the API under the existing `finance.read` /
+ * `finance.write` ids (administrator, manager-read, accountant-write; see
+ * DECISIONS §40). No new permission is invented. v1 issues due invoices
+ * and discharges each with one accepted payment: no partial payments, no
+ * balance sync.
+ */
+export function getFinanceRepository(): FinanceRepository {
+  if (overrides.finance) return overrides.finance;
+  return new ApiFinanceRepository(getApiClient());
 }

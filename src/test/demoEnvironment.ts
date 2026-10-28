@@ -8,12 +8,19 @@
  * meaningful, since the three starting points are genuinely different states.
  */
 import { initializeDemoEnvironment, initializeEmptyEnvironment } from "@/domains/demo/lifecycle";
-import { demoStore } from "@/services/demoStore";
+import { localStore } from "@/services/localStore";
 
-/** The canonical DEMO environment: the shipped showcase dataset, explicitly. */
+/**
+ * The harness follows the canonical store. `localStore` and the compatibility
+ * alias `demoStore` are the same object, so a reset here is the reset the
+ * lifecycle default sees. Function names stay: they name the persisted
+ * environment kind (`demo`), which W6 owns, and 113 suites import them.
+ *
+ * The canonical DEMO environment: the shipped showcase dataset, explicitly.
+ */
 export function resetToDemoEnvironment(): void {
-  demoStore.reset();
-  initializeDemoEnvironment();
+  localStore.reset();
+  initializeDemoEnvironment(localStore);
 }
 
 /**
@@ -21,11 +28,11 @@ export function resetToDemoEnvironment(): void {
  * bootstrap account, so the environment can actually be signed into.
  */
 export function resetToEmptyEnvironment(): void {
-  demoStore.reset();
-  initializeEmptyEnvironment();
+  localStore.reset();
+  initializeEmptyEnvironment(localStore);
 }
 
 /** No environment at all — the first-run state, before any choice. */
 export function resetToUninitialized(): void {
-  demoStore.reset();
+  localStore.reset();
 }

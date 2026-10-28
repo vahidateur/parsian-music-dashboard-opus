@@ -1908,3 +1908,14 @@ carries it, so the newest documentation checkpoint listed here is always the one
 you are reading, and `git log --oneline -- docs/engineering` is the authority for anything newer.
 [PROJECT_STATE.md](PROJECT_STATE.md) §2 records the same pair and enforces it with a test: every
 full SHA quoted in these documents must already exist and be reachable from `HEAD`.
+
+---
+
+> **Pending registration — 2026-10-05 (no self-referential SHAs).** The **canonical-line
+> consolidation** commit is a documents-only commit that sits directly on top of
+> `bc1ef0ce935fa3c8ab6771a16c6de7ceb75a76b5` on `arena/01a10b63-parsian-music-dashboard-opus`. A
+> document cannot carry the SHA of the commit that carries it, so it is not in the table above —
+> register it in the next documentation pass, or read it with `git log -1 --format=%H` on the
+> canonical branch. It changes no product behaviour: it merges the two continuation lines' records
+> (identity, reconciliation, measured gates, the other line's checkpoint as Appendix A) and syncs the
+> live current-state pointers. Evidence: [CONSOLIDATION_CHECKPOINT.md](CONSOLIDATION_CHECKPOINT.md).

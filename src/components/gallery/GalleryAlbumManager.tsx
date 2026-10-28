@@ -3,7 +3,7 @@
  *
  * Albums are a real repository concept, so this is deliberately more than a
  * disabled placeholder: create, rename and destructive delete all use the
- * existing GalleryRepository. Delete is explicit because DemoGalleryRepository
+ * existing GalleryRepository. Delete is explicit because LocalGalleryRepository
  * removes the album's images and releases their media bytes as a cascade.
  */
 import { useState } from "react";

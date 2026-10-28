@@ -56,7 +56,7 @@
  *
  * The layout, spacing and design tokens are unchanged from the original view.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -71,10 +71,12 @@ import {
 import { messageTemplates } from "./messages/composerTemplates";
 import { faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
+import { useCan } from "@/domains/auth/AuthContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
 import { getChatRepository, getMediaRepository } from "@/domains/registry";
+import { fileStoredDetail } from "@/targets/targetCopy";
 import { releaseStagedMedia } from "@/domains/media/release";
 import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
@@ -153,6 +155,9 @@ function MessageBubble({ message, index }: { message: ChatMessage; index: number
 
 export function MessagesView() {
   const { notify } = useApp();
+  // X-04: messages.write hides send, create, and conversation management.
+  // Reading a thread, including its export, stays on messages.read.
+  const canWriteMessages = useCan("messages.write");
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<ChatParticipantRole | "all">("all");
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -161,6 +166,8 @@ export function MessagesView() {
   const [mobileThread, setMobileThread] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  /* Synchronous duplicate guard — see `runExport`. */
+  const exportInFlight = useRef(false);
 
   const listParams = useMemo(
     () => ({
@@ -275,6 +282,7 @@ export function MessagesView() {
    * on entry, so a double Enter or a second click cannot start a second upload.
    */
   const send = useCallback(async () => {
+    if (!canWriteMessages) return;
     const body = draft.trim();
     if (!body || !activeId || sending) return;
     // Captured before the await: the write targets the conversation the
@@ -308,14 +316,16 @@ export function MessagesView() {
         ...(storedMediaId ? { mediaId: storedMediaId } : {}),
       });
       composer.clearFor(target);
-      // The toast reports what actually happened, per message status.
+      // The toast reports what actually happened, per message status. Where
+      // the bytes live differs by composition, so the detail comes from the
+      // target seam rather than a hardcoded browser claim.
       if (message.status === "sent") {
         notify(
           storedMediaId
             ? {
                 tone: "success",
                 title: "پیام و پیوست ثبت شد",
-                detail: "پیام ذخیره شد و فایل پیوست در همین مرورگر نگهداری می‌شود.",
+                detail: fileStoredDetail(),
               }
             : { tone: "success", title: "پیام ارسال شد", detail: "پیام در گفتگوی داخلی ثبت و ذخیره شد." },
         );
@@ -342,9 +352,10 @@ export function MessagesView() {
     } finally {
       setSending(false);
     }
-  }, [draft, activeId, sending, notify, composer]);
+  }, [canWriteMessages, draft, activeId, sending, notify, composer]);
 
   const createConversation = useCallback(async () => {
+    if (!canWriteMessages) return;
     try {
       const created = await getChatRepository().createConversation({
         name: "گفتگوی جدید",
@@ -365,7 +376,7 @@ export function MessagesView() {
         detail: apiErrorFromThrown(cause).message,
       });
     }
-  }, [notify]);
+  }, [canWriteMessages, notify]);
 
   /**
    * Exports the conversation that is selected RIGHT NOW.
@@ -376,17 +387,23 @@ export function MessagesView() {
    * success names the thread that was actually read (`artifact.conversationName`),
    * never whatever happens to be on screen when the promise settles.
    *
-   * `exporting` is the duplicate guard, set before the first await and checked on
-   * entry; the control is disabled while it is true, so repeated clicks cannot
-   * start a second read. The composer is not touched by any of this.
+   * The duplicate guard is a REF, not the `exporting` state, and that distinction
+   * is load-bearing. State updates are asynchronous: two clicks dispatched in the
+   * same tick both close over the same `exporting === false`, so a state-based
+   * guard admits both — producing two repository reads and two downloads from one
+   * double-click. The ref is written synchronously on entry, so the second click
+   * reads the updated value no matter how the render is scheduled. `exporting`
+   * still drives the disabled control and the «در حال تهیه…» label; it is the
+   * presentation of the guard, no longer the guard itself.
    *
    * The download happens after `readChatExport` resolved, so a failed read cannot
    * reach `saveChatExport` — there is no path in this action that reports or
    * performs an export that did not happen.
    */
   const runExport = useCallback(async () => {
-    if (!active || exporting) return;
+    if (!active || exportInFlight.current) return;
     const target = active;
+    exportInFlight.current = true;
     setExporting(true);
     try {
       const artifact = await readChatExport(target.id, academyNow());
@@ -408,9 +425,10 @@ export function MessagesView() {
         detail: apiErrorFromThrown(cause).message,
       });
     } finally {
+      exportInFlight.current = false;
       setExporting(false);
     }
-  }, [active, exporting, notify]);
+  }, [active, notify]);
 
   if (loading) return <LoadingState className="py-32" label="در حال بارگذاری گفتگوها…" />;
   if (error)
@@ -418,7 +436,7 @@ export function MessagesView() {
       <ErrorState
         className="py-32"
         title="بارگذاری گفتگوها ناموفق بود"
-        description={error.message}
+        error={error}
         onRetry={reload}
       />
     );
@@ -444,9 +462,11 @@ export function MessagesView() {
             >
               <Megaphone className="size-3.5" /> اطلاعیهٔ عمومی
             </Button>
-            <Button size="sm" variant="primary" onClick={() => void createConversation()}>
-              گفتگوی جدید
-            </Button>
+            {canWriteMessages && (
+              <Button size="sm" variant="primary" onClick={() => void createConversation()}>
+                گفتگوی جدید
+              </Button>
+            )}
           </>
         }
         meta={
@@ -562,15 +582,17 @@ export function MessagesView() {
                 >
                   <Download className="size-3.5" /> {exporting ? "در حال تهیه…" : "خروجی"}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="subtle"
-                  className="shrink-0"
-                  onClick={() => setManagerOpen(true)}
-                  aria-label="مدیریت گفتگو"
-                >
-                  <Settings2 className="size-3.5" /> مدیریت
-                </Button>
+                {canWriteMessages && (
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    className="shrink-0"
+                    onClick={() => setManagerOpen(true)}
+                    aria-label="مدیریت گفتگو"
+                  >
+                    <Settings2 className="size-3.5" /> مدیریت
+                  </Button>
+                )}
               </header>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -583,7 +605,7 @@ export function MessagesView() {
                   <ErrorState
                     className="m-2"
                     title="بارگذاری پیام‌های این گفتگو ناموفق بود"
-                    description={messagesError.message}
+                    error={messagesError}
                     onRetry={reloadMessages}
                   />
                 ) : messages.length === 0 ? (
@@ -599,6 +621,7 @@ export function MessagesView() {
                 )}
               </div>
 
+              {canWriteMessages ? (
               <div className="border-t border-white/[0.06] p-3">
                 <div className="flex items-end gap-2">
                   {/*
@@ -643,6 +666,11 @@ export function MessagesView() {
                 />
                 <p className="mt-2 text-[10.5px] text-ink-500">Enter برای ارسال · Shift + Enter برای خط جدید</p>
               </div>
+              ) : (
+                <p className="border-t border-white/[0.06] p-3 text-[12px] text-ink-400">
+                  ارسال پیام برای این نقش فعال نیست.
+                </p>
+              )}
             </>
           ) : selectionHidden ? (
             /*
@@ -692,6 +720,7 @@ export function MessagesView() {
 
         {/* Context rail */}
         <div className="hidden space-y-4 lg:block">
+          {canWriteMessages && (
           <Panel title="قالب‌های آماده" kicker="پیام‌های پرتکرار آموزشگاه">
             <ul className="space-y-2">
               {messageTemplates.map((t) => (
@@ -708,6 +737,7 @@ export function MessagesView() {
               ))}
             </ul>
           </Panel>
+          )}
           <Panel title="مسیرهای ارسال" kicker="وضعیت واقعی هر کانال">
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3.5">
               <div className="flex items-center gap-1.5 text-[10.5px] font-medium text-violet-300">
@@ -727,7 +757,7 @@ export function MessagesView() {
         is always the right record's (H6). Success is reported only from the
         callbacks, both of which run after the repository's promise resolved.
       */}
-      {active && (
+      {active && canWriteMessages && (
         <ConversationManagerDialog
           open={managerOpen}
           conversation={active}

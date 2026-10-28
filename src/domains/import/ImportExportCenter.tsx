@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload } from "lucide-react";
 import { useApp } from "@/context/AppContext";
-import { useAuth } from "@/domains/auth/AuthContext";
+import { useAuth, useCan } from "@/domains/auth/AuthContext";
 import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { Panel, Segmented } from "@/components/ds/patterns";
 import { EmptyState } from "@/components/ds/states";
@@ -37,7 +37,10 @@ const PREVIEW_ROWS = 8;
 
 export function ImportExportCenter() {
   const { notify } = useApp();
-  const { user } = useAuth();
+  const auth = useAuth();
+  // I22: `can()` reads `holder.permissions`. The session user record does not
+  // carry that set; the auth context does, which is the holder EntityExportButton uses.
+  const mayImportStudents = useCan("students.write");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("upload");
@@ -58,9 +61,9 @@ export function ImportExportCenter() {
     () =>
       (Object.keys(EXPORT_LABELS) as ExportEntity[]).filter((key) => {
         const perm = EXPORT_PERMISSIONS[key];
-        return !perm || can(user as any, perm);
+        return !perm || can(auth, perm);
       }),
-    [user],
+    [auth],
   );
 
   // Keep selected entity within allowed set — M2 rule
@@ -82,6 +85,7 @@ export function ImportExportCenter() {
   };
 
   const onFile = async (file: File) => {
+    if (!mayImportStudents) return;
     setParseError(null);
     setBusy(true);
     try {
@@ -116,7 +120,7 @@ export function ImportExportCenter() {
   };
 
   const commit = async () => {
-    if (!report) return;
+    if (!mayImportStudents || !report) return;
     setBusy(true);
     try {
       const outcome = await commitStudentImport(report, { atomic });
@@ -140,7 +144,7 @@ export function ImportExportCenter() {
   const runExport = async () => {
     // M2 rule: no control if forbidden — permission guard before export
     const required = EXPORT_PERMISSIONS[exportEntityName];
-    if (required && !can(user as any, required)) {
+    if (required && !can(auth, required)) {
       notify({ tone: "danger", title: "دسترسی ندارید", detail: `برای خروجی ${EXPORT_LABELS[exportEntityName]} به مجوز ${required} نیاز است.` });
       return;
     }
@@ -207,9 +211,13 @@ export function ImportExportCenter() {
       <Panel
         title="ورود اطلاعات هنرجویان"
         kicker="CSV یا Excel · بررسی کامل پیش از ذخیره"
-        action={step !== "upload" ? "شروع دوباره" : undefined}
-        onAction={step !== "upload" ? reset : undefined}
+        action={mayImportStudents && step !== "upload" ? "شروع دوباره" : undefined}
+        onAction={mayImportStudents && step !== "upload" ? reset : undefined}
       >
+        {!mayImportStudents ? (
+          <p className="text-[12px] text-ink-400">ورود هنرجو برای این نقش فعال نیست.</p>
+        ) : (
+        <>
         <ol className="mb-4 flex flex-wrap items-center gap-2 text-[11px]" aria-label="مراحل ورود اطلاعات">
           {(
             [
@@ -444,6 +452,8 @@ export function ImportExportCenter() {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
       </Panel>
     </div>

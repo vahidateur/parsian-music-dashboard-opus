@@ -73,7 +73,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
       <ErrorState
         className="py-16"
         title="بارگذاری مسیر یادگیری ناموفق بود"
-        description={placementError.message}
+        error={placementError}
         onRetry={reload}
       />
     );
@@ -90,7 +90,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
             {programsError ? (
               <ErrorState
                 title="بارگذاری دوره‌ها ناموفق بود"
-                description={programsError.message}
+                error={programsError}
                 onRetry={reloadPrograms}
               />
             ) : programsLoading ? (
@@ -120,7 +120,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
         ) : levelsError ? (
           <ErrorState
             title="بارگذاری سطوح ناموفق بود"
-            description={levelsError.message}
+            error={levelsError}
             onRetry={reloadLevels}
           />
         ) : levelsLoading ? (
@@ -183,7 +183,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
         {contentError ? (
           <ErrorState
             title="بارگذاری منابع باز شده ناموفق بود — not_found honest per F1"
-            description={contentError.message}
+            error={contentError}
             onRetry={reloadContent}
           />
         ) : contentLoading ? (
@@ -224,7 +224,7 @@ export function StudentLearningPanel({ studentId, studentName }: { studentId: st
           <ErrorState
             className="mt-4"
             title="بارگذاری منابع قفل ناموفق بود"
-            description={lockedError.message}
+            error={lockedError}
             onRetry={reloadLocked}
           />
         ) : lockedLoading ? (

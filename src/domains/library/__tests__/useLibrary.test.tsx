@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { getLibraryRepository, resetRegistry, setLibraryRepository } from "@/domains/registry";
 import { createEmptyDataset } from "@/domains/demo/seed";
 import {
@@ -239,7 +239,7 @@ describe("useLibraryFile — download", () => {
     expect(clicks[0].href).toBe(created[0]);
 
     // The URL was built from the retrieved blob — the bytes the store holds.
-    const stored = await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
+    const stored = await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
     expect(await result.current.blob?.text()).toBe(await stored?.text());
   });
 
@@ -277,27 +277,27 @@ describe("useDemoLibraryFile — provisioning", () => {
     // A pure seed has no blob store to write to, so a fresh dataset ships the
     // record's metadata and the hook supplies its bytes.
     await getBlobStore().remove(DEMO_LIBRARY_ASSET_ID);
-    expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeUndefined();
+    expect(await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeUndefined();
 
     renderHook(() => useDemoLibraryFile(), { wrapper });
 
     await waitFor(async () => {
-      expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
+      expect(await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
     });
-    const blob = await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
+    const blob = await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
     expect(await blob?.text()).toBe(DEMO_LIBRARY_TEXT);
   });
 
   it("is idempotent across mounts", async () => {
     const first = renderHook(() => useDemoLibraryFile(), { wrapper });
     await waitFor(async () => {
-      expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
+      expect(await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
     });
     first.unmount();
 
     renderHook(() => useDemoLibraryFile(), { wrapper });
     await waitFor(async () => {
-      expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
+      expect(await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeInstanceOf(Blob);
     });
 
     // The gallery's image rows are seeded, not provisioned here; the library's

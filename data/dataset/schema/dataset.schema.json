@@ -1,0 +1,236 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ava sample dataset",
+  "description": "Shape of data/dataset/*.json: every top-level member the dataset must carry, its array/object nature, and no extra members. Row-level shape is the domain entity types (one model, never two) and referential integrity is checked by src/dataset/validate.ts — neither is duplicated here, so this document cannot drift from them.",
+  "type": "object",
+  "required": [
+    "organization",
+    "rooms",
+    "teachers",
+    "students",
+    "classes",
+    "enrollments",
+    "sessions",
+    "attendance",
+    "invoices",
+    "payments",
+    "conversations",
+    "resources",
+    "users",
+    "roles",
+    "branding",
+    "media",
+    "instruments",
+    "programs",
+    "levels",
+    "learningContent",
+    "levelContent",
+    "placements",
+    "chatConversations",
+    "chatMessages",
+    "galleryAlbums",
+    "galleryImages",
+    "scheduledSessions",
+    "attendanceRecords",
+    "attendanceCorrections",
+    "sessionCompensations",
+    "pieces",
+    "pieceAssignments",
+    "progressEvents"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "organization": {
+      "type": "object"
+    },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "teachers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "students": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "classes": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "enrollments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attendance": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "invoices": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "payments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "conversations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "users": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "branding": {
+      "type": "object"
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "instruments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "programs": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "levels": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "learningContent": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "levelContent": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "placements": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "chatConversations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "chatMessages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "galleryAlbums": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "galleryImages": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "scheduledSessions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attendanceRecords": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "attendanceCorrections": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "sessionCompensations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "pieces": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "pieceAssignments": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "progressEvents": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

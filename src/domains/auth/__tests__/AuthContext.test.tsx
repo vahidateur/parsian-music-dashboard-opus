@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import type { AuthRepository } from "@/domains/auth/repository";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
@@ -13,7 +13,7 @@ afterEach(cleanup);
 function repoWithSeed() {
   const store = new DemoStoreImpl(memoryStorage());
   new DemoDataManager(store).initialize();
-  return new DemoAuthRepository(store, memoryStorage());
+  return new LocalAuthRepository(store, memoryStorage());
 }
 
 function Probe() {
@@ -70,10 +70,10 @@ describe("AuthProvider lifecycle", () => {
     const store = new DemoStoreImpl(memoryStorage());
     new DemoDataManager(store).initialize();
     const sessionStore = memoryStorage();
-    const repo = new DemoAuthRepository(store, sessionStore);
+    const repo = new LocalAuthRepository(store, sessionStore);
     await repo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
 
-    renderAuth(new DemoAuthRepository(store, sessionStore));
+    renderAuth(new LocalAuthRepository(store, sessionStore));
     await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("authenticated"));
   });
 
@@ -81,9 +81,9 @@ describe("AuthProvider lifecycle", () => {
     const store = new DemoStoreImpl(memoryStorage());
     new DemoDataManager(store).initialize();
     const sessionStore = memoryStorage();
-    await new DemoAuthRepository(store, sessionStore).login({ email: "teacher1@demo.local", password: DEMO_PASSPHRASE });
+    await new LocalAuthRepository(store, sessionStore).login({ email: "teacher1@demo.local", password: DEMO_PASSPHRASE });
 
-    renderAuth(new DemoAuthRepository(store, sessionStore));
+    renderAuth(new LocalAuthRepository(store, sessionStore));
     await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("authenticated"));
     expect(screen.getByTestId("finance").textContent).toBe("false");
     expect(screen.getByTestId("settings-view").textContent).toBe("false");
@@ -92,6 +92,9 @@ describe("AuthProvider lifecycle", () => {
   it("treats a failing restore as unauthenticated instead of crashing", async () => {
     const broken: AuthRepository = {
       restore: vi.fn(async () => {
+        throw new ApiError({ kind: "server", message: "boom" });
+      }),
+      restoreDetailed: vi.fn(async () => {
         throw new ApiError({ kind: "server", message: "boom" });
       }),
       login: vi.fn(),

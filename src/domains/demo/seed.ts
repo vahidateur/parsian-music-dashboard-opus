@@ -99,7 +99,14 @@ export function deriveEnrollments(source: typeof classes = classes): Enrollment[
  * Demo users: three staff accounts plus one per teacher.
  * Deterministic ids/timestamps — no credentials are stored (see auth/demo).
  */
-const SEED_TIMESTAMP = "2026-09-01T00:00:00.000Z";
+/**
+ * The dataset's own timestamp: every seeded `createdAt`/`updatedAt` is this
+ * value. Exported since W2 so the artifact's manifest can state WHEN the dataset
+ * is dated from the seed itself — a wall-clock `createdAt` in the manifest would
+ * change on every regeneration and destroy the determinism the artifact exists
+ * to prove.
+ */
+export const SEED_TIMESTAMP = "2026-09-01T00:00:00.000Z";
 
 export function deriveUsers(): DemoUser[] {
   const base = (id: string, name: string, role: RoleId, email: string, teacherId?: string): DemoUser => ({

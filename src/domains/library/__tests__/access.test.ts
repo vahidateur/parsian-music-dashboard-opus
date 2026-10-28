@@ -20,7 +20,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoLibraryRepository } from "../demoRepository";
+import { LocalLibraryRepository } from "../localRepository";
 import { studentCanAccess, type LibraryItem } from "../types";
 
 const item = (over: Partial<LibraryItem>): LibraryItem => ({
@@ -59,12 +59,12 @@ describe("studentCanAccess", () => {
 
 describe("the repository persists what the academy set", () => {
   let store: DemoStore;
-  let repo: DemoLibraryRepository;
+  let repo: LocalLibraryRepository;
 
   beforeEach(() => {
     resetToDemoEnvironment();
     store = demoStore;
-    repo = new DemoLibraryRepository(store);
+    repo = new LocalLibraryRepository(store);
   });
 
   it("carries a restriction through create, and clears it through update", async () => {

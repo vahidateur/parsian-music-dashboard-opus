@@ -54,10 +54,10 @@ import {
   setUserRepository,
 } from "@/domains/registry";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
-import { DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { demoStore } from "@/services/demoStore";
 import { memoryStorage } from "@/services/demoStore";
-import { DemoUserRepository } from "@/domains/auth/demoUserRepository";
+import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { demoDataManager } from "@/domains/demo";
 
 /** The confirmation for a saved record, per environment. */
@@ -83,11 +83,7 @@ beforeEach(async () => {
   setBlobStore(createMemoryBlobStore());
   resetToDemoEnvironment();
   demoDataManager.initialize();
-  const sessionStore = memoryStorage();
-  const authRepo = new DemoAuthRepository(demoStore, sessionStore);
-  setAuthRepository(authRepo);
-  setUserRepository(new DemoUserRepository(demoStore));
-  await authRepo.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE });
+  await signInAsAdministrator();
 });
 
 afterEach(() => {
@@ -95,6 +91,36 @@ afterEach(() => {
   resetRegistry();
   window.location.hash = "";
 });
+
+/**
+ * Signs the viewer in as this environment's administrator.
+ *
+ * Needed AFTER any `resetRegistry()`, which clears every repository override —
+ * `overrides.auth` included (`registryCore.ts`) — and so drops a session that was
+ * established earlier in the test. Without one, `AuthProvider` re-resolves
+ * through `getAuthRepository()` to a bare `LocalAuthRepository` whose `restore()`
+ * finds no persisted session: `permissions` becomes `[]`, `useCan("settings.write")`
+ * answers false, and BrandingPanel disables its save button — so
+ * `getByRole("button", { name: "ذخیرهٔ تغییرات" })` has nothing to find.
+ *
+ * Both environments seed exactly one active administrator — `admin@demo.local`
+ * in DEMO, `admin@academy.local` in EMPTY (the access bootstrap) — and neither
+ * sets its own passphrase, so the shared demo passphrase authenticates either.
+ * The account is read from the store rather than hardcoded so one call works
+ * after a case switches environment.
+ */
+async function signInAsAdministrator(): Promise<void> {
+  const authRepo = new LocalAuthRepository(demoStore, memoryStorage());
+  setAuthRepository(authRepo);
+  setUserRepository(new LocalUserRepository(demoStore));
+  const admin = demoStore
+    .snapshot()
+    .users.find((user) => user.role === "administrator" && user.status === "active");
+  // A missing administrator is a broken environment, not a missing permission:
+  // both DEMO and EMPTY seed one, so say so rather than logging in as undefined.
+  if (!admin) throw new Error("no active administrator in this environment");
+  await authRepo.login({ email: admin.email, password: DEMO_PASSPHRASE });
+}
 
 function renderWithToasts(node: React.ReactNode) {
   return render(
@@ -197,6 +223,7 @@ describe("branding save copy", () => {
     async () => {
       resetToEmptyEnvironment();
       resetRegistry();
+      await signInAsAdministrator(); // EMPTY's own administrator — `admin@academy.local`
       await saveBranding();
       await expectSavedDetail(OWN_BRANDING_DETAIL);
       expect(toastText()).not.toContain("دمو");
@@ -209,6 +236,7 @@ describe("branding save copy", () => {
     async () => {
       resetToDemoEnvironment();
       resetRegistry();
+      await signInAsAdministrator(); // DEMO's administrator — `admin@demo.local`
       await saveBranding();
       await expectSavedDetail(DEMO_BRANDING_DETAIL);
     },

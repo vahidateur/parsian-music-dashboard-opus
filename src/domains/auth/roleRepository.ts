@@ -20,6 +20,7 @@
 import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import type { ApiClient } from "@/api/client";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import {
   isPermission,
   isRoleId,
@@ -31,10 +32,10 @@ import {
 } from "./permissions";
 
 /*
-  The DEMO implementation of this interface lives in `./demoRoleRepository` —
+  The local implementation of this interface lives in `./localRoleRepository` —
   deliberately NOT co-located: it imports the demo store, and a demo-store
   import in this shared file leaks the whole demo persistence graph into the
-  client bundle (see demoRoleRepository.ts). */
+  client bundle (see localRoleRepository.ts). */
 
 /** The scope line each role ships with; an edit replaces it per role. */
 export const DEFAULT_SCOPES: Record<RoleId, string> = {
@@ -125,11 +126,15 @@ export class ApiRoleRepository implements RoleRepository {
   */
   async update(id: RoleId, input: UpdateRoleInput): Promise<RolePolicyRecord> {
     validate(id, input);
-    return this.client.patch<RolePolicyRecord>(`roles/${encodeURIComponent(id)}`, input);
+    const updated = await this.client.patch<RolePolicyRecord>(`roles/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
-  reset(id: RoleId): Promise<RolePolicyRecord> {
-    return this.client.post<RolePolicyRecord>(`roles/${encodeURIComponent(id)}/reset`);
+  async reset(id: RoleId): Promise<RolePolicyRecord> {
+    const restored = await this.client.post<RolePolicyRecord>(`roles/${encodeURIComponent(id)}/reset`);
+    bumpDataVersion();
+    return restored;
   }
 }
 

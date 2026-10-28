@@ -511,7 +511,7 @@ export function AttendanceView() {
                 ) : sessions.error !== null ? (
                   <ErrorState
                     title="جلسات این بازه خوانده نشد"
-                    description={sessions.error.message}
+                    error={sessions.error}
                     onRetry={sessions.reload}
                   />
                 ) : sessions.items.length === 0 ? (
@@ -548,13 +548,13 @@ export function AttendanceView() {
             {/* the register — one derived session, one derived register */}
             <div className="space-y-3">
               {classes.error !== null && (
-                <ErrorState className="mt-4" title="کلاس‌ها خوانده نشد" description={classes.error.message} onRetry={classes.reload} />
+                <ErrorState className="mt-4" title="کلاس‌ها خوانده نشد" error={classes.error} onRetry={classes.reload} />
               )}
               {teachers.error !== null && (
-                <ErrorState className="mt-4" title="مدرسین خوانده نشد" description={teachers.error.message} onRetry={teachers.reload} />
+                <ErrorState className="mt-4" title="مدرسین خوانده نشد" error={teachers.error} onRetry={teachers.reload} />
               )}
               {students.error !== null && (
-                <ErrorState className="mt-4" title="هنرجویان خوانده نشد" description={students.error.message} onRetry={students.reload} />
+                <ErrorState className="mt-4" title="هنرجویان خوانده نشد" error={students.error} onRetry={students.reload} />
               )}
 
               {selected === undefined ? (
@@ -574,7 +574,7 @@ export function AttendanceView() {
               ) : register.error !== null && !register.loading ? (
                 <ErrorState
                   title="فهرست حاضران خوانده نشد"
-                  description={register.error.message}
+                  error={register.error}
                   onRetry={register.reload}
                 />
               ) : !registerMatches ? (
@@ -623,7 +623,7 @@ export function AttendanceView() {
               ) : absentRecords.error !== null ? (
                 <ErrorState
                   title="غیبت‌ها خوانده نشد"
-                  description={absentRecords.error.message}
+                  error={absentRecords.error}
                   onRetry={absentRecords.reload}
                 />
               ) : absentRecords.items.length === 0 ? (
@@ -699,7 +699,7 @@ export function AttendanceView() {
               ) : windowRecords.error !== null ? (
                 <ErrorState
                   title="رکوردها خوانده نشد"
-                  description={windowRecords.error.message}
+                  error={windowRecords.error}
                   onRetry={windowRecords.reload}
                 />
               ) : windowRecords.items.length === 0 ? (
@@ -753,7 +753,7 @@ export function AttendanceView() {
               ) : corrections.error !== null ? (
                 <ErrorState
                   title="سابقهٔ اصلاحات خوانده نشد"
-                  description={corrections.error.message}
+                  error={corrections.error}
                   onRetry={corrections.reload}
                 />
               ) : corrections.items.length === 0 ? (

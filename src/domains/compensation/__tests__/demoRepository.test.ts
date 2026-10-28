@@ -15,13 +15,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { permissionsForRole } from "@/domains/auth/permissions";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
-import { DemoClassRepository } from "@/domains/classes/demoRepository";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
+import { LocalClassRepository } from "@/domains/classes/localRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import { SESSION_ERRORS } from "@/domains/scheduling/types";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
-import { DemoCompensationRepository } from "../demoRepository";
+import { LocalCompensationRepository } from "../localRepository";
 import { COMPENSATION_ERRORS,
   type CompensationActor,
 } from "../types";
@@ -44,19 +44,19 @@ const ACTOR: CompensationActor = {
   permissions: permissionsForRole("administrator"),
 };
 
-let repo: DemoCompensationRepository;
-let scheduling: DemoSchedulingRepository;
-let attendance: DemoAttendanceRepository;
-let classes: DemoClassRepository;
+let repo: LocalCompensationRepository;
+let scheduling: LocalSchedulingRepository;
+let attendance: LocalAttendanceRepository;
+let classes: LocalClassRepository;
 let store: DemoStore;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   store = demoStore;
-  attendance = new DemoAttendanceRepository(store);
-  scheduling = new DemoSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
-  classes = new DemoClassRepository(store);
-  repo = new DemoCompensationRepository(store, { scheduling, attendance });
+  attendance = new LocalAttendanceRepository(store);
+  scheduling = new LocalSchedulingRepository(store, () => attendance.sessionIdsWithAttendanceSync());
+  classes = new LocalClassRepository(store);
+  repo = new LocalCompensationRepository(store, { scheduling, attendance });
 });
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
@@ -397,12 +397,12 @@ describe("duplicate protection is an invariant", () => {
    */
   it("refuses the write when the pair becomes duplicated during the awaited reads", async () => {
     const originalSessionId = await cancelledPrivateSession();
-    const rival = new DemoCompensationRepository(store, { scheduling, attendance });
+    const rival = new LocalCompensationRepository(store, { scheduling, attendance });
 
     let interleaved = false;
     // `Object.create` keeps every real verb of the scheduling repository and
     // shadows only the one read this case needs to interleave on.
-    const racingScheduling = Object.create(scheduling) as DemoSchedulingRepository;
+    const racingScheduling = Object.create(scheduling) as LocalSchedulingRepository;
     racingScheduling.sessionRoster = async (sessionId: string) => {
       const roster = await scheduling.sessionRoster(sessionId);
       if (!interleaved) {
@@ -418,7 +418,7 @@ describe("duplicate protection is an invariant", () => {
       }
       return roster;
     };
-    const racing = new DemoCompensationRepository(store, { scheduling: racingScheduling, attendance });
+    const racing = new LocalCompensationRepository(store, { scheduling: racingScheduling, attendance });
 
     expect(
       await codeOf(

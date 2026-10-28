@@ -34,6 +34,8 @@ import { StudentProgressPanel } from "@/domains/progress/StudentProgressPanel";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { indexById } from "@/views/relations/indexById";
 import { cn } from "@/utils/cn";
+import { blockingFailure } from "@/domains/shared/errorAvailability";
+import { unavailableActions } from "@/targets/targetCopy";
 
 /**
  * Page sizes and the schedule window, stated rather than inherited.
@@ -370,7 +372,8 @@ function StudentDetail({
    */
   const relationsLoading =
     enrollments.loading || classes.loading || rooms.loading || sessions.loading || marks.loading;
-  const relationsError = enrollments.error ?? classes.error ?? rooms.error ?? sessions.error ?? marks.error;
+  // Rooms only name a room here: an unavailable or policy-blocked rooms read must not take the file down.
+  const relationsError = enrollments.error ?? classes.error ?? blockingFailure(rooms.error) ?? sessions.error ?? marks.error;
   const reloadRelations = () => {
     enrollments.reload();
     classes.reload();
@@ -439,9 +442,11 @@ function StudentDetail({
                   <UserX className="size-3.5" />
                   {student.status === "paused" ? "فعال‌سازی" : "توقف موقت"}
                 </Button>
+                {!unavailableActions.has("payment") && (
                 <Button size="sm" variant="primary" onClick={() => openSheet("payment")}>
                   <Wallet className="size-3.5" /> ثبت پرداخت
                 </Button>
+                )}
               </>
             )}
           </>
@@ -866,7 +871,12 @@ function StudentDetail({
                 <ListRow key={i} title={a.text} meta={a.date} end={<StatusBadge tone="ok" label="ثبت‌شده" />} />
               ))}
               {student.activity.filter((a) => a.kind === "payment").length === 0 && (
+                unavailableActions.has("payment") ? (
+                  // Finance is deferred: "no payment" would be a measurement nobody took.
+                  <EmptyState title="سابقهٔ پرداخت در این نسخه در دسترس نیست" description="بخش مالی هنوز پیاده‌سازی نشده است؛ نبودن ردیف به معنی نبودن پرداخت نیست." />
+                ) : (
                 <EmptyState title="پرداختی ثبت نشده" description="اولین پرداخت این هنرجو هنوز ثبت نشده است." action="ثبت پرداخت" onAction={() => openSheet("payment")} />
+                )
               )}
             </ul>
           </Panel>
@@ -1056,7 +1066,7 @@ export function StudentsView() {
         <ErrorState
           className="py-32"
           title="بارگذاری پروندهٔ هنرجو ناموفق بود"
-          description={detailError.message}
+          error={detailError}
           onRetry={reloadDetail}
         />
       );

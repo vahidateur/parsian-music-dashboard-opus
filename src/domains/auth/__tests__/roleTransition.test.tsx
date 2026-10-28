@@ -66,6 +66,13 @@ class TransitionAuthRepository implements AuthRepository {
 
   restore = vi.fn(async () => this.current);
 
+  restoreDetailed = vi.fn(
+    async (): Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> => ({
+      session: this.current,
+      expiredReason: null,
+    }),
+  );
+
   login = vi.fn(async () => {
     this.current = session("teacher-1", "teacher");
     return this.current;

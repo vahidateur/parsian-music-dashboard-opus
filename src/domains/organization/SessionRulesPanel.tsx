@@ -175,7 +175,7 @@ export function SessionRulesPanel() {
         <div className="mb-4">
           <ErrorState
             title="خواندن قواعد ناموفق بود"
-            description={organization.error.message}
+            error={organization.error}
             onRetry={organization.reload}
           />
         </div>
@@ -233,7 +233,7 @@ export function SessionRulesPanel() {
       <p className="mt-3 text-[11px] leading-relaxed text-ink-500">
         {demoEnvironment
           ? "این قواعد بخشی از دادهٔ آموزشگاه است: در همین محیط ذخیره می‌شود، در پشتیبان‌ها می‌آید و هر بخشِ مصرف‌کننده همان نسخه را می‌خواند."
-          : "ذخیرهٔ سراسری قواعد به سرور نیاز دارد؛ تا اتصال endpoint سازمان، این مقادیر روی دادهٔ همین دستگاه اعمال می‌شود."}
+          : "این قواعد بخشی از دادهٔ آموزشگاه است و پس از ذخیره برای همهٔ بخش‌های سامانه اعمال می‌شود."}
       </p>
 
       {!mayWrite && (

@@ -11,10 +11,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { ApiError } from "@/api/errors";
 import { GalleryPanel } from "../GalleryPanel";
-import { DemoGalleryRepository } from "../demoRepository";
+import { LocalGalleryRepository } from "../localRepository";
 import type { GalleryImage } from "../types";
 import { getGalleryRepository, getMediaRepository, resetRegistry, setGalleryRepository, setMediaRepository } from "@/domains/registry";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { setMediaReleaseFailureReporter } from "@/domains/media/release";
 import { demoStore } from "@/services/demoStore";
@@ -111,7 +111,7 @@ function deferred<T>() {
  * forced to fail, so the cleanup-failure hand-off can be observed.
  */
 function spyingMedia(onDelete?: (id: string) => Promise<void>) {
-  const real = new DemoMediaRepository();
+  const real = new LocalMediaRepository();
   const deleted: string[] = [];
   setMediaRepository(
     withStubs(real, {
@@ -278,7 +278,7 @@ describe("a failed album write releases the staged upload", () => {
     const gate = deferred<GalleryImage>();
     const deleted = spyingMedia();
     setGalleryRepository(
-      withStubs(new DemoGalleryRepository(), {
+      withStubs(new LocalGalleryRepository(), {
         addImage: () => gate.promise,
       }),
     );
@@ -313,7 +313,7 @@ describe("a failed album write releases the staged upload", () => {
     });
     spyingMedia(() => Promise.reject(deletion));
     setGalleryRepository(
-      withStubs(new DemoGalleryRepository(), {
+      withStubs(new LocalGalleryRepository(), {
         addImage: () => Promise.reject(new ApiError({ kind: "server", status: 500, message: "آلبوم پاسخ نداد." })),
       }),
     );

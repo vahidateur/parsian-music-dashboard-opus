@@ -32,10 +32,10 @@ import { AppProvider } from "@/context/AppContext";
 import { MessagesView } from "@/views/Messages";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { ApiError } from "@/api/errors";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
 import type { ChatMessage, MessageListParams } from "@/domains/chat/types";
 import type { Page } from "@/api/types";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import type { MediaAsset } from "@/domains/media/types";
 import { getChatRepository, resetRegistry, setChatRepository } from "@/domains/registry";
@@ -187,7 +187,7 @@ async function messagesOf(conversationId: string) {
 
 /** A counting chat repository: the real one, with the export reads tallied. */
 function stubChat(listMessages?: (params: MessageListParams) => Promise<Page<ChatMessage>>) {
-  const real = new DemoChatRepository();
+  const real = new LocalChatRepository();
   const calls = {
     messages: 0,
     conversations: 0,
@@ -475,7 +475,7 @@ describe("exporting from the view", () => {
     await selectThread(THREAD_OTHER);
     const thread = (await threads()).find((t) => t.name === THREAD_OTHER)!;
     // A real upload through the media repository, then a message referencing it.
-    const asset = await new DemoMediaRepository().create({
+    const asset = await new LocalMediaRepository().create({
       kind: "image",
       filename: "score.png",
       mimeType: "image/png",
@@ -516,7 +516,7 @@ describe("exporting from the view", () => {
     expect(successRings()).toBe(0);
     expect(toastText()).toBe("");
 
-    const stored = (await new DemoChatRepository().listMessages({ conversationId: thread.id, per_page: 200 })).data;
+    const stored = (await new LocalChatRepository().listMessages({ conversationId: thread.id, per_page: 200 })).data;
     await act(async () => {
       held.resolve({ data: stored, meta: { page: 1, per_page: 1000, total: stored.length } });
     });
@@ -546,8 +546,8 @@ describe("exporting from the view", () => {
 
     // A real repository instance: the registered one is stubbed and its read is
     // still held, so asking it here would deadlock on the promise under test.
-    const thread = (await new DemoChatRepository().listConversations({ per_page: 100 })).data[0];
-    const stored = (await new DemoChatRepository().listMessages({ conversationId: thread.id, per_page: 200 })).data;
+    const thread = (await new LocalChatRepository().listConversations({ per_page: 100 })).data[0];
+    const stored = (await new LocalChatRepository().listMessages({ conversationId: thread.id, per_page: 200 })).data;
     await act(async () => {
       held.resolve({ data: stored, meta: { page: 1, per_page: 1000, total: stored.length } });
     });
@@ -644,9 +644,9 @@ describe("export cannot be retargeted", () => {
       // The deferred answer is built for whichever thread was asked for, so a
       // retargeted read would show up as the wrong conversation's messages.
       if (params.conversationId !== threadA.id) {
-        return new DemoChatRepository().listMessages(params);
+        return new LocalChatRepository().listMessages(params);
       }
-      return held.promise.then(() => new DemoChatRepository().listMessages(params));
+      return held.promise.then(() => new LocalChatRepository().listMessages(params));
     });
 
     fireEvent.click(exportButton());

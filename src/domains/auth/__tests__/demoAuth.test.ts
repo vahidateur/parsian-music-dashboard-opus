@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { AUTH_SESSION_KEY, DEMO_PASSPHRASE, DemoAuthRepository } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY, DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { permissionsForRole } from "@/domains/auth/permissions";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage, type StorageLike } from "@/services/demoStore";
@@ -10,7 +10,7 @@ const ADMIN = "admin@demo.local";
 function ctx(now: () => number = () => Date.now()) {
   const store = new DemoStoreImpl(memoryStorage());
   const session: StorageLike = memoryStorage();
-  const auth = new DemoAuthRepository(store, session, now);
+  const auth = new LocalAuthRepository(store, session, now);
   return { store, session, auth, manager: new DemoDataManager(store) };
 }
 

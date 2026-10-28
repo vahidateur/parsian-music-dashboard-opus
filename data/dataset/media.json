@@ -1,0 +1,58 @@
+[
+  {
+    "id": "md_demo_res1",
+    "kind": "document",
+    "filename": "nocturne-op9-no2.txt",
+    "mimeType": "text/plain",
+    "sizeBytes": 1595,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_hall",
+    "kind": "image",
+    "filename": "hall-stage.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 176547,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_violin",
+    "kind": "image",
+    "filename": "recital-violin.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 107765,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_strings",
+    "kind": "image",
+    "filename": "piano-strings.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 178688,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_audience",
+    "kind": "image",
+    "filename": "audience-warm.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 164242,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_practice",
+    "kind": "image",
+    "filename": "practice-room.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 118225,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  },
+  {
+    "id": "md_gal_tar",
+    "kind": "image",
+    "filename": "tar-persian.jpg",
+    "mimeType": "image/jpeg",
+    "sizeBytes": 150254,
+    "createdAt": "2026-09-01T00:00:00.000Z"
+  }
+]

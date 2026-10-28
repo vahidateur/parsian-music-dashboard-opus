@@ -15,10 +15,10 @@
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { createMemoryBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import type { MediaAsset } from "@/domains/media/types";
-import { DemoTeacherRepository } from "../demoRepository";
+import { LocalTeacherRepository } from "../localRepository";
 import { getMediaRepository, resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 async function storeAvatar(filename: string): Promise<MediaAsset> {
-  return new DemoMediaRepository().create({
+  return new LocalMediaRepository().create({
     kind: "image",
     filename,
     mimeType: "image/png",
@@ -41,7 +41,7 @@ async function storeAvatar(filename: string): Promise<MediaAsset> {
 
 /** Real media work, with the deletions recorded and probed as they happen. */
 function spyingMedia(onDelete?: (mediaId: string) => void) {
-  const inner = new DemoMediaRepository();
+  const inner = new LocalMediaRepository();
   const deleted: string[] = [];
   const repo = withStubs(inner, {
     delete: async (id: string) => {
@@ -54,7 +54,7 @@ function spyingMedia(onDelete?: (mediaId: string) => void) {
 }
 
 async function teacherWithPhoto(photoMediaId: string, phone = "09120000009") {
-  return new DemoTeacherRepository(demoStore, new DemoMediaRepository()).create({
+  return new LocalTeacherRepository(demoStore, new LocalMediaRepository()).create({
     name: "مدرس عکس‌دار",
     photoMediaId,
     instrument: "piano",
@@ -83,7 +83,7 @@ describe("deleting a teacher with a photo", () => {
     const { repo, deleted } = spyingMedia(() => {
       probe.push({ rowAlreadyGone: demoStore.teachers.find(teacher.id) === undefined });
     });
-    const teachers = new DemoTeacherRepository(demoStore, repo);
+    const teachers = new LocalTeacherRepository(demoStore, repo);
 
     await teachers.delete(teacher.id);
 
@@ -103,7 +103,7 @@ describe("deleting a teacher with a photo", () => {
     const photo = await storeAvatar("assigned.png");
 
     const { repo, deleted } = spyingMedia();
-    const teachers = new DemoTeacherRepository(demoStore, repo);
+    const teachers = new LocalTeacherRepository(demoStore, repo);
     await teachers.update(assigned.teacherId, { photoMediaId: photo.id });
 
     await expect(teachers.delete(assigned.teacherId)).rejects.toMatchObject({ code: "TEACHER_HAS_CLASSES" });
@@ -119,12 +119,12 @@ describe("deleting a teacher with a photo", () => {
   it("fails the write, not the cleanup, when the photo cannot be freed", async () => {
     const photo = await storeAvatar("stuck.png");
     const teacher = await teacherWithPhoto(photo.id, "09120000010");
-    const failing = withStubs(new DemoMediaRepository(), {
+    const failing = withStubs(new LocalMediaRepository(), {
       delete: async () => {
         throw new ApiError({ kind: "server", code: "MEDIA_STORAGE_FAILED", message: "ذخیره‌سازی پاسخ نداد." });
       },
     });
-    const teachers = new DemoTeacherRepository(demoStore, failing);
+    const teachers = new LocalTeacherRepository(demoStore, failing);
 
     // The delete SUCCEEDS: the record is gone and the cleanup failure is
     // returned as data rather than thrown back at a caller whose write already
@@ -148,7 +148,7 @@ describe("editing a teacher's photo", () => {
     const { repo, deleted } = spyingMedia((mediaId) => {
       probe.push({ mediaId, recordAlreadyCarriesNew: demoStore.teachers.find(teacher.id)?.photoMediaId === second.id });
     });
-    const teachers = new DemoTeacherRepository(demoStore, repo);
+    const teachers = new LocalTeacherRepository(demoStore, repo);
 
     await teachers.update(teacher.id, { photoMediaId: second.id });
 

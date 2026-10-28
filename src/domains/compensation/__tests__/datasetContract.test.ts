@@ -16,7 +16,7 @@
  */
 import { permissionsForRole } from "@/domains/auth/permissions";
 import { beforeEach, describe, expect, it } from "vitest";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import { validateDataset } from "@/domains/demo/backup";
 import { demoDataManager } from "@/domains/demo/demoDataManager";
 import { createEmptyDataset, createSeedDataset } from "@/domains/demo/seed";
@@ -28,7 +28,7 @@ import {
   setAttendanceRepository,
   setSchedulingRepository,
 } from "@/domains/registry";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { CompensationActor, SessionCompensationRecord } from "../types";
@@ -146,8 +146,8 @@ describe("registry seam", () => {
     // An override for a collaborator has to be honoured here too: the compensation
     // repository is built from the OTHER domains' interfaces, never from their
     // implementations.
-    const attendance = new DemoAttendanceRepository(demoStore);
-    const scheduling = new DemoSchedulingRepository(demoStore, () => attendance.sessionIdsWithAttendanceSync());
+    const attendance = new LocalAttendanceRepository(demoStore);
+    const scheduling = new LocalSchedulingRepository(demoStore, () => attendance.sessionIdsWithAttendanceSync());
     setAttendanceRepository(attendance);
     setSchedulingRepository(scheduling);
 

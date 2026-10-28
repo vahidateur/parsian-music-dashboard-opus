@@ -1,0 +1,246 @@
+[
+  {
+    "id": "cl1",
+    "title": "پیانو گروهی · میانی",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "roomId": "r1",
+    "kind": "group",
+    "level": "سطح ۳",
+    "days": [
+      3,
+      5
+    ],
+    "time": "17:00",
+    "duration": 90,
+    "enrolled": 5,
+    "capacity": 6,
+    "attendanceAvg": 94,
+    "waitlist": 0,
+    "tuition": 3600000,
+    "termProgress": 68,
+    "studentIds": [
+      "st1",
+      "st5",
+      "st7",
+      "st13",
+      "st11"
+    ]
+  },
+  {
+    "id": "cl2",
+    "title": "پیانو انفرادی · پیشرفته",
+    "instrument": "piano",
+    "teacherId": "t1",
+    "roomId": "r1",
+    "kind": "private",
+    "level": "سطح ۵",
+    "days": [
+      3
+    ],
+    "time": "14:00",
+    "duration": 60,
+    "enrolled": 1,
+    "capacity": 1,
+    "attendanceAvg": 98,
+    "waitlist": 0,
+    "tuition": 4800000,
+    "termProgress": 44,
+    "studentIds": [
+      "st7"
+    ]
+  },
+  {
+    "id": "cl3",
+    "title": "گیتار مقدماتی",
+    "instrument": "guitar",
+    "teacherId": "t2",
+    "roomId": "r2",
+    "kind": "group",
+    "level": "سطح ۱–۲",
+    "days": [
+      0,
+      3
+    ],
+    "time": "09:30",
+    "duration": 60,
+    "enrolled": 3,
+    "capacity": 5,
+    "attendanceAvg": 88,
+    "waitlist": 0,
+    "tuition": 2800000,
+    "termProgress": 72,
+    "studentIds": [
+      "st2",
+      "st8",
+      "st6"
+    ]
+  },
+  {
+    "id": "cl4",
+    "title": "گیتار · نوجوانان",
+    "instrument": "guitar",
+    "teacherId": "t2",
+    "roomId": "r2",
+    "kind": "group",
+    "level": "سطح ۳",
+    "days": [
+      3,
+      6
+    ],
+    "time": "18:00",
+    "duration": 60,
+    "enrolled": 2,
+    "capacity": 6,
+    "attendanceAvg": 91,
+    "waitlist": 0,
+    "tuition": 3200000,
+    "termProgress": 60,
+    "studentIds": [
+      "st6",
+      "st8"
+    ]
+  },
+  {
+    "id": "cl5",
+    "title": "آواز · تکنیک صدا",
+    "instrument": "voice",
+    "teacherId": "t4",
+    "roomId": "r3",
+    "kind": "group",
+    "level": "سطح ۲–۳",
+    "days": [
+      3
+    ],
+    "time": "12:00",
+    "duration": 60,
+    "enrolled": 2,
+    "capacity": 4,
+    "attendanceAvg": 90,
+    "waitlist": 0,
+    "tuition": 3400000,
+    "termProgress": 55,
+    "studentIds": [
+      "st3",
+      "st9"
+    ]
+  },
+  {
+    "id": "cl6",
+    "title": "ویولن · کودکان",
+    "instrument": "violin",
+    "teacherId": "t8",
+    "roomId": "r1",
+    "kind": "group",
+    "level": "سطح ۱",
+    "days": [
+      1,
+      4
+    ],
+    "time": "16:00",
+    "duration": 45,
+    "enrolled": 1,
+    "capacity": 8,
+    "attendanceAvg": 93,
+    "waitlist": 0,
+    "tuition": 2600000,
+    "termProgress": 50,
+    "studentIds": [
+      "st11"
+    ]
+  },
+  {
+    "id": "cl7",
+    "title": "ویولن انفرادی",
+    "instrument": "violin",
+    "teacherId": "t3",
+    "roomId": "r1",
+    "kind": "private",
+    "level": "سطح ۴",
+    "days": [
+      3
+    ],
+    "time": "14:00",
+    "duration": 60,
+    "enrolled": 1,
+    "capacity": 1,
+    "attendanceAvg": 86,
+    "waitlist": 0,
+    "tuition": 4200000,
+    "termProgress": 62,
+    "studentIds": [
+      "st4"
+    ]
+  },
+  {
+    "id": "cl8",
+    "title": "تئوری موسیقی · پایه",
+    "instrument": "theory",
+    "teacherId": "t5",
+    "roomId": "r3",
+    "kind": "group",
+    "level": "سطح ۱–۲",
+    "days": [
+      3
+    ],
+    "time": "11:00",
+    "duration": 60,
+    "enrolled": 1,
+    "capacity": 10,
+    "attendanceAvg": 92,
+    "waitlist": 0,
+    "tuition": 1800000,
+    "termProgress": 65,
+    "studentIds": [
+      "st12"
+    ]
+  },
+  {
+    "id": "cl9",
+    "title": "سلفژ و تربیت شنوایی",
+    "instrument": "theory",
+    "teacherId": "t5",
+    "roomId": "r3",
+    "kind": "group",
+    "level": "سطح ۲",
+    "days": [
+      3,
+      6
+    ],
+    "time": "16:00",
+    "duration": 60,
+    "enrolled": 1,
+    "capacity": 10,
+    "attendanceAvg": 89,
+    "waitlist": 0,
+    "tuition": 1800000,
+    "termProgress": 58,
+    "studentIds": [
+      "st12"
+    ]
+  },
+  {
+    "id": "cl10",
+    "title": "درامز مقدماتی",
+    "instrument": "drums",
+    "teacherId": "t6",
+    "roomId": "r4",
+    "kind": "group",
+    "level": "سطح ۱",
+    "days": [
+      3,
+      5
+    ],
+    "time": "15:30",
+    "duration": 60,
+    "enrolled": 1,
+    "capacity": 3,
+    "attendanceAvg": 84,
+    "waitlist": 0,
+    "tuition": 3000000,
+    "termProgress": 40,
+    "studentIds": [
+      "st10"
+    ]
+  }
+]

@@ -26,7 +26,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
-import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/demoAuthRepository";
+import { AUTH_SESSION_KEY, DEMO_PASSPHRASE } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { BOOTSTRAP_ADMIN_EMAIL } from "@/domains/demo/lifecycle";
 import { resetRegistry } from "@/domains/registry";
@@ -55,7 +55,7 @@ beforeEach(() => {
   resetRegistry();
   // An EMPTY environment only exists when the data source is demo, so this is
   // the realistic configuration for a customer running the panel locally.
-  setRuntimeConfig({ mode: "demo", error: null });
+  setRuntimeConfig({ mode: "local", error: null });
 });
 
 afterEach(() => {
@@ -69,6 +69,7 @@ describe("an EMPTY environment is not called a demo", () => {
 
     expect(screen.getByText(/دادهٔ محلی — بدون امنیت واقعی/)).toBeTruthy();
     expect(screen.queryByText(/محیط دمو/)).toBeNull();
+    expect(screen.queryByText(/دادهٔ نمونه — بدون امنیت واقعی/)).toBeNull();
   });
 
   it("does not call the visitor's own account a sample account", () => {

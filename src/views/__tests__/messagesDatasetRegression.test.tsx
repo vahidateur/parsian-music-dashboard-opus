@@ -18,7 +18,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { MessagesView } from "@/views/Messages";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
 import type { ChatRepository } from "@/domains/chat/repository";
 import { getChatRepository, resetRegistry, setChatRepository } from "@/domains/registry";
 import { createEmptyDataset, createSeedDataset } from "@/domains/demo/seed";
@@ -68,7 +68,7 @@ async function waitForThreads() {
 
 /** A repository whose thread list genuinely fails, everything else real. */
 function failingChatRepository(message: string): ChatRepository {
-  const real: ChatRepository = new DemoChatRepository();
+  const real: ChatRepository = new LocalChatRepository();
   return {
     listConversations: () =>
       Promise.reject(new ApiError({ kind: "server", status: 500, code: "CHAT_UNAVAILABLE", message })),

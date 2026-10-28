@@ -1,0 +1,509 @@
+[
+  {
+    "id": "t1",
+    "name": "سارا احمدی",
+    "instrument": "piano",
+    "title": "مدرس ارشد پیانو",
+    "students": 32,
+    "utilization": 94,
+    "weeklyHours": 24,
+    "contractHours": 26,
+    "attendanceRate": 97,
+    "retention": 93,
+    "todayClasses": [
+      "c1",
+      "c6",
+      "c8",
+      "c11"
+    ],
+    "availability": [
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        1,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        1,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۳۹۸",
+    "phone": "۰۹۱۲ ··· ۴۵۱۲",
+    "status": "active",
+    "bio": "فارغ‌التحصیل نوازندگی پیانو · متد سوزوکی و روسی · تمرکز بر کودکان و سطح پیشرفته"
+  },
+  {
+    "id": "t2",
+    "name": "محمد رضایی",
+    "instrument": "guitar",
+    "title": "مدرس گیتار کلاسیک و پاپ",
+    "students": 28,
+    "utilization": 88,
+    "weeklyHours": 22,
+    "contractHours": 25,
+    "attendanceRate": 94,
+    "retention": 88,
+    "todayClasses": [
+      "c2",
+      "c3",
+      "c12"
+    ],
+    "availability": [
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        1,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        1,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۳۹۹",
+    "phone": "۰۹۱۲ ··· ۷۸۳۰",
+    "status": "absent-tomorrow",
+    "bio": "گیتار کلاسیک، فلامنکو و همراهی پاپ · مربی گروه‌نوازی نوجوانان"
+  },
+  {
+    "id": "t3",
+    "name": "علی موسوی",
+    "instrument": "violin",
+    "title": "مدرس ویولن",
+    "students": 19,
+    "utilization": 74,
+    "weeklyHours": 17,
+    "contractHours": 23,
+    "attendanceRate": 96,
+    "retention": 90,
+    "todayClasses": [
+      "c7"
+    ],
+    "availability": [
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        1,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۴۰۰",
+    "phone": "۰۹۱۲ ··· ۲۲۹۴",
+    "status": "active",
+    "bio": "ویولن کلاسیک و ردیف ایرانی · سرپرست ارکستر نوجوانان آموزشگاه"
+  },
+  {
+    "id": "t4",
+    "name": "نرگس حسینی",
+    "instrument": "voice",
+    "title": "مدرس آواز",
+    "students": 15,
+    "utilization": 68,
+    "weeklyHours": 14,
+    "contractHours": 20,
+    "attendanceRate": 92,
+    "retention": 86,
+    "todayClasses": [
+      "c5",
+      "c13"
+    ],
+    "availability": [
+      [
+        0,
+        1,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        1,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۴۰۱",
+    "phone": "۰۹۱۲ ··· ۵۵۰۷",
+    "status": "absent-tomorrow",
+    "bio": "آواز کلاسیک و پاپ · تکنیک تنفس و صداسازی"
+  },
+  {
+    "id": "t5",
+    "name": "بهرام نیک‌نژاد",
+    "instrument": "theory",
+    "title": "مدرس تئوری و سلفژ",
+    "students": 24,
+    "utilization": 57,
+    "weeklyHours": 12,
+    "contractHours": 21,
+    "attendanceRate": 95,
+    "retention": 91,
+    "todayClasses": [
+      "c4",
+      "c10"
+    ],
+    "availability": [
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        1,
+        1,
+        0,
+        1
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۳۹۷",
+    "phone": "۰۹۱۲ ··· ۱۱۸۳",
+    "status": "light-load",
+    "bio": "تئوری موسیقی، سلفژ و هارمونی · طراح مسیر آموزشی پایه آموزشگاه"
+  },
+  {
+    "id": "t6",
+    "name": "کاوه کاظمی",
+    "instrument": "drums",
+    "title": "مدرس درامز و پرکاشن",
+    "students": 16,
+    "utilization": 48,
+    "weeklyHours": 10,
+    "contractHours": 21,
+    "attendanceRate": 89,
+    "retention": 79,
+    "todayClasses": [
+      "c9"
+    ],
+    "availability": [
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        1,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۴۰۲",
+    "phone": "۰۹۱۲ ··· ۹۹۴۱",
+    "status": "light-load",
+    "bio": "درامز، کاخن و پرکاشن · تمرکز بر ریتم‌خوانی و گروه‌نوازی"
+  },
+  {
+    "id": "t7",
+    "name": "رامین صادقی",
+    "instrument": "guitar",
+    "title": "مدرس گیتار",
+    "students": 12,
+    "utilization": 52,
+    "weeklyHours": 11,
+    "contractHours": 21,
+    "attendanceRate": 93,
+    "retention": 84,
+    "todayClasses": [],
+    "availability": [
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۴۰۲",
+    "phone": "۰۹۱۲ ··· ۳۳۷۶",
+    "status": "light-load",
+    "bio": "گیتار الکتریک و پاپ · جایگزین دوره‌ای کلاس‌های گیتار"
+  },
+  {
+    "id": "t8",
+    "name": "مینا فرهادی",
+    "instrument": "violin",
+    "title": "مدرس ویولن کودکان",
+    "students": 14,
+    "utilization": 59,
+    "weeklyHours": 12,
+    "contractHours": 20,
+    "attendanceRate": 94,
+    "retention": 87,
+    "todayClasses": [],
+    "availability": [
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        2,
+        2,
+        2,
+        2
+      ]
+    ],
+    "since": "۱۴۰۱",
+    "phone": "۰۹۱۲ ··· ۶۲۱۹",
+    "status": "active",
+    "bio": "آموزش ویولن به کودکان ۵ تا ۱۰ سال · روش گروهی و بازی‌محور"
+  }
+]

@@ -6,7 +6,7 @@
  * change that reaches past the repository seam fails CI instead of quietly
  * landing.
  */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -51,6 +51,33 @@ describe("views and components stay behind the data layer", () => {
   it("never import the demo store", () => {
     const offenders = viewLayer.filter((file) => /services\/demoStore/.test(code(readFileSync(file, "utf8"))));
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * W3 — the boundary is the store module, not the class name.
+   *
+   * Renaming `demoStore` to `localStore` must not open a path views can import.
+   * The check reads the raw source (import specifiers survive; `code()` strips
+   * string literals, which is why the case above cannot see a `from "..."` path)
+   * and is non-vacuous: it fires on both module paths and does not fire on the
+   * class name alone.
+   */
+  it("never import the local store module (interface boundary, not the class)", () => {
+    const STORE_IMPORT = /services\/(?:demoStore|localStore)/;
+    const offenders = viewLayer.filter((file) => STORE_IMPORT.test(readFileSync(file, "utf8")));
+    expect(offenders).toEqual([]);
+    expect(STORE_IMPORT.test('import type { LocalDataStore } from "@/services/localStore";')).toBe(true);
+    expect(STORE_IMPORT.test('import { demoStore } from "@/services/demoStore";')).toBe(true);
+    expect(STORE_IMPORT.test("class DemoStoreImpl {}")).toBe(false);
+    expect(STORE_IMPORT.test("class LocalStoreImpl {}")).toBe(false);
+  });
+
+  it("types the media reference check against the store interface, not the class", () => {
+    const source = readFileSync(join(ROOT, "domains", "media", "mediaReferences.ts"), "utf8");
+    expect(source).toContain("LocalDataStore");
+    expect(source).toMatch(/mediaStillReferenced\(store:\s*LocalDataStore/);
+    expect(source).not.toMatch(/\bDemoStoreImpl\b/);
+    expect(source).not.toMatch(/import\s+(type\s+)?\{[^}]*\bDemoStore\b/);
   });
 
   it("never call fetch or hardcode an HTTP URL", () => {
@@ -470,11 +497,95 @@ describe("F9 — Mobile client contract — same backend no second API bearer se
     expect(source).not.toContain("data:image");
   });
 
-  it("same RBAC same permissions — 5 roles 22 perms — same for web and mobile", () => {
+  /*
+    The count is deliberately NOT restated here. It used to read "5 roles 22
+    perms" and went stale the moment DECISIONS §29 added the two Progress ids
+    (22 → 25) — a number in a name is a claim nobody maintains. The vocabulary's
+    size and its agreement with the server are owned by
+    `src/domains/auth/__tests__/permissionParity.test.ts`, which parses the
+    shipped backend config; this case owns the narrower claim its assertions
+    actually make: web and mobile read ONE RBAC model.
+  */
+  it("same RBAC same permissions — one vocabulary for web and mobile", () => {
     const permPath = join(ROOT, "domains", "auth", "permissions.ts");
     const source = readFileSync(permPath, "utf8");
     expect(source).toContain("ROLES");
     expect(source).toContain("PERMISSIONS");
     expect(source).toContain("rolePermissions");
+  });
+});
+
+/**
+ * W8 — the client composition files must not import the fixture graph.
+ * Comments may name those modules. Import specifiers may not.
+ */
+function importSpecifiers(source: string): string[] {
+  const out: string[] = [];
+  for (const match of source.matchAll(/\bfrom\s*["']([^"']+)["']/g)) out.push(match[1]);
+  for (const match of source.matchAll(/\bimport\s*\(\s*["']([^"']+)["']/g)) out.push(match[1]);
+  return out;
+}
+
+function clientImportForbidden(specifier: string): boolean {
+  return /services\/(?:demoStore|localStore)|domains\/demo(?:\/|$)|(?:^|\/)dataset(?:\/|$)|data\/dataset|demoDataManager|DemoDataPanel|loadDatasetArtifact|demoCredentials|demoReferences|mediaReferences|demoCollection/.test(
+    specifier,
+  );
+}
+
+function clientCompositionFiles(): string[] {
+  const targets = join(ROOT, "targets");
+  const files = sourceFiles(targets).filter((file) => /\.client\.tsx?$/.test(file));
+  files.push(join(ROOT, "domains", "registry.client.ts"));
+  return files;
+}
+
+describe("client composition does not import the fixture graph", () => {
+  it("never imports the store, the seed, the dataset artifact, or a demo panel", () => {
+    const offenders: string[] = [];
+    for (const file of clientCompositionFiles()) {
+      for (const specifier of importSpecifiers(readFileSync(file, "utf8"))) {
+        if (clientImportForbidden(specifier)) offenders.push(`${file} → ${specifier}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+    expect(clientImportForbidden("@/services/localStore")).toBe(true);
+    expect(clientImportForbidden("@/services/demoStore")).toBe(true);
+    expect(clientImportForbidden("@/domains/demo/seed")).toBe(true);
+    expect(clientImportForbidden("@/dataset/load")).toBe(true);
+    expect(clientImportForbidden("@/components/settings/DemoDataPanel")).toBe(true);
+    expect(clientImportForbidden("@/domains/media/mediaReferences")).toBe(true);
+    expect(clientImportForbidden("@/domains/media/demoReferences")).toBe(true);
+    expect(clientImportForbidden("@/domains/shared/demoCollection")).toBe(true);
+    expect(clientImportForbidden("lucide-react")).toBe(false);
+    expect(importSpecifiers('// would pull demoStore\nimport { PlugZap } from "lucide-react";')).toEqual(["lucide-react"]);
+  });
+});
+
+describe("kept fixture gates are still present", () => {
+  const KEPT = [
+    "src/__tests__/m10Boundary.test.ts",
+    "src/views/__tests__/attendanceNoFixtures.test.ts",
+    "src/views/__tests__/compensationNoFixtures.test.ts",
+    "src/views/__tests__/messagesNoFixtures.test.ts",
+    "src/views/__tests__/relationsNoFixtures.test.ts",
+    "src/views/__tests__/schedulingNoFixtures.test.ts",
+  ];
+
+  function missingKept(files: readonly { path: string; text: string | null }[]): string[] {
+    return files.flatMap((file) => (file.text === null || file.text.length < 200 ? [file.path] : []));
+  }
+
+  it("m10Boundary and the five NoFixtures gates were not deleted", () => {
+    const files = KEPT.map((path) => ({
+      path,
+      text: existsSync(join(process.cwd(), path)) ? readFileSync(join(process.cwd(), path), "utf8") : null,
+    }));
+    expect(missingKept(files)).toEqual([]);
+    expect(missingKept([{ path: "src/__tests__/m10Boundary.test.ts", text: null }])).toEqual([
+      "src/__tests__/m10Boundary.test.ts",
+    ]);
+    const m10 = files[0].text ?? "";
+    expect(m10).toContain("data/records");
+    expect(m10).toContain("data/academy");
   });
 });

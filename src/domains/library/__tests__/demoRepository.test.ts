@@ -12,7 +12,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
 import { resetRegistry } from "@/domains/registry";
 import {
   DEMO_LIBRARY_ASSET,
@@ -25,16 +25,16 @@ import {
 import { createEmptyDataset } from "@/domains/demo/seed";
 import { demoStore } from "@/services/demoStore";
 import { ensureDemoLibraryFile } from "../demoContent";
-import { DemoLibraryRepository, addedLabel, durationLabel, sizeLabel } from "../demoRepository";
+import { LocalLibraryRepository, addedLabel, durationLabel, sizeLabel } from "../localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
-let repo: DemoLibraryRepository;
+let repo: LocalLibraryRepository;
 
 beforeEach(() => {
   resetToDemoEnvironment();
   resetRegistry();
   setBlobStore(createMemoryBlobStore());
-  repo = new DemoLibraryRepository();
+  repo = new LocalLibraryRepository();
 });
 
 async function fieldsOf(promise: Promise<unknown>): Promise<Record<string, string[]> | undefined> {
@@ -117,7 +117,7 @@ describe("the seeded demo file", () => {
     const row = await repo.get(DEMO_LIBRARY_RESOURCE_ID);
     expect(row.mediaId).toBe(DEMO_LIBRARY_ASSET_ID);
 
-    const asset = await new DemoMediaRepository().get(DEMO_LIBRARY_ASSET_ID);
+    const asset = await new LocalMediaRepository().get(DEMO_LIBRARY_ASSET_ID);
     expect(asset).toEqual(DEMO_LIBRARY_ASSET);
     expect(asset.kind).toBe("document");
     expect(asset.mimeType).toBe("text/plain");
@@ -131,7 +131,7 @@ describe("the seeded demo file", () => {
     expect(result.bytesWritten).toBe(true);
 
     // Read back through the media domain — the same call the download makes.
-    const blob = await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
+    const blob = await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID);
     expect(blob).toBeInstanceOf(Blob);
     expect(blob?.size).toBe(DEMO_LIBRARY_ASSET.sizeBytes);
     expect(await blob?.text()).toBe(DEMO_LIBRARY_TEXT);
@@ -206,9 +206,9 @@ describe("missing bytes are honest, not faked", () => {
     // The state a backup restore produces: metadata without binaries.
     await getBlobStore().remove(DEMO_LIBRARY_ASSET_ID);
 
-    const asset = await new DemoMediaRepository().get(DEMO_LIBRARY_ASSET_ID);
+    const asset = await new LocalMediaRepository().get(DEMO_LIBRARY_ASSET_ID);
     expect(asset.id).toBe(DEMO_LIBRARY_ASSET_ID);
-    expect(await new DemoMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeUndefined();
+    expect(await new LocalMediaRepository().getBlob(DEMO_LIBRARY_ASSET_ID)).toBeUndefined();
   });
 
   it("reports a dangling reference as a validation error on write", async () => {
@@ -226,7 +226,7 @@ describe("missing bytes are honest, not faked", () => {
 
 describe("catalogue writes", () => {
   it("creates a row with measurements derived from the real file", async () => {
-    const media = new DemoMediaRepository();
+    const media = new LocalMediaRepository();
     const asset = await media.create({
       kind: "document",
       filename: "etude-notes.txt",
@@ -252,7 +252,7 @@ describe("catalogue writes", () => {
     expect(created.added).toBe(addedLabel(created.createdAt as string));
 
     // Genuinely persisted: a fresh repository instance reads it back.
-    expect(await new DemoLibraryRepository().get(created.id)).toMatchObject({ title: "یادداشت‌های اتود" });
+    expect(await new LocalLibraryRepository().get(created.id)).toMatchObject({ title: "یادداشت‌های اتود" });
   });
 
   it("creates a catalogue-only row and says the size is unknown", async () => {
@@ -276,7 +276,7 @@ describe("catalogue writes", () => {
   });
 
   it("updates a row and re-measures the size when the file changes", async () => {
-    const media = new DemoMediaRepository();
+    const media = new LocalMediaRepository();
     const asset = await media.create({
       kind: "document",
       filename: "revision.txt",
@@ -294,7 +294,7 @@ describe("catalogue writes", () => {
   });
 
   it("deletes a row and frees a file nothing else references", async () => {
-    const media = new DemoMediaRepository();
+    const media = new LocalMediaRepository();
     const asset = await media.create({
       kind: "document",
       filename: "single-use.txt",
@@ -312,7 +312,7 @@ describe("catalogue writes", () => {
   });
 
   it("keeps a file another row still references", async () => {
-    const media = new DemoMediaRepository();
+    const media = new LocalMediaRepository();
     const asset = await media.create({
       kind: "document",
       filename: "shared.txt",

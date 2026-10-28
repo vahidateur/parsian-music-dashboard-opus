@@ -32,6 +32,7 @@ import { academyIsoDate, academyWeekdayIndex } from "@/views/relations/academyDa
 import { indexById } from "@/views/relations/indexById";
 import { paymentBadge } from "./Students";
 import { cn } from "@/utils/cn";
+import { blockingFailure } from "@/domains/shared/errorAvailability";
 
 /**
  * WHAT A CLASS READ FROM THE FIXTURE, AND WHAT IT READS NOW.
@@ -307,7 +308,8 @@ function ClassDetail({
   };
 
   const relationsLoading = enrollments.loading || rooms.loading || sessions.loading || studentRows.loading;
-  const relationsError = enrollments.error ?? rooms.error ?? sessions.error ?? studentRows.error;
+  // Rooms only name a room here: an unavailable or policy-blocked rooms read must not take the class down.
+  const relationsError = enrollments.error ?? blockingFailure(rooms.error) ?? sessions.error ?? studentRows.error;
   const reloadRelations = () => {
     enrollments.reload();
     rooms.reload();
@@ -567,7 +569,8 @@ function ClassesRoster({
   }, [classes, inst, kind, query, sort, teacherIndex, seats, waiting]);
 
   const relationsLoading = enrollments.loading || rooms.loading;
-  const relationsError = enrollments.error ?? rooms.error;
+  // Rooms only name a room here: an unavailable or policy-blocked rooms read must not take the list down.
+  const relationsError = enrollments.error ?? blockingFailure(rooms.error);
   const reloadRelations = () => {
     enrollments.reload();
     rooms.reload();
@@ -579,7 +582,7 @@ function ClassesRoster({
       <ErrorState
         className="py-32"
         title="خواندن ثبت‌نام‌ها و اتاق‌های آموزشگاه ناموفق بود"
-        description={relationsError.message}
+        error={relationsError}
         onRetry={reloadRelations}
       />
     );
@@ -683,7 +686,10 @@ function ClassesRoster({
       </div>
 
       <Panel className="mt-5" title="اتاق‌ها" kicker="ظرفیت فیزیکی آموزشگاه و میزان استفاده از آن">
-        {rooms.items.length === 0 ? (
+        {rooms.error !== null ? (
+          // The rooms read is unavailable / policy-blocked (not failed, not empty): say so.
+          <ErrorState className="py-6" error={rooms.error} onRetry={rooms.reload} />
+        ) : rooms.items.length === 0 ? (
           <EmptyState title="اتاقی ثبت نشده" description="هنوز اتاقی برای آموزشگاه ثبت نشده است." />
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -776,7 +782,7 @@ export function ClassesView() {
       <ErrorState
         className="py-32"
         title="بارگذاری کلاس ناموفق بود"
-        description={detailError.message}
+        error={detailError}
         onRetry={reloadDetail}
       />
     );
@@ -787,7 +793,7 @@ export function ClassesView() {
       <ErrorState
         className="py-32"
         title={error ? "بارگذاری کلاس‌ها ناموفق بود" : "بارگذاری مدرسین ناموفق بود"}
-        description={failure.message}
+        error={failure}
         onRetry={() => {
           reload();
           teachers.reload();

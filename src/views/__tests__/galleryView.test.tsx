@@ -44,6 +44,10 @@ describe("the showcase", () => {
     }
     // The header counts what the repositories hold, in Persian digits.
     expect(screen.getByText("۶ تصویر در ۲ آلبوم")).toBeDefined();
+    // The rail footer carries the same counts compactly — and no English
+    // implementation note leaks into the product surface.
+    expect(screen.getByText("۶ تصویر · ۲ آلبوم")).toBeDefined();
+    expect(document.body.textContent).not.toContain("backend");
   });
 
   it("filters by album, and the header wears the album's own title", async () => {

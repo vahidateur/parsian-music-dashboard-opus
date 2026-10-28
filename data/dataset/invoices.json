@@ -1,0 +1,99 @@
+[
+  {
+    "id": "INV-1042",
+    "studentId": "st8",
+    "amount": 1200000,
+    "issued": "۱۴۰۴/۱۲/۰۲",
+    "due": "۱۴۰۴/۱۲/۰۷",
+    "status": "overdue",
+    "overdueDays": 12,
+    "term": "دورهٔ زمستان"
+  },
+  {
+    "id": "INV-1038",
+    "studentId": "st9",
+    "amount": 850000,
+    "issued": "۱۴۰۴/۱۲/۰۴",
+    "due": "۱۴۰۴/۱۲/۱۰",
+    "status": "overdue",
+    "overdueDays": 9,
+    "term": "دورهٔ زمستان"
+  },
+  {
+    "id": "INV-1051",
+    "studentId": "st6",
+    "amount": 400000,
+    "issued": "۱۴۰۴/۱۲/۱۰",
+    "due": "۱۴۰۴/۱۲/۱۶",
+    "status": "overdue",
+    "overdueDays": 3,
+    "term": "جلسات جبرانی"
+  },
+  {
+    "id": "INV-1064",
+    "studentId": "st1",
+    "amount": 1200000,
+    "issued": "۱۴۰۴/۱۲/۱۵",
+    "due": "۱۴۰۴/۱۲/۲۵",
+    "status": "due",
+    "term": "دورهٔ زمستان"
+  },
+  {
+    "id": "INV-1065",
+    "studentId": "st5",
+    "amount": 600000,
+    "issued": "۱۴۰۴/۱۲/۱۵",
+    "due": "۱۴۰۴/۱۲/۲۵",
+    "status": "due",
+    "term": "نیم‌دوره"
+  },
+  {
+    "id": "INV-1066",
+    "studentId": "st12",
+    "amount": 450000,
+    "issued": "۱۴۰۴/۱۲/۱۶",
+    "due": "۱۴۰۴/۱۲/۲۶",
+    "status": "due",
+    "term": "تئوری · پایه"
+  },
+  {
+    "id": "INV-1058",
+    "studentId": "st7",
+    "amount": 4800000,
+    "issued": "۱۴۰۴/۱۲/۰۸",
+    "due": "۱۴۰۴/۱۲/۱۵",
+    "status": "paid",
+    "term": "دورهٔ زمستان",
+    "method": "درگاه آنلاین"
+  },
+  {
+    "id": "INV-1059",
+    "studentId": "st11",
+    "amount": 2600000,
+    "issued": "۱۴۰۴/۱۲/۰۸",
+    "due": "۱۴۰۴/۱۲/۱۵",
+    "status": "paid",
+    "term": "ویولن کودکان",
+    "method": "کارت‌خوان"
+  },
+  {
+    "id": "INV-1060",
+    "studentId": "st10",
+    "amount": 3000000,
+    "issued": "۱۴۰۴/۱۲/۰۹",
+    "due": "۱۴۰۴/۱۲/۱۶",
+    "status": "paid",
+    "term": "درامز مقدماتی",
+    "method": "انتقال بانکی"
+  },
+  {
+    "id": "INV-1061",
+    "studentId": "st3",
+    "amount": 3400000,
+    "issued": "۱۴۰۴/۱۲/۱۱",
+    "due": "۱۴۰۴/۱۲/۱۸",
+    "status": "paid",
+    "term": "آواز · تکنیک",
+    "method": "درگاه آنلاین"
+  }
+]

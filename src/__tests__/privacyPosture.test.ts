@@ -158,7 +158,7 @@ describe("no secrets in the bundle", () => {
     // `arena-demo-backup-....json` is a filename prefix, not a credential —
     // do not trip the check.
     const offenders = files.filter((file) => {
-      if (file.includes("demoAuthRepository") || file.includes("__tests__") || file.includes("password.ts")) {
+      if (file.includes("localAuthRepository") || file.includes("__tests__") || file.includes("password.ts")) {
         return false;
       }
       return /["'`]arena-demo["'`]/.test(readFileSync(file, "utf8"));

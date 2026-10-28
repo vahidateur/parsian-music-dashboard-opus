@@ -11,8 +11,10 @@ import { Button, Surface } from "@/components/ds/primitives";
 import { Field, Panel, inputCls } from "@/components/ds/patterns";
 import { ErrorState, LoadingState } from "@/components/ds/states";
 import { useApp } from "@/context/AppContext";
-import { getBrandingRepository } from "@/domains/registry";
+import { useCan } from "@/domains/auth/AuthContext";
+import { getBrandingRepository, getOrganizationRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/targets/environment";
+import { brandingUnavailableDescription } from "@/targets/targetCopy";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
@@ -80,8 +82,13 @@ function ColorField({
 
 export function BrandingPanel() {
   const { notify } = useApp();
+  // Branding writes require branding.write (DECISIONS.md §38): the panel's
+  // own permission id, never the neighbouring settings.write. Reading
+  // needs no gate here: the view itself requires settings.read, and every
+  // reader of the view may read.
+  const mayWrite = useCan("branding.write");
   const demoEnvironment = useIsDemoEnvironment();
-  const { branding, loading, error, reload } = useBranding();
+  const { branding, loading, error, reload, visualsAvailable } = useBranding();
   const [draft, setDraft] = useState<Draft>(() => toDraft(branding));
   const [fields, setFields] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
@@ -109,6 +116,7 @@ export function BrandingPanel() {
   };
 
   const resetToDefaults = () => {
+    if (!mayWrite || !visualsAvailable) return;
     setDraft(toDraft(DEFAULT_BRANDING));
     setFields({});
     notify({
@@ -119,10 +127,18 @@ export function BrandingPanel() {
   };
 
   const save = async () => {
+    if (!mayWrite) return;
     setSaving(true);
     setFields({});
     try {
-      const saved = await getBrandingRepository().update(draft);
+      let saved: { updatedAt: string };
+      if (visualsAvailable) {
+        saved = await getBrandingRepository().update(draft);
+      } else {
+        // No branding server: the academy's name and tagline are the organization record's own fields.
+        saved = await getOrganizationRepository().update({ name: draft.academyName.trim(), tagline: draft.tagline.trim() });
+        reload();
+      }
       setSavedAt(saved.updatedAt);
       // The awaited write is real in every environment, so the confirmation may
       // only call it demo data where it is demo data: in an EMPTY environment
@@ -142,8 +158,23 @@ export function BrandingPanel() {
   };
 
   if (loading) return <LoadingState className="py-24" label="در حال بارگذاری هویت آموزشگاه…" />;
-  if (error)
-    return <ErrorState className="py-24" title="بارگذاری ناموفق بود" description={error.message} onRetry={reload} />;
+  if (error) {
+    // The branding capability has no server in this composition: say so, instead of a generic
+    // failure that invites a pointless retry or shows the internal domain id.
+    const unavailable = error.code === "DOMAIN_UNAVAILABLE";
+    return (
+      <ErrorState
+        className="py-24"
+        title={unavailable ? "هویت آموزشگاه در این نسخه در دسترس نیست" : "بارگذاری ناموفق بود"}
+        description={
+          unavailable
+            ? brandingUnavailableDescription
+            : error.message
+        }
+        onRetry={unavailable ? undefined : reload}
+      />
+    );
+  }
 
   return (
     <>
@@ -155,7 +186,7 @@ export function BrandingPanel() {
                 {...control}
                 className={inputCls}
                 value={draft.academyName}
-                disabled={saving}
+                disabled={saving || !mayWrite}
                 onChange={(e) => set("academyName")(e.target.value)}
               />
             )}
@@ -167,7 +198,7 @@ export function BrandingPanel() {
                 rows={2}
                 className={cn(inputCls, "h-auto py-2.5 leading-relaxed")}
                 value={draft.tagline}
-                disabled={saving}
+                disabled={saving || !mayWrite}
                 onChange={(e) => set("tagline")(e.target.value)}
               />
             )}
@@ -176,26 +207,31 @@ export function BrandingPanel() {
       </Panel>
 
       <Panel title="رنگ و تایپوگرافی" kicker="رنگ‌های برند و فونت فارسی سامانه">
+        {!visualsAvailable && (
+          <p role="note" className="mb-3 text-[11.5px] leading-relaxed text-ink-300">
+            ذخیرهٔ رنگ‌ها و فونت برند در این نسخه در دسترس نیست؛ مقدارهای زیر پیش‌فرض خود سامانه‌اند، نه دادهٔ ذخیره‌شدهٔ آموزشگاه. نام و شعار بالا ذخیره می‌شوند.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <ColorField
             label="رنگ اصلی"
             value={draft.primaryColor}
             error={fields.primaryColor?.[0]}
-            disabled={saving}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("primaryColor")}
           />
           <ColorField
             label="رنگ مکمل"
             value={draft.accentColor}
             error={fields.accentColor?.[0]}
-            disabled={saving}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("accentColor")}
           />
           <ColorField
             label="رنگ متن"
             value={draft.textColor}
             error={fields.textColor?.[0]}
-            disabled={saving}
+            disabled={saving || !mayWrite || !visualsAvailable}
             onChange={set("textColor")}
           />
           <Field label="فونت فارسی" error={fields.persianFont?.[0]}>
@@ -204,7 +240,7 @@ export function BrandingPanel() {
                 {...control}
                 className={inputCls}
                 value={draft.persianFont}
-                disabled={saving}
+                disabled={saving || !mayWrite || !visualsAvailable}
                 onChange={(e) => set("persianFont")(e.target.value)}
               >
                 {PERSIAN_FONTS.map((font) => (
@@ -221,15 +257,19 @@ export function BrandingPanel() {
           <p className="text-[11px] leading-relaxed text-ink-400">
             {savedAt ? "آخرین ذخیره‌سازی انجام شد." : "تغییرات پس از ذخیره در همهٔ بخش‌ها اعمال می‌شود."}
           </p>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={resetToDefaults} disabled={saving}>
-              بازنشانی به پیش‌فرض
-            </Button>
-            <Button variant="primary" size="sm" onClick={() => void save()} disabled={!dirty || saving}>
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
-              {saving ? "در حال ذخیره…" : "ذخیرهٔ تغییرات"}
-            </Button>
-          </div>
+          {mayWrite ? (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={resetToDefaults} disabled={saving || !visualsAvailable}>
+                بازنشانی به پیش‌فرض
+              </Button>
+              <Button variant="primary" size="sm" onClick={() => void save()} disabled={!dirty || saving}>
+                {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                {saving ? "در حال ذخیره…" : "ذخیرهٔ تغییرات"}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-[12px] text-ink-400">ویرایش هویت آموزشگاه برای این نقش فعال نیست.</p>
+          )}
         </div>
       </Panel>
 

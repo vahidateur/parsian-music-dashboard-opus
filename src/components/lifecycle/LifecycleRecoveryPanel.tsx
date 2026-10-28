@@ -12,14 +12,14 @@ import type { LifecycleRecoveryController } from "./LifecycleRecoveryContext";
  * clear() removed every account without placing recovery controls inside Shell.
  */
 export function LifecycleRecoveryPanel({ controller }: { controller: LifecycleRecoveryController }) {
-  if (controller.state !== "empty" && controller.state !== "demo") return null;
+  if (controller.state !== "empty" && controller.state !== "sample") return null;
 
   const pending = controller.pending?.action === "uninitialize";
   const failure =
     controller.lastResult?.operation === "uninitialize" && !controller.lastResult.ok
       ? controller.lastResult.message
       : null;
-  const environmentLabel = controller.state === "demo" ? "محیط دمو" : "محیط دادهٔ واقعی";
+  const environmentLabel = controller.state === "sample" ? "محیط دمو" : "محیط دادهٔ واقعی";
 
   return (
     <section dir="rtl" aria-labelledby="lifecycle-recovery-title" className="mx-auto mt-5 w-full max-w-[430px]">

@@ -57,7 +57,7 @@ describe("useDemoData confirmation flow", () => {
 
     expect(screen.getByTestId("pending").textContent).toBe("none");
     expect(manager.stats().total).toBe(before);
-    expect(manager.lifecycleState()).toBe("demo");
+    expect(manager.lifecycleState()).toBe("sample");
   });
 
   it("awaits uninitialize and preserves the awaited lifecycle result", async () => {

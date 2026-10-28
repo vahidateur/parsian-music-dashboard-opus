@@ -9,7 +9,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
-import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/demoAuthRepository";
+import { DEMO_PASSPHRASE, listDemoAccounts } from "@/domains/auth/localAuthRepository";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { LoginView } from "@/views/Login";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("login demo isolation", () => {
   it("exposes demo accounts in demo mode", () => {
-    setRuntimeConfig({ mode: "demo", error: null });
+    setRuntimeConfig({ mode: "local", error: null });
     expect(listDemoAccounts().length).toBeGreaterThan(0);
   });
 
@@ -46,10 +46,11 @@ describe("login demo isolation", () => {
   });
 
   it("renders the demo helper panel in demo mode", () => {
-    setRuntimeConfig({ mode: "demo", error: null });
+    setRuntimeConfig({ mode: "local", error: null });
     renderLogin();
     expect(screen.getByText(DEMO_PASSPHRASE)).toBeTruthy();
-    expect(screen.getByText(/محیط دمو/)).toBeTruthy();
+    expect(screen.getByText(/دادهٔ نمونه — بدون امنیت واقعی/)).toBeTruthy();
+    expect(screen.queryByText(/محیط دمو/)).toBeNull();
   });
 
   it("renders no demo passphrase, accounts or warning in api mode", () => {
@@ -57,6 +58,7 @@ describe("login demo isolation", () => {
     renderLogin();
     expect(screen.queryByText(DEMO_PASSPHRASE)).toBeNull();
     expect(screen.queryByText(/محیط دمو/)).toBeNull();
+    expect(screen.queryByText(/دادهٔ نمونه — بدون امنیت واقعی/)).toBeNull();
     expect(screen.queryByText(/بدون امنیت واقعی/)).toBeNull();
     expect(screen.queryByText(/@demo\.local/)).toBeNull();
   });

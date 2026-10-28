@@ -893,7 +893,7 @@ recovery and the zero-record tests both remaining green.
   `loading === false` and **no in-flight marker of any kind** — measured `role="status"` count 0,
   `aria-busy` count 0, both loading strings absent (**I13**). (2) `LearningPanel.tsx:104` asks for
   `{ per_page: 0 }` before a program is selected, and `paginate`
-  (`src/domains/shared/demoCollection.ts:23`, `Math.max(1, …)`) turns that into **one** row — the
+  (`src/domains/shared/repositoryPlumbing.ts:31`, `Math.max(1, …)`) turns that into **one** row — the
   globally-first level, `lv_violin_1` (**I14**). Together they produce a frame in which the heading
   reads «سطوح «ویولن کلاسیک» — ۱ سطح» over a single row while the store holds fifteen. Measured with
   a 1 ms sampler and a MutationObserver against the real component, from probes in `/tmp` that
@@ -1343,7 +1343,7 @@ recovery and the zero-record tests both remaining green.
   and I14 is untouched.
 
 ### I14. `paginate` clamps `per_page: 0` to one row, so "load nothing" silently loads something (found 2026-09-12 while triaging I11)
-- **What:** `src/domains/shared/demoCollection.ts:23` computes
+- **What:** `src/domains/shared/repositoryPlumbing.ts:31` computes
   `Math.max(1, Math.trunc(params.per_page ?? DEFAULT_PER_PAGE))`. A caller that passes `per_page: 0`
   to mean "there is nothing to fetch yet" gets **one row** back, and since such a call usually has no
   filter either, the row it gets is whatever sorts first across the whole collection.
@@ -1409,7 +1409,7 @@ recovery and the zero-record tests both remaining green.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination
-  UI. `paginate` applies **no upper clamp** (`src/domains/shared/demoCollection.ts:23` computes
+  UI. `paginate` applies **no upper clamp** (`src/domains/shared/repositoryPlumbing.ts:31` computes
   `Math.max(1, Math.trunc(...))`), so 200 is honoured and the 201st record is silently absent from
   the list, from any picker built on it, and from any heading count derived from `items.length`
   rather than `Page.meta.total` (`src/domains/shared/useResource.ts:53`).
@@ -1450,7 +1450,7 @@ recovery and the zero-record tests both remaining green.
   read with an explicit `from`/`to` window (never an unbounded "everything" read); state `per_page`
   explicitly, sized above the window's plausible maximum rather than above today's data; consume
   `Page.meta.total`, which `paginate` sets from the **filtered** row count
-  (`src/domains/shared/demoCollection.ts:27`) and `useResourceList` exposes
+  (`src/domains/shared/repositoryPlumbing.ts:35`) and `useResourceList` exposes
   (`src/domains/shared/useResource.ts:53`); and surface truncation explicitly whenever
   `items.length < total` instead of rendering a calendar that looks complete. **Each clause is now
   met, with the evidence:** the window is derived from the mode the operator chose
@@ -1543,7 +1543,219 @@ recovery and the zero-record tests both remaining green.
   test renders the panel as a permitted role and reaches «دانلود خروجی» end to end, and a role with
   no export permission still sees the honest empty state. The fix must land **separately from S5-A**:
   a product behaviour change must not ride on a type-fix commit.
-- **Status:** recorded 2026-09-25, **not authorized, not started**.
+- **Status: CLOSED (2026-10-05, re-verified).** All three *done-when* criteria are met, and
+  re-verified against the current tree rather than carried forward from the commit message:
+
+  1. **The surface filters through the same holder its sibling uses.**
+     `src/domains/import/ImportExportCenter.tsx:40` takes `const auth = useAuth()`,
+     `:64` filters with `can(auth, perm)` and `:147` re-checks `can(auth, required)` — the
+     context value, exactly as `src/domains/export/EntityExportButton.tsx:53` does. The
+     intermediate comment records why the session *user* could never carry permissions.
+  2. **A regression test reaches «دانلود خروجی» as a permitted role.**
+     `src/views/__tests__/phaseBMutationGuards.test.tsx` → *"filters settings export by the
+     session permission set (I22)"* renders the shipped panel as `admin@demo.local` and asserts
+     the button is present **and** the empty-state sentence is absent.
+  3. **A role with no export permission still sees the honest empty state.**
+     Same file → *"shows the honest empty export state when the issued set has no export
+     permission"* pins the accountant policy to `finance.read`/`finance.write` only, then asserts
+     «برای هیچ موجودیتی مجوز خروجی ندارید.» is shown and the button is gone. The sibling case
+     (*"hides student import from a role without students.write…"*) proves the two halves gate
+     independently.
+
+  **Evidence for the fix:** `5e5fa35af30070fa08b1ad6004f2ab29dffc27b0` (holder) and
+  `88fee2665434647f81b05b0f1560270ab56b86e3` (regression). **Re-run 2026-10-05:**
+  `npx vitest run src/views/__tests__/phaseBMutationGuards.test.tsx src/domains/export/` → **13
+  tests passed, 0 failed** (11 + 2). The three cases above are among them.
+
+  **What closing this item does NOT claim — preserved deliberately.** I22 was a *frontend holder*
+  defect: a control that could never render. Closing it is not a statement about export
+  authorization. A downloaded file is still not a server authorization, and **export remains
+  BACKEND-ONLY** (the same boundary `DECISIONS.md` §19 D14/D15 and `F4_REPORT.md` record). That
+  boundary is a product-scope fact, not a defect, and it was never part of this item's *done-when*;
+  it is therefore not carried as an open item here. The `F4_REPORT.md:45` record that overstated
+  the guard is answered by the "Record correction" entry above.
+
+### I23. `SchedulingTest > reschedule links original and replacement` is date-flaky: a rescheduled session can block its own reschedule (found 2026-10-03 during Progress slice 2 CI triage)
+
+- **What:** `backend/tests/Feature/SchedulingTest.php:391` reschedules a session to
+  `Carbon::today()->addDays(10)` at 09:00–10:00. `SessionService::reschedule()`
+  (`backend/app/Domain/Scheduling/SessionService.php:230-236`) builds the conflict-check candidate
+  from `classId, date, startTime, endTime, teacherId, roomId` — **no `id` key**. `ConflictDetector::
+  overlappingSessions()` (`backend/app/Domain/Scheduling/ConflictDetector.php:256-264`) excludes a
+  candidate's own row only when `$candidate['id']` is non-empty, so the **original session is not
+  excluded**, and it is still `status = 'scheduled'` at that moment (it is cancelled later in the
+  transaction). The original is created by `makeSession()`
+  (`backend/tests/Feature/SchedulingTest.php:52`) from `ClassSessionFactory`, whose `date` is
+  `now()->addDays(faker 1..30)` and whose `start_time` is a random hour in 08:00–18:00
+  (`backend/database/factories/ClassSessionFactory.php:18-22`). When that random draw lands on
+  `today+10` with an overlapping hour, the original collides with itself on room **and** teacher,
+  `assertNoHardConflicts()` throws, and the endpoint answers **409 where the test asserts 200**.
+- **Evidence — OBSERVED (2026-10-03, upgraded from inference to observation).** The same test was
+  run against **byte-identical code in six separate CI runs** and produced **both outcomes**:
+
+  | commit | run conclusion | this test |
+  |---|---|---|
+  | `2d768c2` | failure (4 tests, other causes) | **✓ passed** |
+  | `f7ca279` | success | passed |
+  | `d422a8f` | success | passed |
+  | `13ae50a` | failure (1 test: the `closedAt` Sanctum bug) | **✓ passed** |
+  | `999f9d7` | success | passed |
+  | `57dbfc2` | **failure** | **FAILED** — `Expected 200 but received 409` |
+
+  From `2d768c2` onward all five deciding files carry identical blob hashes —
+  `SchedulingTest.php e6a079`, `ClassSessionFactory.php 8504f5`, `ConflictDetector.php 0affa3`,
+  `SessionService.php 79e572`, `ClassSession.php 03e334`. **Five observed passes and one observed
+  failure on identical code: the test is non-deterministic as an observed fact, not as a theory.**
+  `git diff --name-only 6f74f60 57dbfc2 | grep -iE "scheduling|session|conflict|attendance"` also
+  returns **nothing**.
+- **Every Progress test passes, proved arithmetically.** Slice 2 added **44** tests (34 plain
+  methods + 10 data-provider cases in `ProgressEventTest.php`). Pre-existing count 262 → 306
+  executed; observed 305 passed + 1 failed = 306. Therefore **44 of 44 Slice 2 tests passed** and
+  the single failure is a **pre-existing** test, not one this slice introduced.
+- **The randomness premise is verified, not assumed.** Faker is **not seeded** anywhere — no
+  `Faker\Generator` binding, no `seed()` call in `TestCase`, no seed in `phpunit.xml` — so
+  `ClassSessionFactory`'s date/time draw is genuinely random per run.
+- **Honest discrepancy, recorded rather than smoothed over.** The observed rate (1 failure in ~6
+  runs of identical code) is higher than the 0.606% the enumeration predicts. That gap is
+  unexplained; it does not weaken the conclusion — non-determinism is established by observation —
+  but it means the 1-in-165 figure should be treated as a **lower bound** pending a fix.
+- **Reproduction (2026-10-03, deterministic and exhaustive — not a sample).** The factory's random
+  space is finite and small, so it can be enumerated completely: `addDays` ∈ 1..30 × `startHour`
+  ∈ 8..18 = **330 equiprobable draws**. Transcribing `overlapsTime()` (a plain string compare,
+  `ClassSession.php:58-61`) and the `overlappingSessions()` filter, **exactly 2 of the 330** make
+  the original block its own reschedule:
+  `addDays=10 / 08:00–09:30` and `addDays=10 / 09:00–10:30`, both against the candidate's
+  `09:00–10:00`. Rate **2/330 = 0.606% ≈ 1 run in 165**, on both room `r1` and teacher `t1`.
+  **Control:** re-run with the candidate carrying its own `id` → **0 of 330**. That isolates the
+  missing `id` as the enabler and the date draw as the trigger.
+- **It is not this slice's, proven three ways.** (1) All six files that decide it —
+  `SchedulingTest.php`, `ClassSessionFactory.php`, `ConflictDetector.php`, `SessionService.php`,
+  `ClassSession.php`, `permissions.php` — have **identical blob hashes** at `6f74f60` (pre-slice-2)
+  and `57dbfc2`; slice 2 changed **zero** of them. (2) `SchedulingTest.php` was last modified in
+  `2d768c2` (the Organization slice), long before slice 2. (3) The same test against the same code
+  was **green** at `999f9d7` (`Tests: 262 passed`, 0 failed) and **red** at `57dbfc2`
+  (`1 failed, 305 passed`) — the +44 are slice 2's own tests, all passing. Identical code, opposite
+  outcomes, differing only by the random draw: that is the flakiness signature.
+- **Limitation of the reproduction, stated honestly.** The test was **not executed locally**: no PHP
+  runtime is installable in this environment (`packagist.org`, `getcomposer.org` and the Debian
+  mirrors are unreachable, so neither the binary nor the Composer dependencies can be obtained).
+  What was reproduced is the test's **decision logic**, exhaustively, from the committed sources —
+  which establishes the mechanism and the rate, but is not a substitute for an observed run.
+- **Why it is not fixed here:** it is a pre-existing latent fixture hazard, not a regression. The
+  standing rule is that an unrelated failing test is **recorded, not edited**, to obtain a green
+  run — and re-rolling the RNG by pushing a no-op backend change to re-trigger CI would be the same
+  thing by another route, so it was not done. A re-run could not be requested either: with valid
+  credentials restored, `gh workflow run` returns **HTTP 403 Resource not accessible by
+  integration** (the App token has read-only Actions access) and `gh run rerun` is refused for that
+  run. **Backend CI was therefore still red at `57dbfc2`** — *superseded: I23 was later authorized
+  and fixed in `deb7f0c`, and CI is green again; see the RESOLVED entry below. This paragraph is
+  kept because it records why CI was not gamed into green while the fix awaited authorization.*
+- **`reschedule()` is the ONLY path that should carry an `id` and does not — so the fix restores
+  the codebase's own convention rather than inventing semantics.** Enumerating every `$candidate`
+  built in `SessionService.php`: `create` → no `id` (**correct**, there is nothing to exclude);
+  `update` → **carries `'id' => $session->id`** (`SessionService.php:145`); `reschedule` → **no
+  `id`** (`SessionService.php:228-234`), the sole exception. `SessionGenerator.php:296` likewise
+  passes `['id' => $change['sessionId'], ...]`. So id-exclusion is the established, intended
+  mechanism, and `reschedule()` is the one call site that omits it.
+- **RECORD CORRECTION (2026-10-03).** An earlier version of this item described adding `'id'` to
+  the reschedule candidate as "a behaviour change … it also alters the semantics of 'conflicts with
+  itself' for every other caller". **That is wrong** and is corrected here: every other caller
+  operating on an existing session already passes `id`, so the change would align `reschedule()`
+  with existing behaviour rather than alter shared semantics. The risk of the fix is therefore
+  materially lower than this item previously stated.
+- **RESOLVED 2026-10-03 in `deb7f0c`, under owner authorization to repair I23.**
+
+  **Root cause.** `SessionService::reschedule()` built its conflict-check candidate without an
+  `id`, so `ConflictDetector` treated the session being replaced as an unrelated clash with its
+  own replacement. The check runs *before* the original is cancelled, so `overlappingSessions()`
+  still sees it as `scheduled`: moving a session to a slot overlapping its own old time was
+  refused with a spurious **409 `SESSION_CONFLICT`**.
+
+  **The fix (one line).** The candidate now carries `'id' => $original->id`
+  (`SessionService.php:227`). Excluding it is correct *precisely because* the original is cancelled
+  by the same transaction — the replacement legitimately supersedes it. Clashes with any other
+  session are untouched.
+
+  **Why the fix is safe — three independent reasons.** (1) It restores the convention the sibling
+  paths already follow rather than introducing semantics: `update()` passes `'id' => $session->id`
+  and `SessionGenerator` passes `'id' => $change['sessionId']` for updates. (2) `id` is read in
+  **exactly one place** downstream — the two `whereKeyNot()` exclusions in `ConflictDetector`
+  (`:240-241`, `:262-263`) — so it cannot alter any unrelated check. (3) An exhaustive audit of
+  every `$candidate` and every `check()` call site in `app/` found **no other** existing-session
+  path missing it: `create` and `SessionGenerator`'s creates correctly carry none (nothing to
+  exclude), and `SessionService::checkConflicts()` is a user-supplied pass-through.
+
+  **Test changes (hardened, not weakened).**
+  - `test_reschedule_links_original_and_replacement` — fixture **pinned** to the exact collision
+    case (same date, `08:00–09:30`) instead of a random factory draw. It is now deterministic and
+    doubles as the regression guard: it **fails without the fix**. Its assertions are unchanged.
+  - `test_reschedule_onto_another_sessions_slot_is_refused` — **new**. Asserts a genuinely
+    different overlapping session is still refused with `SESSION_CONFLICT`, so the exclusion
+    cannot be widened by a later edit.
+  - No existing test was skipped, deleted, or loosened.
+
+  **CI evidence (`deb7f0c`, run 37154399272).** `Tests: 307 passed (2005 assertions)`, **0
+  failed**; all four checks green — `PHP 8.3 — Laravel test suite`, `backend-test-tally`,
+  `backend-http-smoke`, and the HTTP smoke covering T-02 / PB-1 / PB-3 / scheduling / attendance.
+  The arithmetic is self-consistent: 306 executed before (305 passed + this 1 failure), 307 now
+  (306 + the 1 new test), and `SchedulingTest` went from 25 to 26 test methods.
+
+  **On the rate discrepancy recorded above.** It is now moot and the lower-bound caveat is
+  withdrawn: the failure mode is eliminated at source rather than merely made improbable. The
+  observed 1-in-6 versus the enumerated 0.606% was a small-sample artefact of which runs happened
+  to carry a digest; the mechanism (2 of 330 draws) was correct and is now unreachable.
+- **Status:** **CLOSED — fixed in `deb7f0c`.** Backend CI is green. Classification while it was
+  open was **Category D (pre-existing / flaky)**, and that classification was **proven**, not
+  asserted — the deciding files were byte-identical across the passing and failing runs. Note the
+  distinction preserved here: the *test* was flaky, but the *underlying behaviour* was a genuine
+  latent defect (a real double-booking false positive, reachable in production whenever a session
+  is moved to a slot overlapping its own former time), so D described its relationship to Progress
+  slice 2, not a statement that nothing was wrong.
+- **Historical note, retained deliberately.** This item was first recorded as *not fixed*, with an
+  explicit statement that re-rolling the RNG to re-trigger CI would be "editing the test to go
+  green by another route". That reasoning was correct at the time: the fix needed owner
+  authorization because Scheduling is outside the Progress scope. It was authorized and then made.
+  Compare **I19**, the frontend analogue in the same area, which remains open — recorded under
+  «LOWER PRIORITY / HYGIENE» below, and owned by
+  `src/views/__tests__/schedulingWrites.test.tsx`.
+
+### I24. The frontend permission vocabulary never received `progress.*`, so the client and the server disagreed about Progress (found 2026-10-05 during the pre-main consolidation audit) — ✅ CLOSED (2026-10-05, same pass)
+
+- **What:** `DECISIONS.md` §29 authorized Progress for v1 and added exactly two permission ids,
+  taking the vocabulary from **23 to 25**. The authorisation was implemented server-side —
+  `backend/config/permissions.php` carries all 25 ids, `progress.read` sits in `$readOnlyCore`,
+  and `progress.write` is granted to manager and teacher — but
+  `src/domains/auth/permissions.ts` still declared the old **23**, with no `progress.*` id at all
+  and the old role matrix. Measured, not inferred: the frontend id list was 23, the backend's 25,
+  and the difference was exactly `progress.read` + `progress.write`.
+- **Why it mattered despite nothing failing:** the two files are hand-maintained copies of one
+  contract with nothing forcing agreement. The server could therefore answer a request the client
+  had no word for — a silent divergence. A user granted Progress by an administrator through the
+  server would have had no client-side vocabulary to express it, and the role editor could not
+  display or grant the two ids at all.
+- **Fix.** `src/domains/auth/permissions.ts` now declares all 25 ids in the backend's order,
+  `progress.read` joins `READ_ONLY_CORE`, and `progress.write` joins manager and teacher — the
+  matrix §29 fixes. The ids are also **wired rather than merely declared**:
+  `src/domains/progress/StudentProgressPanel.tsx` gates the record/assign/complete/edit controls on
+  `progress.write` and refuses to render a student's progress at all without `progress.read`, so
+  accounting (which §29 withholds the id from) can no longer read a per-student progress record in
+  the UI. `useRoles.ts` gained the two labels and a «پیشرفت هنرجو» editor group, and the stale
+  "23 checkboxes" comment is corrected.
+- **The guard that was missing, now added.** `src/domains/auth/__tests__/permissionParity.test.ts`
+  parses the **shipped** `backend/config/permissions.php` and asserts the vocabulary and all five
+  role grants are identical to the frontend's — including `permissionsForRole()`'s live resolution
+  and the explicit §29 table (manager/teacher write, staff read-only, accountant neither). It is a
+  comparison against the real file, not a second hand-written list, because a hand-written list is
+  the artifact that drifted. **Proved non-vacuous:** run against the pre-fix tree the vocabulary
+  comparison fails on exactly `['progress.read', 'progress.write']`. It also asserts no
+  `instruments.*` / `learning.*` / `rooms.*` / `notifications.*` id appears, so PB-3 and PB-5 stay
+  Option A for everything except Progress.
+- **Evidence:** `npx vitest run src/domains/auth/__tests__/permissionParity.test.ts` → **6 passed,
+  0 failed**; the auth + progress + settings + mobile-contract sweep → **263 passed, 0 failed**;
+  `tsc --noEmit` → exit 0.
+- **Docs side (see §29 in DECISIONS.md, updated in this pass):** §29's "Enforced by" line named
+  only the backend and the PHPUnit cases, which is how the frontend half went unnoticed. It now
+  names the frontend matrix and the parity test as well.
 
 ---
 
@@ -1675,6 +1887,147 @@ recovery and the zero-record tests both remaining green.
   are recorded in [DECISIONS.md](DECISIONS.md) §21 and were verified by re-running the gate
   afterwards; the two `projectState` reds this item described are gone from the suite's red list,
   and the conflict stays in this file as the record of why the exception exists.
+
+## PHASE B OWNER DECISIONS — 2026-09-30
+
+These are not implementation choices. Each one was left unchanged because the live documents do not agree, or because no document names the rule.
+
+> ## RESOLVED — 2026-10-02 — OWNER DECISION
+>
+> **PB-1 = A · PB-2 = A · PB-3 = A · PB-4 = A · PB-5 = A.** All five are resolved
+> as option A: keep the existing restrictive behaviour. The five canonical sheets
+> below are **preserved verbatim** — their *What*, *Evidence* and *Decision
+> required* lines are unchanged history — and each now carries a RESOLUTION block
+> recording what was decided. Nothing below was deleted.
+>
+> Full decision records: [DECISIONS.md](DECISIONS.md) §Phase B (PB-1..PB-5).
+> Implementation: `a43ac33`. Status roll-up:
+> [BACKEND_STATUS.md](BACKEND_STATUS.md) §PB-isolation map and §Slice 3 §13.
+
+
+Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb846798cdabd96be1ba9344792c0e24`. Decision A record: `c4e60d1475a90ca0fd93cf88d18c3053d42191f6`. The live tip is the commit whose parent is that record and whose subject is `docs(engineering): synchronize Phase B lineage pointers`, named in [SESSION_HANDOFF.md](SESSION_HANDOFF.md). This paragraph does not contain that commit's own SHA. Naming these SHAs does not resolve PB-1..PB-5.
+
+### PB-1. Teacher with no `teacherId` — fail-closed or org-wide
+
+- **What:** `src/domains/auth/scope.ts` denies an unassigned student when the teacher actor has `teacherId`. A teacher actor with no `teacherId` still returns org-wide from `canReadStudent`.
+- **Evidence:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` says T-02 is fail-closed and must not be revisited. `docs/frontend-completion/15-student-portal-architecture.md` still calls the missing-`teacherId` fallback honest. The status comment in `scope.ts` was aligned to ACCEPTED / ASSIGNED-ONLY. The branch was not changed.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (fail-closed).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> A teacher account with no linked `teacherId` sees **no** records — never
+> organization-wide. Applied consistently to **students, scheduling sessions,
+> attendance, attendance corrections and related attendance reads, and
+> `sessions/with-attendance`**. The server keeps answering
+> `403 OWNER_DECISION_REQUIRED_PB1`.
+>
+> **Scope widened during implementation.** The question above named only
+> students. Auditing the endpoint set found two gaps in the code that already
+> existed: `sessions/generate?preview=1` is reachable by a teacher through
+> `schedule.read` and applied no PB-1 check, and the session write verbs answered
+> a bare `403 FORBIDDEN` because the permission gate ran first. Both now enforce
+> PB-1 (`a43ac33`), so the decision holds on every session endpoint and not only
+> on the reads.
+>
+> **Consequence:** no schema, contract or permission change. `students.teacher_id`
+> remains a non-authorization column, and T-02 stays enforced in SQL.
+
+### PB-2. Privileged account identity
+
+- **What:** No product document answers whether `name` stays one field, whether one administrator may edit another, whether a manager may edit an administrator, whether a privileged email may change, or whether that change requires the target account's current password.
+- **Evidence:** `src/components/settings/UsersPanel.tsx` uses one field labeled «نام و نام خانوادگی». `users.write` shows role and email controls for every row, including self. Delete is hidden for self. `src/domains/auth/userRepository.ts` posts `{ password }` to `users/{id}/password` and does not send a current password. A manager lacks `users.write`, so those controls are not rendered.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. Not implemented. → **RESOLVED 2026-10-02 — option A (keep the restrictions).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> `PrivilegedIdentityPolicy` keeps all four restrictions: (a) self-edit,
+> (b) administrator→administrator edit, (c) assigning `administrator`,
+> (d) privileged email change. The server is **not** relaxed to match
+> `UsersPanel.tsx`.
+>
+> The five sub-questions above (one `name` field? admin→admin? manager→admin?
+> privileged email change? current password required?) are answered by **keeping
+> today's server behaviour as the policy** rather than by changing it — so the
+> shipped frontend remains the more permissive of the two surfaces.
+>
+> **Consequence:** no code change. `OWNER_DECISION_REQUIRED_PB2` continues to be
+> returned; it is now the implemented policy, not a placeholder.
+
+### PB-3. Writes that have no permission id
+
+- **What:** Room, instrument, learning-curriculum, and progress mutations render without `useCan`. No `rooms.write`, `instruments.write`, `learning.write`, or `progress.write` exists. Inventing one would change the permission vocabulary. *(The original 2026-09 wording of this sheet said "22-permission vocabulary"; `backend/config/permissions.php` has since grown to **23** ids, and the live count is corrected here while the historical figure is preserved in place.)*
+- **Evidence:** `src/domains/rooms/RoomsPanel.tsx`, `src/domains/instruments/InstrumentsPanel.tsx`, `src/domains/learning/LearningPanel.tsx`, `src/domains/progress/StudentProgressPanel.tsx`, `src/domains/progress/RepertoirePanel.tsx`. `StudentProgressPanel` also branches on `role === "teacher"`.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (keep blocked, invent no permission id).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> Room, instrument, learning-curriculum and progress writes stay blocked. **No**
+> `rooms.*`, `instruments.*`, `learning.*` or `progress.*` permission is created.
+> `settings.write` and `library.write` are **not** reinterpreted as covering
+> these domains, and nothing authorizes on `role === "teacher"`. The permission
+> vocabulary remains the **23** ids already in `backend/config/permissions.php`
+> (this sheet's historical "22-permission vocabulary" is corrected below).
+>
+> **Consequence:** no code change. `OWNER_DECISION_REQUIRED_PB3` continues to be
+> returned on all six rooms endpoints for every role, administrator included.
+> The four panels still render their writes ungated — that is a frontend
+> rendering question, and the server refuses regardless.
+
+> **PARTIAL CARVE-OUT — 2026-10-03 — OWNER DECISION (Progress only).**
+> The owner authorized **Progress for v1**, which supersedes the PB-3 block for
+> **Progress only**. This item's wording above ("no … `progress.write` exists")
+> is therefore no longer true for Progress and is amended here; it remains
+> exactly true for rooms, instruments and learning.
+>
+> Added: `progress.read`, `progress.write`. The vocabulary went from **23 to 25**
+> ids — nothing else was added.
+>
+> Unchanged: PB-3 stays **option A** for rooms, instruments and learning. No
+> `rooms.*`, `instruments.*` or `learning.*` permission exists, and rooms still
+> return `OWNER_DECISION_REQUIRED_PB3` on all six endpoints for every role.
+> `StudentProgressPanel`'s `role === "teacher"` branch remains a frontend
+> rendering question and authorizes nothing on the server — Progress writes are
+> gated on `progress.write`, not on role.
+>
+> Implemented: pieces and piece-assignments (10 endpoints). Deferred:
+> progress-events, progress-overview, analytics, plateau detection,
+> recommendations and workflow automation.
+>
+> Record: DECISIONS.md §29. Progress inventory: BACKEND_STATUS.md →
+> "Slice 6 — Progress, pieces and piece-assignments".
+
+### PB-4. `useCan(...) || !user`
+
+- **What:** Student, class, and schedule write flags are true when `user` is null. `useCan` itself returns true outside `AuthProvider`, by an explicit comment, so legacy view tests keep their controls.
+- **Evidence:** `src/views/Classes.tsx`, `src/views/Students.tsx`, `src/views/Scheduling.tsx`, `src/views/Teachers.tsx`, `src/domains/auth/AuthContext.tsx`. The RBAC contract says no control when the permission is absent. The class comment says the idiom is required so the controls are not dropped.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. → **RESOLVED 2026-10-02 — option A (keep the test seam).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> The `useCan(...) || !user` idiom is **kept** as the documented test seam. It is
+> not removed. Backend authentication is not weakened: every route except login
+> still requires a Bearer token and answers `401` without one, so the idiom
+> remains a frontend-only affordance with no server reach.
+>
+> **Consequence:** no code change, frontend or backend.
+
+### PB-5. Notifications domain versus later delivery
+
+- **What:** `docs/engineering/GOVERNANCE_CHECKPOINT.md` O-17 says no notifications domain in v1. `docs/frontend-completion/10-integration-architecture.md` still classifies Telegram/Bale/SMS/email notification delivery as a required later capability.
+- **Evidence:** both files. Settings notification toggles already say they do not save.
+- **Status:** OWNER DECISION REQUIRED. Not chosen. Push was not started. → **RESOLVED 2026-10-02 — option A (no notifications domain in v1).**
+
+> **RESOLUTION — 2026-10-02 — OWNER DECISION (option A).**
+> v1 has **no** notifications domain, inbox, table, permission or delivery
+> implementation. Telegram / Bale / SMS / email remain **later adapter
+> capabilities only**.
+>
+> **Document conflict reconciled by this decision.** `GOVERNANCE_CHECKPOINT.md`
+> O-17 says no notifications domain in v1, while
+> `docs/frontend-completion/10-integration-architecture.md` classifies
+> notification delivery as a required later capability. **PB-5 = A is
+> authoritative** and both documents are read as *"required later capability,
+> not in v1"*. Neither document is rewritten: O-17's v1 exclusion stands, and the
+> integration architecture's REQUIRED classification stands as a future-capability
+> claim. Only the sequencing question was open, and it is now settled.
+>
+> **Consequence:** no code change. Push stays not started.
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 

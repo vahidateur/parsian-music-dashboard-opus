@@ -1,0 +1,259 @@
+{
+  "schemaVersion": "1",
+  "datasetVersion": "2026.09.2",
+  "createdAt": "2026-09-01T00:00:00.000Z",
+  "label": "Sample academy dataset",
+  "seedDate": "2026-09-01",
+  "source": "src/domains/demo/seed.ts#createSeedDataset()",
+  "keyOrder": [
+    "organization",
+    "rooms",
+    "teachers",
+    "students",
+    "classes",
+    "enrollments",
+    "sessions",
+    "attendance",
+    "invoices",
+    "payments",
+    "conversations",
+    "resources",
+    "users",
+    "roles",
+    "branding",
+    "media",
+    "instruments",
+    "programs",
+    "levels",
+    "learningContent",
+    "levelContent",
+    "placements",
+    "chatConversations",
+    "chatMessages",
+    "galleryAlbums",
+    "galleryImages",
+    "scheduledSessions",
+    "attendanceRecords",
+    "attendanceCorrections",
+    "sessionCompensations",
+    "pieces",
+    "pieceAssignments",
+    "progressEvents"
+  ],
+  "counts": {
+    "organization": 1,
+    "rooms": 4,
+    "teachers": 8,
+    "students": 15,
+    "classes": 10,
+    "enrollments": 18,
+    "sessions": 25,
+    "attendance": 8,
+    "invoices": 10,
+    "payments": 5,
+    "conversations": 5,
+    "resources": 12,
+    "users": 12,
+    "roles": 5,
+    "branding": 1,
+    "media": 7,
+    "instruments": 6,
+    "programs": 6,
+    "levels": 59,
+    "learningContent": 12,
+    "levelContent": 12,
+    "placements": 15,
+    "chatConversations": 5,
+    "chatMessages": 7,
+    "galleryAlbums": 2,
+    "galleryImages": 6,
+    "scheduledSessions": 137,
+    "attendanceRecords": 0,
+    "attendanceCorrections": 0,
+    "sessionCompensations": 0,
+    "pieces": 17,
+    "pieceAssignments": 20,
+    "progressEvents": 58
+  },
+  "members": {
+    "organization": {
+      "file": "organization.json",
+      "kind": "singleton",
+      "sha256": "50fac1b37ca79aa90f921c579cb93847b9f8db5d25d4bc5c95fdc968c751ebbc"
+    },
+    "rooms": {
+      "file": "rooms.json",
+      "kind": "collection",
+      "sha256": "66861ed694e63f6b2d7faa8ca5d813df06a016462bfdd8b70d59ab4566524814"
+    },
+    "teachers": {
+      "file": "teachers.json",
+      "kind": "collection",
+      "sha256": "eaeb601afd0014389dfe7b59eaf109e8fe32e8c55652dd1640b61a891c28e4e3"
+    },
+    "students": {
+      "file": "students.json",
+      "kind": "collection",
+      "sha256": "dce5dc339b20ba12c72e1c694d53ac719ed149e7c1eb2ecbfb798cc85e88b255"
+    },
+    "classes": {
+      "file": "classes.json",
+      "kind": "collection",
+      "sha256": "d84e52167f45b2ebbb410c563640d4e4a1f618a658f53c38d558e747ac819bd4"
+    },
+    "enrollments": {
+      "file": "enrollments.json",
+      "kind": "collection",
+      "sha256": "21e5fd6af279f21e8a4a475c000abbb4db04e4ef58162b2911cb0afae5915eee"
+    },
+    "sessions": {
+      "file": "sessions.json",
+      "kind": "collection",
+      "sha256": "ff3c96f3d3fc0d0ecd3de0162b763346828645b07fb704141fecca6e839e4ca6"
+    },
+    "attendance": {
+      "file": "attendance.json",
+      "kind": "collection",
+      "sha256": "923c90d391c51b237d7ff779dc27e6bed9670347964efbb03e57cd8614876aae"
+    },
+    "invoices": {
+      "file": "invoices.json",
+      "kind": "collection",
+      "sha256": "e8324773fb7c572acf4161f208a280d1c4bd3ca6775964fd24a4b379bd5c0373"
+    },
+    "payments": {
+      "file": "payments.json",
+      "kind": "collection",
+      "sha256": "9442d7d8de4242e3f836599d085e3ec63cbc0038b002fa9dc4a574770d2601c6"
+    },
+    "conversations": {
+      "file": "conversations.json",
+      "kind": "collection",
+      "sha256": "2edaadbca64523cfd465e57923cdb9c6c3cc7f5b33bf6ac44639cb48b8800998"
+    },
+    "resources": {
+      "file": "resources.json",
+      "kind": "collection",
+      "sha256": "604f665faf1a9757244e3f28f77f788059316e2419afeca601dd57edea1bb63f"
+    },
+    "users": {
+      "file": "users.json",
+      "kind": "collection",
+      "sha256": "d15202c8e8caf976e65064dfe631d72ea8bea68b032e57923ccdbf1cf18be8a8"
+    },
+    "roles": {
+      "file": "roles.json",
+      "kind": "collection",
+      "sha256": "e9c0ae8b179ddfaa7fc8805f15f702ecf647ed2c2e20665531180521fd7a60c1"
+    },
+    "branding": {
+      "file": "branding.json",
+      "kind": "singleton",
+      "sha256": "cd530de61309bb008fcd93c1991c0c017b28faede11112296cc0f3391d6afe17"
+    },
+    "media": {
+      "file": "media.json",
+      "kind": "collection",
+      "sha256": "762709a927028a44984a5993e5d4622c8a95e7000b686faa5501b676f6438090"
+    },
+    "instruments": {
+      "file": "instruments.json",
+      "kind": "collection",
+      "sha256": "686773cfd87119369bef40e430b71d0a827ef1c4e7b76624112fc904bcdf943e"
+    },
+    "programs": {
+      "file": "programs.json",
+      "kind": "collection",
+      "sha256": "1193274ee33f3f0fc7b8de9c456de87576a8fa8e9a9f077e3e6c394ca02cb3cd"
+    },
+    "levels": {
+      "file": "levels.json",
+      "kind": "collection",
+      "sha256": "8051ceca4b2335432fe2d920438ac4f8ae7cb3ea2b30de257e4e553e2e7f148c"
+    },
+    "learningContent": {
+      "file": "learningContent.json",
+      "kind": "collection",
+      "sha256": "16da82c488368e459ad98df03a9ac0c14dc8e6ccb0e934f131b5be9f07b5f200"
+    },
+    "levelContent": {
+      "file": "levelContent.json",
+      "kind": "collection",
+      "sha256": "50c33eea81c90fdc034cbe21ff97680e2abeea258fb578755f3ff6562918b0dd"
+    },
+    "placements": {
+      "file": "placements.json",
+      "kind": "collection",
+      "sha256": "f308d027f441c0b847a7a09950e9bb6e922ae39f908fba24bce9619e7c5b23a1"
+    },
+    "chatConversations": {
+      "file": "chatConversations.json",
+      "kind": "collection",
+      "sha256": "fa471b2b47cdfd9d14b2bb17094274b9b19baaacb5214138478e969e2acdab8a"
+    },
+    "chatMessages": {
+      "file": "chatMessages.json",
+      "kind": "collection",
+      "sha256": "d74706a3c54cb290819e3415853fc2d7fb9299829f6a599a8421a8064da04eec"
+    },
+    "galleryAlbums": {
+      "file": "galleryAlbums.json",
+      "kind": "collection",
+      "sha256": "c42ac10b2b7573ec788e4b31415b25dd81820a511dedc334ad272ef5da6a0680"
+    },
+    "galleryImages": {
+      "file": "galleryImages.json",
+      "kind": "collection",
+      "sha256": "c953d93c15dbbb9bdb2f1bdc251d95f6fb71011fb3bae7c300b4363dbb6bd989"
+    },
+    "scheduledSessions": {
+      "file": "scheduledSessions.json",
+      "kind": "collection",
+      "sha256": "e8c990ba267730fb81c81b1a4f08774aa46dacef19e2307ea843bfd8adfa1d7b"
+    },
+    "attendanceRecords": {
+      "file": "attendanceRecords.json",
+      "kind": "collection",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "attendanceCorrections": {
+      "file": "attendanceCorrections.json",
+      "kind": "collection",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "sessionCompensations": {
+      "file": "sessionCompensations.json",
+      "kind": "collection",
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "pieces": {
+      "file": "pieces.json",
+      "kind": "collection",
+      "sha256": "35f57f751462a8f1221dfa3f8e468431b90a02b10b2f687aba7262d2991b9207"
+    },
+    "pieceAssignments": {
+      "file": "pieceAssignments.json",
+      "kind": "collection",
+      "sha256": "735357a15e93cbf35ddc59aae0f7a6c68a0a901ea957bd10359773690214a16b"
+    },
+    "progressEvents": {
+      "file": "progressEvents.json",
+      "kind": "collection",
+      "sha256": "312958f26085a0a0c19657960020e98eb789f9bec68ca85575e66bdf9b0c5288"
+    }
+  },
+  "datasetSha256": "0f4c731ccb7ce26f30a2adca1b54e8a4f95980818cdab1b9072383fbd0b40b6f",
+  "assets": {
+    "file": "assets/assets.json",
+    "count": 7,
+    "sha256": "b69c23c4c1d98ccfd364287d70e6790fb442176dceec78ca8a2414dfecfa3d3a"
+  },
+  "schema": {
+    "file": "schema/dataset.schema.json",
+    "sha256": "b960424ac7bdfe8ee991433f58e88d0946e4375605d44f17027c4529077d332e"
+  },
+  "integrity": {
+    "validator": "src/domains/demo/backup.ts#validateDataset()",
+    "issues": 0
+  }
+}

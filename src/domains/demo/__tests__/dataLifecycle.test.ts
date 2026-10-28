@@ -66,7 +66,7 @@ function writtenKeys(storage: StorageLike): string[] {
 
 beforeEach(() => {
   setBlobStore(createMemoryBlobStore());
-  setRuntimeConfig({ mode: "demo", error: null });
+  setRuntimeConfig({ mode: "local", error: null });
 });
 
 afterEach(() => {
@@ -175,7 +175,7 @@ describe("EMPTY initialization", () => {
     const result = initializeEmptyEnvironment(store);
 
     expect(result).toMatchObject({ ok: false, reason: "already-initialized", changed: false });
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
     expect(storage.getItem(DEMO_STORAGE_KEY)).toBe(before);
     expect(store.snapshot().students.length).toBeGreaterThan(0);
   });
@@ -187,9 +187,9 @@ describe("DEMO initialization", () => {
 
     const result = initializeDemoEnvironment(store);
 
-    expect(result).toMatchObject({ ok: true, state: "demo", changed: true });
-    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(result).toMatchObject({ ok: true, state: "sample", changed: true });
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
+    expect(readLifecycleState(store)).toBe("sample");
     expect(isDemoEnvironment(store)).toBe(true);
 
     const snapshot = store.snapshot();
@@ -218,7 +218,7 @@ describe("DEMO initialization", () => {
     expect(second).toMatchObject({ ok: false, reason: "already-initialized", changed: false });
     expect(storage.getItem(DEMO_STORAGE_KEY)).toBe(dataset);
     expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe(marker);
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
   });
 });
 
@@ -242,8 +242,8 @@ describe("explicit mode persistence", () => {
     // `demoDataManager.clear()` is exactly this write, with no mode argument.
     store.replace(createEmptyDataset());
 
-    expect(readLifecycleState(store)).toBe("demo");
-    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(store.snapshot().students).toHaveLength(0);
     expect(isDemoEnvironment(store)).toBe(true);
   });
@@ -273,7 +273,7 @@ describe("explicit mode persistence", () => {
     const result = manager.resetToSeed({ confirm: true });
 
     expect(result.ok).toBe(true);
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
     expect(store.snapshot().students.length).toBeGreaterThan(0);
   });
 
@@ -282,14 +282,14 @@ describe("explicit mode persistence", () => {
     initializeDemoEnvironment(store);
 
     expect(manager.clear({ confirm: true }).ok).toBe(true);
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
 
     // Destructive operations are confirm-gated, and a refusal writes nothing.
     const before = store.snapshot();
     expect(manager.clear({} as { confirm: true }).ok).toBe(false);
     expect(manager.resetToSeed({} as { confirm: true }).ok).toBe(false);
     expect(store.snapshot()).toEqual(before);
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
   });
 
   it("markLifecycle records a mode without touching the dataset", () => {
@@ -297,11 +297,11 @@ describe("explicit mode persistence", () => {
     initializeEmptyEnvironment(store);
     const before = storage.getItem(DEMO_STORAGE_KEY);
 
-    markLifecycle("demo", store);
+    markLifecycle("sample", store);
 
-    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(storage.getItem(DEMO_STORAGE_KEY)).toBe(before);
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
   });
 });
 
@@ -318,8 +318,8 @@ describe("legacy migration (a dataset that predates the marker)", () => {
 
     expect(store.readLifecycleMarker()).toBe(null);
     expect(store.isInitialized()).toBe(true);
-    expect(readLifecycleState(store)).toBe("demo");
-    expect(persistLifecycleAdoption(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
+    expect(persistLifecycleAdoption(store)).toBe("sample");
   });
 
   it("preserves every record the visitor already had", () => {
@@ -333,17 +333,28 @@ describe("legacy migration (a dataset that predates the marker)", () => {
     // The marker key is the ONLY thing adoption writes — no record is touched,
     // reseeded, reordered or repaired.
     expect(storage.getItem(DEMO_STORAGE_KEY)).toBe(before);
-    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("sample");
     expect(store.snapshot().students).toEqual(students);
   });
 
   it("records the adoption once and is idempotent", () => {
     const { store } = legacyEnvironment();
 
-    expect(persistLifecycleAdoption(store)).toBe("demo");
-    expect(store.readLifecycleMarker()).toBe("demo");
-    expect(persistLifecycleAdoption(store)).toBe("demo");
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(persistLifecycleAdoption(store)).toBe("sample");
+    expect(store.readLifecycleMarker()).toBe("sample");
+    expect(persistLifecycleAdoption(store)).toBe("sample");
+    expect(readLifecycleState(store)).toBe("sample");
+  });
+
+  it("reads a legacy demo marker as sample and does not rewrite it", () => {
+    const { storage, store } = legacyEnvironment();
+    storage.setItem(LIFECYCLE_STORAGE_KEY, "demo");
+
+    expect(store.readLifecycleMarker()).toBe("sample");
+    expect(readLifecycleState(store)).toBe("sample");
+    expect(isDemoEnvironment(store)).toBe(true);
+    // A read is not a migration. The stored alias stays until an explicit write.
+    expect(storage.getItem(LIFECYCLE_STORAGE_KEY)).toBe("demo");
   });
 
   it("adopts the visitor's own edited legacy records, not the shipped seed", () => {
@@ -357,7 +368,7 @@ describe("legacy migration (a dataset that predates the marker)", () => {
 
     expect(store.snapshot().students).toHaveLength(1);
     expect(store.snapshot().students[0].name).toBe("هنرجوی خود کاربر");
-    expect(readLifecycleState(store)).toBe("demo");
+    expect(readLifecycleState(store)).toBe("sample");
   });
 });
 
@@ -371,7 +382,7 @@ describe("uninitializeEnvironment", () => {
       expect(result.ok).toBe(false);
       expect(result.changed).toBe(false);
       expect(storage.getItem(DEMO_STORAGE_KEY)).toBe(dataset);
-      expect(readLifecycleState(store)).toBe("demo");
+      expect(readLifecycleState(store)).toBe("sample");
     });
   });
 
@@ -441,7 +452,7 @@ describe("isDemoEnvironment", () => {
     expect(isDemoEnvironment(store)).toBe(false); // uninitialized
     initializeEmptyEnvironment(store);
     expect(isDemoEnvironment(store)).toBe(false); // EMPTY
-    markLifecycle("demo", store);
+    markLifecycle("sample", store);
     expect(isDemoEnvironment(store)).toBe(true); // DEMO
   });
 });

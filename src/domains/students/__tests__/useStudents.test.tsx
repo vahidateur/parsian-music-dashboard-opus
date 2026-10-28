@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { emptyPage } from "@/api/types";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import { useStudentList } from "@/domains/students/useStudents";
 import type { StudentRepository } from "@/domains/students/repository";
 
@@ -19,7 +19,7 @@ afterEach(cleanup);
 
 describe("useStudentList", () => {
   it("loads through the repository contract", async () => {
-    const repo = new DemoStudentRepository();
+    const repo = new LocalStudentRepository();
     const expected = await repo.list({ status: "at-risk", per_page: 3 });
     render(<Probe repo={repo} />);
     await waitFor(() => expect(screen.getByText(`count:${expected.data.length} total:${expected.meta.total}`)).toBeTruthy());

@@ -28,15 +28,15 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ApiError } from "@/api/errors";
-import { DemoGalleryRepository } from "@/domains/gallery/demoRepository";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
+import { LocalGalleryRepository } from "@/domains/gallery/localRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
 import { resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs } from "@/test/repositoryStubs";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
-import { DemoMediaRepository } from "../demoRepository";
-import { mediaStillReferenced } from "../demoReferences";
+import { LocalMediaRepository } from "../localRepository";
+import { mediaStillReferenced } from "../mediaReferences";
 import { releaseUnreferencedMedia, setMediaReleaseFailureReporter } from "../release";
 import type { MediaAsset } from "../types";
 
@@ -52,7 +52,7 @@ afterEach(() => {
 
 /** A structurally valid PNG, as the other media suites build one. */
 async function storeAsset(filename = "x1.png"): Promise<MediaAsset> {
-  return new DemoMediaRepository().create({
+  return new LocalMediaRepository().create({
     kind: "image",
     filename,
     mimeType: "image/png",
@@ -67,7 +67,7 @@ async function storeAsset(filename = "x1.png"): Promise<MediaAsset> {
  * there because nothing tried".
  */
 function spyingMedia(onDelete?: (mediaId: string) => void) {
-  const inner = new DemoMediaRepository();
+  const inner = new LocalMediaRepository();
   const deleted: string[] = [];
   const repo = withStubs(inner, {
     delete: async (id: string) => {
@@ -80,7 +80,7 @@ function spyingMedia(onDelete?: (mediaId: string) => void) {
 }
 
 /** The funnel exactly as the four owner repositories call it. */
-function release(id: string, media = new DemoMediaRepository()) {
+function release(id: string, media = new LocalMediaRepository()) {
   return releaseUnreferencedMedia(id, (candidate) => mediaStillReferenced(demoStore, candidate), media);
 }
 
@@ -189,7 +189,7 @@ const PARENTS: ParentFixture[] = [
   {
     name: "gallery image",
     attach: async (mediaId) => {
-      const gallery = new DemoGalleryRepository(demoStore, new DemoMediaRepository());
+      const gallery = new LocalGalleryRepository(demoStore, new LocalMediaRepository());
       const image = await gallery.addImage({
         albumId: firstAlbumId(),
         mediaId,
@@ -221,6 +221,15 @@ const PARENTS: ParentFixture[] = [
       return () => demoStore.branding.update({ faviconMediaId: "" });
     },
   },
+  {
+    name: "instrument image",
+    attach: (mediaId) => {
+      const row = demoStore.instruments.all()[0];
+      expect(row).toBeDefined();
+      demoStore.instruments.update(row.id, { imageId: mediaId });
+      return () => demoStore.instruments.update(row.id, { imageId: "" });
+    },
+  },
 ];
 
 describe("X1 — one parent is enough", () => {
@@ -236,7 +245,7 @@ describe("X1 — one parent is enough", () => {
       // Retained means "delete was never attempted", not merely "still present".
       expect(deleted).toEqual([]);
       expect(demoStore.media.find(asset.id)).toBeDefined();
-      expect(await new DemoMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
+      expect(await new LocalMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
     } finally {
       detach();
     }
@@ -246,7 +255,7 @@ describe("X1 — one parent is enough", () => {
     expect(mediaStillReferenced(demoStore, asset.id)).toBe(false);
     expect(await release(asset.id)).toEqual({ status: "released" });
     expect(demoStore.media.find(asset.id)).toBeUndefined();
-    expect(await new DemoMediaRepository().getBlob(asset.id)).toBeUndefined();
+    expect(await new LocalMediaRepository().getBlob(asset.id)).toBeUndefined();
   });
 });
 
@@ -256,7 +265,7 @@ describe("X1 — cross-domain sharing", () => {
     const studentId = firstStudentId();
     const messageId = ensureChatMessageId();
     const { repo, deleted } = spyingMedia();
-    const students = new DemoStudentRepository(demoStore, repo);
+    const students = new LocalStudentRepository(demoStore, repo);
 
     demoStore.chatMessages.update(messageId, { mediaId: asset.id });
     await students.update(studentId, { photoMediaId: asset.id });
@@ -266,7 +275,7 @@ describe("X1 — cross-domain sharing", () => {
     await students.update(studentId, { photoMediaId: "" });
     expect(deleted).toEqual([]);
     expect(demoStore.media.find(asset.id)).toBeDefined();
-    expect(await new DemoMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
+    expect(await new LocalMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
 
     // …and when the last parent goes, the asset does.
     demoStore.chatMessages.update(messageId, { mediaId: "" });
@@ -299,7 +308,7 @@ describe("X1 — album cover", () => {
   it("keeps an asset used only as a cover alive when the last image using it is removed", async () => {
     const asset = await storeAsset("cover.png");
     const albumId = firstAlbumId();
-    const gallery = new DemoGalleryRepository(demoStore, new DemoMediaRepository());
+    const gallery = new LocalGalleryRepository(demoStore, new LocalMediaRepository());
 
     const image = await gallery.addImage({ albumId, mediaId: asset.id, caption: "کاور", alt: "کاور" });
     await gallery.updateAlbum(albumId, { coverMediaId: asset.id });
@@ -310,7 +319,7 @@ describe("X1 — album cover", () => {
     await gallery.removeImage(image.id);
     expect(demoStore.galleryImages.find(image.id)).toBeUndefined();
     expect(demoStore.media.find(asset.id)).toBeDefined();
-    expect(await new DemoMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
+    expect(await new LocalMediaRepository().getBlob(asset.id)).toBeInstanceOf(Blob);
 
     // Clearing the cover is what finally releases it.
     await gallery.updateAlbum(albumId, { coverMediaId: "" });
@@ -359,7 +368,7 @@ describe("X1 — honest edges", () => {
 
     demoStore.students.update(firstStudentId(), { photoMediaId: "" });
     const failure = new ApiError({ kind: "server", code: "MEDIA_STORAGE_FAILED", message: "ذخیره‌سازی پاسخ نداد." });
-    const failing = withStubs(new DemoMediaRepository(), {
+    const failing = withStubs(new LocalMediaRepository(), {
       delete: async () => {
         throw failure;
       },

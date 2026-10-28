@@ -1,0 +1,363 @@
+[
+  {
+    "id": "as_st1_canon_d",
+    "studentId": "st1",
+    "pieceId": "pc_canon_d",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "پیشرفت خوب و پیوسته.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 44,
+      "tempoBpm": 96,
+      "targetTempoBpm": 134,
+      "mastery": 79,
+      "recordedAt": "2026-08-29T00:00:00.000Z",
+      "eventId": "pe_as_st1_canon_d_4"
+    }
+  },
+  {
+    "id": "as_st1_fur_elise",
+    "studentId": "st1",
+    "pieceId": "pc_fur_elise",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روی همان بخش مانده‌ایم؛ نیاز به تغییر روش تمرین.",
+    "latest": {
+      "rangeStart": 37,
+      "rangeEnd": 42,
+      "tempoBpm": 81,
+      "targetTempoBpm": 113,
+      "mastery": 66,
+      "recordedAt": "2026-08-28T00:00:00.000Z",
+      "eventId": "pe_as_st1_fur_elise_4"
+    }
+  },
+  {
+    "id": "as_st2_asturias",
+    "studentId": "st2",
+    "pieceId": "pc_asturias",
+    "teacherId": "t2",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روی همان بخش مانده‌ایم؛ نیاز به تغییر روش تمرین.",
+    "latest": {
+      "rangeStart": 37,
+      "rangeEnd": 42,
+      "tempoBpm": 81,
+      "targetTempoBpm": 113,
+      "mastery": 66,
+      "recordedAt": "2026-08-28T00:00:00.000Z",
+      "eventId": "pe_as_st2_asturias_4"
+    }
+  },
+  {
+    "id": "as_st3_vocalise_1",
+    "studentId": "st3",
+    "pieceId": "pc_vocalise_1",
+    "teacherId": "t4",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روند عادی و بدون مشکل خاص.",
+    "latest": {
+      "rangeStart": 17,
+      "rangeEnd": 32,
+      "tempoBpm": 80,
+      "targetTempoBpm": 112,
+      "mastery": 60,
+      "recordedAt": "2026-08-30T00:00:00.000Z",
+      "eventId": "pe_as_st3_vocalise_1_3"
+    }
+  },
+  {
+    "id": "as_st4_etude_kayser",
+    "studentId": "st4",
+    "pieceId": "pc_etude_kayser",
+    "teacherId": "t3",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "تازه شروع شده؛ داده برای تحلیل کافی نیست.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 8,
+      "tempoBpm": 66,
+      "targetTempoBpm": 92,
+      "mastery": 44,
+      "recordedAt": "2026-08-23T00:00:00.000Z",
+      "eventId": "pe_as_st4_etude_kayser_1"
+    }
+  },
+  {
+    "id": "as_st4_twinkle_var",
+    "studentId": "st4",
+    "pieceId": "pc_twinkle_var",
+    "teacherId": "t3",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "افت نسبت به جلسات قبل؛ احتمالاً تمرین نامنظم.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 24,
+      "tempoBpm": 78,
+      "targetTempoBpm": 109,
+      "mastery": 59,
+      "recordedAt": "2026-08-27T00:00:00.000Z",
+      "eventId": "pe_as_st4_twinkle_var_3"
+    }
+  },
+  {
+    "id": "as_st5_canon_d",
+    "studentId": "st5",
+    "pieceId": "pc_canon_d",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "افت نسبت به جلسات قبل؛ احتمالاً تمرین نامنظم.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 24,
+      "tempoBpm": 78,
+      "targetTempoBpm": 109,
+      "mastery": 59,
+      "recordedAt": "2026-08-27T00:00:00.000Z",
+      "eventId": "pe_as_st5_canon_d_3"
+    }
+  },
+  {
+    "id": "as_st6_malaguena",
+    "studentId": "st6",
+    "pieceId": "pc_malaguena",
+    "teacherId": "t2",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "پیشرفت خوب و پیوسته.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 44,
+      "tempoBpm": 96,
+      "targetTempoBpm": 134,
+      "mastery": 79,
+      "recordedAt": "2026-08-29T00:00:00.000Z",
+      "eventId": "pe_as_st6_malaguena_4"
+    }
+  },
+  {
+    "id": "as_st7_gymnopedie",
+    "studentId": "st7",
+    "pieceId": "pc_gymnopedie",
+    "teacherId": "t1",
+    "status": "planned",
+    "assignedAt": "2026-08-29T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "به‌تازگی تخصیص داده شده است."
+  },
+  {
+    "id": "as_st7_minuet_g",
+    "studentId": "st7",
+    "pieceId": "pc_minuet_g",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روند عادی و بدون مشکل خاص.",
+    "latest": {
+      "rangeStart": 17,
+      "rangeEnd": 32,
+      "tempoBpm": 80,
+      "targetTempoBpm": 112,
+      "mastery": 60,
+      "recordedAt": "2026-08-30T00:00:00.000Z",
+      "eventId": "pe_as_st7_minuet_g_3"
+    }
+  },
+  {
+    "id": "as_st8_asturias",
+    "studentId": "st8",
+    "pieceId": "pc_asturias",
+    "teacherId": "t7",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روند عادی و بدون مشکل خاص.",
+    "latest": {
+      "rangeStart": 17,
+      "rangeEnd": 32,
+      "tempoBpm": 80,
+      "targetTempoBpm": 112,
+      "mastery": 60,
+      "recordedAt": "2026-08-30T00:00:00.000Z",
+      "eventId": "pe_as_st8_asturias_3"
+    }
+  },
+  {
+    "id": "as_st9_vocalise_1",
+    "studentId": "st9",
+    "pieceId": "pc_vocalise_1",
+    "teacherId": "t4",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "پیشرفت خوب و پیوسته.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 44,
+      "tempoBpm": 96,
+      "targetTempoBpm": 134,
+      "mastery": 79,
+      "recordedAt": "2026-08-29T00:00:00.000Z",
+      "eventId": "pe_as_st9_vocalise_1_4"
+    }
+  },
+  {
+    "id": "as_st10_groove_funk",
+    "studentId": "st10",
+    "pieceId": "pc_groove_funk",
+    "teacherId": "t6",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روی همان بخش مانده‌ایم؛ نیاز به تغییر روش تمرین.",
+    "latest": {
+      "rangeStart": 37,
+      "rangeEnd": 42,
+      "tempoBpm": 81,
+      "targetTempoBpm": 113,
+      "mastery": 66,
+      "recordedAt": "2026-08-28T00:00:00.000Z",
+      "eventId": "pe_as_st10_groove_funk_4"
+    }
+  },
+  {
+    "id": "as_st10_rudiments",
+    "studentId": "st10",
+    "pieceId": "pc_rudiments",
+    "teacherId": "t6",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روند عادی و بدون مشکل خاص.",
+    "latest": {
+      "rangeLabel": "تمرین 17",
+      "tempoBpm": 80,
+      "targetTempoBpm": 112,
+      "mastery": 60,
+      "recordedAt": "2026-08-30T00:00:00.000Z",
+      "eventId": "pe_as_st10_rudiments_3"
+    }
+  },
+  {
+    "id": "as_st11_spring_vivaldi",
+    "studentId": "st11",
+    "pieceId": "pc_spring_vivaldi",
+    "teacherId": "t8",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "روند عادی و بدون مشکل خاص.",
+    "latest": {
+      "rangeStart": 17,
+      "rangeEnd": 32,
+      "tempoBpm": 80,
+      "targetTempoBpm": 112,
+      "mastery": 60,
+      "recordedAt": "2026-08-30T00:00:00.000Z",
+      "eventId": "pe_as_st11_spring_vivaldi_3"
+    }
+  },
+  {
+    "id": "as_st12_harmony_basics",
+    "studentId": "st12",
+    "pieceId": "pc_harmony_basics",
+    "teacherId": "t5",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "تازه شروع شده؛ داده برای تحلیل کافی نیست.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 8,
+      "tempoBpm": 66,
+      "targetTempoBpm": 92,
+      "mastery": 44,
+      "recordedAt": "2026-08-23T00:00:00.000Z",
+      "eventId": "pe_as_st12_harmony_basics_1"
+    }
+  },
+  {
+    "id": "as_st13_canon_d",
+    "studentId": "st13",
+    "pieceId": "pc_canon_d",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "افت نسبت به جلسات قبل؛ احتمالاً تمرین نامنظم.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 24,
+      "tempoBpm": 78,
+      "targetTempoBpm": 109,
+      "mastery": 59,
+      "recordedAt": "2026-08-27T00:00:00.000Z",
+      "eventId": "pe_as_st13_canon_d_3"
+    }
+  },
+  {
+    "id": "as_st13_fur_elise",
+    "studentId": "st13",
+    "pieceId": "pc_fur_elise",
+    "teacherId": "t1",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "پیشرفت خوب و پیوسته.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 44,
+      "tempoBpm": 96,
+      "targetTempoBpm": 134,
+      "mastery": 79,
+      "recordedAt": "2026-08-29T00:00:00.000Z",
+      "eventId": "pe_as_st13_fur_elise_4"
+    }
+  },
+  {
+    "id": "as_st14_asturias",
+    "studentId": "st14",
+    "pieceId": "pc_asturias",
+    "teacherId": "t7",
+    "status": "learning",
+    "assignedAt": "2026-07-03T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "پیشرفت خوب و پیوسته.",
+    "latest": {
+      "rangeStart": 1,
+      "rangeEnd": 44,
+      "tempoBpm": 96,
+      "targetTempoBpm": 134,
+      "mastery": 79,
+      "recordedAt": "2026-08-29T00:00:00.000Z",
+      "eventId": "pe_as_st14_asturias_4"
+    }
+  },
+  {
+    "id": "as_st15_vocalise_1",
+    "studentId": "st15",
+    "pieceId": "pc_vocalise_1",
+    "teacherId": "t4",
+    "status": "planned",
+    "assignedAt": "2026-08-29T00:00:00.000Z",
+    "targetDate": "2026-10-01T00:00:00.000Z",
+    "notes": "به‌تازگی تخصیص داده شده است."
+  }
+]

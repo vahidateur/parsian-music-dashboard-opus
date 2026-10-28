@@ -8,7 +8,7 @@
  * protection it exists to guarantee.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { DemoSchedulingRepository } from "../demoRepository";
+import { LocalSchedulingRepository } from "../localRepository";
 import { ApiSchedulingRepository } from "../apiRepository";
 import { SESSION_ERRORS } from "../types";
 import {
@@ -18,7 +18,7 @@ import {
   setAttendanceRepository,
   setSchedulingRepository,
 } from "@/domains/registry";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
 import { ApiAttendanceRepository } from "@/domains/attendance/apiRepository";
 import { getRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import { demoStore } from "@/services/demoStore";
@@ -43,7 +43,7 @@ async function codeOf(promise: Promise<unknown>): Promise<string> {
 
 describe("resolution", () => {
   it("returns the demo repository by default", () => {
-    expect(getSchedulingRepository()).toBeInstanceOf(DemoSchedulingRepository);
+    expect(getSchedulingRepository()).toBeInstanceOf(LocalSchedulingRepository);
   });
 
   it("returns the demo repository in API mode too, and never the API one", () => {
@@ -56,27 +56,27 @@ describe("resolution", () => {
     resetRegistry();
 
     const repo = getSchedulingRepository();
-    expect(repo).toBeInstanceOf(DemoSchedulingRepository);
+    expect(repo).toBeInstanceOf(LocalSchedulingRepository);
     expect(repo).not.toBeInstanceOf(ApiSchedulingRepository);
   });
 });
 
 describe("test seam", () => {
   it("honours an injected override", () => {
-    const fake = new DemoSchedulingRepository(demoStore);
+    const fake = new LocalSchedulingRepository(demoStore);
     setSchedulingRepository(fake);
     expect(getSchedulingRepository()).toBe(fake);
   });
 
   it("is cleared by resetRegistry", () => {
-    const fake = new DemoSchedulingRepository(demoStore);
+    const fake = new LocalSchedulingRepository(demoStore);
     setSchedulingRepository(fake);
     resetRegistry();
     expect(getSchedulingRepository()).not.toBe(fake);
   });
 
   it("is cleared by passing undefined", () => {
-    const fake = new DemoSchedulingRepository(demoStore);
+    const fake = new LocalSchedulingRepository(demoStore);
     setSchedulingRepository(fake);
     setSchedulingRepository(undefined);
     expect(getSchedulingRepository()).not.toBe(fake);
@@ -141,7 +141,7 @@ describe("the real attendance provider is wired (C2b)", () => {
   it("keeps scheduling free of any attendance implementation import", () => {
     // Enforced repository-wide by architectureBoundaries; asserted here too so
     // the intent is visible at the wiring site.
-    expect(getSchedulingRepository()).toBeInstanceOf(DemoSchedulingRepository);
+    expect(getSchedulingRepository()).toBeInstanceOf(LocalSchedulingRepository);
   });
 
   it("still allows non-destructive reads and previews", async () => {
@@ -163,7 +163,7 @@ describe("the real attendance provider is wired (C2b)", () => {
 
 describe("attendance registry", () => {
   it("returns the demo repository by default", () => {
-    expect(getAttendanceRepository()).toBeInstanceOf(DemoAttendanceRepository);
+    expect(getAttendanceRepository()).toBeInstanceOf(LocalAttendanceRepository);
   });
 
   it("never returns the API repository, which no server implements", () => {
@@ -173,7 +173,7 @@ describe("attendance registry", () => {
   });
 
   it("honours an override and clears it on reset", () => {
-    const fake = new DemoAttendanceRepository(demoStore);
+    const fake = new LocalAttendanceRepository(demoStore);
     setAttendanceRepository(fake);
     expect(getAttendanceRepository()).toBe(fake);
 

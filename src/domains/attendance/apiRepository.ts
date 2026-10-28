@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { AttendanceRepository } from "./repository";
 import type {
   AttendanceCorrection,
@@ -17,11 +18,26 @@ const ATTENDANCE = "attendance";
 /**
  * Implementation #2 — REST backend for attendance.
  *
- * **No server implements these endpoints, and this class is deliberately NOT
- * registered.** Wiring it would turn every call into a failing request
- * presented as a feature (§37). It exists so the boundary is real: it compiles
- * against the same interface the demo satisfies, uses the shared `ApiClient`,
- * and pins the contract a backend must honour.
+ * **Served since 2026-10-04.** The historical note below is retained because
+ * it explains why this class was built before its server existed; the "no
+ * server implements these endpoints" clause no longer describes the present:
+ *
+ * > **No server implements these endpoints, and this class is deliberately NOT
+ * > registered.** Wiring it would turn every call into a failing request
+ * > presented as a feature (§37).
+ *
+ * The endpoints now exist and `registry.client.ts` (the production
+ * composition) resolves this domain to this class. `registry.ts` — the DEMO
+ * composition — still selects `LocalAttendanceRepository` and discloses that
+ * through `DEMO_SERVED_DOMAINS`; that is a deliberate, separately-tested
+ * choice, not an oversight.
+ *
+ * The server was CORRECTED before wiring, not wired around. `AttendanceResource`
+ * had been emitting `recordedBy` / `changedBy` as display names and `notes` /
+ * `recordId`, and returning `{ sessionId, records, corrections }` where the
+ * contract declares a pre-joined `SessionAttendance`. Authority for the TS
+ * types is set out in DECISIONS.md §12 and §24, and in the header of
+ * `backend/app/Http/Resources/AttendanceResource.php`.
  *
  * ENDPOINTS
  *
@@ -71,21 +87,27 @@ export class ApiAttendanceRepository implements AttendanceRepository {
     return this.client.get<AttendanceRecord>(`${ATTENDANCE}/${encodeURIComponent(id)}`, { signal });
   }
 
-  record(input: RecordAttendanceInput): Promise<AttendanceRecord> {
-    return this.client.post<AttendanceRecord>(ATTENDANCE, input);
+  async record(input: RecordAttendanceInput): Promise<AttendanceRecord> {
+    const created = await this.client.post<AttendanceRecord>(ATTENDANCE, input);
+    bumpDataVersion();
+    return created;
   }
 
   /** MUST be one transaction server-side. */
-  bulkRecord(input: BulkRecordInput): Promise<AttendanceRecord[]> {
-    return this.client.post<AttendanceRecord[]>(`${ATTENDANCE}/bulk`, input);
+  async bulkRecord(input: BulkRecordInput): Promise<AttendanceRecord[]> {
+    const created = await this.client.post<AttendanceRecord[]>(`${ATTENDANCE}/bulk`, input);
+    bumpDataVersion();
+    return created;
   }
 
   /** A verb, not a patch: the server appends the correction atomically. */
-  correct(id: string, input: CorrectionInput): Promise<AttendanceRecord> {
-    return this.client.post<AttendanceRecord>(
+  async correct(id: string, input: CorrectionInput): Promise<AttendanceRecord> {
+    const updated = await this.client.post<AttendanceRecord>(
       `${ATTENDANCE}/${encodeURIComponent(id)}/correct`,
       input,
     );
+    bumpDataVersion();
+    return updated;
   }
 
   /* ---------------- audit trail ---------------- */

@@ -3,7 +3,7 @@
  * D8 — the api-mode disclosure contract.
  *
  * The notice exists because api mode is HYBRID: some domains call the backend,
- * eleven still read the demo store (see `DEMO_SERVED_DOMAINS` in
+ * twelve still read the local store (see `DEMO_SERVED_DOMAINS` in
  * `src/domains/registry.ts`). These tests pin the recorded decision:
  *
  *   1. present in api mode, absent in demo mode;
@@ -30,22 +30,24 @@ import {
   getLearningRepository,
   getLibraryRepository,
   getMediaRepository,
+  getOrganizationRepository,
   getProgressRepository,
   getSchedulingRepository,
   resetRegistry,
 } from "@/domains/registry";
 import { DemoBackedNotice } from "../DemoBackedNotice";
-import { DemoInstrumentRepository } from "@/domains/instruments/demoRepository";
-import { DemoLearningRepository } from "@/domains/learning/demoRepository";
-import { DemoChatRepository } from "@/domains/chat/demoRepository";
-import { DemoMediaRepository } from "@/domains/media/demoRepository";
-import { DemoLibraryRepository } from "@/domains/library/demoRepository";
-import { DemoBrandingRepository } from "@/domains/branding/demoRepository";
-import { DemoGalleryRepository } from "@/domains/gallery/demoRepository";
-import { DemoProgressRepository } from "@/domains/progress/demoRepository";
-import { DemoSchedulingRepository } from "@/domains/scheduling/demoRepository";
-import { DemoAttendanceRepository } from "@/domains/attendance/demoRepository";
-import { DemoCompensationRepository } from "@/domains/compensation/demoRepository";
+import { LocalInstrumentRepository } from "@/domains/instruments/localRepository";
+import { LocalLearningRepository } from "@/domains/learning/localRepository";
+import { LocalChatRepository } from "@/domains/chat/localRepository";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
+import { LocalLibraryRepository } from "@/domains/library/localRepository";
+import { LocalBrandingRepository } from "@/domains/branding/localRepository";
+import { LocalOrganizationRepository } from "@/domains/organization/localRepository";
+import { LocalGalleryRepository } from "@/domains/gallery/localRepository";
+import { LocalProgressRepository } from "@/domains/progress/localRepository";
+import { LocalSchedulingRepository } from "@/domains/scheduling/localRepository";
+import { LocalAttendanceRepository } from "@/domains/attendance/localRepository";
+import { LocalCompensationRepository } from "@/domains/compensation/localRepository";
 
 afterEach(() => {
   resetRuntimeConfig();
@@ -61,7 +63,7 @@ describe("D8 disclosure visibility", () => {
   });
 
   it("is absent in demo mode — the DemoNote family already labels prototype data", () => {
-    setRuntimeConfig({ mode: "demo", error: null });
+    setRuntimeConfig({ mode: "local", error: null });
     render(<DemoBackedNotice />);
     expect(screen.queryByRole("note", { name: "اعلام منبع داده" })).toBeNull();
   });
@@ -81,8 +83,21 @@ describe("D8 wording derives from the registry's single enumeration", () => {
     for (const domain of DEMO_SERVED_DOMAINS) {
       expect(text, `missing ${domain.id} (${domain.label})`).toContain(domain.label);
     }
-    // All eleven, in one enumeration (the D8 count).
-    expect(DEMO_SERVED_DOMAINS).toHaveLength(11);
+    // D8-A: twelve, including organization. The count is the enumeration, not a banner copy.
+    expect(DEMO_SERVED_DOMAINS.map((domain) => domain.id)).toEqual([
+      "instruments",
+      "learning",
+      "chat",
+      "media",
+      "library",
+      "branding",
+      "organization",
+      "gallery",
+      "progress",
+      "scheduling",
+      "attendance",
+      "compensation",
+    ]);
   });
 
   it("claims nothing about backend health or a server response", () => {
@@ -102,17 +117,18 @@ describe("the D8 enumeration is still true", () => {
   it("every listed getter resolves to a demo repository even in api mode", () => {
     setRuntimeConfig({ mode: "api", apiBaseUrl: "https://api.example.test", error: null });
     const demoClasses = [
-      DemoInstrumentRepository,
-      DemoLearningRepository,
-      DemoChatRepository,
-      DemoMediaRepository,
-      DemoLibraryRepository,
-      DemoBrandingRepository,
-      DemoGalleryRepository,
-      DemoProgressRepository,
-      DemoSchedulingRepository,
-      DemoAttendanceRepository,
-      DemoCompensationRepository,
+      LocalInstrumentRepository,
+      LocalLearningRepository,
+      LocalChatRepository,
+      LocalMediaRepository,
+      LocalLibraryRepository,
+      LocalBrandingRepository,
+      LocalOrganizationRepository,
+      LocalGalleryRepository,
+      LocalProgressRepository,
+      LocalSchedulingRepository,
+      LocalAttendanceRepository,
+      LocalCompensationRepository,
     ];
     const repos = [
       getInstrumentRepository(),
@@ -121,6 +137,7 @@ describe("the D8 enumeration is still true", () => {
       getMediaRepository(),
       getLibraryRepository(),
       getBrandingRepository(),
+      getOrganizationRepository(),
       getGalleryRepository(),
       getProgressRepository(),
       getSchedulingRepository(),

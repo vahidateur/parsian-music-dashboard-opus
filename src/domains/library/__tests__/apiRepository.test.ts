@@ -10,7 +10,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { ApiClient } from "@/api/client";
 import { ApiError } from "@/api/errors";
-import { DemoLibraryRepository } from "@/domains/library/demoRepository";
+import { LocalLibraryRepository } from "@/domains/library/localRepository";
 import { getLibraryRepository, resetRegistry } from "@/domains/registry";
 import { ApiLibraryRepository, toQuery } from "../apiRepository";
 import type { CreateLibraryItemInput } from "../types";
@@ -137,7 +137,7 @@ describe("composition root", () => {
   });
 
   it("resolves Library to the demo implementation, since no server serves /resources", async () => {
-    expect(getLibraryRepository()).toBeInstanceOf(DemoLibraryRepository);
+    expect(getLibraryRepository()).toBeInstanceOf(LocalLibraryRepository);
     // …and it genuinely reads the catalogue rather than a fixture.
     const page = await getLibraryRepository().list({ per_page: 200 });
     expect(page.meta.total).toBeGreaterThan(0);

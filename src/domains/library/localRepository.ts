@@ -1,0 +1,270 @@
+/**
+ * Demo library repository — adapts the DemoStore to the domain contract.
+ *
+ * It owns NO persistence and NO binaries:
+ *   - rows live in `DemoDataset.resources`, written through the store's
+ *     collection API like every other domain;
+ *   - files live in the media domain, referenced by `mediaId` and validated
+ *     against `DemoDataset.media` on the way in.
+ *
+ * Display labels (`size`, `duration`, `added`) are projected here from real
+ * values — the linked asset's byte length, the declared duration, the creation
+ * timestamp — so a created row shows measurements that came from somewhere,
+ * never a constant (§38).
+ *
+ * F1: added visibility + active filtering per publication status disposition —
+ * uses existing active/visibility semantics from LearningContent, no new workflow.
+ */
+import type { Page } from "@/api/types";
+import { faNum } from "@/lib/format";
+import { matchesQuery, notFound, paginate, validationError } from "@/domains/shared/repositoryPlumbing";
+import { LocalMediaRepository } from "@/domains/media/localRepository";
+import { mediaStillReferenced } from "@/domains/media/mediaReferences";
+import { releaseUnreferencedMedia } from "@/domains/media/release";
+import type { MediaRepository } from "@/domains/media/repository";
+import { demoStore, type DemoStore } from "@/services/demoStore";
+import type { LibraryRepository } from "./repository";
+import type { CreateLibraryItemInput, LibraryItem, LibraryListParams, UpdateLibraryItemInput } from "./types";
+
+/** Size label for a row with no file: unknown, and said so. */
+const UNKNOWN_SIZE = "نامشخص";
+
+export class LocalLibraryRepository implements LibraryRepository {
+  constructor(
+    private readonly store: DemoStore = demoStore,
+    /** Bytes and their metadata belong to the media domain, never to us. */
+    private readonly media: MediaRepository = new LocalMediaRepository(),
+  ) {}
+
+  async list(params: LibraryListParams = {}): Promise<Page<LibraryItem>> {
+    // Resolved once per call, not per row. `composer` is deliberately NOT here:
+    // it is the creator attribution and searching it for a teacher is the proxy
+    // G-7 removed. A row matches a teacher query only through a real
+    // `teacherId` -> `Teacher.name` link, so a search can no longer hit a
+    // teacher's name on a Chopin score that merely mentions them.
+    const teacherNames = this.teacherNameIndex();
+    const rows = this.store.resources.all().filter((row) => {
+      if (params.kind && row.kind !== params.kind) return false;
+      if (params.instrument && row.instrument !== params.instrument) return false;
+      if (params.level && row.level !== params.level) return false;
+      if (params.visibility && row.visibility && row.visibility !== params.visibility) return false;
+      // If row has no visibility, treat as students visible (public) per default
+      if (params.visibility && !row.visibility && params.visibility !== "students") return false;
+      return matchesQuery([row.title, row.composer, row.level, row.teacherId ? teacherNames.get(row.teacherId) : undefined], params.search);
+    });
+    return paginate(rows, params);
+  }
+
+  /**
+   * `teacherId` -> teacher name, for search only.
+   *
+   * A private lookup over the same demo dataset, mirroring how the classes
+   * repository filters on `teacherId`. It reads the teachers collection rather
+   * than duplicating a name onto the resource, so a teacher renamed in one place
+   * is renamed for search everywhere and cannot drift. A `teacherId` that names
+   * no teacher contributes no searchable text — the row stays findable by title
+   * and composer, and search reports no teacher it cannot prove.
+   */
+  private teacherNameIndex(): Map<string, string> {
+    const index = new Map<string, string>();
+    for (const teacher of this.store.teachers.all()) index.set(teacher.id, teacher.name);
+    return index;
+  }
+
+  async get(id: string): Promise<LibraryItem> {
+    const found = this.store.resources.find(id);
+    if (!found) throw notFound("LIBRARY_ITEM_NOT_FOUND", `منبع با شناسهٔ ${id} یافت نشد.`);
+    return found;
+  }
+
+  async create(input: CreateLibraryItemInput): Promise<LibraryItem> {
+    const fields = this.validate(input);
+    if (Object.keys(fields).length > 0) {
+      throw validationError("LIBRARY_ITEM_INVALID", "اطلاعات منبع معتبر نیست.", fields);
+    }
+
+    const createdAt = new Date().toISOString();
+    const asset = input.mediaId ? this.store.media.find(input.mediaId) : undefined;
+
+    return this.store.resources.create({
+      title: input.title.trim(),
+      composer: input.composer?.trim() ?? "",
+      ...(input.teacherId !== undefined ? { teacherId: input.teacherId } : {}),
+      kind: input.kind,
+      instrument: input.instrument,
+      level: input.level?.trim() ?? "",
+      uses: 0,
+      createdAt,
+      added: addedLabel(createdAt),
+      size: asset ? sizeLabel(asset.sizeBytes) : UNKNOWN_SIZE,
+      visibility: input.visibility ?? "students",
+      active: input.active ?? true,
+      ...(input.restrictedToStudentIds !== undefined
+        ? { restrictedToStudentIds: [...input.restrictedToStudentIds] }
+        : {}),
+      ...(input.pages !== undefined ? { pages: input.pages } : {}),
+      ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
+      ...(input.peaks ? { peaks: input.peaks } : {}),
+      ...(input.mediaId ? { mediaId: input.mediaId } : {}),
+    });
+  }
+
+  async update(id: string, input: UpdateLibraryItemInput): Promise<LibraryItem> {
+    const existing = await this.get(id);
+    const fields = this.validate(input);
+    if (Object.keys(fields).length > 0) {
+      throw validationError("LIBRARY_ITEM_INVALID", "اطلاعات منبع معتبر نیست.", fields);
+    }
+
+    const patch: Partial<Omit<LibraryItem, "id">> = {
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.composer !== undefined ? { composer: input.composer.trim() } : {}),
+      ...(input.teacherId !== undefined ? { teacherId: input.teacherId } : {}),
+      ...(input.kind !== undefined ? { kind: input.kind } : {}),
+      ...(input.instrument !== undefined ? { instrument: input.instrument } : {}),
+      ...(input.level !== undefined ? { level: input.level.trim() } : {}),
+      ...(input.pages !== undefined ? { pages: input.pages } : {}),
+      ...(input.peaks !== undefined ? { peaks: input.peaks } : {}),
+      ...(input.visibility !== undefined ? { visibility: input.visibility } : {}),
+      ...(input.active !== undefined ? { active: input.active } : {}),
+      ...(input.restrictedToStudentIds !== undefined
+        ? { restrictedToStudentIds: [...input.restrictedToStudentIds] }
+        : {}),
+      ...(input.durationSeconds !== undefined ? { duration: durationLabel(input.durationSeconds) } : {}),
+    };
+
+    // Re-pointing the file changes the measured size, so the label follows the
+    // asset rather than keeping the previous file's number.
+    const repointed = input.mediaId !== undefined && input.mediaId !== existing.mediaId;
+    if (repointed) {
+      patch.mediaId = input.mediaId;
+      const asset = input.mediaId ? this.store.media.find(input.mediaId) : undefined;
+      patch.size = asset ? sizeLabel(asset.sizeBytes) : UNKNOWN_SIZE;
+    }
+
+    const updated = this.store.resources.update(id, patch);
+    if (!updated) throw notFound("LIBRARY_ITEM_NOT_FOUND", `منبع با شناسهٔ ${id} یافت نشد.`);
+
+    /*
+      OWNERSHIP TRANSITION — the row has been re-pointed, so the file it used to
+      carry is now superseded. The order is the point: the new reference is
+      persisted first (and the new asset validated before that), so a refused or
+      failed write can never strand the catalogue on freed bytes. The previous
+      file is only a candidate for cleanup once the write has been accepted —
+      and is kept outright if another catalogue row still references it.
+    */
+    if (repointed) await this.releaseFile(existing.mediaId);
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    const existing = await this.get(id);
+    if (!this.store.resources.remove(id)) {
+      throw notFound("LIBRARY_ITEM_NOT_FOUND", `منبع با شناسهٔ ${id} یافت نشد.`);
+    }
+    // Row removed first: freeing the file can never resurrect the catalogue row.
+    await this.releaseFile(existing.mediaId);
+  }
+
+  /**
+   * Frees a file no persisted record references any more, through the media
+   * abstraction (metadata AND bytes). The removal order is enforced by the
+   * caller: every call site reaches here only after the write that stopped
+   * referencing the asset succeeded. The check itself is the global parent
+   * predicate (X1) — a chat attachment or a learning material pointing at the
+   * same id keeps the bytes. A cleanup failure is reported by the media domain
+   * rather than swallowed, and never resurrects the catalogue row.
+   */
+  private async releaseFile(mediaId: string | undefined): Promise<void> {
+    await releaseUnreferencedMedia(
+      mediaId,
+      (id) => mediaStillReferenced(this.store, id),
+      this.media,
+    );
+  }
+
+  /**
+   * Field rules shared by create and update.
+   *
+   * Referential checks are the point: a row may only point at an instrument and
+   * a file that actually exist in this environment, so the UI can never render
+   * a download for an asset the store does not have.
+   */
+  private validate(input: CreateLibraryItemInput | UpdateLibraryItemInput): Record<string, string[]> {
+    const fields: Record<string, string[]> = {};
+
+    if (input.title !== undefined && input.title.trim().length < 2) {
+      fields.title = ["عنوان منبع الزامی است."];
+    }
+    if (input.instrument !== undefined && !this.store.instruments.find(input.instrument)) {
+      fields.instrument = ["ساز انتخاب‌شده در فهرست سازهای آموزشگاه وجود ندارد."];
+    }
+    /*
+      A teacher reference must name a teacher the academy actually holds, or the
+      attribution is a dangling string that reads as a fact.
+
+      Unlike the classes repository, which also rejects an `inactive` teacher,
+      this accepts one: there a teacher is ASSIGNED to teach, and an inactive
+      teacher cannot be assigned; here the teacher is credited for material they
+      prepared, and a teacher who has since left still prepared it. Dropping that
+      attribution on deactivation would erase real history to satisfy a rule
+      about a different question.
+    */
+    if (input.teacherId !== undefined && input.teacherId !== "" && !this.store.teachers.find(input.teacherId)) {
+      fields.teacherId = ["مدرس یافت نشد."];
+    }
+    if (input.mediaId !== undefined && input.mediaId !== "" && !this.store.media.find(input.mediaId)) {
+      fields.mediaId = ["فایل انتخاب‌شده در فضای ذخیره‌سازی وجود ندارد."];
+    }
+    if (input.pages !== undefined && (!Number.isInteger(input.pages) || input.pages < 0)) {
+      fields.pages = ["تعداد صفحه باید عددی صحیح و نامنفی باشد."];
+    }
+    if (input.durationSeconds !== undefined && (!Number.isFinite(input.durationSeconds) || input.durationSeconds < 0)) {
+      fields.durationSeconds = ["مدت زمان معتبر نیست."];
+    }
+    /*
+      A restriction naming students the academy does not hold would be an access
+      rule about nobody — worse than no rule, because it reads as a decision.
+    */
+    if (input.restrictedToStudentIds !== undefined) {
+      const unknown = input.restrictedToStudentIds.filter((id) => !this.store.students.find(id));
+      if (unknown.length > 0) {
+        fields.restrictedToStudentIds = ["هر شناسهٔ هنرجو در فهرست محدودیت باید هنرجوی ثبت‌شده باشد."];
+      }
+    }
+
+    return fields;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Display projections                                                  */
+/* ------------------------------------------------------------------ */
+
+/** Byte length as the Persian label the catalogue displays. */
+export function sizeLabel(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return UNKNOWN_SIZE;
+  if (bytes < 1024) return `${faNum(bytes)} بایت`;
+  if (bytes < 1024 * 1024) return `${faNum(Math.round(bytes / 1024))} کیلوبایت`;
+  return `${faNum(bytes / (1024 * 1024), { decimals: 1 })} مگابایت`;
+}
+
+/** Seconds as `m:ss` in Persian digits. */
+export function durationLabel(seconds: number): string {
+  const safe = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+  const padded = safe % 60 < 10 ? `۰${faNum(safe % 60)}` : faNum(safe % 60);
+  return `${faNum(Math.floor(safe / 60))}:${padded}`;
+}
+
+/**
+ * `Resource.added` is a Persian relative label in the shipped catalogue, so a
+ * created row keeps the same vocabulary — derived from its real timestamp.
+ */
+export function addedLabel(iso: string): string {
+  const created = new Date(iso).getTime();
+  if (!Number.isFinite(created)) return "امروز";
+  const days = Math.floor((Date.now() - created) / 86_400_000);
+  if (days <= 0) return "امروز";
+  if (days === 1) return "دیروز";
+  return `${faNum(days)} روز پیش`;
+}

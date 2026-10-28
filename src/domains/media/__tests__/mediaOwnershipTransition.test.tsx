@@ -19,7 +19,7 @@
  *   4. a SHARED photo survives while another owner still references it, and is
  *      freed when the last owner lets go.
  *
- * The deletion probe is a real `DemoMediaRepository` behind `withStubs`, so
+ * The deletion probe is a real `LocalMediaRepository` behind `withStubs`, so
  * "was it freed?" still means metadata AND bytes are gone, and "when" can be
  * observed at the moment of the call.
  */
@@ -28,13 +28,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useState } from "react";
 import { AppProvider } from "@/context/AppContext";
 import { ApiError } from "@/api/errors";
-import { DemoMediaRepository } from "../demoRepository";
+import { LocalMediaRepository } from "../localRepository";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
 import { releaseUnreferencedMedia, setMediaReleaseFailureReporter } from "../release";
-import { mediaStillReferenced } from "../demoReferences";
+import { mediaStillReferenced } from "../mediaReferences";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
-import { DemoStudentRepository } from "@/domains/students/demoRepository";
-import { DemoTeacherRepository } from "@/domains/teachers/demoRepository";
+import { LocalStudentRepository } from "@/domains/students/localRepository";
+import { LocalTeacherRepository } from "@/domains/teachers/localRepository";
 import type { Student } from "@/domains/students/types";
 import type { MediaAsset } from "../types";
 import {
@@ -68,7 +68,7 @@ function pngFile(name = "photo.png"): File {
 }
 
 async function storeAvatar(filename: string): Promise<MediaAsset> {
-  return new DemoMediaRepository().create({
+  return new LocalMediaRepository().create({
     kind: "image",
     filename,
     mimeType: "image/png",
@@ -82,7 +82,7 @@ async function storeAvatar(filename: string): Promise<MediaAsset> {
  * store and the blob store are genuine, so the assertions still mean something.
  */
 function spyingMedia(onDelete?: (mediaId: string) => void) {
-  const inner = new DemoMediaRepository();
+  const inner = new LocalMediaRepository();
   const deleted: string[] = [];
   const repo = withStubs(inner, {
     delete: async (id: string) => {
@@ -163,7 +163,7 @@ describe("the transition helper itself", () => {
   it("reports a failed cleanup instead of swallowing it, after the owner write stands", async () => {
     const asset = await storeAvatar("stuck.png");
     const failure = new ApiError({ kind: "server", code: "MEDIA_STORAGE_FAILED", message: "ذخیره‌سازی پاسخ نداد." });
-    const repo = withStubs(new DemoMediaRepository(), {
+    const repo = withStubs(new LocalMediaRepository(), {
       delete: async () => {
         throw failure;
       },
@@ -284,7 +284,7 @@ describe("replace then save", () => {
     // through the registry, the owner write releases the superseded photo
     // through the repository's injected media dependency.
     setMediaRepository(repo);
-    setStudentRepository(new DemoStudentRepository(demoStore, repo));
+    setStudentRepository(new LocalStudentRepository(demoStore, repo));
 
     render(
       <AppProvider>
@@ -313,7 +313,7 @@ describe("replace then save", () => {
     const student = demoStore.students.all()[0];
     const withPhoto = await getStudentRepository().update(student.id, { photoMediaId: persisted.id });
     setStudentRepository(
-      withStubs(new DemoStudentRepository(), {
+      withStubs(new LocalStudentRepository(), {
         update: async () => {
           throw new ApiError({ kind: "server", message: "ذخیرهٔ هنرجو انجام نشد." });
         },
@@ -347,11 +347,11 @@ describe("replace then save", () => {
 describe("shared media", () => {
   it("survives the first owner that lets go and is freed when the last one does", async () => {
     const shared = await storeAvatar("shared.png");
-    const studentRepo = new DemoStudentRepository();
+    const studentRepo = new LocalStudentRepository();
     const student = demoStore.students.all()[0];
     await studentRepo.update(student.id, { photoMediaId: shared.id });
 
-    const teacherRepo = new DemoTeacherRepository();
+    const teacherRepo = new LocalTeacherRepository();
     const teacher = await teacherRepo.create({
       name: "مدرس عکس‌دار",
       photoMediaId: shared.id,
@@ -385,7 +385,7 @@ describe("shared media", () => {
 
   it("does not free a photo the record still references when a different field changes", async () => {
     const photo = await storeAvatar("kept.png");
-    const repo = new DemoStudentRepository();
+    const repo = new LocalStudentRepository();
     const student = demoStore.students.all()[0];
     await repo.update(student.id, { photoMediaId: photo.id });
 

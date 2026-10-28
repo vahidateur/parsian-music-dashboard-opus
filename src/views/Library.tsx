@@ -57,6 +57,7 @@ import { AudioMessagePlayer } from "@/domains/library/AudioMessagePlayer";
 import { ResourcePreview, needsPreviewObjectUrl } from "@/domains/library/ResourcePreview";
 import { cn } from "@/utils/cn";
 import { ALLOWED_AUDIO_TYPES, ALLOWED_DOCUMENT_TYPES, ALLOWED_IMAGE_TYPES } from "@/domains/media/types";
+import { unavailableActions, fileStoredDetail } from "@/targets/targetCopy";
 
 const kindIcon: Record<ResourceKind, typeof FileMusic> = { sheet: FileMusic, audio: Music2, video: Video, doc: FileText };
 const kindTone: Record<ResourceKind, string> = {
@@ -263,7 +264,7 @@ function LibraryItemDialog({
         notify({
           tone: "success",
           title: `«${title.trim()}» به کتابخانه افزوده شد`,
-          detail: file ? "فایل فقط در همین مرورگر ذخیره شد." : "بدون فایل — تنها فراداده ثبت شد.",
+          detail: file ? fileStoredDetail() : "بدون فایل — تنها فراداده ثبت شد.",
         });
       }
       onSaved();
@@ -410,17 +411,17 @@ function LibraryItemDialog({
             </Field>
           )}
 
-          <Field label={editing ? "فایل جدید (اختیاری — جایگزین فایل فعلی)" : "فایل (اختیاری) — از طریق media seam"}>
+          <Field label={editing ? "فایل جدید (اختیاری — جایگزین فایل فعلی)" : "فایل (اختیاری)"}>
             {() => (
               <div className="flex items-center gap-2">
                 <input ref={fileRef} type="file" className="sr-only" accept={[...ALLOWED_IMAGE_TYPES, ...ALLOWED_AUDIO_TYPES, ...ALLOWED_DOCUMENT_TYPES].join(",")} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-                <Button size="sm" variant="subtle" onClick={() => fileRef.current?.click()}><Upload className="size-3.5" /> انتخاب فایل</Button>
-                <span className="text-[11px] text-ink-400 truncate">{file ? file.name : editing ? "بدون تغییر فایل" : "بدون فایل — تنها فراداده"}</span>
+                <Button size="sm" variant="subtle" disabled={unavailableActions.has("media-upload")} onClick={() => fileRef.current?.click()}><Upload className="size-3.5" /> انتخاب فایل</Button>
+                <span className="text-[11px] text-ink-400 truncate">{unavailableActions.has("media-upload") ? "بارگذاری فایل در این نسخه در دسترس نیست — تنها فراداده ثبت می‌شود" : file ? file.name : editing ? "بدون تغییر فایل" : "بدون فایل — تنها فراداده"}</span>
                 {file && <Button size="sm" variant="ghost" onClick={() => { setFile(null); if (fileRef.current) fileRef.current.value = ""; }}><X className="size-3" /></Button>}
               </div>
             )}
           </Field>
-          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل از طریق media seam ذخیره می‌شود: ابتدا Media.create سپس Library.create با mediaId — bytes در حافظهٔ باینری، metadata در DemoDataset — بدون URL ساختگی.</p>
+          <p className="text-[10.5px] leading-relaxed text-ink-400">فایل جدا از مشخصات منبع ذخیره می‌شود؛ بدون فایل، تنها مشخصات ثبت می‌شود.</p>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -535,7 +536,7 @@ export function LibraryView() {
   if (loading) return <LoadingState className="py-32" label="در حال باز کردن کتابخانه…" />;
   if (error)
     return (
-      <ErrorState className="py-32" title="بارگذاری کتابخانه ناموفق بود" description={error.message} onRetry={reload} />
+      <ErrorState className="py-32" title="بارگذاری کتابخانه ناموفق بود" error={error} onRetry={reload} />
     );
 
   const notReadyReason = file.status === "ready" ? undefined : (file.reason ?? "فایل این منبع در دسترس نیست.");

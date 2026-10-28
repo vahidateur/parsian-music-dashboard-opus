@@ -32,6 +32,10 @@ export function DataLifecycleFeature({ children }: { children: ReactNode }) {
 
 /** The api-mode disclosure, client wording: no server, no fabricated data. */
 function UnavailableDomainsNotice({ className }: { className?: string }) {
+  // Every domain is served: there is nothing to disclose and no sentence to
+  // render. Returning null (rather than a sentence with an empty list) keeps
+  // the login page honest — a disclosure naming nothing would read as broken.
+  if (UNAVAILABLE_DOMAINS.length === 0) return null;
   const names = UNAVAILABLE_DOMAINS.map((d) => d.label).join("، ");
   return (
     <div
@@ -48,8 +52,13 @@ function UnavailableDomainsNotice({ className }: { className?: string }) {
   );
 }
 
+/*
+ * Deliberately empty: the authenticated pages whose capability is missing say so
+ * themselves (ErrorState / disabled controls), and a banner on every screen told
+ * pages that work that they were disconnected. The disclosure stays on the login.
+ */
 export function ShellFeatures() {
-  return <UnavailableDomainsNotice className="mb-5" />;
+  return null;
 }
 
 export function SettingsFeatures() {

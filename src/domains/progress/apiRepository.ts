@@ -1,13 +1,25 @@
 /**
  * Implementation #2 — REST backend for repertoire and progress.
  *
- * **No server implements these endpoints yet.** This class exists so the
- * boundary is real rather than hypothetical: it compiles against the same
- * interface the demo satisfies, uses the shared `ApiClient`, and documents the
- * contract a backend must honour. It is deliberately NOT wired into the
- * registry — doing so would produce failing requests dressed up as a feature.
+ * **Served since 2026-10-03** (DECISIONS.md §29 authorized the domain and §30
+ * authorized the 14th endpoint). The historical note below is retained because
+ * it explains why this class was built before its server existed; it no longer
+ * describes the present, and the "deliberately NOT wired" clause is void:
  *
- * Endpoints (contract):
+ * > **No server implements these endpoints yet.** This class exists so the
+ * > boundary is real rather than hypothetical: it compiles against the same
+ * > interface the demo satisfies, uses the shared `ApiClient`, and documents the
+ * > contract a backend must honour. It is deliberately NOT wired into the
+ * > registry — doing so would produce failing requests dressed up as a feature.
+ *
+ * Current state: every endpoint below has a backend route, the wire shapes
+ * match these types field-for-field, and `registry.client.ts` (the production
+ * composition) resolves this domain to this class. The **demo** composition
+ * still selects `LocalProgressRepository` and discloses that through
+ * `DEMO_SERVED_DOMAINS` — a deliberate, separately-tested choice, not an
+ * oversight.
+ *
+ * Endpoints (contract) — 14, all served:
  *   GET    /api/v1/pieces
  *   POST   /api/v1/pieces
  *   GET    /api/v1/pieces/{id}
@@ -21,6 +33,12 @@
  *   GET    /api/v1/progress-events
  *   POST   /api/v1/progress-events
  *   GET    /api/v1/students/{id}/progress-overview
+ *   GET    /api/v1/students/{id}/assignments
+ *
+ * The 14th — `GET students/{id}/assignments`, used by `studentAssignments()` —
+ * was absent from this header while being implemented by the class below. That
+ * inconsistency is what the post-closure audit found, and §30 authorized the
+ * server route to resolve it.
  *
  * SERVER-SIDE OBLIGATIONS (see docs/production-handoff.md):
  *   - analytics, plateau detection and recommendations are recomputed on the
@@ -32,6 +50,7 @@
  */
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { AssignmentWithPiece, ProgressRepository, StudentProgressOverview } from "./repository";
 import type {
   AssignmentListParams,
@@ -64,16 +83,21 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.get<Piece>(`${PIECES}/${encodeURIComponent(id)}`, { signal });
   }
 
-  createPiece(input: CreatePieceInput): Promise<Piece> {
-    return this.client.post<Piece>(PIECES, input);
+  async createPiece(input: CreatePieceInput): Promise<Piece> {
+    const created = await this.client.post<Piece>(PIECES, input);
+    bumpDataVersion();
+    return created;
   }
 
-  updatePiece(id: string, input: UpdatePieceInput): Promise<Piece> {
-    return this.client.patch<Piece>(`${PIECES}/${encodeURIComponent(id)}`, input);
+  async updatePiece(id: string, input: UpdatePieceInput): Promise<Piece> {
+    const updated = await this.client.patch<Piece>(`${PIECES}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async deletePiece(id: string): Promise<void> {
     await this.client.delete(`${PIECES}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---- assignments ---- */
@@ -86,16 +110,21 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.get<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, { signal });
   }
 
-  assignPiece(input: CreateAssignmentInput): Promise<PieceAssignment> {
-    return this.client.post<PieceAssignment>(ASSIGNMENTS, input);
+  async assignPiece(input: CreateAssignmentInput): Promise<PieceAssignment> {
+    const created = await this.client.post<PieceAssignment>(ASSIGNMENTS, input);
+    bumpDataVersion();
+    return created;
   }
 
-  updateAssignment(id: string, input: UpdateAssignmentInput): Promise<PieceAssignment> {
-    return this.client.patch<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, input);
+  async updateAssignment(id: string, input: UpdateAssignmentInput): Promise<PieceAssignment> {
+    const updated = await this.client.patch<PieceAssignment>(`${ASSIGNMENTS}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async deleteAssignment(id: string): Promise<void> {
     await this.client.delete(`${ASSIGNMENTS}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 
   /* ---- events ---- */
@@ -104,8 +133,10 @@ export class ApiProgressRepository implements ProgressRepository {
     return this.client.getPage<ProgressEvent>(EVENTS, { query: eventQuery(params), signal });
   }
 
-  recordProgress(input: RecordProgressInput): Promise<ProgressEvent> {
-    return this.client.post<ProgressEvent>(EVENTS, input);
+  async recordProgress(input: RecordProgressInput): Promise<ProgressEvent> {
+    const created = await this.client.post<ProgressEvent>(EVENTS, input);
+    bumpDataVersion();
+    return created;
   }
 
   /* ---- derived ---- */

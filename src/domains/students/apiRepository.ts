@@ -1,5 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import type { Page, QueryParams } from "@/api/types";
+import { bumpDataVersion } from "@/domains/shared/dataVersion";
 import type { StudentRepository } from "./repository";
 import type { CreateStudentInput, Student, StudentListParams, UpdateStudentInput } from "./types";
 
@@ -30,16 +31,21 @@ export class ApiStudentRepository implements StudentRepository {
     return this.client.get<Student>(`${RESOURCE}/${encodeURIComponent(id)}`, { signal });
   }
 
-  create(input: CreateStudentInput): Promise<Student> {
-    return this.client.post<Student>(RESOURCE, input);
+  async create(input: CreateStudentInput): Promise<Student> {
+    const created = await this.client.post<Student>(RESOURCE, input);
+    bumpDataVersion();
+    return created;
   }
 
-  update(id: string, input: UpdateStudentInput): Promise<Student> {
-    return this.client.patch<Student>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+  async update(id: string, input: UpdateStudentInput): Promise<Student> {
+    const updated = await this.client.patch<Student>(`${RESOURCE}/${encodeURIComponent(id)}`, input);
+    bumpDataVersion();
+    return updated;
   }
 
   async delete(id: string): Promise<void> {
     await this.client.delete(`${RESOURCE}/${encodeURIComponent(id)}`);
+    bumpDataVersion();
   }
 }
 

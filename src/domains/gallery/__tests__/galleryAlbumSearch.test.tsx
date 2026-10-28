@@ -4,7 +4,7 @@
  *
  * WHY THIS FILE EXISTS. The F1 audit of `main@4edd0bc` found that the gallery
  * panel's album search (`جستجوی آلبوم…`) is wired end to end — the panel passes
- * `search` to `useAlbums`, and `DemoGalleryRepository.listAlbums` matches it
+ * `search` to `useAlbums`, and `LocalGalleryRepository.listAlbums` matches it
  * against title and description — yet no test typed into it. These cases pin
  * that the list the user sees follows the query, on both fields, and recovers
  * when the query is cleared.

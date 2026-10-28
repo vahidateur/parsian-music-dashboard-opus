@@ -61,7 +61,7 @@ describe("Midnight rollover fix — Scheduling & Attendance", () => {
    * midnight wherever the app runs.
    */
   it("demo follows the wall clock, so the day rolls over at midnight too", () => {
-    setRuntimeConfig({ mode: "demo", apiBaseUrl: "/api/v1", error: null });
+    setRuntimeConfig({ mode: "local", apiBaseUrl: "/api/v1", error: null });
     const live = academyNow();
     const real = new Date();
     expect(Math.abs(live.getTime() - real.getTime())).toBeLessThan(2000);
