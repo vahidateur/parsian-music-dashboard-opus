@@ -668,6 +668,7 @@ class MediaTest extends TestCase
     public function test_reference_lock_refuses_missing_private_bytes_and_accepts_existing_bytes(): void
     {
         $uploader = $this->actingAsRole('staff');
+        $this->bindTenant($uploader->organization_id);
         $asset = MediaAsset::factory()->create(['organization_id' => $uploader->organization_id]);
         $guard = app(MediaReferenceLock::class);
 
