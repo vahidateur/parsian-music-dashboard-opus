@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\ClassSession;
 use App\Models\GalleryAlbum;
-use App\Models\MediaAsset;
 use App\Models\Piece;
 use App\Models\Room;
 use App\Models\Student;
@@ -142,8 +142,10 @@ final class TenantRules
      * domain stores a cleared photo as an empty string, which is "no photo",
      * not "a photo that is missing".
      *
-     * This is an existence check, not an authorization decision: whether the
-     * actor may READ the asset is decided when the bytes are fetched.
+     * This is a non-locking preflight, not the commit-time guarantee and not
+     * an authorization decision. Every domain write rechecks the row and its
+     * private bytes under MediaReferenceLock inside its write transaction;
+     * whether the actor may READ the asset is decided when bytes are fetched.
      */
     public static function mediaAssetExists(): Closure
     {
@@ -151,7 +153,7 @@ final class TenantRules
             if ($value === null || $value === '') {
                 return;
             }
-            if (! is_string($value) || ! MediaAsset::query()->whereKey(trim($value))->exists()) {
+            if (! is_string($value) || ! app(MediaReferenceLock::class)->isAvailable(trim($value))) {
                 $fail('فایل ارسالی یافت نشد.');
             }
         };

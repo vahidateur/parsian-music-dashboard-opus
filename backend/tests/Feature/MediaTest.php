@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\AcademyClass;
 use App\Models\Enrollment;
 use App\Models\Instrument;
@@ -664,6 +665,24 @@ class MediaTest extends TestCase
         )->once();
     }
 
+    public function test_reference_lock_requires_a_transaction_and_refuses_missing_private_bytes(): void
+    {
+        $uploader = $this->actingAsRole('staff');
+        $asset = MediaAsset::factory()->create(['organization_id' => $uploader->organization_id]);
+        $guard = app(MediaReferenceLock::class);
+
+        try {
+            $guard->lockAvailable($asset->id);
+            $this->fail('A reference lock outside the write transaction cannot protect a commit.');
+        } catch (\LogicException $failure) {
+            $this->assertStringContainsString('inside their write transaction', $failure->getMessage());
+        }
+
+        $this->assertFalse(DB::transaction(fn (): bool => $guard->lockAvailable($asset->id)));
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+        $this->assertTrue(DB::transaction(fn (): bool => $guard->lockAvailable($asset->id)));
+    }
+
     public function test_a_missing_file_keeps_the_existing_idempotent_delete_behavior(): void
     {
         $uploader = $this->makeUser('staff');
@@ -710,6 +729,10 @@ class MediaTest extends TestCase
         $this->assertStringNotContainsString('database-delete-internal-detail', $response->getContent());
         $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
         Storage::disk('local')->assertMissing($asset->storage_path);
+        $this->assertFalse(DB::transaction(
+            fn (): bool => app(MediaReferenceLock::class)->lockAvailable($asset->id),
+            1,
+        ), 'a writer must not attach metadata whose private bytes are missing');
         Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>

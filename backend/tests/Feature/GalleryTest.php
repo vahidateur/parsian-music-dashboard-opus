@@ -284,7 +284,12 @@ class GalleryTest extends TestCase
         $orgId = $this->defaultOrganization()->id;
         $albumA = GalleryAlbum::factory()->create(['organization_id' => $orgId, 'title' => 'الف'])->id;
         $albumB = GalleryAlbum::factory()->create(['organization_id' => $orgId, 'title' => 'ب'])->id;
-        $mediaId = fn (): string => MediaAsset::factory()->create(['organization_id' => $orgId])->id;
+        $mediaId = function () use ($orgId): string {
+            $asset = MediaAsset::factory()->create(['organization_id' => $orgId]);
+            Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+
+            return $asset->id;
+        };
         $a1 = GalleryImage::factory()->create([
             'organization_id' => $orgId, 'album_id' => $albumA, 'media_id' => $mediaId(), 'sort_order' => 0,
         ])->id;
@@ -401,9 +406,11 @@ class GalleryTest extends TestCase
         $service = app(GalleryService::class);
 
         $album = $service->createAlbum(['title' => 'استودیو', 'description' => '']);
+        $asset = MediaAsset::factory()->create(['organization_id' => $org->id]);
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
         $image = $service->addImage([
             'albumId' => $album->id,
-            'mediaId' => MediaAsset::factory()->create(['organization_id' => $org->id])->id,
+            'mediaId' => $asset->id,
             'caption' => 'قاب',
             'alt' => 'متن جایگزین',
         ]);

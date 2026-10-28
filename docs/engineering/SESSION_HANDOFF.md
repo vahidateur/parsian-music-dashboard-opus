@@ -1,74 +1,62 @@
 # SESSION HANDOFF
 
-> **LIVE POINTER — 2026-10-28, completion pass on the Arena task branch.** This pointer
-> supersedes older pointers below for the current work order. Those entries remain historical;
-> this work does not merge to `main`.
+> **LIVE POINTER — 2026-10-29, media-reference release-blocker continuation.** This is the
+> current work order for the Arena task branch. It supersedes older pointers below without deleting
+> their history. No merge, main update, or deployment is authorized or performed.
 >
 > ```text
 > ACTIVE BRANCH: arena/2e375f3f-parsian-music-dashboard-opus
-> BASE before local commits: 8cf7451af6822a2d5bb154db44842a102e86edb7
-> REMOTE main: 8cf7451af6822a2d5bb154db44842a102e86edb7 (verified with ls-remote)
-> REMOTE canonical branch: 8e20c20f20d02010718d0ff7fb8565bdd48dc012
-> SOURCE COMMITS: 44fc477 (Media handling/tests), 735bb9d (scope docs, I19, frontend config),
->   40d93c7 (Mockery verification order fix); latest CI-tested tree is SHA
->   35ac51d261c89b532933baa356e5451a26cc8108. This pointer is a docs-only update; resolve current
->   branch HEAD with `git rev-parse HEAD`. `main` remains 8cf7451af6822a2d5bb154db44842a102e86edb7;
->   no other branch was modified.
+> BASE / PRE-CHANGE HEAD: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
+> LIVE origin/main (checked 2026-10-29): 8cf7451af6822a2d5bb154db44842a102e86edb7
+> LIVE active-branch remote before this change: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
+> CANDIDATE SHA: pending final commit; do not infer from the base SHA
+> ```
 >
-> WORK COMPLETED IN THE WORKTREE
->   - Media upload now coordinates metadata + private bytes in a DB transaction, compensates
->     partial/successful storage writes after rollback, emits sanitized operational logs, and
->     returns generic errors. Delete checks all known references, handles storage failures,
->     and preserves retryability when metadata deletion fails after bytes are removed.
->   - IMPORTANT RESIDUAL: the global reference check and storage deletion are not serialized with
->     concurrent attachment writes. The reference/delete race is NOT claimed fixed; review and a
->     safe cross-domain locking contract remain outstanding. Do not use this handoff to claim
->     concurrent referential integrity.
->   - Media failure/retry/security regression tests were added. PHP parser accepted the changed
->     MediaService and MediaTest files, but no native PHP/PHPUnit run is possible here.
->   - Scheduling I19 now snapshots same-day baseline rows and checks exactly one linked replacement
->     while preserving unrelated seeded sessions. Dates in current reconciliation notes have been
->     corrected to 2026-10-28; historical September evidence remains unchanged.
->   - Governance/docs now distinguish invoice v1 (API-backed; demo unavailable) from deferred
->     Reports/analytics and full finance. Gallery, chat/helpdesk, and compensation READMEs were
->     reconciled; no fictitious endpoint or helpdesk feature was introduced.
+> WORK COMPLETED IN THE WORKTREE (not yet committed at this pointer)
+>   - Added `MediaReferenceLock`, a shared transactional row-lock contract. Reference writers lock
+>     the tenant-visible MediaAsset row and verify private bytes within the transaction that stores
+>     the reference. Media deletion takes that same row lock through the global reference check,
+>     byte deletion, and metadata removal. Request validation uses an explicitly non-authoritative
+>     byte/metadata preflight; domain writers recheck at commit time.
+>   - Applied the contract to teacher/student photos, resources, instrument images, gallery album
+>     covers/images, chat attachments, learning content, and branding logo/favicon. Student JSON
+>     writes that retain an existing photo also lock/check that reference. Empty media IDs normalize
+>     to detach/no reference where that is the existing API contract.
+>   - Added MySQL-only two-connection lock interleavings in
+>     `backend/tests/Feature/MediaReferenceConcurrencyTest.php`, service-level checks for missing
+>     bytes and transaction requirements, and updated affected fixtures to store private bytes.
+>   - Preserved delete failure handling and idempotent retry after bytes have been removed but SQL
+>     metadata deletion/commit failed. Residual architecture limit: SQL and local object storage are
+>     not one atomic transaction. A shared DB lock serializes cooperating application writers, not
+>     direct SQL or out-of-band storage changes. A failed storage operation can still require an
+>     operational retry/recovery; no cross-system atomicity is claimed.
+>   - No frontend source or governance/scope decision was changed. Existing invoice/Reports,
+>     Gallery permissions, Chat scope, and deferred-feature messaging remain governed by prior
+>     decisions; no new backend feature was added beyond the media-reference integrity fix.
 >
-> VALIDATION
->   - Full frontend suite (before the final documentation-only reconciliation): 239 files,
->     2,925 passed, 12 skipped, 0 failed. Post-doc focused runs: projectState 52/52;
->     m10Boundary 17 passed/4 skipped; Chat/Finance/Gallery/invoice 119/119.
->   - `npm run typecheck`, `npm run build:client`, and `npm run build:demo` passed; the stable
->     artifacts then passed sequential bundle checks: bundleBoundary 6 passed/2 conditional skips;
->     bundleBudget 11 passed/2 conditional skips. The two skipped cases per file are the expected
->     “artifact absent” branches; client/demo artifact-present checks executed. `projectState` and
->     `m10Boundary` passed together (65/65). Earlier post-doc Chat/Finance/Gallery/invoice tests
->     passed 119/119.
->   - `npm run dev -- --host 0.0.0.0` started the demo composition. `GET /` returned HTTP 200
->     (`<title>Panel</title>`). This is only an HTTP startup smoke, not browser QA.
->   - Local backend API connectivity: `127.0.0.1:8080/api/v1/health` returned HTTP 000 / curl exit 7
->     (connection refused); `php` and `composer` CLIs are absent. Local PHPUnit is BLOCKED. Browser
->     QA remains NOT VERIFIED.
->   - First pushed-SHA CI run 40774882023 (`103808654a77a308939ae81f469680df90894ede`): HTTP smoke
->     PASSED. PHP 8.5 and MySQL 8 each found the same single MediaTest assertion failure (PHP 8.5:
->     459 passed/1 failed, 3,208 assertions; MySQL: 459 passed/1 error of 460 cases, 3,210 assertions).
->     Cause: the new cleanup test placed Mockery's `once()` before `with()`, so two distinct log calls
->     were counted as one any-arguments expectation. Commit 40d93c7 moves `with(...)` before `once()`
->     for all seven log verifications.
->   - Follow-up CI run 40775274310 on pushed SHA `35ac51d261c89b532933baa356e5451a26cc8108`: **ALL
->     JOBS PASSED** — PHP 8.5 suite 460/460 (3,209 assertions), MySQL 8 connection/migration/index/seed
->     and backend suite gates passed, and HTTP smoke passed (T-02/PB-1, Rooms, Scheduling/Attendance,
->     unauthenticated 401). The current source code has not changed since this verified SHA; this
->     handoff-only update is a docs record.
+> VALIDATION / RELEASE GATES
+>   - Modified PHP files parsed successfully with `php-parser` 3.7.0 (19 files). This is a syntax
+>     parser only, not PHP runtime or PHPUnit evidence; local `php`, Composer, and Docker are absent.
+>   - Frontend pre-commit gates passed against the current worktree: `npm run typecheck`; full
+>     `npm test` (239 files, 2,925 passed, 12 skipped, 0 failed); `npm run build:client` and
+>     `npm run build:demo`; sequential artifact-present `bundleBoundary` (6 passed, 2 conditional
+>     skips) then `bundleBudget` (11 passed, 2 conditional skips). These need a final-SHA rerun.
+>   - Browser QA was attempted with Playwright and packaged Chromium, but Chromium could not launch:
+>     the sandbox lacks `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`. Therefore startup/login,
+>     navigation, Gallery roles, Chat, Finance/invoice, deferred Reports messaging, API-backed
+>     interaction, console, and network behavior are **NOT VERIFIED**. The HTTP 200 dev preview is
+>     not browser QA and is not counted as evidence.
+>   - Backend CI has not yet run on the edited candidate. Push is required to trigger the repository
+>     workflow (SQLite + MySQL 8 + HTTP smoke). Await all gates on the final pushed SHA before
+>     treating the blockers as resolved. No commit or push has yet occurred at this update.
 >
-> REMAINING LIMITATIONS / SAFE NEXT STEPS
->   1. The global Media reference check and byte deletion are not serialized with concurrent
->      attachment writes. This pre-existing race is explicitly unresolved; closing it safely needs
->      one lock contract shared by every media-reference writer, not a claim based on these tests.
->   2. Browser QA remains NOT VERIFIED. The live demo preview and HTTP 200 smoke do not establish
->      interaction-level browser QA. Local API/PHP execution remains blocked by the absent toolchain;
->      the pushed CI supplied backend execution and HTTP-smoke evidence instead.
->   3. No deployment or main-branch update was performed. If integration is desired, use a reviewed
->      PR from `arena/2e375f3f-parsian-music-dashboard-opus`; do not push directly to `main`.
+> NEXT STEPS
+>   1. Review the final diff and all MediaAsset reference and byte-removal paths; preserve existing
+>      work. Run the backend CI, frontend gates, and checks after the final source/doc commit.
+>   2. Capture the resulting SHA and CI evidence in this handoff, commit and push only this active
+>      branch, then verify the live remote refs, ancestry, and unique commit list.
+>   3. Stop before merge/deploy. Browser QA remains NOT VERIFIED unless a working interactive
+>      browser is actually available and the requested scenarios are executed.
 > ```
 >
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**

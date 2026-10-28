@@ -10,6 +10,7 @@ use App\Models\Teacher;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -145,7 +146,9 @@ class StudentsTest extends TestCase
 
         // A photo reference must name an asset THAT EXISTS in this
         // organization (see TeachersTest for the same rule on the teacher).
-        MediaAsset::factory()->create(['id' => 'med_9', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['id' => 'med_9', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::disk('local')->put($asset->storage_path, 'student-photo-bytes');
         $this->patchJson("/api/v1/students/$id", ['photoMediaId' => 'med_9'])
             ->assertOk()
             ->assertJsonPath('data.photoMediaId', 'med_9');

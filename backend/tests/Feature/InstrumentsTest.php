@@ -7,6 +7,7 @@ use App\Models\Instrument;
 use App\Models\MediaAsset;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -295,7 +296,9 @@ class InstrumentsTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'INSTRUMENT_INVALID');
 
-        MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::disk('local')->put($asset->storage_path, 'instrument-image-bytes');
         $this->patchJson(self::BASE.'/piano', ['imageId' => 'md_1'])
             ->assertOk()
             ->assertJsonPath('data.imageId', 'md_1');

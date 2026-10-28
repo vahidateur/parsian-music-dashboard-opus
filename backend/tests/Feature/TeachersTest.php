@@ -7,6 +7,7 @@ use App\Models\MediaAsset;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -121,7 +122,9 @@ class TeachersTest extends TestCase
         $this->assertNull(DB::table('teachers')->where('id', $id)->value('photo_media_id'));
 
         // The same id, backed by an asset in this organization, is accepted.
-        MediaAsset::factory()->create(['id' => 'med_1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['id' => 'med_1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::disk('local')->put($asset->storage_path, 'teacher-photo-bytes');
         $this->patchJson("/api/v1/teachers/$id", ['photoMediaId' => 'med_1'])
             ->assertOk()
             ->assertJsonPath('data.photoMediaId', 'med_1');

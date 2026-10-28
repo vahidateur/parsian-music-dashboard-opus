@@ -40,7 +40,10 @@ final class MediaService
     /** The disk the bytes live on. Private: no public URL, no symlink. */
     private const DISK = 'local';
 
-    public function __construct(private readonly MediaReferences $references) {}
+    public function __construct(
+        private readonly MediaReferences $references,
+        private readonly MediaReferenceLock $referenceLock,
+    ) {}
 
     /**
      * The assets the actor may see.
@@ -161,42 +164,64 @@ final class MediaService
     }
 
     /**
-     * Frees an unreferenced asset.
+     * Frees an unreferenced asset under the shared reference-row lock.
      *
-     * The bytes are deleted first and the metadata second. A failed byte delete
-     * leaves the metadata untouched. If the database deletion fails after the
-     * bytes are gone, the metadata transaction rolls back; retrying this
-     * idempotent operation treats the already-missing file as deleted and can
-     * complete the metadata removal without a new queue or schema.
+     * Every reference writer takes this same MediaAsset row lock and verifies
+     * that the bytes exist before committing its reference. Holding the lock
+     * from the global reference check through storage deletion and metadata
+     * deletion prevents a concurrent writer from attaching while bytes are
+     * being removed. If SQL fails after the object is gone, the metadata row
+     * may remain; reference writers then refuse it because its bytes are
+     * absent, and retrying this delete is safe for the configured local disk.
      *
-     * A still-referenced asset is REFUSED, not freed: the reference check is
-     * global (see `MediaReferences`), so an asset another record points at
-     * cannot be deleted by whoever uploaded it.
+     * Storage and SQL are not a distributed transaction. A database failure
+     * after byte deletion is recoverable by retrying this operation, but a
+     * simultaneous storage failure may still require operator recovery.
      */
     public function delete(MediaAsset $asset): void
     {
-        if ($this->references->isStillReferenced($asset->id)) {
-            throw ApiException::conflict('MEDIA_IN_USE', 'این فایل هنوز در یک رکورد استفاده شده است.');
-        }
-
         try {
-            $deleted = Storage::disk(self::DISK)->delete($asset->storage_path);
-        } catch (\Throwable $cause) {
-            $this->logOperationFailure('delete_bytes', $asset->id, 'exception', $cause);
-            throw $this->deleteFailure();
-        }
+            DB::transaction(function () use ($asset): void {
+                $locked = $this->referenceLock->lockAsset($asset->id);
 
-        // With the configured Laravel disks, deleting an already-missing
-        // object is an idempotent success. Preserve that behavior so a retry
-        // after a database failure can finish removing the metadata.
-        if ($deleted !== true) {
-            $this->logOperationFailure('delete_bytes', $asset->id, 'returned_false');
-            throw $this->deleteFailure();
-        }
+                // A second concurrent DELETE can finish after the first one;
+                // the already-removed asset is an idempotent success.
+                if ($locked === null) {
+                    return;
+                }
 
-        try {
-            DB::transaction(fn () => MediaAsset::query()->whereKey($asset->id)->delete());
+                if ($this->references->isStillReferenced($locked->id)) {
+                    throw ApiException::conflict('MEDIA_IN_USE', 'این فایل هنوز در یک رکورد استفاده شده است.');
+                }
+
+                try {
+                    $deleted = Storage::disk(self::DISK)->delete($locked->storage_path);
+                } catch (\Throwable $cause) {
+                    $this->logOperationFailure('delete_bytes', $locked->id, 'exception', $cause);
+                    throw $this->deleteFailure();
+                }
+
+                // With the configured private local disk, deleting an already-
+                // missing object is an idempotent success, allowing recovery
+                // after a prior SQL failure that left metadata behind.
+                if ($deleted !== true) {
+                    $this->logOperationFailure('delete_bytes', $locked->id, 'returned_false');
+                    throw $this->deleteFailure();
+                }
+
+                try {
+                    if ($locked->delete() !== true) {
+                        throw new \RuntimeException('Media metadata delete was refused.');
+                    }
+                } catch (\Throwable $cause) {
+                    $this->logOperationFailure('delete_metadata', $locked->id, 'exception', $cause);
+                    throw $this->deleteFailure();
+                }
+            });
+        } catch (ApiException $failure) {
+            throw $failure;
         } catch (\Throwable $cause) {
+            // Includes a commit failure after the private bytes were deleted.
             $this->logOperationFailure('delete_metadata', $asset->id, 'exception', $cause);
             throw $this->deleteFailure();
         }

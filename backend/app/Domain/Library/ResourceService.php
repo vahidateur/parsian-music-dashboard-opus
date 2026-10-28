@@ -2,6 +2,7 @@
 
 namespace App\Domain\Library;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\Resource;
 use App\Models\Teacher;
 use App\Support\Api\ApiException;
@@ -25,6 +26,8 @@ use Illuminate\Support\Str;
  */
 final class ResourceService
 {
+    public function __construct(private readonly MediaReferenceLock $mediaReferenceLock) {}
+
     /** camelCase wire key → snake_case column. `uses`, `size`, `duration`, `added` are absent by design. */
     private const COLUMN_MAP = [
         'title' => 'title',
@@ -80,6 +83,7 @@ final class ResourceService
         $attributes['uses'] = 0;
 
         return DB::transaction(function () use ($attributes): Resource {
+            $this->lockMediaAttribute($attributes);
             $resource = new Resource;
             // Ids are generated here, not by the database: the row is a string
             // key and `create()` would otherwise insert NULL.
@@ -99,6 +103,7 @@ final class ResourceService
             // Re-read inside the transaction so two operators cannot each write
             // a half of a change and leave the row inconsistent.
             $fresh = Resource::query()->whereKey($resource->id)->lockForUpdate()->first() ?? $resource;
+            $this->lockMediaAttribute($attributes);
             $fresh->fill($attributes)->save();
 
             return $fresh->refresh();
@@ -110,6 +115,20 @@ final class ResourceService
         DB::transaction(function () use ($resource): void {
             $resource->delete();
         });
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function lockMediaAttribute(array $attributes): void
+    {
+        $mediaId = $attributes['media_id'] ?? null;
+        if ($mediaId === '') {
+            $mediaId = null;
+        }
+        if ($mediaId !== null && ! $this->mediaReferenceLock->lockAvailable((string) $mediaId)) {
+            throw ApiException::validation('RESOURCE_INVALID', 'فایل انتخاب‌شده یافت نشد.', [
+                'mediaId' => ['نامعتبر است'],
+            ]);
+        }
     }
 
     /**
@@ -161,6 +180,9 @@ final class ResourceService
         // column is nullable, so normalize it here.
         if (array_key_exists('teacherId', $input) && $input['teacherId'] === '') {
             $attributes['teacher_id'] = null;
+        }
+        if (array_key_exists('mediaId', $input) && $input['mediaId'] === '') {
+            $attributes['media_id'] = null;
         }
 
         return $attributes;
