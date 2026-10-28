@@ -291,7 +291,7 @@ class ResourceTest extends TestCase
 
         $this->patchJson(self::BASE.'/'.$id, ['mediaId' => ''])
             ->assertOk()
-            ->assertJsonMissingPath('data.mediaId');
+            ->assertJsonPath('data.mediaId', null);
         $this->assertDatabaseHas('resources', ['id' => $id, 'media_id' => null]);
     }
 

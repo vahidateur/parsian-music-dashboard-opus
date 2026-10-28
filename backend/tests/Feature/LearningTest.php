@@ -9,6 +9,7 @@ use App\Models\LearningProgram;
 use App\Models\MediaAsset;
 use App\Models\Student;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 

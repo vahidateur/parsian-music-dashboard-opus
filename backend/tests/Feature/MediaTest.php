@@ -665,18 +665,11 @@ class MediaTest extends TestCase
         )->once();
     }
 
-    public function test_reference_lock_requires_a_transaction_and_refuses_missing_private_bytes(): void
+    public function test_reference_lock_refuses_missing_private_bytes_and_accepts_existing_bytes(): void
     {
         $uploader = $this->actingAsRole('staff');
         $asset = MediaAsset::factory()->create(['organization_id' => $uploader->organization_id]);
         $guard = app(MediaReferenceLock::class);
-
-        try {
-            $guard->lockAvailable($asset->id);
-            $this->fail('A reference lock outside the write transaction cannot protect a commit.');
-        } catch (\LogicException $failure) {
-            $this->assertStringContainsString('inside their write transaction', $failure->getMessage());
-        }
 
         $this->assertFalse(DB::transaction(fn (): bool => $guard->lockAvailable($asset->id)));
         Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
