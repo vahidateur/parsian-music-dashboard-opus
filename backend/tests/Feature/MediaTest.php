@@ -167,15 +167,15 @@ class MediaTest extends TestCase
         // its cleanup failure is logged so an operator can recover it.
         $baseDisk->assertExists($writtenPath);
 
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'upload_write'
                 && $context['failure'] === 'returned_false'
                 && $context['exception_class'] === null
             ),
-        );
-        Log::shouldHaveReceived('error')->once()->with(
+        )->once();
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'upload_rollback_cleanup'
@@ -183,7 +183,7 @@ class MediaTest extends TestCase
                 && $context['exception_class'] === RuntimeException::class
                 && ! array_key_exists('exception_message', $context)
             ),
-        );
+        )->once();
     }
 
     public function test_a_storage_put_exception_is_sanitized_and_rolls_back_metadata_and_partial_bytes(): void
@@ -211,7 +211,7 @@ class MediaTest extends TestCase
         $this->assertIsString($writtenPath);
         Storage::disk('local')->assertMissing($writtenPath);
 
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'upload_write'
@@ -219,7 +219,7 @@ class MediaTest extends TestCase
                 && $context['exception_class'] === RuntimeException::class
                 && ! array_key_exists('exception_message', $context)
             ),
-        );
+        )->once();
     }
 
     public function test_a_database_failure_after_a_successful_put_rolls_back_metadata_and_compensates_bytes(): void
@@ -255,14 +255,14 @@ class MediaTest extends TestCase
         $this->assertIsString($assetId);
         $this->assertDatabaseCount('media_assets', 0);
         Storage::disk('local')->assertMissing('media/'.$uploader->organization_id.'/'.$assetId);
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'upload_commit'
                 && $context['failure'] === 'exception'
                 && $context['exception_class'] === RuntimeException::class
             ),
-        );
+        )->once();
     }
 
     public function test_a_file_that_lies_about_its_type_is_refused(): void
@@ -620,13 +620,13 @@ class MediaTest extends TestCase
 
         $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
         $baseDisk->assertExists($asset->storage_path);
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'delete_bytes'
                 && $context['failure'] === 'returned_false'
             ),
-        );
+        )->once();
     }
 
     public function test_a_storage_delete_exception_is_sanitized_and_keeps_metadata(): void
@@ -653,7 +653,7 @@ class MediaTest extends TestCase
         $this->assertStringNotContainsString($secret, $response->getContent());
         $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
         $baseDisk->assertExists($asset->storage_path);
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'delete_bytes'
@@ -661,7 +661,7 @@ class MediaTest extends TestCase
                 && $context['exception_class'] === RuntimeException::class
                 && ! array_key_exists('exception_message', $context)
             ),
-        );
+        )->once();
     }
 
     public function test_a_missing_file_keeps_the_existing_idempotent_delete_behavior(): void
@@ -710,14 +710,14 @@ class MediaTest extends TestCase
         $this->assertStringNotContainsString('database-delete-internal-detail', $response->getContent());
         $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
         Storage::disk('local')->assertMissing($asset->storage_path);
-        Log::shouldHaveReceived('error')->once()->with(
+        Log::shouldHaveReceived('error')->with(
             'Media operation failed.',
             \Mockery::on(static fn (array $context): bool =>
                 $context['operation'] === 'delete_metadata'
                 && $context['failure'] === 'exception'
                 && $context['exception_class'] === RuntimeException::class
             ),
-        );
+        )->once();
 
         // The same delete is safe to retry: a missing object is an idempotent
         // storage success, allowing the still-present metadata to be removed.
