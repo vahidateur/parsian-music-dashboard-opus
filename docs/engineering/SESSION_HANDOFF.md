@@ -6,10 +6,12 @@
 >
 > ```text
 > ACTIVE BRANCH: arena/2e375f3f-parsian-music-dashboard-opus
-> CANDIDATE BASE/TIP BEFORE LOCAL COMMITS: 8cf7451af6822a2d5bb154db44842a102e86edb7
+> BASE before local commits: 8cf7451af6822a2d5bb154db44842a102e86edb7
 > REMOTE main: 8cf7451af6822a2d5bb154db44842a102e86edb7 (verified with ls-remote)
 > REMOTE canonical branch: 8e20c20f20d02010718d0ff7fb8565bdd48dc012
-> Arena branch is currently unpublished; no commit or push has yet been made.
+> LOCAL COMMITS: 44fc477 (Media failure handling/tests), 735bb9d (scope docs, I19, frontend config)
+> CURRENT TIP: resolve with `git rev-parse HEAD`; this handoff cannot record its own commit SHA.
+> This Arena branch has not been pushed yet; no other branch was modified.
 >
 > WORK COMPLETED IN THE WORKTREE
 >   - Media upload now coordinates metadata + private bytes in a DB transaction, compensates
@@ -46,8 +48,7 @@
 >     PHPUnit are BLOCKED. Browser QA remains NOT VERIFIED.
 >
 > NEXT SAFE ACTIONS
->   1. Inspect the complete diff and status, verify no future dates/secrets or unrelated changes,
->      then make focused commits on this branch only.
+>   1. Verify the committed diff/status and confirm the local tip remains based on the current `main`.
 >   2. Preserve the reference/delete concurrency race as an explicit open limitation; do not claim
 >      it solved without a lock contract covering every reference writer.
 >   3. Push only `arena/2e375f3f-parsian-music-dashboard-opus` and inspect CI for the pushed SHA.
