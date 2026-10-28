@@ -207,10 +207,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.3 with pdo_mysql
+      - name: Setup PHP 8.5 with pdo_mysql
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          # Match composer.json (^8.4) and the pinned dev runtime — symfony 8.1
+          # rejects anything below 8.4, which is why this was 8.3.
+          php-version: '8.5'
           extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, pdo_mysql, zip
           coverage: none
           tools: composer:v2
@@ -437,10 +439,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.3
+      - name: Setup PHP 8.5
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          # Match composer.json (^8.4) and the pinned dev runtime — symfony 8.1
+          # rejects anything below 8.4, which is why this was 8.3.
+          php-version: '8.5'
           extensions: bcmath, dom, fileinfo, intl, mbstring, pdo_sqlite, sqlite3, zip
           coverage: none
           tools: composer:v2
