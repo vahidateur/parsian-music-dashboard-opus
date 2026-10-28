@@ -56,17 +56,28 @@
 >     subsequent commits; the successful run above includes the corrected transaction requirement,
 >     missing-byte behavior, empty-media detach contract and MySQL interleavings.
 >   - Implementation/test candidate `fc824ab862fb082c6c707cebb37ea697a524d825` is pushed and is
->     fully covered by the green frontend gates and backend CI above. The current branch tip is a
->     documentation-only handoff commit after that candidate; no application or test source changed.
->   - An attempt to dispatch the backend workflow on that documentation-only tip was rejected by
->     GitHub with HTTP 403 `Resource not accessible by integration`; do not claim a run on the docs tip.
->     The successful CI run above is tied to the exact implementation/test candidate SHA.
+>     covered by the green frontend gates and backend CI above. A Git diff confirms that the tip
+>     audited before this note, `f4173d4029d6ad4c00ff15e0d320ad4d4bd22aac`, differs from the tested
+>     candidate only in this handoff file; no application or test source differs. This is source
+>     equivalence, not a CI check on either documentation-only tip.
+>   - `workflow_dispatch` on the earlier documentation tip `dc9613e` was rejected with HTTP 403
+>     `Resource not accessible by integration`; no run on a docs-only tip is claimed.
+>
+> FINAL GIT AUDIT (2026-10-29, before this documentation-only update)
+>   branch: active local and remote refs both `f4173d4029d6ad4c00ff15e0d320ad4d4bd22aac`; clean worktree
+>   main: `8cf7451af6822a2d5bb154db44842a102e86edb7`, unchanged; main is an ancestor of candidate
+>   candidate: `fc824ab` is 9 commits ahead / 0 behind main; audited tip `f4173d4` is 11 ahead / 0 behind
+>   recovery: remote `backup/pre-f2-2026-09-29`, canonical branch, archive tags, and
+>     `/home/user/safety-backups/parsian-music-dashboard-opus-20261029/` remain present; no recovery data changed
+>   promotion: no merge, deploy, force-push, reset, or main update
 >
 > NEXT STEPS
->   1. Verify the active remote branch tip, unchanged `main`, ancestry, and unique commit list; keep
->      the tested candidate SHA distinct from the later documentation-only tip.
->   2. Stop before merge/deploy. Browser QA remains NOT VERIFIED: this sandbox Chromium cannot start
->      without `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`.
+>   1. Browser QA remains **NOT VERIFIED**. Concrete next run: use an approved host/CI runner with a
+>      supported Playwright browser image containing `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`;
+>      serve the frontend and API there, execute the listed scenarios, and capture console/network output.
+>      This checkout has no installed system browser or browser CI workflow; do not install OS packages
+>      or alter infrastructure blindly.
+>   2. Stop before merge/deploy. If promotion is later approved, use a reviewed forward-only fast-forward.
 > ```
 >
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
