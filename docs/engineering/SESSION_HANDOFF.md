@@ -9,10 +9,11 @@
 > BASE / PRE-CHANGE HEAD: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
 > LIVE origin/main (checked 2026-10-29): 8cf7451af6822a2d5bb154db44842a102e86edb7
 > LIVE active-branch remote before this change: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
-> CANDIDATE SHA: pending final commit; do not infer from the base SHA
+> IMPLEMENTATION-CANDIDATE SHA: `fc824ab862fb082c6c707cebb37ea697a524d825` (source + tests)
+> This handoff update is documentation-only; resolve the resulting branch tip with `git rev-parse HEAD`.
 > ```
 >
-> WORK COMPLETED IN THE WORKTREE (not yet committed at this pointer)
+> IMPLEMENTATION AND TESTS COMMITTED on the active branch; backend CI now passes on the implementation SHA.
 >   - Added `MediaReferenceLock`, a shared transactional row-lock contract. Reference writers lock
 >     the tenant-visible MediaAsset row and verify private bytes within the transaction that stores
 >     the reference. Media deletion takes that same row lock through the global reference check,
@@ -35,28 +36,35 @@
 >     decisions; no new backend feature was added beyond the media-reference integrity fix.
 >
 > VALIDATION / RELEASE GATES
->   - Modified PHP files parsed successfully with `php-parser` 3.7.0 (19 files). This is a syntax
->     parser only, not PHP runtime or PHPUnit evidence; local `php`, Composer, and Docker are absent.
->   - Frontend pre-commit gates passed against the current worktree: `npm run typecheck`; full
->     `npm test` (239 files, 2,925 passed, 12 skipped, 0 failed); `npm run build:client` and
->     `npm run build:demo`; sequential artifact-present `bundleBoundary` (6 passed, 2 conditional
->     skips) then `bundleBudget` (11 passed, 2 conditional skips). These need a final-SHA rerun.
+>   - All 20 changed PHP files parsed with `php-parser` 3.7.0. This is syntax-parser evidence only,
+>     not PHP runtime/PHPUnit evidence; local `php`, Composer, and Docker are absent.
+>   - Frontend gates passed against implementation-candidate source/test SHA
+>     `fc824ab862fb082c6c707cebb37ea697a524d825`: `npm run typecheck`; full `npm test` (239 files,
+>     2,925 passed, 12 skipped, 0 failed); `npm run build:client`; `npm run build:demo`; and sequential
+>     artifact-present `bundleBoundary` (6 passed, 2 conditional skips), then `bundleBudget` (11
+>     passed, 2 conditional skips).
 >   - Browser QA was attempted with Playwright and packaged Chromium, but Chromium could not launch:
 >     the sandbox lacks `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`. Therefore startup/login,
 >     navigation, Gallery roles, Chat, Finance/invoice, deferred Reports messaging, API-backed
 >     interaction, console, and network behavior are **NOT VERIFIED**. The HTTP 200 dev preview is
 >     not browser QA and is not counted as evidence.
->   - Backend CI has not yet run on the edited candidate. Push is required to trigger the repository
->     workflow (SQLite + MySQL 8 + HTTP smoke). Await all gates on the final pushed SHA before
->     treating the blockers as resolved. No commit or push has yet occurred at this update.
+>   - Backend CI run 40779240657 passed against implementation SHA
+>     `fc824ab862fb082c6c707cebb37ea697a524d825`: PHP 8.5 suite 463 passed / 2 skipped (3,219
+>     assertions); MySQL 8 migrations, index/seed gates and full backend suite passed; HTTP smoke
+>     passed. Run: https://github.com/vahidateur/parsian-music-dashboard-opus/actions/runs/40779240657
+>   - Two earlier candidate runs exposed test-only setup/expectation errors. Those were corrected in
+>     subsequent commits; the successful run above includes the corrected transaction requirement,
+>     missing-byte behavior, empty-media detach contract and MySQL interleavings.
+>   - The implementation candidate and evidence pointer are pushed on the active branch. The follow-up
+>     handoff pointer is documentation-only; after pushing it, dispatch the backend workflow on the
+>     exact branch tip and verify the ref/ancestry without making further code changes.
 >
 > NEXT STEPS
->   1. Review the final diff and all MediaAsset reference and byte-removal paths; preserve existing
->      work. Run the backend CI, frontend gates, and checks after the final source/doc commit.
->   2. Capture the resulting SHA and CI evidence in this handoff, commit and push only this active
->      branch, then verify the live remote refs, ancestry, and unique commit list.
->   3. Stop before merge/deploy. Browser QA remains NOT VERIFIED unless a working interactive
->      browser is actually available and the requested scenarios are executed.
+>   1. Commit/push this final evidence pointer only on the active branch.
+>   2. Dispatch backend CI against the resulting exact tip SHA and verify all jobs, live refs,
+>      ancestry, and unique commits; preserve the main ref and stop before promotion.
+>   3. Browser QA remains NOT VERIFIED: this sandbox Chromium cannot start without `libnspr4.so`,
+>      `libnss3.so`, and `libnssutil3.so`.
 > ```
 >
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
