@@ -697,12 +697,14 @@ repository-refusal coverage exists for any compensation verb. (Findings about th
 the milestones M1–M7.) The full record is [PHASES.md](PHASES.md) → the workstream section's S-6 entry and
 [PROJECT_STATE.md](PROJECT_STATE.md) §4 → "S-6 boundary gate validation".
 
-### I2. Finance and Reports have no domain layer
-`src/views/Finance.tsx` and `src/views/Reports.tsx` are fixture renderers with no
-`src/domains/finance` / `src/domains/reports` implementation (only README stubs exist). Money
-precision, idempotency and gateway behaviour are backend requirements — see
-`docs/production-handoff.md`. **Done when:** both follow the Students pattern with demo *and*
-API implementations, tests, and no fixture imports.
+### I2. Reports and finance beyond invoice v1 remain deferred (invoice v1 exception)
+**Original finding (historical):** when I2 was opened, `src/views/Finance.tsx` and
+`src/views/Reports.tsx` were fixture-driven, with no Finance or Reports domain. M10 later replaced
+those fixture reads with explicit deferral (see the historical update below), and decisions D9/D10
+subsequently authorized only the narrower invoice v1 API contract. Money precision, idempotency and
+gateway behaviour remain backend requirements beyond that contract — see
+`docs/production-handoff.md`. **Original done-when (superseded):** both surfaces following the
+Students pattern with demo and API implementations, tests, and no fixture imports.
 - **Update (2026-09-14, M5):** these are now the **only two views left on
   `src/__tests__/writeFeedbackHonesty.test.ts`'s `FIXTURE_DRIVEN_VIEWS` list** — scheduling graduated
   at M4 and attendance at M5 — and `src/views/Reports.tsx:143` is the **last shipped consumer of the
@@ -718,6 +720,12 @@ API implementations, tests, and no fixture imports.
   domain read sits behind it). **They are NOT implemented and this item stays open unchanged:** the
   Finance and Reports domains, repositories and backend seam remain future work; per its done-when
   clause they still do not follow the Students pattern.
+- **Current scope reconciliation (2026-10-28; decisions D9/D10):** the M10 update above is historical.
+  Finance now has a limited, API-backed invoice v1 domain/repository, with a separate demo
+  unavailable-state; it does **not** implement the broader finance roadmap. Reports/analytics still
+  have no domain, repository, or fabricated endpoint and remain visibly deferred. I2 stays open for
+  Reports and finance beyond invoice v1; do not interpret the former “both domains” done-when as
+  requiring a demo invoice implementation or as evidence that Reports exists.
 
 ### I3. Learning-content → level assignment UI — ✅ CLOSED (2026-09-13, landed and completed by M3)
 The learning domain models `Piece` vs `LearningContent`, programs, levels, placement history,
@@ -1715,9 +1723,7 @@ recovery and the zero-record tests both remaining green.
   explicit statement that re-rolling the RNG to re-trigger CI would be "editing the test to go
   green by another route". That reasoning was correct at the time: the fix needed owner
   authorization because Scheduling is outside the Progress scope. It was authorized and then made.
-  Compare **I19**, the frontend analogue in the same area, which remains open — recorded under
-  «LOWER PRIORITY / HYGIENE» below, and owned by
-  `src/views/__tests__/schedulingWrites.test.tsx`.
+  Compare **I19**, the frontend analogue in the same area: it was resolved on 2026-10-28 by making the post-reschedule assertion preserve unrelated same-day seeded rows while still requiring exactly one linked replacement; see «LOWER PRIORITY / HYGIENE» below and `src/views/__tests__/schedulingWrites.test.tsx`.
 
 ### I24. The frontend permission vocabulary never received `progress.*`, so the client and the server disagreed about Progress (found 2026-10-05 during the pre-main consolidation audit) — ✅ CLOSED (2026-10-05, same pass)
 
@@ -1761,7 +1767,7 @@ recovery and the zero-record tests both remaining green.
 
 ## LOWER PRIORITY / HYGIENE
 
-- **I19. A scheduling write test is date-dependent, and it fails on the weekdays its own fixture assigns to `cl2`.** `src/views/__tests__/schedulingWrites.test.tsx` → *"a real reschedule resolving a real conflict"* asserts that, after the move, the class that owned the contested slot holds **exactly one** scheduled session on `TODAY`, where `TODAY = isoOf(academyNow())` follows the **real calendar date** (`src/domains/shared/clock.ts` freezes only the time of day, 10:47). The demo seed is anchored to the **fixed** `SEED_DATE = 2026-09-01` window (`src/domains/demo/schedulingSeed.ts`), and the fixture gives `cl2` `days: [3]` — **Tuesday**. On 2026-09-15 (a Tuesday) the seeded `ses_cl2_20260915_1400` row fell inside the same-day filter beside the test's own replacement row, so the case failed with `expected [ 'ses_m_…' ] to deeply equal [ 'ses_m_…', 'ses_cl2_20260915_1400' ]`. **It is environmental, not a regression:** it was measured failing on the **pre-CP4 tree** (pre-CP4 files restored, sha256-verified, re-run) as well as on the M7 tip, and no M7 commit touches this file, the scheduling domain, the seed, the store or the clock. It did not appear in M6's recorded run because that run happened on Monday 2026-09-14. **Nothing was weakened to hide it** — no skip, no retry, no re-timed assertion, no edit to the test — and **it is not M7's to fix**: it sits in the protected scheduling area, and the honest fix is either a target day the fixture cannot collide with or a filter that excludes seeded rows, both of which are semantic test changes that need authorization. Recorded in [PROJECT_STATE.md](PROJECT_STATE.md) §7 item 18 and §4 → "M7 validation".
+- **I19. ✅ RESOLVED (2026-10-28).** The scheduling acceptance test used `TODAY = isoOf(academyNow())` while the demo seed is fixed at `SEED_DATE`, so on a seed-covered weekday an unrelated legitimate `cl2` lesson appeared beside the replacement and the old assertion incorrectly required the whole class/day to contain only one row. `src/views/__tests__/schedulingWrites.test.tsx` now captures the pre-write scheduled ids for that class/day and, after the real reschedule, asserts that every unrelated pre-existing lesson remains, the contested original is replaced, and exactly one row is linked to that original. This preserves the domain-level no-duplicate invariant without confusing a seeded lesson for a second move. The calendar date, seed date, production behavior, and test coverage were not retimed, skipped, retried, or removed. Focused scheduling suite: **16/16 passed**; full frontend suite on this candidate: **239 files passed; 2925 passed, 12 skipped, 0 failed**. The old weekday-collision evidence below remains historical; the current assertion is source-aligned and date-independent.
 
 - **L1. Command-palette natural-language matching is substring-loose** (`q.includes(keyword)`),
   so it can return unrelated commands. Improve tokenisation/scoring; keep the palette's

@@ -1,17 +1,17 @@
 /* ------------------------------------------------------------------ */
 /* Finance / Reports deferral ledger (M10, D5-F4)                       */
 /*                                                                      */
-/* D6 / I2 (DECISIONS §19) keep the finance and reports DOMAIN planned  */
-/* — M10 builds no repository, no read seam and no domain for them, and */
-/* invents, fabricates or recomputes no revenue/payment figures. Every  */
-/* fixture-backed export the two views (`src/views/Finance.tsx`,        */
-/* `src/views/Reports.tsx`) used to read is classified below,           */
-/* individually, with its disposition. This manifest is the DEFERRAL:   */
-/* explicit, named, work-item-owned — not a data module. It carries no  */
-/* rows; a deferred item must never "return" as an untracked fixture    */
-/* replacement, and src/__tests__/m10Boundary.test.ts consumes this      */
-/* ledger to prove that. It is a closed world, never a generic          */
-/* exemption list.                                                      */
+/* D6 / I2 (DECISIONS §19) still defers Reports, financial analytics,     */
+/* and report exports. Invoice v1 was separately authorized in §40–41:    */
+/* the client/API composition has a real invoice repository, while demo   */
+/* mode keeps its honest unavailable state. This ledger classifies the   */
+/* dissolved fixture exports and the still-deferred Reports surface; it  */
+/* does not claim that invoice operations are absent or that report APIs  */
+/* exist. No fabricated revenue/payment figures are allowed. Every        */
+/* fixture-backed export formerly read by Finance/Reports is classified  */
+/* individually with its disposition. This manifest is a closed-world   */
+/* honesty ledger, not a data module or generic exemption list;            */
+/* src/__tests__/m10Boundary.test.ts consumes it to protect that boundary. */
 /* ------------------------------------------------------------------ */
 
 export const FINANCE_REPORTS_DEFERRAL = {
@@ -29,13 +29,14 @@ export const FINANCE_REPORTS_DEFERRAL = {
       source: "src/data/records.ts",
       classification: "demo-record",
       disposition:
-        "Legitimate seeded demo records: relocated byte-identical to the demo seed (src/domains/demo/academySeed.ts), persisted in DemoDataset.invoices and validated by the backup contract. READING them in a view is deferred: no invoice repository exists (D6/I2), so Finance renders the deferred state instead.",
+        "Legitimate demo seed records remain in DemoDataset.invoices and are covered by the backup contract; the client Finance surface does not read these demo rows. Client/API mode reads invoices through ApiFinanceRepository under DECISIONS.md §§40–41; demo mode deliberately shows the unavailable state. The invoice API does not authorize Reports or analytics.",
     },
     {
       export: "payments",
       source: "src/data/records.ts",
       classification: "demo-record",
-      disposition: "Same as invoices — seeded demo records (DemoDataset.payments); no view read until I2 designs the read seam.",
+      disposition:
+        "Demo payments remain seed/backup content and are not the source for the client invoice API. Invoice v1 payment confirmation is persisted through the server contract in DECISIONS.md §41; demo mode remains unavailable and Reports stays deferred.",
     },
     {
       export: "Invoice",
@@ -60,7 +61,7 @@ export const FINANCE_REPORTS_DEFERRAL = {
       source: "src/data/records.ts",
       classification: "vocabulary",
       disposition:
-        "Status vocabulary, not data. D6/I2 keep a finance domain planned, so the smallest canonical NON-domain owner holds it: src/lib/financeVocabulary.ts (the deferral is documented there). Live consumers keep working (Student.payment).",
+        "Status vocabulary, not invoice persistence. It remains in src/lib/financeVocabulary.ts for the legacy Student.payment field; invoice v1 owns its own domain status type. This classification does not defer the authorized invoice API or authorize Reports.",
     },
     {
       export: "PaymentStatus",

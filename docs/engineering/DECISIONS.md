@@ -1061,6 +1061,17 @@ themselves carry. **No Finance or Reports work was done, no domain was created, 
 the fixture separation — no domain, no repository, no recomputed or relocated fake, and D5 carries
 no backend decision.
 
+
+**Current scope reconciliation (2026-10-28; later owner decisions §§40–41 govern invoice v1).** The
+paragraphs above are the historical D6 / M9 / D5 state. They remain authoritative for Reports,
+revenue/financial analytics, partial-payment accounting, and report exports, which are still deferred.
+They were superseded only for the narrower invoice contract by §§40–41: the client/API composition
+now has `ApiFinanceRepository` and server-backed issue/update/full-payment operations, while the demo
+composition deliberately remains unavailable. This does not authorize reading the demo invoice/payment
+collections in the view, inventing reports, or computing financial aggregates. `src/domains/finance/README.md`,
+`src/domains/reports/README.md`, and `src/lib/financeReportsDeferral.ts` carry the current source-aligned
+boundary. `OPEN_ITEMS.md` I2 remains open for Reports and the unimplemented broader finance scope.
+
 ### D7. Accessibility is enforced without a new dependency
 
 **Decision.** To be recorded before M11: a11y assertions are written with the tooling already
@@ -3130,7 +3141,7 @@ bump/no-bump); `FinanceView` graduated in `writeFeedbackHonesty.test.ts`
 `financeInvoices.test.tsx` (list/filter/issue/pay through fakes);
 `registryClient.test.ts` (real `ApiFinanceRepository` instance).
 
-**Status.** ✅ In force — 2026-10-29. Owner-authorized (this session: v1 =
+**Status.** ✅ In force — 2026-10-28. Owner-authorized (this session: v1 =
 issue + full payment + receipt; no partials; no balance sync; client only,
 demo stays deferred).
 

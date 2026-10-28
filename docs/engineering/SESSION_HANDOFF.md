@@ -1,5 +1,59 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-28, completion pass on the Arena task branch.** This pointer
+> supersedes older pointers below for the current work order. Those entries remain historical;
+> this work does not merge to `main`.
+>
+> ```text
+> ACTIVE BRANCH: arena/2e375f3f-parsian-music-dashboard-opus
+> CANDIDATE BASE/TIP BEFORE LOCAL COMMITS: 8cf7451af6822a2d5bb154db44842a102e86edb7
+> REMOTE main: 8cf7451af6822a2d5bb154db44842a102e86edb7 (verified with ls-remote)
+> REMOTE canonical branch: 8e20c20f20d02010718d0ff7fb8565bdd48dc012
+> Arena branch is currently unpublished; no commit or push has yet been made.
+>
+> WORK COMPLETED IN THE WORKTREE
+>   - Media upload now coordinates metadata + private bytes in a DB transaction, compensates
+>     partial/successful storage writes after rollback, emits sanitized operational logs, and
+>     returns generic errors. Delete checks all known references, handles storage failures,
+>     and preserves retryability when metadata deletion fails after bytes are removed.
+>   - IMPORTANT RESIDUAL: the global reference check and storage deletion are not serialized with
+>     concurrent attachment writes. The reference/delete race is NOT claimed fixed; review and a
+>     safe cross-domain locking contract remain outstanding. Do not use this handoff to claim
+>     concurrent referential integrity.
+>   - Media failure/retry/security regression tests were added. PHP parser accepted the changed
+>     MediaService and MediaTest files, but no native PHP/PHPUnit run is possible here.
+>   - Scheduling I19 now snapshots same-day baseline rows and checks exactly one linked replacement
+>     while preserving unrelated seeded sessions. Dates in current reconciliation notes have been
+>     corrected to 2026-10-28; historical September evidence remains unchanged.
+>   - Governance/docs now distinguish invoice v1 (API-backed; demo unavailable) from deferred
+>     Reports/analytics and full finance. Gallery, chat/helpdesk, and compensation READMEs were
+>     reconciled; no fictitious endpoint or helpdesk feature was introduced.
+>
+> VALIDATION
+>   - Full frontend suite (before the final documentation-only reconciliation): 239 files,
+>     2,925 passed, 12 skipped, 0 failed. Post-doc focused runs: projectState 52/52;
+>     m10Boundary 17 passed/4 skipped; Chat/Finance/Gallery/invoice 119/119.
+>   - `npm run typecheck`, `npm run build:client`, and `npm run build:demo` passed; the stable
+>     artifacts then passed sequential bundle checks: bundleBoundary 6 passed/2 conditional skips;
+>     bundleBudget 11 passed/2 conditional skips. The two skipped cases per file are the expected
+>     “artifact absent” branches; client/demo artifact-present checks executed. `projectState` and
+>     `m10Boundary` passed together (65/65). Earlier post-doc Chat/Finance/Gallery/invoice tests
+>     passed 119/119.
+>   - `npm run dev -- --host 0.0.0.0` started the demo composition. `GET /` returned HTTP 200
+>     (`<title>Panel</title>`). This is only an HTTP startup smoke, not browser QA.
+>   - Backend API connectivity: `127.0.0.1:8080/api/v1/health` returned HTTP 000 / curl exit 7
+>     (connection refused); `php` and `composer` CLIs are absent. Backend startup/API smoke and
+>     PHPUnit are BLOCKED. Browser QA remains NOT VERIFIED.
+>
+> NEXT SAFE ACTIONS
+>   1. Inspect the complete diff and status, verify no future dates/secrets or unrelated changes,
+>      then make focused commits on this branch only.
+>   2. Preserve the reference/delete concurrency race as an explicit open limitation; do not claim
+>      it solved without a lock contract covering every reference writer.
+>   3. Push only `arena/2e375f3f-parsian-music-dashboard-opus` and inspect CI for the pushed SHA.
+>      Do not push to/merge `main`, change protections, or deploy.
+> ```
+>
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
 > This supersedes the Progress slice 2 pointer immediately below it as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.
