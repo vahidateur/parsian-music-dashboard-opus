@@ -9,10 +9,11 @@
 > BASE before local commits: 8cf7451af6822a2d5bb154db44842a102e86edb7
 > REMOTE main: 8cf7451af6822a2d5bb154db44842a102e86edb7 (verified with ls-remote)
 > REMOTE canonical branch: 8e20c20f20d02010718d0ff7fb8565bdd48dc012
-> LOCAL COMMITS: 44fc477 (Media failure handling/tests), 735bb9d (scope docs, I19, frontend config),
->   1038086 (handoff validation record), 40d93c7 (Mockery verification order fix).
-> CURRENT TIP: resolve with `git rev-parse HEAD`. FIRST PUSH: 103808654a77a308939ae81f469680df90894ede.
-> The follow-up commit is committed locally but not yet pushed; no other branch was modified.
+> SOURCE COMMITS: 44fc477 (Media handling/tests), 735bb9d (scope docs, I19, frontend config),
+>   40d93c7 (Mockery verification order fix); latest CI-tested tree is SHA
+>   35ac51d261c89b532933baa356e5451a26cc8108. This pointer is a docs-only update; resolve current
+>   branch HEAD with `git rev-parse HEAD`. `main` remains 8cf7451af6822a2d5bb154db44842a102e86edb7;
+>   no other branch was modified.
 >
 > WORK COMPLETED IN THE WORKTREE
 >   - Media upload now coordinates metadata + private bytes in a DB transaction, compensates
@@ -48,19 +49,26 @@
 >     (connection refused); `php` and `composer` CLIs are absent. Local PHPUnit is BLOCKED. Browser
 >     QA remains NOT VERIFIED.
 >   - First pushed-SHA CI run 40774882023 (`103808654a77a308939ae81f469680df90894ede`): HTTP smoke
->     PASSED (T-02, PB-1, rooms reads, scheduling/attendance, unauthenticated 401). PHP 8.5 and MySQL 8
->     suites each found the same single MediaTest assertion failure (PHP 8.5: 459 passed/1 failed,
->     3,208 assertions; MySQL: 459 passed/1 error of 460 cases, 3,210 assertions). Cause: the new cleanup test placed Mockery's
->     `once()` before `with()`, so two correctly distinct log calls were counted as an any-arguments
->     single expectation. Commit 40d93c7 places `with(...)` before `once()` for all seven log-call
->     verifications. That follow-up commit is not yet pushed/verified by CI.
+>     PASSED. PHP 8.5 and MySQL 8 each found the same single MediaTest assertion failure (PHP 8.5:
+>     459 passed/1 failed, 3,208 assertions; MySQL: 459 passed/1 error of 460 cases, 3,210 assertions).
+>     Cause: the new cleanup test placed Mockery's `once()` before `with()`, so two distinct log calls
+>     were counted as one any-arguments expectation. Commit 40d93c7 moves `with(...)` before `once()`
+>     for all seven log verifications.
+>   - Follow-up CI run 40775274310 on pushed SHA `35ac51d261c89b532933baa356e5451a26cc8108`: **ALL
+>     JOBS PASSED** — PHP 8.5 suite 460/460 (3,209 assertions), MySQL 8 connection/migration/index/seed
+>     and backend suite gates passed, and HTTP smoke passed (T-02/PB-1, Rooms, Scheduling/Attendance,
+>     unauthenticated 401). The current source code has not changed since this verified SHA; this
+>     handoff-only update is a docs record.
 >
-> NEXT SAFE ACTIONS
->   1. Verify the committed diff/status and confirm the local tip remains based on the current `main`.
->   2. Preserve the reference/delete concurrency race as an explicit open limitation; do not claim
->      it solved without a lock contract covering every reference writer.
->   3. Push the committed follow-up only to `arena/2e375f3f-parsian-music-dashboard-opus`, then
->      inspect CI for that new SHA. Do not push to/merge `main`, change protections, or deploy.
+> REMAINING LIMITATIONS / SAFE NEXT STEPS
+>   1. The global Media reference check and byte deletion are not serialized with concurrent
+>      attachment writes. This pre-existing race is explicitly unresolved; closing it safely needs
+>      one lock contract shared by every media-reference writer, not a claim based on these tests.
+>   2. Browser QA remains NOT VERIFIED. The live demo preview and HTTP 200 smoke do not establish
+>      interaction-level browser QA. Local API/PHP execution remains blocked by the absent toolchain;
+>      the pushed CI supplied backend execution and HTTP-smoke evidence instead.
+>   3. No deployment or main-branch update was performed. If integration is desired, use a reviewed
+>      PR from `arena/2e375f3f-parsian-music-dashboard-opus`; do not push directly to `main`.
 > ```
 >
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
