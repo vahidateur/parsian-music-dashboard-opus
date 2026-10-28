@@ -411,8 +411,9 @@ jobs:
   #         never an authorization source)
   #   PB-1  a teacher account with no linked teacherId is 403
   #         OWNER_DECISION_REQUIRED_PB1 — fail-closed, not empty, not org-wide
-  #   PB-3  every rooms endpoint is 403 OWNER_DECISION_REQUIRED_PB3 for every
-  #         role, administrator included
+  #   Rooms PB-3 was LIFTED (§35): reads are now allowed for every role. The
+  #         smoke asserts an admin can list rooms and fetch one (200 + same
+  #         id); the per-role matrix and the write gate live in RoomsTest.
   #         plus a Scheduling + Attendance pass over the new endpoints
   #
   # DEMO_SEED_PASSWORD below is a throwaway value for an ephemeral CI sqlite
@@ -420,7 +421,7 @@ jobs:
   # outlives the job.
   # ---------------------------------------------------------------------------
   smoke:
-    name: HTTP smoke — T-02 / PB-1 / PB-3 / scheduling / attendance
+    name: HTTP smoke — T-02 / PB-1 / rooms-read / scheduling / attendance
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -598,7 +599,7 @@ jobs:
           fi
           echo "PB-1 OK"
 
-      - name: PB-3 — rooms stay blocked for every role
+      - name: Rooms — reads are allowed (§35 lifted PB-3)
         run: |
           set -euo pipefail
           exec > >(tee -a /tmp/smoke-report.md) 2>&1
@@ -610,18 +611,31 @@ jobs:
               -d "{\"email\":\"admin@demo.local\",\"password\":\"$DEMO_SEED_PASSWORD\"}" |
               jq -r '.data.token'
           )"
+          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+            echo "::error::rooms smoke: admin login failed"; exit 1
+          fi
 
-          for path in rooms rooms/r1; do
-            body="$(curl -sS -w '\n%{http_code}' "$API/$path" -H "Authorization: Bearer $ADMIN_TOKEN")"
-            status="$(printf '%s' "$body" | tail -n1)"
-            code="$(printf '%s' "$body" | head -n -1 | jq -r '.error.code')"
-            echo "PB-3 GET /$path as administrator: HTTP $status $code"
-            if [ "$status" != "403" ] || [ "$code" != "OWNER_DECISION_REQUIRED_PB3" ]; then
-              echo "::error::PB-3 room reads are not blocked for the administrator"
-              exit 1
-            fi
-          done
-          echo "PB-3 OK"
+          # §35 lifted PB-3: an administrator lists rooms (200, a real list).
+          list="$(curl -sS "$API/rooms?per_page=1" -H "Authorization: Bearer $ADMIN_TOKEN")"
+          list_status="$(curl -sS -o /dev/null -w '%{http_code}' "$API/rooms?per_page=1" -H "Authorization: Bearer $ADMIN_TOKEN")"
+          rid="$(printf '%s' "$list" | jq -r '.data[0].id // empty')"
+          echo "GET /rooms as administrator: HTTP $list_status id=$rid"
+          if [ "$list_status" != "200" ] || [ -z "$rid" ]; then
+            echo "::error::rooms list is not 200 with a room (got HTTP $list_status id=$rid)"
+            exit 1
+          fi
+
+          # ...and fetching that exact room returns 200 with the same id.
+          item="$(curl -sS "$API/rooms/$rid" -H "Authorization: Bearer $ADMIN_TOKEN")"
+          item_status="$(curl -sS -o /dev/null -w '%{http_code}' "$API/rooms/$rid" -H "Authorization: Bearer $ADMIN_TOKEN")"
+          item_id="$(printf '%s' "$item" | jq -r '.data.id // empty')"
+          echo "GET /rooms/$rid as administrator: HTTP $item_status id=$item_id"
+          if [ "$item_status" != "200" ] || [ "$item_id" != "$rid" ]; then
+            echo "::error::room fetch is not 200 with the same id (got HTTP $item_status id=$item_id)"
+            exit 1
+          fi
+
+          echo "Rooms read smoke OK (PB-3 lifted, §35)"
 
       # -------------------------------------------------------------------------
       # Scheduling + Attendance, over HTTP, against the committed demo dataset.
@@ -816,6 +830,6 @@ jobs:
             -f head_sha='${{ github.sha }}' \
             -f status=completed \
             -f conclusion="${{ job.status == 'success' && 'success' || 'failure' }}" \
-            -f 'output[title]=HTTP smoke — T-02 / PB-1 / PB-3 / scheduling / attendance' \
+            -f 'output[title]=HTTP smoke — T-02 / PB-1 / rooms-read / scheduling / attendance' \
             -f "output[summary]=$body" \
             --silent

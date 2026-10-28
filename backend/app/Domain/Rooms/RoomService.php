@@ -16,11 +16,11 @@ use Illuminate\Support\Str;
  * Rooms persistence and domain rules of the caller's organization.
  *
  * This service carries NO actor and makes NO authorization decision: room
- * authorization is owner decision PB-3, resolved 2026-10-02 as option A (keep
- * blocked, invent no permission id), isolated in
- * RoomPolicy, which RoomController calls before reaching this service. Other
- * domains may use it for data integrity (e.g. "room exists and is active"),
- * which is not room authorization.
+ * authorization is the `rooms.read` / `rooms.write` pair in RoomPolicy, which
+ * RoomController calls before reaching this service. (PB-3 was lifted by
+ * DECISIONS §35 — reads are allowed for every role, writes stay with
+ * administrator and manager.) Other domains may use it for data integrity
+ * (e.g. "room exists and is active"), which is not room authorization.
  */
 final class RoomService
 {
