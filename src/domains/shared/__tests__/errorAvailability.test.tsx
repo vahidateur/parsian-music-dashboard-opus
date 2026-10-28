@@ -5,6 +5,7 @@ import { ApiError } from "@/api/errors";
 import { ErrorState } from "@/components/ds/states";
 import { blockingFailure, classifyError } from "@/domains/shared/errorAvailability";
 import { domainUnavailableError } from "@/domains/shared/unavailableRepository";
+import { unavailableCapabilityDescription } from "@/targets/targetCopy";
 
 afterEach(cleanup);
 
@@ -19,6 +20,11 @@ const serverFailure = new ApiError({ kind: "server", status: 500, message: "خط
 const network = new ApiError({ kind: "network", message: "قطع ارتباط" });
 
 describe("classifyError", () => {
+  it("uses the current target's honest wording for an unavailable capability", () => {
+    expect(unavailable.message).toContain(unavailableCapabilityDescription);
+    expect(unavailable.message).not.toContain("هنوز به سامانهٔ سرور متصل نیست");
+  });
+
   it("separates a missing capability, a policy refusal and a real failure", () => {
     expect(classifyError(unavailable)).toBe("unavailable");
     expect(classifyError(policy)).toBe("policy");
