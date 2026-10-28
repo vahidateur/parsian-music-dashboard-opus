@@ -55,16 +55,18 @@
 >   - Two earlier candidate runs exposed test-only setup/expectation errors. Those were corrected in
 >     subsequent commits; the successful run above includes the corrected transaction requirement,
 >     missing-byte behavior, empty-media detach contract and MySQL interleavings.
->   - The implementation candidate and evidence pointer are pushed on the active branch. The follow-up
->     handoff pointer is documentation-only; after pushing it, dispatch the backend workflow on the
->     exact branch tip and verify the ref/ancestry without making further code changes.
+>   - Implementation/test candidate `fc824ab862fb082c6c707cebb37ea697a524d825` is pushed and is
+>     fully covered by the green frontend gates and backend CI above. The current branch tip is a
+>     documentation-only handoff commit after that candidate; no application or test source changed.
+>   - An attempt to dispatch the backend workflow on that documentation-only tip was rejected by
+>     GitHub with HTTP 403 `Resource not accessible by integration`; do not claim a run on the docs tip.
+>     The successful CI run above is tied to the exact implementation/test candidate SHA.
 >
 > NEXT STEPS
->   1. Commit/push this final evidence pointer only on the active branch.
->   2. Dispatch backend CI against the resulting exact tip SHA and verify all jobs, live refs,
->      ancestry, and unique commits; preserve the main ref and stop before promotion.
->   3. Browser QA remains NOT VERIFIED: this sandbox Chromium cannot start without `libnspr4.so`,
->      `libnss3.so`, and `libnssutil3.so`.
+>   1. Verify the active remote branch tip, unchanged `main`, ancestry, and unique commit list; keep
+>      the tested candidate SHA distinct from the later documentation-only tip.
+>   2. Stop before merge/deploy. Browser QA remains NOT VERIFIED: this sandbox Chromium cannot start
+>      without `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`.
 > ```
 >
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
