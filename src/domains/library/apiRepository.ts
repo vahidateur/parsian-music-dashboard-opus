@@ -18,12 +18,13 @@ const RESOURCE = "resources";
  *
  * FILES. The contract puts binaries on their own endpoints — `POST /uploads`
  * and `GET /resources/{id}/download` — so storage stays out of this domain.
- * `ApiClient` is a JSON boundary and cannot carry a binary body, which is why
- * the download half is NOT implemented here: inventing a base64-in-JSON
- * workaround, or returning a fabricated URL, would present a broken path as a
- * working one (§37). In the demo the bytes come from `MediaRepository.getBlob`,
- * the same abstraction profile photos and gallery images use; in production
- * they come from the media/upload adapter once the client grows a binary verb.
+ * Those two endpoints are not routed and this class does not call them: a
+ * base64-in-JSON workaround, or a fabricated URL, would present a broken path
+ * as a working one (§37). The bytes travel through the media domain instead:
+ * `MediaRepository.create` uploads them (`POST /media`, multipart through
+ * `ApiClient.postBinary`) and `MediaRepository.getBlob` reads them
+ * (`GET /media/{id}/bytes`) — the same abstraction profile photos and gallery
+ * images use, in the demo and in production alike.
  *
  * SERVED since 2026-10-04. The historical note below is retained because it
  * explains why this class was built before its server existed; the "no server
@@ -41,12 +42,11 @@ const RESOURCE = "resources";
  * `ResourceResource` emits exactly the eighteen fields of `LibraryItem`
  * (`Resource` plus the five `LibraryItem` additions), with no gaps either way.
  *
- * FILES ARE STILL NOT SERVED. The server slice is metadata-only: it holds no
- * bytes, and `POST /uploads` and `GET /resources/{id}/download` do not exist.
- * `mediaId` therefore names a file the server does not hold, and the download
- * half remains deliberately unimplemented here — inventing a base64-in-JSON
- * workaround or a fabricated URL would present a broken path as a working one
- * (§37).
+ * THE RESOURCE SLICE IS METADATA-ONLY. It holds no bytes, and
+ * `POST /uploads` and `GET /resources/{id}/download` do not exist
+ * (`backend/tests/Feature/ResourceTest.php` expects 404). `mediaId` is a
+ * reference to an asset in the media domain, whose bytes the server does hold
+ * and serves, authorized against this resource (`MediaPolicy`).
  *
  * F1: added level + visibility to query per publication status disposition.
  *

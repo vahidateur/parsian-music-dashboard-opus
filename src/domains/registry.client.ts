@@ -220,8 +220,11 @@ export function getAttendanceRepository(): AttendanceRepository {
  * and `studentCanAccess` treats `null` as "no restriction" through `!restricted`,
  * so the null/absent distinction the server documents is preserved.
  *
- * The bytes still are not served: this slice is metadata-only, so `mediaId`
- * names a file the server does not hold and downloads remain unavailable.
+ * This slice is metadata-only. The file bytes live in the media domain:
+ * `mediaId` references an asset that `getMediaRepository()` uploaded
+ * (`POST /media`) and that `GET /media/{id}/bytes` serves, authorized against
+ * this resource. The contract's own `POST /uploads` and
+ * `GET /resources/{id}/download` are not routed and not used.
  */
 export function getLibraryRepository(): LibraryRepository {
   if (overrides.library) return overrides.library;
@@ -229,7 +232,7 @@ export function getLibraryRepository(): LibraryRepository {
 }
 
 /* ------------------------------------------------------------------ */
-/* Unavailable domains — explicit DOMAIN_UNAVAILABLE, never demo       */
+/* Formerly unavailable, now served — UNAVAILABLE_DOMAINS is empty    */
 /* ------------------------------------------------------------------ */
 
 export function getInstrumentRepository(): InstrumentRepository {

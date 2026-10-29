@@ -263,9 +263,10 @@ Route::middleware(['session.expiry', 'auth:sanctum', 'tenant'])->group(function 
     Route::get('attendance/{id}', [AttendanceController::class, 'show']);
 
     /*
-     * Media — the binary store behind profile photos, library files and
-     * (since §36) gallery images. Learning material and branding stay
-     * unserved: their tables do not exist yet, so there is nothing to scan.
+     * Media — the binary store behind profile photos, library files,
+     * gallery images (since §36), learning material and the branding logo
+     * and favicon. `MediaPolicy` resolves the record that references each
+     * kind (`MediaReferences`), so every kind is authorized on read.
      *
      * METADATA AND BYTES, BOTH AUTHENTICATED. The bytes live on the private
      * disk and are reachable only through `/bytes`, which authorizes the
