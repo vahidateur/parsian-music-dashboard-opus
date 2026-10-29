@@ -88,7 +88,12 @@ export function getApiClient(): ApiClient {
     client = new ApiClient({
       baseUrl: getRuntimeConfig().apiBaseUrl,
       getToken: () => authToken,
-      onUnauthenticated: (error) => {
+      onUnauthenticated: (error, context) => {
+        // A 401 ends the session only when it answers the CURRENT credential.
+        // After a reload the boot sequence sends tokenless reads (branding) in
+        // parallel with the `/auth/me` that restores the token; their late 401
+        // would otherwise wipe the token that restore just proved good.
+        if (authToken !== null && context?.authorization !== `Bearer ${authToken}`) return;
         authToken = null;
         // A rejected token must not be replayed on the next reload.
         defaultTokenStore.clear();
