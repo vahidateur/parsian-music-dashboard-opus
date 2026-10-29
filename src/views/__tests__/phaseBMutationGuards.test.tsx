@@ -80,7 +80,9 @@ describe("Phase B mutation guards", () => {
     expect(screen.queryByRole("button", { name: "گفتگوی جدید" })).toBeNull();
     expect(screen.queryByLabelText("متن پیام")).toBeNull();
     expect(screen.queryByRole("button", { name: "مدیریت گفتگو" })).toBeNull();
-    expect(screen.getByText("ارسال پیام برای این نقش فعال نیست.")).toBeTruthy();
+    // The notice lives in the ACTIVE thread's pane, and the first thread is
+    // selected by an effect one render after the list loads — so wait for it.
+    expect(await screen.findByText("ارسال پیام برای این نقش فعال نیست.")).toBeTruthy();
     expect(screen.getByRole("list", { name: "فهرست گفتگوها" })).toBeTruthy();
   });
 
