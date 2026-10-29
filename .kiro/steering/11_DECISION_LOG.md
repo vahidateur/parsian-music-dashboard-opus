@@ -29,12 +29,16 @@ Reference, do not restate in full:
 - **§1–§2** View→Hook→Repository→Local|Api layering; demo is implementation #1, not a fake backend.
 - **§22** D9 bundle budget baseline/cap; `mergeClassNames` replaces `tailwind-merge`.
 - **§25** demo→local vocabulary; never silently selected in `api` mode.
-- **§29/I24** 25-permission RBAC incl. `progress.read`/`progress.write`, parity test vs
-  `backend/config/permissions.php`.
+- **§29/I24** 25-permission RBAC when recorded, incl. `progress.read`/`progress.write`, parity
+  test vs `backend/config/permissions.php`. **§33–§42** have since added 12 ids (PB-3 lifted per
+  domain: instruments, learning, rooms, gallery, branding; verb-scoped `finance.pay`; display-only
+  `gallery.details`), so the vocabulary is now **37**. `permissions.php` is the authority
+  (`.opencode/specs/auth-rbac.md`).
 - **§31** demo no longer production-facing (role-editor presentation leak closed).
 - **§32** two-line reconciliation; both lines preserved; `main` untouched.
-- **D6** Finance/Reports deferred, no fabricated numbers. **D7** nav hints without numbers.
-  **D12** failed secondary read reported as failure.
+- **D6** Finance/Reports deferred, no fabricated numbers (Reports still deferred; invoices v1 are
+  served in the client composition by §40–§41, and the demo composition keeps Finance deferred).
+  **D7** nav hints without numbers. **D12** failed secondary read reported as failure.
 - **§20** pointer to `GOVERNANCE_CHECKPOINT.md` (live law for `T-02`, `O-*`, `PERF`, `HELP`).
   `T-02` is **ACCEPTED / ASSIGNED-ONLY**, not open.
 

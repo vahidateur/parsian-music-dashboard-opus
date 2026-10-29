@@ -1,5 +1,12 @@
 # SESSION HANDOFF
 
+> **TOOLING NOTE — 2026-10-29, Kiro skills and `.opencode/specs` cleanup (documentation only).**
+> This does **not** supersede the work order below. It corrected stale claims in four
+> `.opencode/specs/*` files and in `.kiro/steering/11_DECISION_LOG.md` (permission vocabulary is 37,
+> `UNAVAILABLE_DOMAINS` is empty, Rooms/Finance/media bytes are served, line-ending and remote-SHA
+> statements), and pruned the Kiro-only skill copies. No branch, worktree, tag or stash was touched.
+> Record, restore manifest and evidence: `SKILLS_SPECS_CLEANUP_2026-10-29.md`.
+
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
 > This supersedes the Progress slice 2 pointer immediately below it as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.

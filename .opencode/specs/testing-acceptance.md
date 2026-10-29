@@ -61,14 +61,21 @@ Do not "fix" an environment failure by changing the product. Report it as such.
 
 ## Known environment limits
 
-- **No PHP / Composer / MySQL** → the backend suite cannot run locally; claim only inherited
-  CI evidence, dated.
+- **The backend toolchain varies by machine.** Check `command -v php composer` before
+  saying either way. Where PHP and Composer exist (2026-10-29: PHP 8.4, Composer 2.10,
+  `backend/vendor` present) the suite runs without MySQL, because `backend/phpunit.xml`
+  uses in-memory SQLite. `backend/.env` points at a MySQL database, so pin the connection:
+  `cd backend && DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test --filter=<Class>`.
+  Never aim the suite at the `.env` database (it would migrate it; see `git-safety.md`,
+  rule 5). On a machine without the toolchain, claim only inherited CI evidence, dated.
 - **No browser tooling** → browser QA is *NOT VERIFIED* until someone actually opens the app.
   Do not claim it.
 - **Node is pinned** by `.nvmrc` (22.22.3) because the locked deps require `^22.22.2`.
 - **Line endings are load-bearing for the dataset.** `data/dataset/*` is byte-hashed by the
   manifest; a CRLF checkout breaks the artifact gate. There is deliberately no root
-  `.gitattributes` yet — if you add one, add it as its own explained change.
+  `.gitattributes` yet — if you add one, add it as its own explained change. On
+  2026-10-29 the dataset was LF in the index and the working tree, and 32 other tracked
+  files were committed with CRLF (`git-safety.md`); do not "fix" them as a side effect.
 
 ## Gates that must stay green
 

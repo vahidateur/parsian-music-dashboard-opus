@@ -34,19 +34,28 @@ git ls-files -s <path>                  # the index blob for a path
 index was built elsewhere they can disagree — trust `git diff` for content and refresh the
 stat cache (`git add --refresh .`) rather than assuming files changed.
 
-## Line endings are a live hazard here
+## Line endings are load-bearing for the dataset
 
-This checkout was created with CRLF working-tree files while the committed blobs are LF.
-Consequences that are **not** cosmetic:
+Measured on 2026-10-29 with `git ls-files --eol` (re-measure; it differs per checkout):
 
-- `data/dataset/*` is byte-hashed by `data/dataset/manifest.json` → a CRLF checkout fails
-  the artifact gate (`MEMBER_HASH_MISMATCH`, and the seed's embedded document differs in
-  length).
-- `git status` then shows hundreds of files as modified.
+- There is **no root `.gitattributes`** (only `backend/.gitattributes`, `* text=auto eol=lf`),
+  and `core.autocrlf` / `core.eol` are unset.
+- `data/dataset/*`: 37 files, LF in the index **and** the working tree. No drift.
+- 32 tracked files are **committed with CRLF** (`i/crlf w/crlf`): `.kiro/settings/cli.json`
+  and 31 files under `src/` (components, domain panels, `src/targets/*`, ten views). They
+  are not drift, and `git status` is clean for them. Keep each file's existing ending when
+  you edit it; converting one rewrites every line in the diff.
 
-Fixing it is a working-tree operation only: restore the **committed bytes** for files proven
-to be CRLF-only copies of their HEAD blob. Do not add a root `.gitattributes` and do not run
-`git add --renormalize` without an owner decision — those change tracked files.
+The hazard is conditional but real. `data/dataset/*` is byte-hashed by
+`data/dataset/manifest.json`, so a checkout that turns it into CRLF (a clone with
+`core.autocrlf=true`, for example) fails the artifact gate (`MEMBER_HASH_MISMATCH`, and the
+seed's embedded document differs in length), and `git status` then lists many files as
+modified. Check with `git ls-files --eol data/dataset` — expect `i/lf w/lf` throughout.
+
+Fixing a converted checkout is a working-tree operation only: restore the **committed
+bytes** for files proven to be CRLF-only copies of their HEAD blob. Do not add a root
+`.gitattributes` and do not run `git add --renormalize` without an owner decision — those
+change tracked files.
 
 ## Branch and checkpoint model
 
@@ -69,6 +78,9 @@ Prove the situation first with blob hashes, not with a diff of a moving target.
 ## Unresolved
 
 - Local `main` (`eb5b559`) and `local/main-sync` (`b9b1d87`) differ from each other and from
-  remote `main` (`15775ea`). Pre-existing; leave alone unless the owner asks.
+  `origin/main`, which has moved on (2026-10-29: `main` 120 commits behind, `local/main-sync`
+  1 ahead and 166 behind; `git ls-remote origin main` gives the live tip — do not freeze it
+  here). Every commit on both local branches is reachable from a remote ref or tag.
+  Pre-existing; leave alone unless the owner asks.
 - No CI workflow covers `src/` — the only workflow is `.github/workflows/backend-tests.yml`
   (`backend/**` only). A frontend regression can pass CI unnoticed.

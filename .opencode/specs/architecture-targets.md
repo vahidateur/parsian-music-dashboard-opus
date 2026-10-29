@@ -1,6 +1,6 @@
 # Spec — Architecture & target boundaries
 
-**Status:** CURRENT · **Authority:** `src/` implementation + `src/__tests__/*` (tests are the
+**Status:** CURRENT (re-verified 2026-10-29) · **Authority:** `src/` implementation + `src/__tests__/*` (tests are the
 enforcement) · **Do not read** `docs/engineering/PROJECT_STATE.md` for this — it is for state,
 not structure.
 
@@ -28,7 +28,9 @@ View (src/views/*)  →  Domain hook (src/domains/<d>/use*)  →  Repository int
   domain the server does not serve resolves to `createUnavailableRepository(...)`
   (`src/domains/shared/unavailableRepository.ts`), which fails with `DOMAIN_UNAVAILABLE`.
   The list of those domains is one enumeration: `UNAVAILABLE_DOMAINS`
-  (`src/domains/shared/unavailableDomains.ts`).
+  (`src/domains/shared/unavailableDomains.ts`). It is currently **empty** — every domain the
+  client wires is served (see `api-capability-errors.md`). The demo composition still uses
+  `createUnavailableRepository` for Finance.
 - `src/domains/registryCore.ts` — shared plumbing (client, token, override seams, reset).
 - The target file swap is a **file alias** in `vite.config.ts`, not a runtime flag: the
   bundler never resolves a demo target file in a client build.
@@ -58,10 +60,11 @@ other bundle. `.opencode/skills/target-verify/SKILL.md` and the gate
 | `src/__tests__/namingGate.test.ts` | the `Demo*`-named production set changing |
 | `src/domains/__tests__/registryClient.test.ts` | the client composition importing a demo module |
 
-## Open / unresolved
+## Standing notes
 
-- **Rooms are served by the API but blocked for everyone.** `backend/app/Domain/Rooms/RoomPolicy.php`
-  fails closed for every actor because no permission id names room read/write (**PB-3**,
-  owner decision, unresolved). The client must show rooms as unavailable, not as an error.
+- **Rooms are served and authorized.** DECISIONS §35 lifted PB-3 for Rooms: the ids
+  `rooms.read` and `rooms.write` exist and `backend/app/Domain/Rooms/RoomPolicy.php` checks
+  them through `PermissionGate`. PB-3 blocks no domain now (`auth-rbac.md`); the earlier
+  "blocked for every actor" behaviour is historical.
 - **No third build** — `dist/customer` and `dist/operator` are forbidden names and a test
   asserts they do not exist.

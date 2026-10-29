@@ -1,6 +1,7 @@
 # Spec — API capability availability & error classification
 
 **Status:** CURRENT · **Authority:** the code named below, plus `backend/routes/api.php`.
+Re-verified against source and tests on 2026-10-29.
 
 ## Three facts that must not be blurred
 
@@ -17,18 +18,27 @@ failure. Never render "server not connected" for a policy refusal — the server
 
 ## Currently unserved in the client composition
 
-`UNAVAILABLE_DOMAINS` (`src/domains/shared/unavailableDomains.ts`): `instruments`,
-`learning`, `chat`, `media`, `branding`, `gallery`, `compensation`.
-Verify the list in code before relying on it — it is the single enumeration and it changes.
+**None.** `UNAVAILABLE_DOMAINS` (`src/domains/shared/unavailableDomains.ts`) is an empty
+list, and `src/domains/registry.client.ts` wires every domain to its `Api*` repository.
+The mechanism is kept on purpose: `createUnavailableRepository` / `DOMAIN_UNAVAILABLE` still
+back Finance in the demo composition (`src/domains/registry.ts`), and a domain that lost its
+server route would reappear in that one list. Verify the list in code before relying on it —
+it is the single enumeration and it changes.
 
-**Rooms** are a third case: routed and implemented, but blocked for every actor by
-`RoomPolicy` (PB-3, unresolved) → the client sees a *policy* refusal, not an unavailable
-capability.
+Controls whose contract does not exist are a separate seam: the client target's
+`unavailableActions` (`src/targets/targetCopy.client.ts`) currently holds `finance-export`,
+`reports-export`, `portals` and `notifications`; the demo target's set is empty.
+
+**Rooms** are served and authorized like any other domain. PB-3 is lifted for them
+(DECISIONS §35): `rooms.read` is granted to every role and `rooms.write` to administrator
+and manager (`RoomPolicy`, `backend/config/permissions.php`). A refused room write is an
+ordinary *policy* refusal for an actor without the id, not a blanket block.
 
 **Served** (see `backend/routes/api.php` for the live list): auth, users, roles, teachers,
-students, classes, enrollments, sessions, attendance, resources (metadata only — the bytes
-are not served), pieces, piece-assignments, progress-events, progress-overview,
-student assignments, organization.
+students, classes, enrollments, sessions, attendance (incl. corrections), rooms,
+instruments, learning, chat, branding, gallery, compensations, invoices, resources
+(metadata), media (metadata and authorized bytes — see below), pieces, piece-assignments,
+progress-events, progress-overview, student assignments, organization.
 
 ## Rules
 
@@ -44,9 +54,19 @@ student assignments, organization.
 
 ## Unresolved
 
-- Finance and Reports have no domain/server contract (**I2 / D6**, deferred) — the views
-  must keep showing an explicit deferral, not a fabricated figure.
-- Library file bytes (`POST /uploads`, download) are not routed; `mediaId` is an opaque
-  reference today.
+- **Reports** has no domain and no server route (**I2 / D6**, deferred):
+  `src/domains/reports/` is README-only, and the view must keep showing an explicit
+  deferral, not a fabricated figure.
+- **Finance** differs by composition. The client serves invoices v1 (`GET/POST /invoices`,
+  `PATCH /invoices/{id}`, `POST /invoices/{id}/pay`; DECISIONS §40–§41 with `finance.read`,
+  `finance.write`, `finance.pay`; no partial payments, no balance sync). The demo
+  composition keeps Finance deferred. Anything beyond invoices (exports, payment plans,
+  balances) has no contract; `finance-export` stays in the client's `unavailableActions`.
+- **File bytes** travel through the media domain, not through resources: `POST /media`
+  stores a file and `GET /media/{id}/bytes` returns it, authorized against the record that
+  references the asset (`MediaPolicy::authorizeReadAsset`, org-scoped). The Library and
+  Gallery views use that path (`MediaRepository`, `useMediaObjectUrl`). The contract's own
+  `POST /uploads` and `GET /resources/{id}/download` are still not routed
+  (`backend/tests/Feature/ResourceTest.php` asserts it).
 - `docs/engineering/OPEN_ITEMS.md` holds the live list of open capability work. Read it
   before claiming a capability is missing.
