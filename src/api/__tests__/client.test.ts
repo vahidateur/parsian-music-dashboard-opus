@@ -136,6 +136,19 @@ describe("ApiClient error normalization", () => {
     expect(onUnauthenticated).toHaveBeenCalledTimes(1);
   });
 
+  it("tells onUnauthenticated which Authorization the rejected request carried", async () => {
+    const mock = createFetchMock(() => jsonResponse({ error: { message: "no" } }, 401));
+    const withToken = vi.fn();
+    await makeClient(mock, { onUnauthenticated: withToken, getToken: () => "tok_9" }).get("students").catch(() => undefined);
+    expect(withToken.mock.calls[0][1]).toEqual({ authorization: "Bearer tok_9" });
+    const without = vi.fn();
+    await makeClient(mock, { onUnauthenticated: without }).get("branding").catch(() => undefined);
+    expect(without.mock.calls[0][1]).toEqual({ authorization: null });
+    // An explicit per-request header (the restore path) is what is reported.
+    const explicit = vi.fn();
+    await makeClient(mock, { onUnauthenticated: explicit }).get("auth/me", { headers: { Authorization: "Bearer stored" } }).catch(() => undefined);
+    expect(explicit.mock.calls[0][1]).toEqual({ authorization: "Bearer stored" });
+  });
   it("classifies session-expiry codes as authentication and passes the error through", async () => {
     for (const code of ["AUTH_SESSION_IDLE_EXPIRED", "AUTH_SESSION_ABSOLUTE_EXPIRED"]) {
       const onUnauthenticated = vi.fn();

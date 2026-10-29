@@ -27,12 +27,23 @@ export interface BinaryUpload {
   fields?: Record<string, string | number | boolean | undefined>;
 }
 
+export interface UnauthenticatedContext {
+  authorization: string | null;
+}
+
 export interface ApiClientConfig {
   baseUrl: string;
   /** Called before each request to attach `Authorization: Bearer …`. */
   getToken?: AuthTokenProvider;
-  /** Invoked once whenever the server answers 401 (session expiry hook). */
-  onUnauthenticated?: (error?: ApiError) => void;
+  /**
+   * Invoked once whenever the server answers 401 (session expiry hook).
+   *
+   * `context.authorization` is the `Authorization` header the rejected request
+   * actually carried (`null` when it carried none). A 401 only speaks for that
+   * credential, so a subscriber that has since moved on to a different one can
+   * tell a stale rejection from a real session end.
+   */
+  onUnauthenticated?: (error?: ApiError, context?: UnauthenticatedContext) => void;
   /** Per-request timeout in ms. 0 disables it. */
   timeoutMs?: number;
   defaultHeaders?: Record<string, string>;
@@ -104,7 +115,7 @@ export class ApiClient {
     }
     form.append("file", new Blob([upload.bytes], { type: upload.mimeType }), upload.filename);
 
-    const response = await this.send("POST", path, {
+    const { response, authorization } = await this.send("POST", path, {
       body: form,
       accept: "application/json",
       options,
@@ -113,7 +124,7 @@ export class ApiClient {
     const payload = await readBody(response);
     if (!response.ok) {
       const error = apiErrorFromResponse(response.status, payload);
-      if (error.kind === "authentication") this.config.onUnauthenticated?.(error);
+      if (error.kind === "authentication") this.config.onUnauthenticated?.(error, { authorization });
       throw error;
     }
 
@@ -130,12 +141,12 @@ export class ApiClient {
    * on a public URL.
    */
   async getBinary(path: string, options?: RequestOptions): Promise<Blob> {
-    const response = await this.send("GET", path, { accept: "*/*", options });
+    const { response, authorization } = await this.send("GET", path, { accept: "*/*", options });
 
     if (!response.ok) {
       const payload = await readBody(response).catch(() => null);
       const error = apiErrorFromResponse(response.status, payload);
-      if (error.kind === "authentication") this.config.onUnauthenticated?.(error);
+      if (error.kind === "authentication") this.config.onUnauthenticated?.(error, { authorization });
       throw error;
     }
 
@@ -158,7 +169,7 @@ export class ApiClient {
   }
 
   private async requestEnvelope<T>(method: Method, path: string, body: unknown, options?: RequestOptions): Promise<T> {
-    const response = await this.send(method, path, {
+    const { response, authorization } = await this.send(method, path, {
       body: body === undefined ? undefined : JSON.stringify(body),
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       accept: "application/json",
@@ -169,7 +180,7 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = apiErrorFromResponse(response.status, payload);
-      if (error.kind === "authentication") this.config.onUnauthenticated?.(error);
+      if (error.kind === "authentication") this.config.onUnauthenticated?.(error, { authorization });
       throw error;
     }
 
@@ -190,7 +201,7 @@ export class ApiClient {
       accept?: string;
       options?: RequestOptions;
     },
-  ): Promise<Response> {
+  ): Promise<{ response: Response; authorization: string | null }> {
     const url = joinUrl(this.config.baseUrl, path) + buildQueryString(init.options?.query);
     const headers: Record<string, string> = {
       Accept: init.accept ?? "application/json",
@@ -216,12 +227,13 @@ export class ApiClient {
     const fetchImpl = this.config.fetchImpl ?? globalThis.fetch;
 
     try {
-      return await fetchImpl(url, {
+      const response = await fetchImpl(url, {
         method,
         headers,
         body: init.body,
         signal: controller.signal,
       });
+      return { response, authorization: headers.Authorization ?? null };
     } catch (error) {
       throw apiErrorFromThrown(controller.signal.reason ?? error);
     } finally {
