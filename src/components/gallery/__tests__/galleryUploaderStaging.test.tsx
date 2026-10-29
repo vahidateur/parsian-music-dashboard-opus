@@ -74,6 +74,31 @@ describe("GalleryUploader staging", () => {
     expect((screen.getByRole("button", { name: "افزودن تصویر" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it("stages every selection, not just the first, when the browser's live FileList is emptied by the input reset", async () => {
+    // A real <input type=file> exposes a LIVE list, and setting `value = ""`
+    // (which the uploader does after each pick) empties that same list. Plain
+    // arrays hide this; this input reproduces the browser.
+    renderUploader();
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const live: File[] = [];
+    Object.defineProperty(input, "files", { configurable: true, get: () => live });
+    Object.defineProperty(input, "value", {
+      configurable: true,
+      get: () => "",
+      set: (next: string) => {
+        if (next === "") live.length = 0;
+      },
+    });
+    const pick = (name: string) => {
+      live.push(pngFile(name));
+      fireEvent.change(input);
+    };
+    pick("one.png");
+    await waitFor(() => expect(screen.getAllByPlaceholderText("عنوان تصویر")).toHaveLength(1));
+    pick("two.png");
+    await waitFor(() => expect(screen.getAllByPlaceholderText("عنوان تصویر")).toHaveLength(2));
+  });
+
   it("counts each file on the progress bar as it is archived", async () => {
     const firstUpload = deferred<{ id: string }>();
     const secondUpload = deferred<{ id: string }>();
