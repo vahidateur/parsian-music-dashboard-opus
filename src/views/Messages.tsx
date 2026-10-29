@@ -76,7 +76,7 @@ import { Button, StatusBadge, Surface } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
 import { Avatar, Chip, PageHeader, Panel, SearchInput } from "@/components/ds/patterns";
 import { getChatRepository, getMediaRepository } from "@/domains/registry";
-import { fileStoredDetail } from "@/targets/targetCopy";
+import { fileStoredDetail, notServedClause } from "@/targets/targetCopy";
 import { releaseStagedMedia } from "@/domains/media/release";
 import { useConversations, useMessages } from "@/domains/chat/useChat";
 import { apiErrorFromThrown } from "@/api/errors";
@@ -456,7 +456,7 @@ export function MessagesView() {
                 notify({
                   tone: "info",
                   title: "اعلان عمومی",
-                  detail: "ارسال گروهی به سرویس پیام‌رسان سمت سرور نیاز دارد و در دمو فعال نیست.",
+                  detail: `ارسال گروهی به سرویس پیام‌رسان سمت سرور نیاز دارد و ${notServedClause}`,
                 })
               }
             >

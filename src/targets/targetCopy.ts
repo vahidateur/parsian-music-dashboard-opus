@@ -97,3 +97,28 @@ export const attachmentStorageNote =
  */
 export const galleryStorageNote =
   "تصاویر فقط در حافظهٔ همین مرورگر ذخیره می‌شوند، در پشتیبان‌گیری قرار نمی‌گیرند و روی دستگاه دیگری دیده نمی‌شوند. انتشار واقعی گالری به فضای ذخیره‌سازی سمت سرور نیاز دارد.";
+
+/**
+ * The tail of the Reports / Finance deferral paragraph. The demo target names
+ * itself; the client variant must never mention demo material (nothing on
+ * screen is demo there), so the clause lives in the seam.
+ */
+export const deferredReadTail =
+  "در دمو و محیط خالی چیزی برای نمایش صادقانه وجود ندارد.";
+/**
+ * The clause that closes a "needs a server" sentence (export toasts, the
+ * announcement toast, the Settings alerts note). Same slot in both
+ * targets, because the truth differs: here the capability is simply off.
+ */
+export const notServedClause = "در دمو فعال نیست.";
+/** The Library share-link toast detail. */
+export const shareLinkDetail =
+  "پیوند اشتراک واقعی با سرور ساخته می‌شود؛ در دمو انجام نشد.";
+/** The Settings "operations" section hint: this target also lists its demo data. */
+export const settingsOperationsHint = "اتاق‌ها، قواعد جلسه، دادهٔ دمو";
+/**
+ * The logo / favicon note in the branding panel. The demo target keeps files in
+ * the browser and says so.
+ */
+export const brandingFileStorageNote =
+  "بارگذاری لوگو و favicon به فضای ذخیره‌سازی فایل نیاز دارد. در نسخهٔ دمو فایل‌ها فقط در همین مرورگر نگهداری می‌شوند و در پشتیبان قرار نمی‌گیرند؛ استقرار عملیاتی به object storage سمت سرور نیاز دارد.";
