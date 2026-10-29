@@ -91,6 +91,14 @@ const CLIENT_MUST_ABSENT = [
   "localStore",
   "DataLifecycleGate",
   "VITE_DATA_SOURCE=demo",
+  // Demo-target deferral wording (found in the real browser, now routed through
+  // the target copy seam): a customer must never be told a capability is absent
+  // "in the demo" or that files live only "in this browser in the demo version".
+  "در دمو و محیط خالی",
+  "در دمو فعال نیست",
+  "در دمو انجام نشد",
+  "قواعد جلسه، دادهٔ دمو",
+  "در نسخهٔ دمو فایل",
 ] as const;
 
 /** The client MUST disclose unavailable domains — presence probes. */
@@ -109,6 +117,11 @@ const DEMO_MUST_PRESENT = [
   "data-operator-reset",
   "importSample",
   "resetToClean",
+  // The same deferral wording on its demo side of the seam (non-vacuity: proves
+  // the probes above can be found when they are there).
+  "در دمو و محیط خالی",
+  "در دمو فعال نیست",
+  "در دمو انجام نشد",
 ] as const;
 
 /** One rule for the emitted scan and the synthetic probe. */

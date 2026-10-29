@@ -102,3 +102,20 @@ export const brandingUnavailableDescription =
  */
 export const unavailableCapabilityDescription =
   "این قابلیت هنوز در سرور پیاده‌سازی نشده و تلاش دوباره نتیجه‌ای نمی‌دهد.";
+
+/**
+ * Closing clause of the Reports / Finance deferral paragraph: states only what
+ * is true while the capability has no server contract.
+ */
+export const deferredReadTail = "تا آن زمان چیزی برای نمایش صادقانه وجود ندارد.";
+/**
+ * Closing clause of a "needs a server" sentence. The server has no route for
+ * the capability yet; that is the whole claim.
+ */
+export const notServedClause = "هنوز در سرور پیاده‌سازی نشده است.";
+/** The Library share-link toast detail: the server has no share route. */
+export const shareLinkDetail = "ساخت پیوند اشتراک هنوز در سرور پیاده‌سازی نشده است.";
+/** The Settings "operations" section hint: what the client section really holds. */
+export const settingsOperationsHint = "اتاق‌ها، ساز‌ها، دوره‌ها و قواعد جلسه";
+/** The branding panel offers no logo or favicon control; this says exactly that. */
+export const brandingFileStorageNote = "بارگذاری لوگو و favicon هنوز در این پنل ارائه نشده است.";

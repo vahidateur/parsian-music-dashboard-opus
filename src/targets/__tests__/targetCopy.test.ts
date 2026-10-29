@@ -91,4 +91,21 @@ describe("the target copy seam", () => {
       }
     }
   });
+  it("no module outside the seam hardcodes the demo target's own-name wording", () => {
+    // The defect this gate exists for (found in the real browser): a sentence
+    // that says «دمو» written into a SHARED view reaches the client build, where
+    // nothing on screen is demo material. The demo wording lives in the seam.
+    const demoOnly = literals(DEMO).filter((literal) => literal.includes("دمو"));
+    expect(demoOnly.length).toBeGreaterThan(0);
+    for (const file of sourceFiles()) {
+      if (file.includes("__tests__")) continue;
+      const text = readFileSync(file, "utf8");
+      for (const literal of demoOnly) {
+        expect(
+          text,
+          `${file.replace(ROOT + "/", "")} hardcodes the demo target's wording "${literal}"`,
+        ).not.toContain(literal);
+      }
+    }
+  });
 });

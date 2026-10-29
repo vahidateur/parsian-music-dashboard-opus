@@ -14,7 +14,7 @@ import { useApp } from "@/context/AppContext";
 import { useCan } from "@/domains/auth/AuthContext";
 import { getBrandingRepository, getOrganizationRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/targets/environment";
-import { brandingUnavailableDescription } from "@/targets/targetCopy";
+import { brandingFileStorageNote, brandingUnavailableDescription } from "@/targets/targetCopy";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
@@ -310,10 +310,7 @@ export function BrandingPanel() {
       </Panel>
 
       <Surface className="border-warn-500/20 bg-warn-500/[0.05] p-4">
-        <p className="text-[11.5px] leading-relaxed text-ink-200">
-          بارگذاری لوگو و favicon به فضای ذخیره‌سازی فایل نیاز دارد. در نسخهٔ دمو فایل‌ها فقط در همین مرورگر نگهداری
-          می‌شوند و در پشتیبان قرار نمی‌گیرند؛ استقرار عملیاتی به object storage سمت سرور نیاز دارد.
-        </p>
+        <p className="text-[11.5px] leading-relaxed text-ink-200">{brandingFileStorageNote}</p>
       </Surface>
     </>
   );
