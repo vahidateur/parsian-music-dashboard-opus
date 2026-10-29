@@ -39,7 +39,10 @@ export function GalleryUploader({ albums, onUploaded, onClose }: { albums: Galle
   const urlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => () => { urlsRef.current.forEach((url) => URL.revokeObjectURL(url)); }, []);
-  const stage = (files: FileList | File[]) => setStaged((current) => [...current, ...Array.from(files).map((file, index) => { const rejection = rejectionFor(file); const previewUrl = rejection ? "" : URL.createObjectURL(file); if (previewUrl) urlsRef.current.add(previewUrl); const caption = file.name.replace(/\.[^.]+$/, ""); return { id: `${file.name}-${file.size}-${Date.now()}-${index}`, file, previewUrl, caption, alt: caption, status: "ready" as const, rejection }; })]);
+  // Snapshot first: `event.target.files` is a LIVE list that the input's own reset
+  // (`value = ""`) empties, and React runs this state updater after that reset
+  // for every selection but the first.
+  const stage = (incoming: FileList | File[]) => { const files = Array.from(incoming); setStaged((current) => [...current, ...files.map((file, index) => { const rejection = rejectionFor(file); const previewUrl = rejection ? "" : URL.createObjectURL(file); if (previewUrl) urlsRef.current.add(previewUrl); const caption = file.name.replace(/\.[^.]+$/, ""); return { id: `${file.name}-${file.size}-${Date.now()}-${index}`, file, previewUrl, caption, alt: caption, status: "ready" as const, rejection }; })]); };
   const patch = (id: string, change: Partial<StagedFile>) => setStaged((current) => current.map((row) => row.id === id ? { ...row, ...change } : row));
   const remove = (id: string) => setStaged((current) => { const target = current.find((row) => row.id === id); if (target?.previewUrl) { URL.revokeObjectURL(target.previewUrl); urlsRef.current.delete(target.previewUrl); } return current.filter((row) => row.id !== id); });
   const ready = staged.filter((row) => row.status !== "success" && !row.rejection && row.caption.trim().length > 1 && row.alt.trim().length > 1);
