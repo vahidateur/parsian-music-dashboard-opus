@@ -138,6 +138,15 @@ export class ApiAttendanceRepository implements AttendanceRepository {
   }
 }
 
+/**
+ * The server bounds the SESSION DATE (`Y-m-d`, inclusive on both ends) and
+ * rejects a full timestamp with 422. The domain speaks ISO-8601 instants, so
+ * the wire adapter sends the calendar day they fall on.
+ */
+function wireDate(instant: string | undefined): string | undefined {
+  return instant === undefined ? undefined : instant.slice(0, 10);
+}
+
 /* Domain params → wire query params (snake_case, per the API contract). */
 
 export function toQuery(params: AttendanceListParams): QueryParams {
@@ -145,8 +154,8 @@ export function toQuery(params: AttendanceListParams): QueryParams {
     session_id: params.sessionId,
     student_id: params.studentId,
     status: params.status,
-    since: params.since,
-    until: params.until,
+    since: wireDate(params.since),
+    until: wireDate(params.until),
     page: params.page,
     per_page: params.per_page,
   };
