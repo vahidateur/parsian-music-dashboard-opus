@@ -156,14 +156,21 @@ Measured 2026-10-29, read-only (`git ls-remote` does not change local refs).
   `01a07116` (292b8b8), `01a07c61` (f8c3472), `01a0b059` (d6430df), `01a0c8a7` (7180082, also tag
   `archive/project-state-gate-7180082`), `01a0c8b5` (bb275d6, also tag `archive/mountain-sanctuary-bb275d6`),
   `01a0e27f` (455fc1f). `01a0e3c0` is level with its remote, `01a0f73f` is 15 behind it.
-- Unique commits: for every local `arena/*`, `fix/browser-qa-2e375f3f`, `main` and `local/main-sync`,
-  `git rev-list --count <branch> --not --remotes --tags` is 0. Nothing exists only on a gone branch.
+- Unique commits, measured at the start: for every local `arena/*`, `fix/browser-qa-2e375f3f`, `main` and
+  `local/main-sync`, `git rev-list --count <branch> --not --remotes --tags` was 0. Nothing exists only on a
+  gone branch. Re-measured after the push: still 0 for every `arena/*`, `main` and `local/main-sync`.
+  `fix/browser-qa-2e375f3f` is the exception, see the next bullet.
 - Remote heads (`ls-remote`): `arena/01a0e3c0`, `arena/01a0f73f`, `arena/01a10b63`, `arena/18b97e50`,
   `arena/2e375f3f`, `backup/pre-f2-2026-09-29`, `cleanup/demo-migration-lineage`,
   `docs/demo-migration-plan`, `main`.
-- Worktrees besides this one: `../qa-fix-2e375f3f` (branch `fix/browser-qa-2e375f3f`, 44a4f3f, **19 uncommitted
-  entries**) and `../qa-candidate-44a4f3f` (detached, **8 uncommitted entries**). Their changes exist nowhere else.
-  Not touched.
+- Worktrees besides this one. This mission only ran `git status` in them and changed nothing.
+  - `../qa-candidate-44a4f3f` (detached at 44a4f3f): **8 uncommitted entries**, unchanged between the first
+    and last check. Those changes exist nowhere else.
+  - `../qa-fix-2e375f3f` (branch `fix/browser-qa-2e375f3f`): at the first check it sat at 44a4f3f with **19
+    uncommitted entries**. At 17:53:20 a different session (a `vitest` process was still running in that
+    worktree) committed **5 local commits** (tip b370dca, `fix(auth)`, `fix(gallery)`, two `fix(attendance)`,
+    `fix(targets)`), and the worktree is now clean. Those 5 commits are on no remote and no tag. Whoever owns
+    that session should push or otherwise preserve the branch.
 - Stash: `stash@{0}` "local fflate range change before arena sync" (one-line `package.json` change). Not touched.
 - Tags: six `archive/*`. Untouched.
 
