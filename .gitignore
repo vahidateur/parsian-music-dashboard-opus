@@ -5,3 +5,20 @@ dist/
 !.env.example
 *.log
 .agents/
+
+# ---------------------------------------------------------------------------
+# Local-only AI agent tooling.
+#
+# Agent definitions, skills, runtime settings and harness configuration stay in
+# the working tree but are never tracked or published. The specs under
+# `.opencode/specs/` are deliberately NOT listed: they are shared project
+# documentation and remain published, as do `.kiro/steering/`, `.github/`,
+# `src/` and `docs/`.
+# ---------------------------------------------------------------------------
+.opencode/agents/
+.opencode/skills/
+.kiro/hooks/
+.kiro/settings/
+.kiro/skills/
+opencode.json
+skills-lock.json

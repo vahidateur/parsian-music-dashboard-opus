@@ -6,19 +6,39 @@
 
 ## Standing rules (the owner's, not mine)
 
+Enforcement has **three distinct layers** — never describe one as another:
+
+- **TOOL-ENFORCED** — `opencode.json` `permissions` block the command outright (`deny`) or
+  force a prompt (`ask`). Verified against the effective config on 2026-10-31.
+- **INSTRUCTION-ONLY** — this spec and `.kiro/steering/09_GIT_GOVERNANCE.md` forbid it, but
+  **no mechanism blocks it**. An agent following its instructions will not run it; a
+  misbehaving one could. Never claim tool-level protection for these.
+- **HUMAN APPROVAL** — an owner decision in the same conversation, enforced only by review.
+
 1. **Never publish.** No `git push`, no force-push, no PR, no tag — unless the owner says so
-   in that same conversation. `opencode.json` denies `git push*` at the tool level; removing
-   that one line is an explicit, owner-approved change.
-2. **Never change history.** No `reset --hard`, `rebase`, `clean -f`, `filter-branch`,
-   `checkout -- .`, or amend. Denied at the tool level.
-3. **Never commit, stage, stash or clean unless asked.** `git commit*`, `git add*` and
-   `git merge*` ask first. Stage specific paths — never `git add .`.
+   in that same conversation. **TOOL-ENFORCED (deny):** `git push*`. Removing that line is an
+   explicit, owner-approved change.
+2. **Never change history.** `reset --hard`, `rebase`, `clean -f` and `filter-branch` are
+   **TOOL-ENFORCED (deny)**. `checkout -- .`, `git restore`, plain `git reset` (mixed),
+   `git commit --amend`, `git branch -D`, `git tag` and `git stash` are **INSTRUCTION-ONLY**:
+   no `opencode.json` rule covers them (corrected 2026-10-31 — an earlier revision of this
+   spec claimed they were denied at the tool level). Never present them as guarded.
+3. **Never commit, stage, merge or clean unless asked.** **TOOL-ENFORCED (ask):**
+   `git commit*`, `git add*`, `git merge*`. **INSTRUCTION-ONLY:** `git stash`, `git clean`
+   (non-`-f` forms), `git checkout`/`git switch` (branch switching), `git cherry-pick`,
+   `git tag`. Stage specific paths — never `git add .`.
 4. **Never discard working-tree state.** A modified or untracked file is someone's work
    until proven otherwise. `.kiro/settings/` and everything under `src/` that is not yours
-   is off-limits.
+   is off-limits. File-level `edit` protection exists only where `opencode.json` carries an
+   explicit rule (today: `docs/governance/**` requires approval). Everything else is
+   unprotected at the tool level, and **no `read`/`edit` rule can stop an equivalent `bash`
+   command** — `cat`, `sed -i` and `tee` are matched as commands, not by their target paths.
 5. **Never run destructive database operations** — `migrate:fresh`, `db:wipe`, seeds,
-   resets — without explicit owner authorization, in any environment.
-6. **Never modify git config** and never skip hooks (`--no-verify`).
+   resets — without explicit owner authorization, in any environment. Enforcement is the
+   Kiro hook `.kiro/hooks/block-destructive-db-commands.kiro.hook` (a prompt-to-agent
+   mechanism), **not** an `opencode.json` rule; treat it as instruction-grade.
+6. **Never modify git config** and never skip hooks (`--no-verify`). **INSTRUCTION-ONLY** —
+   no tool-level rule exists for either.
 
 ## Reading state safely
 
