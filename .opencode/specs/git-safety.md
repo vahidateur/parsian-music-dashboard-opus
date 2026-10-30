@@ -34,9 +34,12 @@ Enforcement has **three distinct layers** — never describe one as another:
    unprotected at the tool level, and **no `read`/`edit` rule can stop an equivalent `bash`
    command** — `cat`, `sed -i` and `tee` are matched as commands, not by their target paths.
 5. **Never run destructive database operations** — `migrate:fresh`, `db:wipe`, seeds,
-   resets — without explicit owner authorization, in any environment. Enforcement is the
-   Kiro hook `.kiro/hooks/block-destructive-db-commands.kiro.hook` (a prompt-to-agent
-   mechanism), **not** an `opencode.json` rule; treat it as instruction-grade.
+   resets — without explicit owner authorization, in any environment. This is
+   **INSTRUCTION-ONLY**: nothing in this repository blocks it at the tool or operating-system
+   level. A Kiro hook such as `block-destructive-db-commands` is **optional local
+   configuration** — it is not published, `.gitignore` excludes `.kiro/hooks/`, and a fresh
+   clone contains no hook at all. If you install one yourself, treat it as a prompt-to-agent
+   reminder, never as technical enforcement. Without it, this rule is instruction-level only.
 6. **Never modify git config** and never skip hooks (`--no-verify`). **INSTRUCTION-ONLY** —
    no tool-level rule exists for either.
 
