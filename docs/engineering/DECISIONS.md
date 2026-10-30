@@ -3211,6 +3211,24 @@ covers the hidden aside; a manager-role check covers the shown one.
 **Status.** ✅ In force — 2026-10-26. Owner-authorized (this session: bare
 photo for teachers, furnished readout down to reception).
 
+## 43. Pointer — OpenCode Go governance register (OCG-XX) — a fourth, independent namespace
+
+**Decision.** *This section is a pointer, not a decision, and adds no D-entry.* The
+**OpenCode Go** operating governance (AI model routing, privacy/classification for agent
+traffic, token efficiency, agent roles, approval gates) is registered in
+[docs/governance/GOVERNANCE_DECISION_REGISTER.md](../governance/GOVERNANCE_DECISION_REGISTER.md)
+under its own **`OCG-XX`** identifier namespace.
+
+**Rules.** The `OCG-XX` namespace is **independent and non-interchangeable** with this
+file's `D1–D42`, the backend checkpoint's `T-02`/`O-*`/`PERF`/`HELP`
+([GOVERNANCE_CHECKPOINT.md](GOVERNANCE_CHECKPOINT.md)), and the frontend-completion register's
+own identifiers. No shared IDs, no implicit inheritance. **This pointer transfers no decision
+ownership or authority** — OpenCode Go decisions are owned by, and amendable only in, their
+own register, and never amend a D-entry.
+
+**Status.** ✅ Pointer in force — recorded 2026-10-30. Documentation-only; no product or
+architecture decision changed.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

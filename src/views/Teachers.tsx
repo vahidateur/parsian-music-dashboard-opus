@@ -740,7 +740,7 @@ function TeacherDetail({ teacher, onEdit }: { teacher: Teacher; onEdit: () => vo
                         // The suggestion writes nothing anywhere; what it says about
                         // itself may only name demo mode where demo mode is what ran.
                         title: demoEnvironment ? "پیشنهاد فقط در دمو نمایش داده شد" : "ارسال پیشنهاد انجام نشد",
-                        detail: "ارسال به برنامه‌ریزی به سرور نیاز دارد.",
+                        detail: "این پیشنهاد ثبت نشد؛ قابلیت ثبت و ارسال پیشنهاد هنوز پیاده‌سازی نشده است.",
                       })
                     }
                   >
