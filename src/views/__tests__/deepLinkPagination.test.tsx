@@ -34,6 +34,7 @@ import {
 import { ApiError } from "@/api/errors";
 import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { demoStore } from "@/services/demoStore";
 
 function makeNationalId(seq: number): string {
   const base = String(100000000 + (seq % 800000000)).padStart(9, "0");
@@ -48,6 +49,37 @@ beforeEach(() => {
   resetToDemoEnvironment();
   resetRegistry();
 });
+
+/**
+ * Grows a collection past the 200-row page in ONE persisted write.
+ *
+ * WHY NOT `repo.create` IN A LOOP. The local store is a single serialised
+ * dataset: every `create` reads it back (parse + migrate + clone), applies the
+ * change and re-serialises the WHOLE thing, so n creates cost O(n × dataset). The
+ * old setup made ~200 sequential creates (plus one `list` per iteration just to
+ * count rows) and spent ≈4 s of the Students case's ≈4.3 s there — against a 5 s
+ * default limit — while the thing under test, `get(id)` for a row beyond the
+ * first page, takes a few hundred milliseconds.
+ *
+ * WHAT IS PRESERVED. This case asserts the READ path, never `create`. The rows
+ * are the same drafts the loop built (same names, same checksummed national ids,
+ * same phones), shaped as `repository.create` + `collection.create` store them,
+ * and placed the way each collection places them (students are prepended,
+ * teachers appended and then name-sorted by `list`). Seeded this way, `list()`
+ * is deeply equal to the old loop's output — so `all[205]` is the same row.
+ * Create-time validation (checksum, uniqueness) has its own coverage in the
+ * students/teachers repository suites.
+ */
+function seedPastFirstPage<Row extends { id: string }>(
+  existing: readonly Row[],
+  build: (seq: number) => Omit<Row, "id">,
+  place: (added: Row[], existing: readonly Row[]) => Row[],
+  prefix: string,
+): Row[] {
+  const missing = Math.max(0, 211 - existing.length); // `<= 210` in the old loop → stop at 211
+  const added = Array.from({ length: missing }, (_, i) => ({ ...build(i + 1), id: `${prefix}${i + 1}` }) as Row);
+  return place(added, existing);
+}
 
 function renderStudentsDetail(id: string) {
   window.location.hash = `#/students/${id}`;
@@ -71,17 +103,27 @@ describe("I16 Students deep-link independent of 200-row ceiling", () => {
   it("existing entity beyond first 200 → detail loads", async () => {
     const repo = getStudentRepository();
     // Ensure we have >200 students so last is beyond first page
-    const template = (await repo.list({ per_page: 500 })).data[0];
-    let seq = 1;
-    while ((await repo.list({ per_page: 500 })).data.length <= 210) {
-      const { id: _id, ...fields } = template;
-      await repo.create({
-        ...fields,
-        name: `هنرجوی آزمایشی ${seq}`,
-        nationalId: makeNationalId(seq * 7919 + 123),
-      });
-      seq++;
-    }
+    const seeded = (await repo.list({ per_page: 500 })).data;
+    const template = seeded[0];
+    const dataset = demoStore.snapshot();
+    demoStore.replace({
+      ...dataset,
+      students: seedPastFirstPage(
+        dataset.students,
+        (seq) => {
+          const { id: _id, ...fields } = template;
+          return {
+            // Same call the old loop made: the template's own fields, then the two that differ.
+            ...fields,
+            name: `هنرجوی آزمایشی ${seq}`,
+            nationalId: makeNationalId(seq * 7919 + 123),
+          };
+        },
+        // `students.create` PREPENDS, so the last row created ends up first.
+        (added, existing) => [...added.reverse(), ...existing],
+        "st_seed",
+      ),
+    });
     const all = (await repo.list({ per_page: 500 })).data;
     expect(all.length).toBeGreaterThan(200);
     const beyond = all[205]; // beyond first 200
@@ -158,27 +200,33 @@ describe("I16 Teachers deep-link independent of 200-row ceiling", () => {
   it("existing entity beyond first 200 → detail loads", async () => {
     const repo = getTeacherRepository();
     const template = (await repo.list({ per_page: 500 })).data[0];
-    let seq = 1;
-    while ((await repo.list({ per_page: 500 })).data.length <= 210) {
-      await repo.create({
-        name: `مدرس آزمایشی ${seq}`,
-        instrument: template.instrument,
-        title: template.title,
-        phone: `0912000${String(seq).padStart(4, "0")}`,
-        status: "active",
-        contractHours: 20,
-        bio: "test",
-        students: 0,
-        utilization: 0,
-        weeklyHours: 0,
-        attendanceRate: 100,
-        retention: 100,
-        since: "امسال",
-        todayClasses: [],
-        availability: [],
-      });
-      seq++;
-    }
+    const dataset = demoStore.snapshot();
+    demoStore.replace({
+      ...dataset,
+      teachers: seedPastFirstPage(
+        dataset.teachers,
+        (seq) => ({
+          name: `مدرس آزمایشی ${seq}`,
+          instrument: template.instrument,
+          title: template.title,
+          phone: `0912000${String(seq).padStart(4, "0")}`,
+          status: "active",
+          contractHours: 20,
+          bio: "test",
+          students: 0,
+          utilization: 0,
+          weeklyHours: 0,
+          attendanceRate: 100,
+          retention: 100,
+          since: "امسال",
+          todayClasses: [],
+          availability: [],
+        }),
+        // `teachers.create` appends; `list` then name-sorts, so placement is moot.
+        (added, existing) => [...existing, ...added],
+        "t_seed",
+      ),
+    });
     const all = (await repo.list({ per_page: 500 })).data;
     expect(all.length).toBeGreaterThan(200);
     const beyond = all[205];
