@@ -65,6 +65,8 @@ Use nvm; do not replace the system Node, and do not use `sudo`.
 | auth · RBAC · identity scope | `.opencode/specs/auth-rbac.md` |
 | test strategy, what "done" means | `.opencode/specs/testing-acceptance.md` |
 
+`.opencode/agents/`, `.opencode/skills/`, `opencode.json` and `skills-lock.json` are local-only agent tooling and are not included in the published repository snapshot; the specs under `.opencode/specs/` are published with it.
+
 ## Working rules
 
 - Prove the root cause before implementing. Reuse the existing domain hook/repository; no
@@ -76,12 +78,24 @@ Use nvm; do not replace the system Node, and do not use `sudo`.
   run cannot answer the question.
 - Prefer narrow reads (`grep`, `glob`) over dumping files, and reuse verified command results
   instead of re-running them.
-- For bounded, mechanical, low-risk work, delegate to the `routine` sub-agent (cheap model);
-  keep architectural decisions and ambiguous failures in the main session.
+- For bounded, mechanical, low-risk work, a local `routine` sub-agent (only if your OpenCode
+  setup provides one) can take it; the repository does not ship that agent, so keep
+  architectural decisions and ambiguous failures in the main session either way.
 
-## Skills — load on demand, one at a time
+## Skills and agents — optional local tooling
 
-`focused-fix` · `target-verify` · `git-audit` · `runtime-verify` · `repo-explore`
+The repository provides instructions and specs, not runnable agent tooling. Names such as
+`focused-fix`, `target-verify`, `git-audit`, `runtime-verify`, `repo-explore` and the `routine`
+sub-agent are **optional local installations** under `.opencode/skills/` and `.opencode/agents/`
+— both directories are ignored and absent from a fresh clone, so none of them is a guaranteed
+capability.
 
-Each is in `.opencode/skills/<id>/SKILL.md`. Load with the `skill` tool (`id` = the folder
-name) or by mentioning `@<id>`.
+A clone without them can still do all the work; apply the same discipline directly:
+
+- reproduce a defect before fixing it, and prove the root cause;
+- for anything touching the target seam, run the three typechecks and both composition builds;
+- inspect Git state read-only before any commit, and stage explicit paths only;
+- prefer narrow reads (`grep`, `glob`) over dumping files.
+
+If your local setup does provide such a skill or sub-agent, load it on demand (`skill` tool
+with the folder name, or `@<id>`). Nothing in this repository requires it.
