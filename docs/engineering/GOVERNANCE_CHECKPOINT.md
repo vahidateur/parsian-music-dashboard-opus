@@ -135,3 +135,14 @@ Not register O-15. No Help CMS, RAG, vector DB, or in-app AI in v1. Operator cop
 ## Explicitly not in this checkpoint
 
 Laravel implementation, migrations, frontend source, dependency bumps, branch moves, and reopening T-02 / closed O-* conditions above.
+
+## Pointer — OpenCode Go governance register (OCG-XX)
+
+AI-agent / OpenCode Go operating governance (model routing, agent-traffic privacy, token
+efficiency, agent roles, approval gates) is registered in
+[docs/governance/GOVERNANCE_DECISION_REGISTER.md](../governance/GOVERNANCE_DECISION_REGISTER.md)
+under its own **`OCG-XX`** identifier namespace — a fourth namespace, **independent and
+non-interchangeable** with this checkpoint's `T-02`/`O-*`/`PERF`/`HELP`, with
+[DECISIONS.md](DECISIONS.md)'s `D1–D42`, and with the frontend-completion register's
+identifiers. No shared IDs, no implicit inheritance; **this pointer transfers no decision
+ownership or authority** and this checkpoint's statuses are unchanged. Recorded 2026-10-30.
