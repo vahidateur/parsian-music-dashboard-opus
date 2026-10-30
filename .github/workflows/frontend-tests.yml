@@ -1,0 +1,112 @@
+# Frontend execution gate for `src/`.
+#
+# WHY THIS EXISTS
+#   The only workflow before this one was `backend-tests.yml`, scoped to
+#   `backend/**`. Its header states the frontend gates are excluded because they
+#   "carry pre-existing, governance-recorded failures". Re-measured 2026-10-30
+#   (docs/engineering/PROPOSAL_FRONTEND_CI_2026-10-29.md, §2): the failures were
+#   load-induced 5 s timeouts plus one by-design assertion (a local branch ahead
+#   of its upstream), not product defects. Both are now addressed at their cause
+#   (memoized Git probes, ahead-vs-diverged semantics, measured per-test budget),
+#   so a frontend regression can no longer pass unnoticed behind a red-suite
+#   reputation.
+#
+# SCOPE
+#   Typechecks (default/demo/client) and the full Vitest suite, then the three
+#   composition builds and the artifact-level bundle gates. It changes no API
+#   contract, no permission id, no tenancy rule and no application source.
+#
+# fetch-depth: 0 is REQUIRED: `projectState.test.ts` reads every local head and
+# the archive tags, and would fail on a shallow clone for a reason that has
+# nothing to do with the change under test.
+
+name: frontend-tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths: &frontend_paths
+      - 'src/**'
+      - 'data/**'
+      - 'docs/engineering/**'
+      - 'docs/governance/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - '.nvmrc'
+      - '.github/workflows/frontend-tests.yml'
+  pull_request:
+    paths: *frontend_paths
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # projectState.test.ts needs the full history, all heads and the tags.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # ---------------------------------------------------------------- #
+      # Typechecks — all three compositions
+      # ---------------------------------------------------------------- #
+      - name: Typecheck (default)
+        run: npm run typecheck
+
+      - name: Typecheck (demo composition)
+        run: npx tsc -p tsconfig.demo.json --noEmit
+
+      - name: Typecheck (client composition)
+        run: npx tsc -p tsconfig.client.json --noEmit
+
+      # ---------------------------------------------------------------- #
+      # Tests
+      # ---------------------------------------------------------------- #
+      # CI has no upstream-tracking refs unless they are fetched explicitly;
+      # fetch them so projectState can tell "ahead by unpushed commits"
+      # (allowed) from "diverged" (must fail).
+      - name: Fetch remote-tracking refs
+        run: git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' || true
+
+      - name: Vitest
+        run: npx vitest run
+
+      # ---------------------------------------------------------------- #
+      # Composition builds + artifact gates
+      # ---------------------------------------------------------------- #
+      # Order matters: the bare build writes an in-root outDir and therefore
+      # EMPTIES dist/, removing dist/client and dist/demo. Build the composed
+      # artifacts last so the gates can see them side by side.
+      - name: Build (demo, in-root artifact)
+        run: npm run build
+
+      - name: Build (client composition)
+        run: npm run build:client
+
+      - name: Build (demo composition)
+        run: npm run build:demo
+
+      - name: Bundle gates
+        run: |
+          npx vitest run \
+            src/__tests__/bundleBoundary.test.ts \
+            src/__tests__/bundleBudget.test.ts \
+            src/__tests__/cspCompatibility.test.ts
