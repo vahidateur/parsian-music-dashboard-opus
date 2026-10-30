@@ -6,7 +6,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { resolveDataSourceNotice } from "./scripts/lib/data-source-notice.mjs";
-import { classifyDataSource } from "./src/api/dataSourceVocabulary";
+import { classifyDataSource } from "./src/api/dataSourceVocabulary.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

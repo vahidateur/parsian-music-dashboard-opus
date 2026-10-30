@@ -1,5 +1,85 @@
 # SESSION HANDOFF
 
+> **LIVE POINTER — 2026-10-29, media-reference release-blocker continuation.** This is the
+> current work order for the Arena task branch. It supersedes older pointers below without deleting
+> their history. No merge, main update, or deployment is authorized or performed.
+>
+> ```text
+> ACTIVE BRANCH: arena/2e375f3f-parsian-music-dashboard-opus
+> BASE / PRE-CHANGE HEAD: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
+> LIVE origin/main (checked 2026-10-29): 8cf7451af6822a2d5bb154db44842a102e86edb7
+> LIVE active-branch remote before this change: 2b8a2f79135c6f77e8767b4b44f4c24cdb32fb6e
+> IMPLEMENTATION-CANDIDATE SHA: `fc824ab862fb082c6c707cebb37ea697a524d825` (source + tests)
+> This handoff update is documentation-only; resolve the resulting branch tip with `git rev-parse HEAD`.
+> ```
+>
+> IMPLEMENTATION AND TESTS COMMITTED on the active branch; backend CI now passes on the implementation SHA.
+>   - Added `MediaReferenceLock`, a shared transactional row-lock contract. Reference writers lock
+>     the tenant-visible MediaAsset row and verify private bytes within the transaction that stores
+>     the reference. Media deletion takes that same row lock through the global reference check,
+>     byte deletion, and metadata removal. Request validation uses an explicitly non-authoritative
+>     byte/metadata preflight; domain writers recheck at commit time.
+>   - Applied the contract to teacher/student photos, resources, instrument images, gallery album
+>     covers/images, chat attachments, learning content, and branding logo/favicon. Student JSON
+>     writes that retain an existing photo also lock/check that reference. Empty media IDs normalize
+>     to detach/no reference where that is the existing API contract.
+>   - Added MySQL-only two-connection lock interleavings in
+>     `backend/tests/Feature/MediaReferenceConcurrencyTest.php`, service-level checks for missing
+>     bytes and transaction requirements, and updated affected fixtures to store private bytes.
+>   - Preserved delete failure handling and idempotent retry after bytes have been removed but SQL
+>     metadata deletion/commit failed. Residual architecture limit: SQL and local object storage are
+>     not one atomic transaction. A shared DB lock serializes cooperating application writers, not
+>     direct SQL or out-of-band storage changes. A failed storage operation can still require an
+>     operational retry/recovery; no cross-system atomicity is claimed.
+>   - No frontend source or governance/scope decision was changed. Existing invoice/Reports,
+>     Gallery permissions, Chat scope, and deferred-feature messaging remain governed by prior
+>     decisions; no new backend feature was added beyond the media-reference integrity fix.
+>
+> VALIDATION / RELEASE GATES
+>   - All 20 changed PHP files parsed with `php-parser` 3.7.0. This is syntax-parser evidence only,
+>     not PHP runtime/PHPUnit evidence; local `php`, Composer, and Docker are absent.
+>   - Frontend gates passed against implementation-candidate source/test SHA
+>     `fc824ab862fb082c6c707cebb37ea697a524d825`: `npm run typecheck`; full `npm test` (239 files,
+>     2,925 passed, 12 skipped, 0 failed); `npm run build:client`; `npm run build:demo`; and sequential
+>     artifact-present `bundleBoundary` (6 passed, 2 conditional skips), then `bundleBudget` (11
+>     passed, 2 conditional skips).
+>   - Browser QA was attempted with Playwright and packaged Chromium, but Chromium could not launch:
+>     the sandbox lacks `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`. Therefore startup/login,
+>     navigation, Gallery roles, Chat, Finance/invoice, deferred Reports messaging, API-backed
+>     interaction, console, and network behavior are **NOT VERIFIED**. The HTTP 200 dev preview is
+>     not browser QA and is not counted as evidence.
+>   - Backend CI run 40779240657 passed against implementation SHA
+>     `fc824ab862fb082c6c707cebb37ea697a524d825`: PHP 8.5 suite 463 passed / 2 skipped (3,219
+>     assertions); MySQL 8 migrations, index/seed gates and full backend suite passed; HTTP smoke
+>     passed. Run: https://github.com/vahidateur/parsian-music-dashboard-opus/actions/runs/40779240657
+>   - Two earlier candidate runs exposed test-only setup/expectation errors. Those were corrected in
+>     subsequent commits; the successful run above includes the corrected transaction requirement,
+>     missing-byte behavior, empty-media detach contract and MySQL interleavings.
+>   - Implementation/test candidate `fc824ab862fb082c6c707cebb37ea697a524d825` is pushed and is
+>     covered by the green frontend gates and backend CI above. A Git diff confirms that the tip
+>     audited before this note, `f4173d4029d6ad4c00ff15e0d320ad4d4bd22aac`, differs from the tested
+>     candidate only in this handoff file; no application or test source differs. This is source
+>     equivalence, not a CI check on either documentation-only tip.
+>   - `workflow_dispatch` on the earlier documentation tip `dc9613e` was rejected with HTTP 403
+>     `Resource not accessible by integration`; no run on a docs-only tip is claimed.
+>
+> FINAL GIT AUDIT (2026-10-29, before this documentation-only update)
+>   branch: active local and remote refs both `f4173d4029d6ad4c00ff15e0d320ad4d4bd22aac`; clean worktree
+>   main: `8cf7451af6822a2d5bb154db44842a102e86edb7`, unchanged; main is an ancestor of candidate
+>   candidate: `fc824ab` is 9 commits ahead / 0 behind main; audited tip `f4173d4` is 11 ahead / 0 behind
+>   recovery: remote `backup/pre-f2-2026-09-29`, canonical branch, archive tags, and
+>     `/home/user/safety-backups/parsian-music-dashboard-opus-20261029/` remain present; no recovery data changed
+>   promotion: no merge, deploy, force-push, reset, or main update
+>
+> NEXT STEPS
+>   1. Browser QA remains **NOT VERIFIED**. Concrete next run: use an approved host/CI runner with a
+>      supported Playwright browser image containing `libnspr4.so`, `libnss3.so`, and `libnssutil3.so`;
+>      serve the frontend and API there, execute the listed scenarios, and capture console/network output.
+>      This checkout has no installed system browser or browser CI workflow; do not install OS packages
+>      or alter infrastructure blindly.
+>   2. Stop before merge/deploy. If promotion is later approved, use a reviewed forward-only fast-forward.
+> ```
+>
 > **LIVE POINTER — 2026-10-05, CANONICAL-LINE CONSOLIDATION (authoritative handoff point).**
 > This supersedes the Progress slice 2 pointer immediately below it as the work order. It deletes
 > nothing below it, deletes no SHA, and merges nothing to `main`.

@@ -16,13 +16,18 @@
  * version of this screen.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { ensureDemoLibraryFile } from "@/domains/library/demoContent";
 import { getMediaRepository, resetRegistry, setMediaRepository } from "@/domains/registry";
 import { withStubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 3.3 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 /** The seeded row the demo ships real bytes for. */
 const DEMO_TITLE = "نوکتورن اپوس ۹ شمارهٔ ۲";

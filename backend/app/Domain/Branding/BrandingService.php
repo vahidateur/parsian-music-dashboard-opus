@@ -2,10 +2,12 @@
 
 namespace App\Domain\Branding;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\Branding;
 use App\Support\Api\ApiException;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Academy identity persistence and defaults.
@@ -35,7 +37,10 @@ final class BrandingService
         'persianFont' => 'persian_font',
     ];
 
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
+    ) {}
 
     /** The caller's identity: the saved row, or the shipped defaults. */
     public function get(): Branding
@@ -62,41 +67,66 @@ final class BrandingService
      */
     public function update(array $input): Branding
     {
-        $branding = Branding::query()
-            ->whereKey($this->tenant->organizationId())
-            ->first();
+        return DB::transaction(function () use ($input): Branding {
+            $branding = Branding::query()
+                ->whereKey($this->tenant->organizationId())
+                ->lockForUpdate()
+                ->first();
 
-        if ($branding === null) {
-            $branding = new Branding([
-                'organization_id' => $this->tenant->organizationId(),
-                ...self::defaults(),
-            ]);
-        }
-
-        $attributes = [];
-        foreach (self::COLUMN_MAP as $wireKey => $column) {
-            if (array_key_exists($wireKey, $input)) {
-                $value = $input[$wireKey];
-                if (in_array($wireKey, ['academyName', 'tagline'], true)) {
-                    $value = trim((string) $value);
-                }
-                if ($value === '' && in_array($wireKey, ['logoMediaId', 'faviconMediaId'], true)) {
-                    $value = null;
-                }
-                $attributes[$column] = $value;
-            }
-        }
-
-        if ($attributes !== []) {
-            if (array_key_exists('academy_name', $attributes) && trim((string) $attributes['academy_name']) === '') {
-                throw ApiException::validation('BRANDING_INVALID', 'اطلاعات برند معتبر نیست.', [
-                    'academyName' => ['نام آموزشگاه الزامی است.'],
+            if ($branding === null) {
+                $branding = new Branding([
+                    'organization_id' => $this->tenant->organizationId(),
+                    ...self::defaults(),
                 ]);
             }
-            $branding->fill($attributes)->save();
-        }
 
-        return $branding->refresh();
+            $attributes = [];
+            foreach (self::COLUMN_MAP as $wireKey => $column) {
+                if (array_key_exists($wireKey, $input)) {
+                    $value = $input[$wireKey];
+                    if (in_array($wireKey, ['academyName', 'tagline'], true)) {
+                        $value = trim((string) $value);
+                    }
+                    if ($value === '' && in_array($wireKey, ['logoMediaId', 'faviconMediaId'], true)) {
+                        $value = null;
+                    }
+                    $attributes[$column] = $value;
+                }
+            }
+
+            if ($attributes !== []) {
+                if (array_key_exists('academy_name', $attributes) && trim((string) $attributes['academy_name']) === '') {
+                    throw ApiException::validation('BRANDING_INVALID', 'اطلاعات برند معتبر نیست.', [
+                        'academyName' => ['نام آموزشگاه الزامی است.'],
+                    ]);
+                }
+                $this->lockMediaAttributes($attributes);
+                $branding->fill($attributes)->save();
+            }
+
+            return $branding->refresh();
+        });
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function lockMediaAttributes(array $attributes): void
+    {
+        $references = [];
+        foreach (['logo_media_id' => 'logoMediaId', 'favicon_media_id' => 'faviconMediaId'] as $column => $wireKey) {
+            $mediaId = $attributes[$column] ?? null;
+            if (is_string($mediaId) && $mediaId !== '') {
+                $references[] = ['id' => $mediaId, 'field' => $wireKey];
+            }
+        }
+        usort($references, static fn (array $a, array $b): int => strcmp($a['id'], $b['id']));
+
+        foreach ($references as $reference) {
+            if (! $this->mediaReferenceLock->lockAvailable($reference['id'])) {
+                throw ApiException::validation('BRANDING_INVALID', 'اطلاعات برند معتبر نیست.', [
+                    $reference['field'] => ['فایل انتخاب‌شده یافت نشد.'],
+                ]);
+            }
+        }
     }
 
     /** @return array<string, mixed> */

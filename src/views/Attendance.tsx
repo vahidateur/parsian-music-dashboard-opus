@@ -396,12 +396,25 @@ export function AttendanceView() {
     if (next !== null) setAnchor(next);
   };
 
+  // A count taken from a read that FAILED is not a measurement: «—», never a
+  // digit (D12). The failure itself is named in the card's hint, and the tab
+  // below states it with a retry.
+  const countOf = (read: { error: unknown; total: number }): string =>
+    read.error === null ? faNum(read.total) : NO_DATA;
+  const badgeOf = (read: { error: unknown; total: number }): number | undefined =>
+    read.error === null ? read.total : undefined;
+  const failedTone = { tone: "danger" as Tone };
   const stats: StatDef[] = [
     {
       label: "جلسات این بازه",
-      value: faNum(sessions.total),
-      hint: sessionsTruncated ? `${faNum(sessions.items.length)} جلسه نمایش داده شده است` : windowLabel,
-      ...(sessionsTruncated ? { tone: "warn" as Tone } : {}),
+      value: countOf(sessions),
+      hint:
+        sessions.error !== null
+          ? "خواندن جلسه‌ها ناموفق بود"
+          : sessionsTruncated
+            ? `${faNum(sessions.items.length)} جلسه نمایش داده شده است`
+            : windowLabel,
+      ...(sessions.error !== null ? failedTone : sessionsTruncated ? { tone: "warn" as Tone } : {}),
     },
     {
       label: "فهرست حاضران",
@@ -416,11 +429,21 @@ export function AttendanceView() {
     },
     {
       label: "غیبت‌های این بازه",
-      value: faNum(absentRecords.total),
-      hint: absentTruncated ? `${faNum(absentRecords.items.length)} مورد نمایش داده شده است` : "رکوردهای «غایب»، از انبار دامنه",
-      ...(absentRecords.total > 0 ? { tone: "warn" as Tone } : {}),
+      value: countOf(absentRecords),
+      hint:
+        absentRecords.error !== null
+          ? "خواندن غیبت‌ها ناموفق بود"
+          : absentTruncated
+            ? `${faNum(absentRecords.items.length)} مورد نمایش داده شده است`
+            : "رکوردهای «غایب»، از انبار دامنه",
+      ...(absentRecords.error !== null ? failedTone : absentRecords.total > 0 ? { tone: "warn" as Tone } : {}),
     },
-    { label: "سابقهٔ اصلاحات", value: faNum(corrections.total), hint: "کل تاریخچهٔ تغییرناپذیر" },
+    {
+      label: "سابقهٔ اصلاحات",
+      value: countOf(corrections),
+      hint: corrections.error !== null ? "خواندن اصلاحات ناموفق بود" : "کل تاریخچهٔ تغییرناپذیر",
+      ...(corrections.error !== null ? failedTone : {}),
+    },
   ];
 
   return (
@@ -494,9 +517,9 @@ export function AttendanceView() {
         value={tab}
         onChange={setTab}
         options={[
-          { value: "register", label: "فهرست حاضران", count: sessions.total },
-          { value: "absentees", label: "غایبان", count: absentRecords.total },
-          { value: "history", label: "تاریخچه", count: corrections.total },
+          { value: "register", label: "فهرست حاضران", count: badgeOf(sessions) },
+          { value: "absentees", label: "غایبان", count: badgeOf(absentRecords) },
+          { value: "history", label: "تاریخچه", count: badgeOf(corrections) },
         ]}
       />
 

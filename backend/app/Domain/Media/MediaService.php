@@ -40,7 +40,10 @@ final class MediaService
     /** The disk the bytes live on. Private: no public URL, no symlink. */
     private const DISK = 'local';
 
-    public function __construct(private readonly MediaReferences $references) {}
+    public function __construct(
+        private readonly MediaReferences $references,
+        private readonly MediaReferenceLock $referenceLock,
+    ) {}
 
     /**
      * The assets the actor may see.
@@ -73,12 +76,12 @@ final class MediaService
     }
 
     /**
-     * Stores a new binary: metadata first, then the bytes.
+     * Stores a new binary and its metadata as one coordinated operation.
      *
-     * The order matters. If the byte write fails, the metadata row is rolled
-     * back rather than left dangling — a row that points at bytes which were
-     * never stored is exactly the "record points at freed bytes" defect the
-     * media domain's ownership transition exists to prevent.
+     * The database transaction rolls metadata back when the storage write
+     * fails. Storage is not transactional, so if bytes were written but the
+     * database transaction later fails, the catch below compensates by deleting
+     * those bytes. A failed compensation is logged for operator recovery.
      *
      * @param  array<string, mixed>  $input  validated input (kind, filename, mimeType, bytes, …)
      */
@@ -90,70 +93,178 @@ final class MediaService
         $filename = MediaRules::sanitizeFilename((string) ($input['filename'] ?? 'file'));
         $id = 'md_'.strtolower((string) Str::ulid());
         $path = $this->storagePath($id);
-
-        $asset = DB::transaction(function () use ($actor, $id, $kind, $filename, $mimeType, $bytes, $path, $input): MediaAsset {
-            $asset = new MediaAsset;
-            $asset->id = $id;
-            $asset->kind = $kind;
-            $asset->filename = $filename;
-            $asset->mime_type = $mimeType;
-            $asset->size_bytes = strlen($bytes);
-            $asset->storage_path = $path;
-            $asset->uploaded_by = $actor->id;
-            if (isset($input['width'])) {
-                $asset->width = (int) $input['width'];
-            }
-            if (isset($input['height'])) {
-                $asset->height = (int) $input['height'];
-            }
-            if (isset($input['durationSeconds'])) {
-                $asset->duration_seconds = (int) $input['durationSeconds'];
-            }
-            if (! empty($input['peaks']) && is_array($input['peaks'])) {
-                $asset->peaks = $input['peaks'];
-            }
-            $asset->save();
-            return $asset;
-        });
+        $writeAttempted = false;
+        $bytesWritten = false;
 
         try {
-            Storage::disk(self::DISK)->put($path, $bytes);
+            return DB::transaction(function () use ($actor, $id, $kind, $filename, $mimeType, $bytes, $path, $input, &$writeAttempted, &$bytesWritten): MediaAsset {
+                $asset = new MediaAsset;
+                $asset->id = $id;
+                $asset->kind = $kind;
+                $asset->filename = $filename;
+                $asset->mime_type = $mimeType;
+                $asset->size_bytes = strlen($bytes);
+                $asset->storage_path = $path;
+                $asset->uploaded_by = $actor->id;
+                if (isset($input['width'])) {
+                    $asset->width = (int) $input['width'];
+                }
+                if (isset($input['height'])) {
+                    $asset->height = (int) $input['height'];
+                }
+                if (isset($input['durationSeconds'])) {
+                    $asset->duration_seconds = (int) $input['durationSeconds'];
+                }
+                if (! empty($input['peaks']) && is_array($input['peaks'])) {
+                    $asset->peaks = $input['peaks'];
+                }
+
+                $asset->save();
+
+                $writeAttempted = true;
+                try {
+                    $written = Storage::disk(self::DISK)->put($path, $bytes);
+                } catch (\Throwable $cause) {
+                    $this->logOperationFailure('upload_write', $id, 'exception', $cause);
+                    throw $this->uploadFailure();
+                }
+
+                // Laravel's filesystem adapter may return false instead of
+                // throwing when a disk is configured with `throw => false`.
+                if ($written !== true) {
+                    $this->logOperationFailure('upload_write', $id, 'returned_false');
+                    throw $this->uploadFailure();
+                }
+
+                $bytesWritten = true;
+
+                return $asset->refresh();
+            });
+        } catch (ApiException $failure) {
+            // The transaction has rolled back before this catch is reached.
+            // A failed put may still have left a partial object, so compensate
+            // after any attempted write, not only after a reported success.
+            if ($writeAttempted || $bytesWritten) {
+                $this->removeBytesAfterRollback($id, $path);
+            }
+
+            throw $failure;
         } catch (\Throwable $cause) {
-            // The metadata must not outlive a failed byte write.
-            MediaAsset::query()->whereKey($asset->id)->delete();
+            // Database failures can happen before or after the storage write.
+            // Keep the API response generic in either case, and compensate
+            // only when a write was attempted (it may have left partial bytes).
+            $operation = $bytesWritten ? 'upload_commit' : 'upload_metadata';
+            $this->logOperationFailure($operation, $id, 'exception', $cause);
+            if ($writeAttempted || $bytesWritten) {
+                $this->removeBytesAfterRollback($id, $path);
+            }
 
-            throw ApiException::validation('MEDIA_STORAGE_FAILED', 'ذخیرهٔ فایل ناموفق بود.', [
-                'bytes' => [$cause->getMessage()],
-            ]);
+            throw $this->uploadFailure();
         }
-
-        return $asset->refresh();
     }
 
     /**
-     * Frees an asset: the bytes first, then the metadata.
+     * Frees an unreferenced asset under the shared reference-row lock.
      *
-     * The order is the other way round from the create, and for the same
-     * reason: a metadata row that is gone while the bytes remain is a leak,
-     * while bytes that are gone while the row remains is a broken record.
-     * Deleting the row first and failing to delete the bytes leaves an
-     * orphan file (harmless, invisible, reclaimable); deleting the bytes
-     * first and failing to delete the row leaves a record pointing at
-     * nothing (visible, broken). The first is the safer failure.
+     * Every reference writer takes this same MediaAsset row lock and verifies
+     * that the bytes exist before committing its reference. Holding the lock
+     * from the global reference check through storage deletion and metadata
+     * deletion prevents a concurrent writer from attaching while bytes are
+     * being removed. If SQL fails after the object is gone, the metadata row
+     * may remain; reference writers then refuse it because its bytes are
+     * absent, and retrying this delete is safe for the configured local disk.
      *
-     * A still-referenced asset is REFUSED, not freed: the reference check is
-     * global (see `MediaReferences`), so an asset another record points at
-     * cannot be deleted by whoever uploaded it.
+     * Storage and SQL are not a distributed transaction. A database failure
+     * after byte deletion is recoverable by retrying this operation, but a
+     * simultaneous storage failure may still require operator recovery.
      */
     public function delete(MediaAsset $asset): void
     {
-        if ($this->references->isStillReferenced($asset->id)) {
-            throw ApiException::conflict('MEDIA_IN_USE', 'این فایل هنوز در یک رکورد استفاده شده است.');
+        try {
+            DB::transaction(function () use ($asset): void {
+                $locked = $this->referenceLock->lockAsset($asset->id);
+
+                // A second concurrent DELETE can finish after the first one;
+                // the already-removed asset is an idempotent success.
+                if ($locked === null) {
+                    return;
+                }
+
+                if ($this->references->isStillReferenced($locked->id)) {
+                    throw ApiException::conflict('MEDIA_IN_USE', 'این فایل هنوز در یک رکورد استفاده شده است.');
+                }
+
+                try {
+                    $deleted = Storage::disk(self::DISK)->delete($locked->storage_path);
+                } catch (\Throwable $cause) {
+                    $this->logOperationFailure('delete_bytes', $locked->id, 'exception', $cause);
+                    throw $this->deleteFailure();
+                }
+
+                // With the configured private local disk, deleting an already-
+                // missing object is an idempotent success, allowing recovery
+                // after a prior SQL failure that left metadata behind.
+                if ($deleted !== true) {
+                    $this->logOperationFailure('delete_bytes', $locked->id, 'returned_false');
+                    throw $this->deleteFailure();
+                }
+
+                try {
+                    if ($locked->delete() !== true) {
+                        throw new \RuntimeException('Media metadata delete was refused.');
+                    }
+                } catch (\Throwable $cause) {
+                    $this->logOperationFailure('delete_metadata', $locked->id, 'exception', $cause);
+                    throw $this->deleteFailure();
+                }
+            });
+        } catch (ApiException $failure) {
+            throw $failure;
+        } catch (\Throwable $cause) {
+            // Includes a commit failure after the private bytes were deleted.
+            $this->logOperationFailure('delete_metadata', $asset->id, 'exception', $cause);
+            throw $this->deleteFailure();
         }
+    }
 
-        Storage::disk(self::DISK)->delete($asset->storage_path);
+    private function uploadFailure(): ApiException
+    {
+        return new ApiException(500, 'MEDIA_STORAGE_FAILED', 'ذخیرهٔ فایل ناموفق بود.');
+    }
 
-        MediaAsset::query()->whereKey($asset->id)->delete();
+    private function deleteFailure(): ApiException
+    {
+        return new ApiException(500, 'MEDIA_DELETE_FAILED', 'حذف فایل کامل نشد. دوباره تلاش کنید.');
+    }
+
+    /**
+     * Best-effort compensation after the database has rolled back an upload.
+     * Failure is logged so the private-storage orphan can be investigated.
+     */
+    private function removeBytesAfterRollback(string $assetId, string $path): void
+    {
+        try {
+            if (Storage::disk(self::DISK)->delete($path) !== true) {
+                $this->logOperationFailure('upload_rollback_cleanup', $assetId, 'returned_false');
+            }
+        } catch (\Throwable $cause) {
+            $this->logOperationFailure('upload_rollback_cleanup', $assetId, 'exception', $cause);
+        }
+    }
+
+    /**
+     * Log only operational identifiers and exception type, never an adapter's
+     * message (which can contain private paths, URLs or credentials).
+     */
+    private function logOperationFailure(string $operation, string $assetId, string $failure, ?\Throwable $cause = null): void
+    {
+        \Illuminate\Support\Facades\Log::error('Media operation failed.', [
+            'operation' => $operation,
+            'asset_id' => $assetId,
+            'disk' => self::DISK,
+            'failure' => $failure,
+            'exception_class' => $cause === null ? null : $cause::class,
+        ]);
     }
 
     /**

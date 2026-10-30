@@ -368,13 +368,22 @@ describe("the schedule", () => {
 
   it("keeps a row outside today out of today, and inside the week in the week", async () => {
     const today = academyIsoDate();
-    const tomorrow = addDays(today, 1)!;
+    /*
+      A day that is INSIDE the week the panel draws and is NOT today, on every
+      weekday. «Tomorrow» (`today + 1`) is neither: the week runs شنبه → جمعه, so
+      on a Friday tomorrow is the NEXT Saturday and falls outside it — and the
+      clock here is the real one, so the test passed or failed with the weekday it
+      happened to run on. The day after today WITHIN the week (Friday wraps back
+      to Saturday) is always in `weekStart…weekEnd` and never equals today.
+    */
+    const weekStart = addDays(today, -academyWeekdayIndex())!;
+    const anotherDayThisWeek = addDays(weekStart, (academyWeekdayIndex() + 1) % 7)!;
     setSchedulingRepository(
       withStubs(getSchedulingRepository(), {
         list: async () => ({
           data: [
             session({ id: "ses_probe_here", classId: "cl1", teacherId: "t1", roomId: "r1", date: today, startTime: "13:15", endTime: "14:15" }),
-            session({ id: "ses_probe_next", classId: "cl1", teacherId: "t1", roomId: "r1", date: tomorrow, startTime: "16:25", endTime: "17:25" }),
+            session({ id: "ses_probe_next", classId: "cl1", teacherId: "t1", roomId: "r1", date: anotherDayThisWeek, startTime: "16:25", endTime: "17:25" }),
           ],
           meta: { page: 1, per_page: 200, total: 2 },
         }),

@@ -2,12 +2,12 @@
 
 namespace App\Domain\Learning;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\Instrument;
 use App\Models\LearningContent;
 use App\Models\LearningLevel;
 use App\Models\LearningProgram;
 use App\Models\LevelContentLink;
-use App\Models\MediaAsset;
 use App\Models\Student;
 use App\Models\StudentPlacement;
 use App\Models\User;
@@ -44,7 +44,10 @@ use Illuminate\Support\Str;
  */
 final class LearningService
 {
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
+    ) {}
 
     /**
      * Staging lane for two-phase renumbering (see assignOrders): far above
@@ -361,21 +364,25 @@ final class LearningService
         }
         $mediaId = $this->validatedMediaId($input['mediaId'] ?? null);
 
-        $content = new LearningContent;
-        $content->id = 'lc_'.strtolower((string) Str::ulid());
-        $content->organization_id = $this->tenant->organizationId();
-        $content->title = trim((string) $input['title']);
-        $content->description = (string) ($input['description'] ?? '');
-        $content->type = (string) $input['type'];
-        $content->media_id = $mediaId;
-        $content->author = isset($input['author']) && $input['author'] !== '' ? (string) $input['author'] : null;
-        $content->teacher_id = isset($input['teacherId']) && $input['teacherId'] !== '' ? (string) $input['teacherId'] : null;
-        $content->instrument_id = isset($input['instrumentId']) && $input['instrumentId'] !== '' ? (string) $input['instrumentId'] : null;
-        $content->visibility = (string) ($input['visibility'] ?? 'students');
-        $content->active = (bool) ($input['active'] ?? true);
-        $content->save();
+        return DB::transaction(function () use ($input, $mediaId): LearningContent {
+            $this->lockContentMedia($mediaId);
 
-        return $content->refresh();
+            $content = new LearningContent;
+            $content->id = 'lc_'.strtolower((string) Str::ulid());
+            $content->organization_id = $this->tenant->organizationId();
+            $content->title = trim((string) $input['title']);
+            $content->description = (string) ($input['description'] ?? '');
+            $content->type = (string) $input['type'];
+            $content->media_id = $mediaId;
+            $content->author = isset($input['author']) && $input['author'] !== '' ? (string) $input['author'] : null;
+            $content->teacher_id = isset($input['teacherId']) && $input['teacherId'] !== '' ? (string) $input['teacherId'] : null;
+            $content->instrument_id = isset($input['instrumentId']) && $input['instrumentId'] !== '' ? (string) $input['instrumentId'] : null;
+            $content->visibility = (string) ($input['visibility'] ?? 'students');
+            $content->active = (bool) ($input['active'] ?? true);
+            $content->save();
+
+            return $content->refresh();
+        });
     }
 
     /** @param  array<string, mixed>  $input  validated camelCase wire input */
@@ -411,9 +418,14 @@ final class LearningService
         if (array_key_exists('active', $input)) {
             $content->active = (bool) $input['active'];
         }
-        $content->save();
+        return DB::transaction(function () use ($content, $input): LearningContent {
+            if (array_key_exists('mediaId', $input)) {
+                $this->lockContentMedia($content->media_id);
+            }
+            $content->save();
 
-        return $content->refresh();
+            return $content->refresh();
+        });
     }
 
     public function deleteContent(LearningContent $content): void
@@ -832,6 +844,15 @@ final class LearningService
         }
     }
 
+    private function lockContentMedia(?string $mediaId): void
+    {
+        if ($mediaId !== null && ! $this->mediaReferenceLock->lockAvailable($mediaId)) {
+            throw ApiException::validation('CONTENT_INVALID', 'فایل انتخاب‌شده یافت نشد.', [
+                'mediaId' => ['نامعتبر است'],
+            ]);
+        }
+    }
+
     private function validatedMediaId(mixed $value): ?string
     {
         if ($value === null || $value === '') {
@@ -841,7 +862,7 @@ final class LearningService
             throw ApiException::validation('CONTENT_INVALID', 'فایل انتخاب‌شده یافت نشد.', ['mediaId' => ['نامعتبر است']]);
         }
         $id = trim($value);
-        if (! MediaAsset::query()->whereKey($id)->exists()) {
+        if (! $this->mediaReferenceLock->isAvailable($id)) {
             throw ApiException::validation('CONTENT_INVALID', 'فایل انتخاب‌شده یافت نشد.', ['mediaId' => ['نامعتبر است']]);
         }
 

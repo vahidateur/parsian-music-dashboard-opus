@@ -2,6 +2,7 @@
 
 namespace App\Domain\Gallery;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Domain\Media\MediaReferences;
 use App\Domain\Media\MediaService;
 use App\Models\GalleryAlbum;
@@ -38,6 +39,7 @@ final class GalleryService
         private readonly TenantContext $tenant,
         private readonly MediaReferences $references,
         private readonly MediaService $media,
+        private readonly MediaReferenceLock $mediaReferenceLock,
     ) {}
 
     /* ------------------------------------------------------------ albums */
@@ -78,9 +80,12 @@ final class GalleryService
         $album->cover_media_id = $this->normalizedMediaId($input['coverMediaId'] ?? null);
         $album->sort_order = (int) ($input['sortOrder'] ?? $this->nextAlbumOrder());
 
-        $album->save();
+        return DB::transaction(function () use ($album): GalleryAlbum {
+            $this->lockCoverReference($album->cover_media_id);
+            $album->save();
 
-        return $album->refresh();
+            return $album->refresh();
+        });
     }
 
     /** @param  array<string, mixed>  $input  validated wire input */
@@ -99,9 +104,14 @@ final class GalleryService
             $album->sort_order = (int) $input['sortOrder'];
         }
 
-        $album->save();
+        return DB::transaction(function () use ($album, $input): GalleryAlbum {
+            if (array_key_exists('coverMediaId', $input)) {
+                $this->lockCoverReference($album->cover_media_id);
+            }
+            $album->save();
 
-        return $album->refresh();
+            return $album->refresh();
+        });
     }
 
     public function deleteAlbum(GalleryAlbum $album): void
@@ -167,9 +177,12 @@ final class GalleryService
         $image->alt = trim((string) ($input['alt'] ?? ''));
         $image->sort_order = (int) ($input['sortOrder'] ?? $this->imageCount($album->id));
 
-        $image->save();
+        return DB::transaction(function () use ($image): GalleryImage {
+            $this->lockImageReference($image->media_id);
+            $image->save();
 
-        return $image->refresh();
+            return $image->refresh();
+        });
     }
 
     /** @param  array<string, mixed>  $input  validated wire input */
@@ -288,8 +301,34 @@ final class GalleryService
             return null;
         }
         $id = trim((string) $value);
+        if ($id === '') {
+            return null;
+        }
+        if (! $this->mediaReferenceLock->isAvailable($id)) {
+            throw ApiException::validation('GALLERY_ALBUM_INVALID', 'اطلاعات آلبوم معتبر نیست.', [
+                'coverMediaId' => ['فایل انتخاب‌شده یافت نشد.'],
+            ]);
+        }
 
-        return $id === '' ? null : $id;
+        return $id;
+    }
+
+    private function lockCoverReference(?string $mediaId): void
+    {
+        if ($mediaId !== null && ! $this->mediaReferenceLock->lockAvailable($mediaId)) {
+            throw ApiException::validation('GALLERY_ALBUM_INVALID', 'اطلاعات آلبوم معتبر نیست.', [
+                'coverMediaId' => ['فایل انتخاب‌شده یافت نشد.'],
+            ]);
+        }
+    }
+
+    private function lockImageReference(string $mediaId): void
+    {
+        if (! $this->mediaReferenceLock->lockAvailable($mediaId)) {
+            throw ApiException::validation('GALLERY_IMAGE_INVALID', 'اطلاعات تصویر معتبر نیست.', [
+                'mediaId' => ['فایل انتخاب‌شده یافت نشد.'],
+            ]);
+        }
     }
 
     /**

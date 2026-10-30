@@ -1107,6 +1107,9 @@ describe("a real reschedule resolving a real conflict", () => {
     expect(destination.ok, "the destination is certified free before the move").toBe(true);
 
     const storeBefore = await dayFingerprint(real);
+    const scheduledClassIdsBefore = (await real.list({ from: TODAY, to: TODAY, per_page: 200 })).data
+      .filter((row) => row.classId === intruderSlot.classId && row.status === "scheduled")
+      .map((row) => row.id);
 
     /* ---- the real view, the real drawer, the real form ---- */
 
@@ -1231,7 +1234,21 @@ describe("a real reschedule resolving a real conflict", () => {
     const scheduledForClass = (await real.list({ from: TODAY, to: TODAY, per_page: 200 })).data.filter(
       (row) => row.classId === intruderSlot.classId && row.status === "scheduled",
     );
-    expect(scheduledForClass.map((row) => row.id), "one move, not a duplicate").toEqual([replacement.id]);
+    // The demo seed may already contain a different session for this class on
+    // TODAY (its date range is fixed, while TODAY follows the wall clock). Keep
+    // every pre-existing scheduled lesson and add exactly this one replacement;
+    // a seed lesson is not a duplicate, while a second move-created row is.
+    const expectedScheduledClassIds = [
+      ...scheduledClassIdsBefore.filter((id) => id !== intruderId),
+      replacement.id,
+    ].sort();
+    expect(scheduledForClass.map((row) => row.id).sort(), "one move, not a duplicate; preserve other lessons").toEqual(
+      expectedScheduledClassIds,
+    );
+    expect(
+      scheduledForClass.filter((row) => row.rescheduledFromId === intruderId).map((row) => row.id),
+      "exactly one replacement is linked to the original",
+    ).toEqual([replacement.id]);
 
     /* ---- the conflict is gone: the same real query, asked again ---- */
 

@@ -7,6 +7,7 @@ use App\Models\Resource;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
@@ -219,7 +220,9 @@ class ResourceTest extends TestCase
 
         // The media table is served now, so the reference must be backed by a
         // real asset in this organization.
-        MediaAsset::factory()->create(['id' => 'md_demo_res1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['id' => 'md_demo_res1', 'organization_id' => $this->defaultOrganization()->id]);
+        Storage::disk('local')->put($asset->storage_path, 'resource-media-bytes');
 
         $response = $this->postJson(self::BASE, $this->payload([
             'teacherId' => $teacher->id,
@@ -274,6 +277,22 @@ class ResourceTest extends TestCase
         // Metadata only: the server holds no bytes, so the size is the
         // catalogue's unknown marker rather than an invented figure.
         $this->assertSame('نامشخص', $data['size']);
+    }
+
+    public function test_an_empty_media_id_clears_the_reference(): void
+    {
+        $this->actingAsRole('manager');
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
+        Storage::disk('local')->put($asset->storage_path, 'resource-media-bytes');
+        $id = $this->postJson(self::BASE, $this->payload(['mediaId' => $asset->id]))
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->patchJson(self::BASE.'/'.$id, ['mediaId' => ''])
+            ->assertOk()
+            ->assertJsonPath('data.mediaId', null);
+        $this->assertDatabaseHas('resources', ['id' => $id, 'media_id' => null]);
     }
 
     public function test_defaults_match_the_client_contract(): void
@@ -561,7 +580,9 @@ class ResourceTest extends TestCase
     {
         $this->actingAsRole('manager');
 
-        $id = $this->postJson(self::BASE, $this->payload(['mediaId' => 'md_demo_res1']))->json('data.id');
+        $id = $this->postJson(self::BASE, $this->payload())
+            ->assertCreated()
+            ->json('data.id');
 
         $this->getJson(self::BASE.'/'.$id.'/download')->assertStatus(404);
         $this->postJson('/api/v1/uploads', [])->assertStatus(404);

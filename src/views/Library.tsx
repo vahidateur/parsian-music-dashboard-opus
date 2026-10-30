@@ -57,7 +57,7 @@ import { AudioMessagePlayer } from "@/domains/library/AudioMessagePlayer";
 import { ResourcePreview, needsPreviewObjectUrl } from "@/domains/library/ResourcePreview";
 import { cn } from "@/utils/cn";
 import { ALLOWED_AUDIO_TYPES, ALLOWED_DOCUMENT_TYPES, ALLOWED_IMAGE_TYPES } from "@/domains/media/types";
-import { unavailableActions, fileStoredDetail } from "@/targets/targetCopy";
+import { unavailableActions, fileStoredDetail, shareLinkDetail } from "@/targets/targetCopy";
 
 const kindIcon: Record<ResourceKind, typeof FileMusic> = { sheet: FileMusic, audio: Music2, video: Video, doc: FileText };
 const kindTone: Record<ResourceKind, string> = {
@@ -683,7 +683,7 @@ export function LibraryView() {
         footer={
           <>
             <Button size="sm" variant="ghost" onClick={() => setOpen(null)}>بستن</Button>
-            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اشتراک‌گذاری نیازمند سرور است", detail: "پیوند اشتراک واقعی با سرور ساخته می‌شود؛ در دمو انجام نشد." })}>اشتراک با کلاس</Button>
+            <Button size="sm" variant="subtle" onClick={() => notify({ tone: "info", title: "اشتراک‌گذاری نیازمند سرور است", detail: shareLinkDetail })}>اشتراک با کلاس</Button>
             <Button size="sm" variant="primary" onClick={file.download} disabled={file.status !== "ready" || file.downloading}>
               <Download className="size-3.5" /> {file.downloading ? "در حال دریافت…" : "دریافت"}
             </Button>

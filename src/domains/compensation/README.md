@@ -378,8 +378,9 @@ half is computed on read — no read in this directory seeds, repairs or mutates
 - **The known environment-level test failures are unrelated to this domain**: `projectState.test.ts`
   asserts a branch name this sandbox does not use (recorded, with the owner's standing ruling and the
   measured "fails identically on the pre-CP4 tree" evidence, as §7 item 16 in
-  [PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md)), and **I19** is a date-dependent
-  failure of the scheduling-writes filter that reproduces before P1 and is recorded as §7 item 18.
+  [PROJECT_STATE.md](../../../docs/engineering/PROJECT_STATE.md)), and **I19** was a date-dependent
+  failure in the scheduling-writes assertion. It was resolved on 2026-10-28 by preserving unrelated
+  seeded same-day sessions while still asserting one linked replacement; see current [OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) and the live [SESSION_HANDOFF.md](../../../docs/engineering/SESSION_HANDOFF.md).
 
 Authoritative engineering state — this domain's shipped contract is registered in all four documents,
 and those records are the authority wherever this file and they disagree:
@@ -397,7 +398,7 @@ and those records are the authority wherever this file and they disagree:
   — D1, D8, D12, D14, D17.
 - [docs/engineering/OPEN_ITEMS.md](../../../docs/engineering/OPEN_ITEMS.md) → **I18** (the requirement
   this domain partly answers: **OPEN and only PARTLY LANDED** — group and class-wide compensation and
-  any notification are still unbuilt), **I20** (no UI and no server), I7 and I19.
+  any notification are still unbuilt), **I20** (no UI and no server), and I7. I19 is closed.
 - The scheduling domain's own [README](../scheduling/README.md), whose `create()` verb books the make-up
   and whose `sessionRoster()` is authoritative for the affected student.
 

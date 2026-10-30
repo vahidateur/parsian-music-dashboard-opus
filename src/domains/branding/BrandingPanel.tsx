@@ -5,7 +5,7 @@
  * persisted nothing. Every field here writes through `BrandingRepository`, and
  * the success toast only appears after the write resolves (§37).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button, Surface } from "@/components/ds/primitives";
 import { Field, Panel, inputCls } from "@/components/ds/patterns";
@@ -14,7 +14,7 @@ import { useApp } from "@/context/AppContext";
 import { useCan } from "@/domains/auth/AuthContext";
 import { getBrandingRepository, getOrganizationRepository } from "@/domains/registry";
 import { useIsDemoEnvironment } from "@/targets/environment";
-import { brandingUnavailableDescription } from "@/targets/targetCopy";
+import { brandingFileStorageNote, brandingUnavailableDescription } from "@/targets/targetCopy";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { useBranding } from "./useBranding";
 import { DEFAULT_BRANDING, PERSIAN_FONTS, type BrandingSettings } from "./types";
@@ -94,16 +94,26 @@ export function BrandingPanel() {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  // Adopt loaded/refreshed values, but never stomp on an in-progress edit.
-  useEffect(() => {
-    if (!saving) setDraft(toDraft(branding));
-    // `branding.updatedAt` changes on every persisted save.
-  }, [branding, saving]);
-
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(toDraft(branding)),
     [draft, branding],
   );
+
+  // The server copy the draft was last synced from. A refresh adopts the new
+  // server values only while the user has not diverged from that copy — so an
+  // unsaved edit survives background refetches, while a clean draft tracks
+  // legitimate server updates. (Comparing against the CURRENT server copy
+  // cannot work: before the first load the draft holds defaults, which already
+  // "differ", and the loaded values would never be adopted.)
+  const adopted = useRef(branding);
+  useEffect(() => {
+    if (!saving && JSON.stringify(draft) === JSON.stringify(toDraft(adopted.current))) {
+      setDraft(toDraft(branding));
+    }
+    adopted.current = branding;
+    // `draft` is read deliberately: a keystroke must not re-run a server-sync
+    // effect; only a new server copy (or the end of a save) may.
+  }, [branding, saving]);
 
   const set = <K extends keyof Draft>(key: K) => (value: Draft[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -310,10 +320,7 @@ export function BrandingPanel() {
       </Panel>
 
       <Surface className="border-warn-500/20 bg-warn-500/[0.05] p-4">
-        <p className="text-[11.5px] leading-relaxed text-ink-200">
-          بارگذاری لوگو و favicon به فضای ذخیره‌سازی فایل نیاز دارد. در نسخهٔ دمو فایل‌ها فقط در همین مرورگر نگهداری
-          می‌شوند و در پشتیبان قرار نمی‌گیرند؛ استقرار عملیاتی به object storage سمت سرور نیاز دارد.
-        </p>
+        <p className="text-[11.5px] leading-relaxed text-ink-200">{brandingFileStorageNote}</p>
       </Surface>
     </>
   );

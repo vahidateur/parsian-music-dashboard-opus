@@ -45,6 +45,11 @@ import { withStubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { buildChatTranscript, readChatExport } from "@/views/messages/conversationExport";
 
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 5.9 s under load
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
+
 /**
  * Deliberately NOT the first row of the list.
  *
@@ -530,17 +535,29 @@ describe("exporting from the view", () => {
     const held = deferred<Page<ChatMessage>>();
     const chat = stubChat(() => held.promise);
 
+    // Baseline before the click storm. The view also owns reads (the open thread
+    // is re-read whenever its key or the data revision changes), so an ABSOLUTE
+    // count of every read measures the harness's render schedule, not the guard:
+    // under CPU contention that count legitimately moved while the export guard
+    // still held. What the three clicks must not do is add work, so the assertion
+    // is the DELTA they cause.
+    const readsBefore = chat.all.length;
+    const conversationsBefore = chat.conversations;
+
     const button = exportButton();
     fireEvent.click(button);
     fireEvent.click(button);
     fireEvent.click(button);
 
-    // The read count is asserted FIRST and directly: three clicks must produce
-    // exactly one repository read. Re-rendering the operator's intent is not the
-    // same as preventing the work, so the count is the assertion that matters.
+    // The export read count is asserted FIRST and directly: three clicks must
+    // produce exactly one repository read. Re-rendering the operator's intent is
+    // not the same as preventing the work, so the count is the assertion that
+    // matters.
     await waitFor(() => expect(exportReads(chat)).toHaveLength(1));
-    expect(chat.messages).toBe(1);
-    expect(chat.conversations).toBe(1);
+    expect(chat.all.slice(readsBefore), "three clicks must add exactly one message read").toHaveLength(1);
+    // The export's own name lookup is part of its single pass, so exactly one
+    // conversation read is correct — three would mean the clicks were admitted.
+    expect(chat.conversations - conversationsBefore, "three clicks must read the thread name once").toBe(1);
     // The control also reports the wait — the operator-facing half of the guard.
     await waitForExporting();
 

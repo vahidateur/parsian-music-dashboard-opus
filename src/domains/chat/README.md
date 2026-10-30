@@ -11,9 +11,12 @@ now consumes, and what the domain does **not** claim.
 
 ## 1. The contract
 
-`repository.ts` — the interface; `types.ts` — the data; `demoRepository.ts` — the
-only registered implementation; `provider.ts` — delivery adapters; `useChat.ts` —
-the two read hooks.
+`repository.ts` — the interface; `types.ts` — the data; `demoRepository.ts` and
+`localRepository.ts` — demo/local implementations; `apiRepository.ts` — the
+client REST implementation; `provider.ts` — delivery adapters; `useChat.ts` —
+the two read hooks. `src/domains/registry.ts` selects the local implementation
+for the demo composition, while `src/domains/registry.client.ts` selects the
+API implementation.
 
 | Verb | Behaviour |
 |---|---|
@@ -140,26 +143,30 @@ domain's existing `downloadBlob` seam. Consequences worth knowing:
 
 | Fact | Consequence |
 |---|---|
-| Both collections live in the DemoStore (`chatConversations`, `chatMessages`) | Messages, thread renames, pins and archive state persist in the browser — `localStorage` behind `demoStore`, and the dataset is what backup/restore carries. **No message body is ever written to `localStorage` by the view**: the view only reaches the store through the repository |
-| Attachment bytes live in the **media** blob store (IndexedDB, or an in-memory store where IndexedDB is absent) | A thread's attachment survives a reload only in the browser that uploaded it. A backup carries metadata and **not** binaries, so a restored attachment legitimately reports its bytes as unavailable |
-| `registry.ts` resolves chat to `DemoChatRepository` in **both** modes | There is no chat API repository in this repository and no server endpoint behind one. A backend is required before a real academy shares a thread between two people |
-| The demo seed carries threads and messages | Those rows are seed data, not fixtures read by the view: the view reads the repositories, and every M6 suite asserts repository-backed behaviour (see `src/views/__tests__/messagesNoFixtures.test.ts`, which forbids the surface from touching `@/data/records`, `localStorage`, `demoStore` or a hardcoded transcript) |
+| The demo/local implementation stores `chatConversations` and `chatMessages` in the DemoStore | In demo mode, messages, renames, pins and archive state persist in browser storage and are included in the demo dataset/backup path. The view reaches them through the repository, not by writing directly to `localStorage` |
+| The client implementation uses `ApiChatRepository` and the Laravel Chat API | Conversations, participants, and messages persist server-side. The backend routes are in `backend/routes/api.php`; `ChatPolicy` checks `messages.read` / `messages.write`, and `ChatService` requires participant membership for each conversation read or write |
+| Attachment bytes use the Media domain | Demo mode uses the browser blob store; the client/API composition uses private server media storage. For API bytes, `MediaPolicy` requires `messages.read` and participation in the thread that references the asset. External-provider delivery remains unavailable |
+| The demo seed carries threads and messages | Those rows are seed data, not fixtures read by the view: each composition reads through its repository. `src/views/__tests__/messagesNoFixtures.test.ts` continues to forbid the view from touching `@/data/records`, `localStorage`, `demoStore` or a hardcoded transcript |
 
 ## 6. What this domain does not claim
 
-- **No server persistence.** Nothing here stores a message, an attachment or a
-  thread anywhere but this browser's demo environment.
-- **No delivery beyond `in_app`.** Telegram, Bale, SMS and email are contracts
-  awaiting a backend; they report `unavailable`.
-- **No attachment ownership or authorization enforcement.** The reference is
-  checked for existence only; production needs server-enforced per-object
-  authorization, signed and expiring URLs, content-type sniffing by the server and
-  virus scanning (`src/domains/media/types.ts`, `docs/production-handoff.md`).
+- **No helpdesk/ticket system.** A conversation is a chat thread with messages;
+  it is not a support ticket. There is no ticket lifecycle, queue, assignment,
+  SLA, or ticket API in v1. The separate ticket-scope decision remains open
+  (DECISIONS.md §19); do not relabel conversations as tickets.
+- **No external-provider delivery.** Telegram, Bale, SMS and email still report
+  `unavailable`; only `in_app` is delivered by persistence. The server records
+  the honest provider status and reason; it does not pretend to send externally.
+- **The client/API composition does enforce server authorization.** `ChatPolicy`
+  checks the existing messages permissions; `ChatService` rejects non-participants
+  with 404; `MediaPolicy` checks participation before serving chat attachment
+  bytes. Signed/expiring object URLs, content scanning, virus scanning, and
+  external provider integration remain future work.
 - **No attachment binary export**, no bulk/multi-conversation export, and no
   PDF/ZIP/CSV pipeline for chat.
 - **No provider integration, no notifications domain, no group moderation** — M6's
   declared out-of-scope items, unchanged.
-- **No browser QA.** Every claim in this file is pinned by jsdom tests plus `tsc`;
-  no human has opened `#/messages` in a browser, and the real file-picker and
-  file-download paths are among the things jsdom cannot exercise
-  (`docs/engineering/PROJECT_STATE.md` §5).
+- **Browser QA remains NOT VERIFIED** for the current session. jsdom tests and
+  typechecking do not exercise a real browser's file picker, network session, or
+  download path; see the current validation ledger in
+  `docs/engineering/SESSION_HANDOFF.md`.

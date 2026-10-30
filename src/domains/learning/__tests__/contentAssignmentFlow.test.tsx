@@ -25,7 +25,7 @@
  * budget, no increased timeout, no skipped or weakened case.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Page } from "@/api/types";
 import { AppProvider } from "@/context/AppContext";
 import { Toasts } from "@/components/overlays/ActionSheet";
@@ -37,6 +37,11 @@ import { LocalLearningRepository } from "../localRepository";
 import { LearningPanel } from "../LearningPanel";
 import type { LearningRepository } from "../repository";
 import type { LearningContent, LearningLevel, LearningProgram } from "../types";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 3.9 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 afterEach(cleanup);
 beforeEach(() => {

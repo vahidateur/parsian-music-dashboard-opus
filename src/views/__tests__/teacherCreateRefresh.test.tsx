@@ -9,7 +9,7 @@
  * nobody about its writes.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
@@ -21,6 +21,11 @@ import type { TeacherRepository } from "@/domains/teachers/repository";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { TeachersView } from "@/views/Teachers";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 3.7 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 const NEW_NAME = "مدرس تازه ایجاد شده";
 

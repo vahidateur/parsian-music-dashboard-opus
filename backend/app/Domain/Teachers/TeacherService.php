@@ -2,6 +2,7 @@
 
 namespace App\Domain\Teachers;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\AcademyClass;
 use App\Models\Teacher;
 use App\Models\User;
@@ -48,6 +49,7 @@ final class TeacherService
     public function __construct(
         private readonly TeacherPolicy $policy,
         private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
     ) {}
 
     /**
@@ -219,13 +221,25 @@ final class TeacherService
 
     private function save(Teacher $teacher): Teacher
     {
-        try {
-            $teacher->save();
-        } catch (UniqueConstraintViolationException) {
-            throw self::phoneTaken();
-        }
+        return DB::transaction(function () use ($teacher): Teacher {
+            if (
+                $teacher->isDirty('photo_media_id')
+                && $teacher->photo_media_id !== null
+                && ! $this->mediaReferenceLock->lockAvailable($teacher->photo_media_id)
+            ) {
+                throw ApiException::validation('TEACHER_INVALID', 'عکس انتخاب‌شده یافت نشد.', [
+                    'photoMediaId' => ['نامعتبر است'],
+                ]);
+            }
 
-        return $teacher->refresh();
+            try {
+                $teacher->save();
+            } catch (UniqueConstraintViolationException) {
+                throw self::phoneTaken();
+            }
+
+            return $teacher->refresh();
+        });
     }
 
     private static function phoneTaken(): ApiException

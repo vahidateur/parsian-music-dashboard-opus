@@ -2,6 +2,7 @@
 
 namespace App\Domain\Chat;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\ChatConversation;
 use App\Models\ChatMessage;
 use App\Models\ChatParticipant;
@@ -50,7 +51,10 @@ final class ChatService
 
     public const MAX_BODY_LENGTH = 4000;
 
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
+    ) {}
 
     /* ------------------------------------------------------------ threads */
 
@@ -183,6 +187,12 @@ final class ChatService
         $delivers = $provider === 'in_app';
 
         $message = DB::transaction(function () use ($actor, $conversation, $body, $provider, $mediaId, $now, $delivers): ChatMessage {
+            if ($mediaId !== null && ! $this->mediaReferenceLock->lockAvailable($mediaId)) {
+                throw ApiException::validation('MESSAGE_INVALID', 'فایل پیوست یافت نشد.', [
+                    'mediaId' => ['نامعتبر است'],
+                ]);
+            }
+
             $message = new ChatMessage;
             $message->id = 'cm_'.strtolower((string) Str::ulid());
             $message->organization_id = $this->tenant->organizationId();

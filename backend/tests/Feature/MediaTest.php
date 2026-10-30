@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\AcademyClass;
 use App\Models\Enrollment;
 use App\Models\Instrument;
@@ -9,9 +10,13 @@ use App\Models\MediaAsset;
 use App\Models\Resource;
 use App\Models\Student;
 use App\Models\Teacher;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -109,6 +114,156 @@ class MediaTest extends TestCase
 
         // The metadata row never holds the bytes.
         $this->assertStringNotContainsString($this->pngBytes(), json_encode($asset->toArray()));
+    }
+
+    public function test_a_false_storage_put_fails_the_upload_and_rolls_back_metadata_and_partial_bytes(): void
+    {
+        $this->actingAsRole('administrator');
+        $writtenPath = null;
+        $baseDisk = Storage::disk('local');
+        $disk = \Mockery::mock($baseDisk)->makePartial();
+        $disk->shouldReceive('put')->once()->andReturnUsing(function (string $path, string $bytes) use ($baseDisk, &$writtenPath): bool {
+            $writtenPath = $path;
+            $baseDisk->put($path, $bytes);
+
+            return false;
+        });
+        Storage::set('local', $disk);
+
+        $this->upload()
+            ->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_STORAGE_FAILED')
+            ->assertJsonPath('error.message', 'ذخیرهٔ فایل ناموفق بود.');
+
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertIsString($writtenPath);
+        Storage::disk('local')->assertMissing($writtenPath);
+    }
+
+    public function test_failed_upload_cleanup_is_logged_without_leaking_storage_details(): void
+    {
+        $this->actingAsRole('administrator');
+        $secret = '/private/storage/cleanup-adapter-secret';
+        $writtenPath = null;
+        $baseDisk = Storage::disk('local');
+        $disk = \Mockery::mock($baseDisk)->makePartial();
+        $disk->shouldReceive('put')->once()->andReturnUsing(function (string $path, string $bytes) use ($baseDisk, &$writtenPath): bool {
+            $writtenPath = $path;
+            $baseDisk->put($path, $bytes);
+
+            return false;
+        });
+        $disk->shouldReceive('delete')->once()->andThrow(new RuntimeException($secret));
+        Storage::set('local', $disk);
+        Log::spy();
+
+        $response = $this->upload();
+        $response->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_STORAGE_FAILED')
+            ->assertJsonPath('error.message', 'ذخیرهٔ فایل ناموفق بود.');
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertIsString($writtenPath);
+        // A storage orphan cannot be rolled back by SQL; it remains private and
+        // its cleanup failure is logged so an operator can recover it.
+        $baseDisk->assertExists($writtenPath);
+
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'upload_write'
+                && $context['failure'] === 'returned_false'
+                && $context['exception_class'] === null
+            ),
+        )->once();
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'upload_rollback_cleanup'
+                && $context['failure'] === 'exception'
+                && $context['exception_class'] === RuntimeException::class
+                && ! array_key_exists('exception_message', $context)
+            ),
+        )->once();
+    }
+
+    public function test_a_storage_put_exception_is_sanitized_and_rolls_back_metadata_and_partial_bytes(): void
+    {
+        $this->actingAsRole('administrator');
+        $secret = '/private/storage/adapter-secret';
+        $writtenPath = null;
+        $baseDisk = Storage::disk('local');
+        $disk = \Mockery::mock($baseDisk)->makePartial();
+        $disk->shouldReceive('put')->once()->andReturnUsing(function (string $path, string $bytes) use ($baseDisk, $secret, &$writtenPath): never {
+            // Model a driver that wrote a partial object before surfacing its failure.
+            $writtenPath = $path;
+            $baseDisk->put($path, $bytes);
+            throw new RuntimeException($secret);
+        });
+        Storage::set('local', $disk);
+        Log::spy();
+
+        $response = $this->upload();
+        $response->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_STORAGE_FAILED')
+            ->assertJsonPath('error.message', 'ذخیرهٔ فایل ناموفق بود.');
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertIsString($writtenPath);
+        Storage::disk('local')->assertMissing($writtenPath);
+
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'upload_write'
+                && $context['failure'] === 'exception'
+                && $context['exception_class'] === RuntimeException::class
+                && ! array_key_exists('exception_message', $context)
+            ),
+        )->once();
+    }
+
+    public function test_a_database_failure_after_a_successful_put_rolls_back_metadata_and_compensates_bytes(): void
+    {
+        $uploader = $this->actingAsRole('administrator');
+        $assetId = null;
+        $failRefresh = true;
+        DB::listen(static function (QueryExecuted $query) use (&$assetId, &$failRefresh): void {
+            $sql = strtolower($query->sql);
+            if ($assetId === null && str_contains($sql, 'insert') && str_contains($sql, 'media_assets')) {
+                $assetId = $query->bindings[0] ?? null;
+
+                return;
+            }
+            if (
+                $failRefresh
+                && $assetId !== null
+                && str_contains($sql, 'select')
+                && str_contains($sql, 'media_assets')
+                && in_array($assetId, $query->bindings, true)
+            ) {
+                $failRefresh = false;
+                throw new RuntimeException('database-refresh-internal-detail');
+            }
+        });
+        Log::spy();
+
+        $response = $this->upload();
+        $response->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_STORAGE_FAILED')
+            ->assertJsonPath('error.message', 'ذخیرهٔ فایل ناموفق بود.');
+        $this->assertStringNotContainsString('database-refresh-internal-detail', $response->getContent());
+        $this->assertIsString($assetId);
+        $this->assertDatabaseCount('media_assets', 0);
+        Storage::disk('local')->assertMissing('media/'.$uploader->organization_id.'/'.$assetId);
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'upload_commit'
+                && $context['failure'] === 'exception'
+                && $context['exception_class'] === RuntimeException::class
+            ),
+        )->once();
     }
 
     public function test_a_file_that_lies_about_its_type_is_refused(): void
@@ -441,6 +596,150 @@ class MediaTest extends TestCase
 
         $this->assertNull(MediaAsset::query()->whereKey($id)->first());
         Storage::disk('local')->assertMissing($asset->storage_path);
+    }
+
+    public function test_a_false_storage_delete_keeps_the_metadata_and_reports_failure(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_delete_false',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        $baseDisk = Storage::disk('local');
+        $baseDisk->put($asset->storage_path, $this->pngBytes());
+        $disk = \Mockery::mock($baseDisk)->makePartial();
+        $disk->shouldReceive('delete')->once()->andReturn(false);
+        Storage::set('local', $disk);
+        Log::spy();
+        $this->useToken($this->tokenFor($uploader));
+
+        $this->deleteJson(self::BASE.'/'.$asset->id)
+            ->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_DELETE_FAILED')
+            ->assertJsonPath('error.message', 'حذف فایل کامل نشد. دوباره تلاش کنید.');
+
+        $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
+        $baseDisk->assertExists($asset->storage_path);
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'delete_bytes'
+                && $context['failure'] === 'returned_false'
+            ),
+        )->once();
+    }
+
+    public function test_a_storage_delete_exception_is_sanitized_and_keeps_metadata(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_delete_exception',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        $secret = '/private/storage/delete-adapter-secret';
+        $baseDisk = Storage::disk('local');
+        $baseDisk->put($asset->storage_path, $this->pngBytes());
+        $disk = \Mockery::mock($baseDisk)->makePartial();
+        $disk->shouldReceive('delete')->once()->andThrow(new RuntimeException($secret));
+        Storage::set('local', $disk);
+        Log::spy();
+        $this->useToken($this->tokenFor($uploader));
+
+        $response = $this->deleteJson(self::BASE.'/'.$asset->id);
+        $response->assertStatus(500)
+            ->assertJsonPath('error.code', 'MEDIA_DELETE_FAILED')
+            ->assertJsonPath('error.message', 'حذف فایل کامل نشد. دوباره تلاش کنید.');
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
+        $baseDisk->assertExists($asset->storage_path);
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'delete_bytes'
+                && $context['failure'] === 'exception'
+                && $context['exception_class'] === RuntimeException::class
+                && ! array_key_exists('exception_message', $context)
+            ),
+        )->once();
+    }
+
+    public function test_reference_lock_refuses_missing_private_bytes_and_accepts_existing_bytes(): void
+    {
+        $uploader = $this->actingAsRole('staff');
+        $this->bindTenant($uploader->organization_id);
+        $asset = MediaAsset::factory()->create(['organization_id' => $uploader->organization_id]);
+        $guard = app(MediaReferenceLock::class);
+
+        $this->assertFalse(DB::transaction(fn (): bool => $guard->lockAvailable($asset->id)));
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+        $this->assertTrue(DB::transaction(fn (): bool => $guard->lockAvailable($asset->id)));
+    }
+
+    public function test_a_missing_file_keeps_the_existing_idempotent_delete_behavior(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_file_already_missing',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        $this->useToken($this->tokenFor($uploader));
+
+        Storage::disk('local')->assertMissing($asset->storage_path);
+        $this->deleteJson(self::BASE.'/'.$asset->id)->assertNoContent();
+        $this->assertNull(MediaAsset::query()->whereKey($asset->id)->first());
+    }
+
+    public function test_a_metadata_delete_failure_is_retryable_after_the_file_was_removed(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_metadata_delete_failure',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+        $this->useToken($this->tokenFor($uploader));
+        Log::spy();
+
+        $failDelete = true;
+        DB::listen(static function (QueryExecuted $query) use (&$failDelete, $asset): void {
+            $sql = strtolower($query->sql);
+            if (
+                $failDelete
+                && str_contains($sql, 'delete')
+                && str_contains($sql, 'media_assets')
+                && in_array($asset->id, $query->bindings, true)
+            ) {
+                $failDelete = false;
+                throw new RuntimeException('database-delete-internal-detail');
+            }
+        });
+
+        $response = $this->deleteJson(self::BASE.'/'.$asset->id);
+        $response->assertStatus(500)->assertJsonPath('error.code', 'MEDIA_DELETE_FAILED');
+        $this->assertStringNotContainsString('database-delete-internal-detail', $response->getContent());
+        $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
+        Storage::disk('local')->assertMissing($asset->storage_path);
+        $this->assertFalse(DB::transaction(
+            fn (): bool => app(MediaReferenceLock::class)->lockAvailable($asset->id),
+            1,
+        ), 'a writer must not attach metadata whose private bytes are missing');
+        Log::shouldHaveReceived('error')->with(
+            'Media operation failed.',
+            \Mockery::on(static fn (array $context): bool =>
+                $context['operation'] === 'delete_metadata'
+                && $context['failure'] === 'exception'
+                && $context['exception_class'] === RuntimeException::class
+            ),
+        )->once();
+
+        // The same delete is safe to retry: a missing object is an idempotent
+        // storage success, allowing the still-present metadata to be removed.
+        $this->deleteJson(self::BASE.'/'.$asset->id)->assertNoContent();
+        $this->assertNull(MediaAsset::query()->whereKey($asset->id)->first());
     }
 
     /* ------------------------------------------------------------------ */

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { isApiError } from "@/api/errors";
-import { getApiClient, resetRegistry } from "@/domains/registryCore";
+import { getApiClient, resetRegistry, setAuthToken, setSessionExpiredHandler } from "@/domains/registryCore";
 import { API_SESSION_STORAGE_KEY, createTokenStore, defaultTokenStore } from "@/domains/auth/tokenStore";
 import { RIGHT_PASSWORD, createFakeServer, fakeStorage, pageLoad, type FakeStorage } from "./fakeAuthServer";
 
@@ -280,5 +280,72 @@ describe("registry — a rejected token is not replayed after the next reload", 
     );
     await getApiClient().get("students").catch(() => undefined);
     expect(defaultTokenStore.read()).toBeNull();
+  });
+  it("a 401 for the CURRENT token still ends the session (token and stored copy cleared)", async () => {
+    const handler = vi.fn();
+    setSessionExpiredHandler(handler);
+    setAuthToken("current");
+    defaultTokenStore.write({ token: "current", expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+    vi.stubGlobal(
+      "fetch",
+      async () => new Response(JSON.stringify({ error: { code: "AUTH_UNAUTHENTICATED", message: "x" } }), { status: 401 }),
+    );
+    await getApiClient().get("students").catch(() => undefined);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(defaultTokenStore.read()).toBeNull();
+    // The in-memory token is gone too: the next request carries no credential.
+    const seen: Array<string | null> = [];
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
+      seen.push(new Headers(init?.headers).get("authorization"));
+      return new Response("{}", { status: 200 });
+    });
+    await getApiClient().get("students");
+    expect(seen).toEqual([null]);
+  });
+  it("a late 401 for a request sent WITHOUT credentials does not wipe the restored session", async () => {
+    // The reload race: boot sends a tokenless read (branding) in parallel with
+    // `/auth/me`. `/auth/me` wins and installs the token; the tokenless read's
+    // 401 then arrives. It answers a credential nobody holds any more.
+    const handler = vi.fn();
+    setSessionExpiredHandler(handler);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    vi.stubGlobal("fetch", async () => {
+      await gate;
+      return new Response(JSON.stringify({ error: { code: "AUTH_UNAUTHENTICATED", message: "x" } }), { status: 401 });
+    });
+    const tokenless = getApiClient().get("branding").catch(() => undefined); // sent while no token is held
+    setAuthToken("restored");
+    defaultTokenStore.write({ token: "restored", expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+    release();
+    await tokenless;
+    expect(handler).not.toHaveBeenCalled();
+    expect(defaultTokenStore.read()?.token).toBe("restored");
+    const seen: Array<string | null> = [];
+    vi.stubGlobal("fetch", async (_url: string, init?: RequestInit) => {
+      seen.push(new Headers(init?.headers).get("authorization"));
+      return new Response("{}", { status: 200 });
+    });
+    await getApiClient().get("students");
+    expect(seen).toEqual(["Bearer restored"]);
+  });
+  it("a late 401 for a REPLACED token does not wipe the newer one", async () => {
+    const handler = vi.fn();
+    setSessionExpiredHandler(handler);
+    setAuthToken("old");
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    vi.stubGlobal("fetch", async () => {
+      await gate;
+      return new Response(JSON.stringify({ error: { code: "AUTH_UNAUTHENTICATED", message: "x" } }), { status: 401 });
+    });
+    const inFlight = getApiClient().get("students").catch(() => undefined); // carries "Bearer old"
+    await Promise.resolve();
+    setAuthToken("new");
+    defaultTokenStore.write({ token: "new", expiresAt: new Date(Date.now() + 3_600_000).toISOString() });
+    release();
+    await inFlight;
+    expect(handler).not.toHaveBeenCalled();
+    expect(defaultTokenStore.read()?.token).toBe("new");
   });
 });

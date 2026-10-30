@@ -2,10 +2,10 @@
 
 namespace App\Domain\Instruments;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Domain\Media\MediaReferences;
 use App\Models\AcademyClass;
 use App\Models\Instrument;
-use App\Models\MediaAsset;
 use App\Models\Piece;
 use App\Models\Resource;
 use App\Models\Student;
@@ -39,7 +39,10 @@ use Illuminate\Support\Str;
  */
 final class InstrumentService
 {
-    public function __construct(private readonly TenantContext $tenant) {}
+    public function __construct(
+        private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters  search, activeOnly
@@ -94,13 +97,16 @@ final class InstrumentService
         $instrument->active = (bool) ($input['active'] ?? true);
         $instrument->sort_order = (int) ($input['sortOrder'] ?? $this->nextSortOrder());
 
-        try {
-            $instrument->save();
-        } catch (UniqueConstraintViolationException) {
-            throw ApiException::conflict('INSTRUMENT_SLUG_TAKEN', 'سازی با این شناسهٔ فنی وجود دارد.', ['slug' => ['تکراری است']]);
-        }
+        return DB::transaction(function () use ($instrument, $imageId): Instrument {
+            $this->lockImageReference($imageId);
+            try {
+                $instrument->save();
+            } catch (UniqueConstraintViolationException) {
+                throw ApiException::conflict('INSTRUMENT_SLUG_TAKEN', 'سازی با این شناسهٔ فنی وجود دارد.', ['slug' => ['تکراری است']]);
+            }
 
-        return $instrument->refresh();
+            return $instrument->refresh();
+        });
     }
 
     /** @param  array<string, mixed>  $input  validated camelCase wire input */
@@ -132,13 +138,19 @@ final class InstrumentService
             $instrument->sort_order = (int) $input['sortOrder'];
         }
 
-        try {
-            $instrument->save();
-        } catch (UniqueConstraintViolationException) {
-            throw ApiException::conflict('INSTRUMENT_NAME_TAKEN', 'سازی با این نام وجود دارد.', ['name' => ['تکراری است']]);
-        }
+        return DB::transaction(function () use ($instrument, $input): Instrument {
+            if (array_key_exists('imageId', $input)) {
+                $this->lockImageReference($instrument->image_id);
+            }
 
-        return $instrument->refresh();
+            try {
+                $instrument->save();
+            } catch (UniqueConstraintViolationException) {
+                throw ApiException::conflict('INSTRUMENT_NAME_TAKEN', 'سازی با این نام وجود دارد.', ['name' => ['تکراری است']]);
+            }
+
+            return $instrument->refresh();
+        });
     }
 
     public function setActive(Instrument $instrument, bool $active): Instrument
@@ -234,6 +246,15 @@ final class InstrumentService
         return null;
     }
 
+    private function lockImageReference(?string $mediaId): void
+    {
+        if ($mediaId !== null && ! $this->mediaReferenceLock->lockAvailable($mediaId)) {
+            throw ApiException::validation('INSTRUMENT_INVALID', 'اطلاعات ساز معتبر نیست.', [
+                'imageId' => ['فایل انتخاب‌شده یافت نشد.'],
+            ]);
+        }
+    }
+
     private function nextSortOrder(): int
     {
         return (int) Instrument::query()->max('sort_order') + 1;
@@ -256,7 +277,7 @@ final class InstrumentService
             ]);
         }
         $id = trim($value);
-        if (! MediaAsset::query()->whereKey($id)->exists()) {
+        if (! $this->mediaReferenceLock->isAvailable($id)) {
             throw ApiException::validation('INSTRUMENT_INVALID', 'اطلاعات ساز معتبر نیست.', [
                 'imageId' => ['فایل انتخاب‌شده یافت نشد.'],
             ]);

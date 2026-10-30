@@ -2,6 +2,7 @@
 
 namespace App\Domain\Students;
 
+use App\Domain\Media\MediaReferenceLock;
 use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\User;
@@ -71,6 +72,7 @@ final class StudentService
     public function __construct(
         private readonly StudentAccessPolicy $policy,
         private readonly TenantContext $tenant,
+        private readonly MediaReferenceLock $mediaReferenceLock,
     ) {}
 
     /** @return list<string> */
@@ -225,13 +227,28 @@ final class StudentService
 
     private function save(Student $student): Student
     {
-        try {
-            $student->save();
-        } catch (UniqueConstraintViolationException) {
-            throw self::nationalIdTaken();
-        }
+        return DB::transaction(function () use ($student): Student {
+            $deferred = is_array($student->deferred) ? $student->deferred : [];
+            $currentPhotoId = $deferred['photoMediaId'] ?? null;
+            if (
+                is_string($currentPhotoId)
+                && $currentPhotoId !== ''
+                && $student->isDirty('deferred')
+                && ! $this->mediaReferenceLock->lockAvailable($currentPhotoId)
+            ) {
+                throw ApiException::validation('STUDENT_INVALID', 'عکس انتخاب‌شده یافت نشد.', [
+                    'photoMediaId' => ['نامعتبر است'],
+                ]);
+            }
 
-        return $student->refresh();
+            try {
+                $student->save();
+            } catch (UniqueConstraintViolationException) {
+                throw self::nationalIdTaken();
+            }
+
+            return $student->refresh();
+        });
     }
 
     private static function nationalIdTaken(): ApiException

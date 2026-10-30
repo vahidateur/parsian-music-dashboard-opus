@@ -9,6 +9,7 @@ use App\Models\LearningProgram;
 use App\Models\MediaAsset;
 use App\Models\Student;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -333,7 +334,9 @@ class LearningTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'CONTENT_INVALID');
 
-        MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $actor->organization_id]);
+        Storage::fake('local');
+        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $actor->organization_id]);
+        Storage::disk('local')->put($asset->storage_path, 'learning-media-bytes');
         $this->patchJson(self::BASE."/content/{$created['id']}", ['mediaId' => 'md_1'])
             ->assertOk()
             ->assertJsonPath('data.mediaId', 'md_1');
