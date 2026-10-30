@@ -13,7 +13,7 @@
  * - Branding behavior intact
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { SettingsView } from "@/views/Settings";
 import {
@@ -26,6 +26,11 @@ import { ApiError } from "@/api/errors";
 import { withStubs, type Stubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { demoStore } from "@/services/demoStore";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 4.7 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 afterEach(cleanup);
 beforeEach(() => {

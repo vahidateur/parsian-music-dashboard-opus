@@ -41,7 +41,7 @@
  * every wait is on data, on a toast, or on a named control.
  */
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/api/errors";
 import { Toasts } from "@/components/overlays/ActionSheet";
 import { AppProvider } from "@/context/AppContext";
@@ -68,6 +68,11 @@ import { demoStore, memoryStorage } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs } from "@/test/repositoryStubs";
 import { CompensationView } from "@/views/Compensation";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 3.2 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 /* ------------------------------------------------------------------ */
 /* Identities and dates — all real, all derived                        */

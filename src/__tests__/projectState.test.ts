@@ -54,22 +54,44 @@ const gitAvailable = (() => {
   }
 })();
 
+/**
+ * Memoized Git probes.
+ *
+ * The reachability gate asks the same questions hundreds of times: the four required
+ * documents quote 654 full SHAs between them, but only 102 of those are unique, and
+ * `HEAD` is re-derived for every assertion. Each unmemoized probe spawns a `git`
+ * process (~16 ms), so the naive version spent 25–32 s inside a 30 s timeout at
+ * ordinary load. Caching keeps every assertion and every message identical while
+ * asking each distinct question once.
+ */
+const commitCache = new Map<string, boolean>();
+const ancestorCache = new Map<string, boolean>();
+
 function isAncestor(older: string, newer: string): boolean {
+  const key = `${older}>${newer}`;
+  const hit = ancestorCache.get(key);
+  if (hit !== undefined) return hit;
+  let result = true;
   try {
     git("merge-base", "--is-ancestor", older, newer);
-    return true;
   } catch {
-    return false;
+    result = false;
   }
+  ancestorCache.set(key, result);
+  return result;
 }
 
 function isCommit(sha: string): boolean {
+  const hit = commitCache.get(sha);
+  if (hit !== undefined) return hit;
+  let result = true;
   try {
     git("cat-file", "-e", `${sha}^{commit}`);
-    return true;
   } catch {
-    return false;
+    result = false;
   }
+  commitCache.set(sha, result);
+  return result;
 }
 
 /**
@@ -337,8 +359,13 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
     // §2 records the durable branch this work lives on. The branch a sandbox happens to have
     // checked out is per-session and cannot be the standard the document is held to — comparing
     // the two failed by construction in every session sandbox (PROJECT_STATE.md §7 item 16).
-    // The durable checks: the branch exists on the remote (as a fetched remote-tracking ref), and
-    // the local ref of the same name, when it exists, is level with the remote. (DECISIONS.md §21.)
+    //
+    // What this test actually polices is *divergence*: the local ref and its remote-tracking
+    // counterpart must lie on one line of history. Being ahead by unpushed commits is a normal
+    // working state (governance forbids pushing without the owner's word), so "not equal" is NOT
+    // evidence of drift — only "neither is an ancestor of the other" is. The earlier form
+    // compared the two tips for equality and therefore went red for every legitimate unpushed
+    // commit, teaching readers that a red suite is normal. (DECISIONS.md §21.)
     const name = recordedValue(doc("PROJECT_STATE.md"), "Working branch");
     const remote = refTip(`refs/remotes/origin/${name}`);
     expect(
@@ -346,9 +373,14 @@ describe.skipIf(!gitAvailable)("the recorded checkpoints are real Git objects", 
       `PROJECT_STATE.md records the working branch "${name}", but no origin/${name} ref exists — fetch the remote before trusting the record`,
     ).not.toBeNull();
     const local = refTip(`refs/heads/${name}`);
-    if (local) {
-      expect(local, `local ${name} has drifted from origin/${name}`).toBe(remote);
-    }
+    if (!local || !remote) return;
+    if (local === remote) return;
+    const localAhead = isAncestor(remote, local);
+    const localBehind = isAncestor(local, remote);
+    expect(
+      localAhead || localBehind,
+      `local ${name} (${local}) has diverged from origin/${name} (${remote}): neither tip is an ancestor of the other`,
+    ).toBe(true);
   });
 
   it("every SHA quoted in the phase ledger is a real commit", () => {

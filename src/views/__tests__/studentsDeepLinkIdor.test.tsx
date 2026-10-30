@@ -14,6 +14,11 @@ import type { Enrollment } from "@/domains/enrollments/types";
 import type { Teacher } from "@/domains/teachers/types";
 import { ApiError } from "@/api/errors";
 
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 2.9 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
+
 function student(over: Partial<Student> & { id: string; name: string }): Student {
   return {
     nationalId: "2000000002",

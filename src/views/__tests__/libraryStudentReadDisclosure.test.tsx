@@ -18,7 +18,7 @@
  * empty result still reads as empty when the read really succeeds.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { ApiError } from "@/api/errors";
@@ -27,6 +27,11 @@ import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs } from "@/test/repositoryStubs";
 import type { Page } from "@/api/types";
 import type { Student } from "@/domains/students/types";
+
+// Measured 2026-10-30 at load ~3.2: the slowest case in this file takes 3.0 s
+// (jsdom render cost, not a race — the case count and assertions are unchanged).
+// The 5 s default sits too close to the real runtime under contention.
+vi.setConfig({ testTimeout: 60_000 });
 
 const NETWORK_MESSAGE = "اتصال به سرور برقرار نشد";
 
