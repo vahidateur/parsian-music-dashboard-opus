@@ -2,8 +2,10 @@
 
 **Status:** ACCEPTED governance (OCG-08) · **Recorded:** 2026-10-30
 **Purpose:** traceability between legacy references in the originating governance brief and
-verified repository artifacts. Evidence gathered 2026-10-30 on branch
-`arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c`.
+verified repository artifacts. Evidence was gathered 2026-10-30 on branch
+`arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c` — a **historical snapshot** (that
+work has since merged). Branch names and SHAs here describe the state at record time, not
+current project state.
 
 ## Mapping table
 
@@ -14,7 +16,7 @@ verified repository artifacts. Evidence gathered 2026-10-30 on branch
 | F1–F6 completion documentation | No verified equivalent | Repository + ref-wide search; only the historical frontend-completion F0/F1 phase text in `docs/frontend-completion/12-decision-register.md` exists | Omit from active constraints; recorded here for traceability only; never claimed as completed or verified |
 | Previous branch reference (`arena/frontend-completion-spec`) | Current verified branch `arena/01a10b63-parsian-music-dashboard-opus` | `git branch --show-current` | Replace; session-specific, not a permanent repository-wide policy |
 
-## WP_002 → Current protected WIP (four verified uncommitted items)
+## WP_002 → Protected WIP (historical snapshot at record time)
 
 | Path | Type |
 |---|---|
@@ -23,8 +25,9 @@ verified repository artifacts. Evidence gathered 2026-10-30 on branch
 | `src/views/__tests__/deepLinkPagination.test.tsx` | Modified (tracked) |
 | `src/domains/branding/__tests__/brandingDraftPreservation.test.tsx` | Untracked (new) |
 
-(`?? .kiro/skills/` is additionally present as untracked tooling content; it is not part of
-the four protected WIP items and was not touched.)
+Local agent tooling was additionally present as untracked content at record time; it was not
+part of the four protected WIP items and was not touched. Those items have since been merged;
+this list is retained for traceability only.
 
 Protection requirements are **not** assumed identical across the four items; each must be
 preserved as-is — staged, modified, or overwritten only with explicit human approval
@@ -50,9 +53,10 @@ This mapping omits F1–F6 from active project constraints and makes no completi
 
 ## Branch constraint
 
-Current branch verified: `arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c`. The
-"preserve the currently authorized branch" constraint is preserved as a **session-specific**
-restriction and must not be interpreted as a permanent repository-wide branch policy.
+Branch verified at record time: `arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c`
+(historical). The "preserve the currently authorized branch" constraint is preserved as a
+**session-specific** restriction and must not be interpreted as a permanent repository-wide
+branch policy.
 
 ## Related
 

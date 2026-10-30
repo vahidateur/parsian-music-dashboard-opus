@@ -1,7 +1,9 @@
 # OCG Enforcement — Phase 1 Report (Privacy & Protected WIP)
 
-**Recorded:** 2026-10-30 · **Branch:** `arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c`
-(unchanged) · **OpenCode:** v2.1.2 · **Mode:** controlled remediation, configuration-only.
+**Recorded:** 2026-10-30 · **Historical snapshot:** branch `arena/01a10b63-parsian-music-dashboard-opus`
+@ `09c8e2c` at the time of the phase (that work has since merged; the branch label and SHA are
+historical, not current project state). · **OpenCode:** v2.1.2 · **Mode:** controlled
+remediation, configuration-only.
 **Registers:** governance decisions OCG-03 (privacy), OCG-06 (approval gates), OCG-07
 (configuration policy) in [GOVERNANCE_DECISION_REGISTER.md](GOVERNANCE_DECISION_REGISTER.md).
 
@@ -133,25 +135,25 @@ content was read, printed, or copied at any point.
 ## 6. Remaining bypass paths (explicit — not complete isolation)
 
 1. **`bash` is the primary bypass.** Permission `read`/`edit` rules gate the dedicated tools;
-   shell commands are matched as **command strings**, not by target path. `cat backend/.env`,
-   `sed -i` on a WIP file, `git checkout -- .`, `git commit --amend`, `git branch -D`, `git
-   tag`, `git stash`, `--no-verify`, `git config` — all runnable today. The only shell rules
-   are the 8 pre-existing git ones (Phase E forbade adding more). **No secret isolation and no
-   immutable-WIP claim is made.**
+   shell commands are matched as **command strings**, not by target path, so an equivalent
+   shell command is not covered by those rules. Specific commands are deliberately not
+   enumerated here. The only shell rules are the 8 pre-existing git ones (Phase E forbade
+   adding more). **No secret isolation and no immutable-WIP claim is made.**
 2. **`--auto` mode auto-approves `ask` rules** (governance edits, `external_directory`,
    default `.env` asks elsewhere). Explicit `deny` is unaffected (proven by T1/T2 under
    `--auto`), but the governance gate and the `~/*` external gates are approval-strength only
    in normal (non-auto) sessions.
 3. **External paths (`~/.aws/*`, `~/.config/opencode/*.json`) are double-gated** by the
    default `external_directory: ask` first; their read-deny is defence-in-depth but its live
-   behaviour is UNVERIFIED (§9). The OpenCode **auth store itself lives under
-   `~/.local/share/opencode/`** (verified via `opencode debug paths`) and has **no** read-deny
-   rule — deliberate: adding it was outside the approved rule set; flagged for Phase 2.
+   behaviour is UNVERIFIED (§9). The OpenCode auth store (outside the workspace) has **no**
+   read-deny rule — deliberate: adding it was outside the approved rule set; flagged for
+   Phase 2.
 4. **Indirect modification paths**: formatters (`formatter` config), LSP actions, plugins
    (oh-my-opencode bundles MCP/skill surfaces), and subagents (`routine` has its own
    `edit: deny` but inherits global rules otherwise). Not covered by edit rules.
-5. **`.env` variants not matching the patterns** (e.g. `env`, `.envrc`, `secrets.yml`) are
-   unprotected — patterns were kept narrow per the "no broad denies" requirement.
+5. **`.env`-like files whose names fall outside the patterns** are unprotected — patterns
+   were kept narrow per the "no broad denies" requirement; the exact gaps are not enumerated
+   here.
 6. **Config self-modification**: `opencode.json` itself is editable by any agent (an `ask`
    rule on it was **not** in the approved scope; noted for Phase 2 — a governance-gate
    candidate).
@@ -177,11 +179,11 @@ No git permission behaviour changed this phase (per Phase E scope).
 
 | Question | Finding (evidence) |
 |---|---|
-| Installation/activation | npm package `opencode-supermemory@2.0.17`, listed in `opencode.json` `plugins`, cache-resolved at `~/.cache/opencode/npm/…`; `opencode plugin list` shows `supermemory 2.0.17` as **loaded** |
+| Installation/activation | npm package `opencode-supermemory@2.0.17`, listed in `opencode.json` `plugins`, resolved from the local plugin cache; `opencode plugin list` shows `supermemory 2.0.17` as **loaded** |
 | What it stores | Conversation capture on `session.idle`: assistant turns/transcripts (`message.content`, `transcript` in `dist/index.js`), plus memory scopes (project-config, architecture, error-solution, preference, learned-pattern, conversation) |
 | External transmission | Yes — `https://api.supermemory.ai` (the only external endpoint in the package). Content wrapped in `<private>…</private>` is redacted per its README |
 | Disable persistence | No in-plugin kill switch found; the **activation gate is the API key**: `dist/index.js` logs "Plugin disabled - SUPERMEMORY_API_KEY not set" and capture throws without it |
-| Is it active here? | **No.** `SUPERMEMORY_API_KEY` is not in the environment, not in `~/.config/opencode/cli.json`, not in the project config → **inert** (zero data leaves this machine via this plugin today) |
+| Is it active here? | **No.** `SUPERMEMORY_API_KEY` is not in the environment, not in the local OpenCode configuration, not in the project config → **inert** (zero data leaves this machine via this plugin today) |
 | Retention / deletion | Plugin-side `forget` tool deletes a memory by id; flush on session delete/shutdown. **Server-side retention policy: NOT documented in the plugin; provider policy not verified this session** |
 | ZDR documented/verifiable? | **No — UNVERIFIED** |
 
@@ -216,8 +218,9 @@ credentials were exposed during this investigation.
 
 ## 11. Safety confirmation
 
-Branch `arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c` unchanged. No commit, push,
-merge, rebase, branch switch, or staging. The four protected WIP files are byte-identical
+At the time of this phase, branch `arena/01a10b63-parsian-music-dashboard-opus` @ `09c8e2c`
+was unchanged (historical: that work has since merged). No commit, push, merge, rebase, branch
+switch, or staging. The four protected WIP files are byte-identical
 (sha256-verified before/after T5; the T6 governance probe fully reverted to its original
 hash). No application source, no Laravel code, no model-routing, no new agents, no secrets
 disclosed. Files changed this phase: `opencode.json` (17 appended rules),
