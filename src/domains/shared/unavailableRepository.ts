@@ -12,6 +12,7 @@
  * mistake "not built yet" for "the server is down".
  */
 import { ApiError } from "@/api/errors";
+import { unavailableCapabilityDescription } from "@/targets/targetCopy";
 
 export const DOMAIN_UNAVAILABLE = "DOMAIN_UNAVAILABLE";
 
@@ -19,7 +20,7 @@ export function domainUnavailableError(domainId: string, label: string): ApiErro
   return new ApiError({
     kind: "unknown",
     code: DOMAIN_UNAVAILABLE,
-    message: `بخش «${label}» هنوز به سامانهٔ سرور متصل نیست و در این نسخه داده‌ای نمی‌خواند (نام دامنه: ${domainId}).`,
+    message: `بخش «${label}» در دسترس نیست. ${unavailableCapabilityDescription} (نام دامنه: ${domainId}).`,
   });
 }
 
