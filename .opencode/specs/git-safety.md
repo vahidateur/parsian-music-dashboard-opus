@@ -40,6 +40,22 @@ Enforcement has **three distinct layers** — never describe one as another:
 6. **Never modify git config** and never skip hooks (`--no-verify`). **INSTRUCTION-ONLY** —
    no tool-level rule exists for either.
 
+## Local setup after clone (why the tool layer may be absent)
+
+The published repository ships **no** `opencode.json` and no `skills-lock.json`: both are
+local-only and ignored. A fresh clone therefore has **instruction-only** guidance and **no**
+tool-level enforcement until the contributor adds their own untracked configuration.
+
+- Create your own `opencode.json` in the repository root. It is per-developer, ignored, and
+  never committed — for example a `deny` on `git push*`, `ask` on
+  `git commit*` / `git add*` / `git merge*`, and any read/edit rules you want for your
+  workspace.
+- `skills-lock.json` is written by local skill installation and is equally local-only.
+- The TOOL-ENFORCED statements below hold **only while that configuration exists and is
+  loaded**; confirm against the effective configuration before claiming protection.
+- Whatever the configuration says, the **HUMAN APPROVAL** rules above are unchanged.
+- Never place credentials, personal plugin lists or machine-specific paths in tracked files.
+
 ## Reading state safely
 
 ```bash
