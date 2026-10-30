@@ -18,20 +18,17 @@ current project state.
 
 ## WP_002 → Protected WIP (historical snapshot at record time)
 
-| Path | Type |
-|---|---|
-| `backend/tests/Feature/MediaTest.php` | Modified (tracked) |
-| `src/domains/branding/BrandingPanel.tsx` | Modified (tracked) |
-| `src/views/__tests__/deepLinkPagination.test.tsx` | Modified (tracked) |
-| `src/domains/branding/__tests__/brandingDraftPreservation.test.tsx` | Untracked (new) |
+Four uncommitted work items were protected at record time: a backend feature test, a branding
+panel component, a pagination test and a branding regression test. Their exact paths are held
+in the internal register rather than reproduced in this public copy.
 
 Local agent tooling was additionally present as untracked content at record time; it was not
-part of the four protected WIP items and was not touched. Those items have since been merged;
-this list is retained for traceability only.
+part of the protected items and was not touched.
 
-Protection requirements are **not** assumed identical across the four items; each must be
-preserved as-is — staged, modified, or overwritten only with explicit human approval
-(OCG-06). None of these items was staged, modified, or discarded while recording this policy.
+Protection requirements were **not** assumed identical across the four items; each was to be
+preserved as-is — staged, modified, or overwritten only with explicit human approval (OCG-06).
+None of these items was staged, modified, or discarded while recording this policy. Those
+items have since been merged; this section is retained for traceability only.
 
 ## Task 4.3 → Verified scheduling/recurrence status
 

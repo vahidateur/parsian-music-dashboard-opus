@@ -22,111 +22,75 @@ isolation — `bash` remains an open bypass for both secrets and WIP (§6).
 
 | # | Risk | Class |
 |---|---|---|
-| R1 | Any agent could read `backend/.env`, root `.env`, keys, `~/.aws/*`, `~/.config/opencode/*.json` into model context (default was `ask`, bypassable with a blanket approval) | High |
-| R2 | The four protected WIP files had **no** `edit` protection of any kind | High |
-| R3 | `docs/governance/**` modifiable without approval | Medium |
-| R4 | `.opencode/specs/git-safety.md` claimed `checkout -- .` and amend were "denied at the tool level" — false assurance in agent-instructed context | High (documentation defect) |
-| R5 | `opencode-supermemory` retention posture unverified | Medium |
+| R1 | Any agent could read environment files, key material and locally stored provider credentials into model context (default `ask`, bypassable with a blanket approval) | High |
+| R2 | The protected work items had **no** `edit` protection of any kind | High |
+| R3 | The governance register was modifiable without approval | Medium |
+| R4 | The agent git-safety specification claimed a set of git operations were "denied at the tool level" — false assurance in agent-instructed context | High (documentation defect) |
+| R5 | A conversation-capture plugin's retention posture was unverified | Medium |
 
-## 3. Applied changes — exact rules
+## 3. Applied changes — categorised rules
 
-`opencode.json`: **17 rules appended** to the existing `permissions` array; the 8 pre-existing
-shell rules are byte-identical; plugins, schema line and everything else untouched.
+Seventeen permission rules were appended to the existing agent configuration; the eight
+pre-existing shell rules are byte-identical, and plugins, schema line and everything else were
+untouched. They are described here by effect, not reproduced verbatim (exact patterns live
+with the configuration itself):
 
-```json
-{ "action": "read", "resource": ".env", "effect": "deny" },
-{ "action": "read", "resource": ".env.*", "effect": "deny" },
-{ "action": "read", "resource": "backend/.env", "effect": "deny" },
-{ "action": "read", "resource": "backend/.env.*", "effect": "deny" },
-{ "action": "read", "resource": "*.env", "effect": "deny" },
-{ "action": "read", "resource": "*.env.*", "effect": "deny" },
-{ "action": "read", "resource": "**/*.key", "effect": "deny" },
-{ "action": "read", "resource": "**/*.pem", "effect": "deny" },
-{ "action": "read", "resource": "~/.aws/*", "effect": "deny" },
-{ "action": "read", "resource": "~/.config/opencode/cli.json", "effect": "deny" },
-{ "action": "read", "resource": "~/.config/opencode/service.json", "effect": "deny" },
-{ "action": "edit", "resource": "backend/tests/Feature/MediaTest.php", "effect": "deny" },
-{ "action": "edit", "resource": "src/domains/branding/BrandingPanel.tsx", "effect": "deny" },
-{ "action": "edit", "resource": "src/views/__tests__/deepLinkPagination.test.tsx", "effect": "deny" },
-{ "action": "edit", "resource": "src/domains/branding/__tests__/brandingDraftPreservation.test.tsx", "effect": "deny" },
-{ "action": "edit", "resource": "docs/governance/**", "effect": "ask" },
-{ "action": "read", "resource": "*.env.example", "effect": "allow" }
-```
+| Category | Effect |
+|---|---|
+| Environment files at any depth, except the public template | read **deny** |
+| Key material (private keys / certificates, any depth) | read **deny** |
+| Credential/config stores outside the workspace | read **deny** |
+| The then-currently protected work items | edit **deny** |
+| The governance register | edit **ask** |
+| The public environment template | read **allow**, re-stated last |
 
-Plus `.opencode/specs/git-safety.md` §Standing rules rewritten to label every rule
-TOOL-ENFORCED / INSTRUCTION-ONLY / HUMAN APPROVAL (Phase E detail in §7).
+The agent git-safety specification's "Standing rules" section was rewritten to label every
+rule TOOL-ENFORCED / INSTRUCTION-ONLY / HUMAN APPROVAL (Phase E detail in §7).
 
-### Pattern semantics — verified against the installed binary, not assumed
+### Rule semantics — verified against the installed agent runtime, not assumed
 
-Traced in `~/.opencode/bin/opencode` (v2.1.2) before writing any rule:
+- **Wildcards cross directory separators**, so one pattern covers nested paths; `**` and `*`
+  have the same reach.
+- **Project rules are appended after built-in defaults and the last match wins**, so a project
+  deny overrides a built-in ask, and a built-in allow placed earlier loses to it. That is why
+  the public-template allow is stated last.
+- **`edit` covers write and patch** as a single action, so one rule per path suffices.
+- **Order in the configuration is load-bearing**: denies → governance ask → public-template
+  allow last.
+- Paths outside the workspace are gated first by the default external-directory prompt; the
+  read-deny on them is defence-in-depth, and its live behaviour is **UNVERIFIED** (§9).
 
-- **Matcher** (`Mb`): backslashes → `/`, regex-escape the pattern, `*`→`.*`, `?`→`.`,
-  anchored `^…$` with the `s` flag. ⇒ **`*` crosses `/`**: `*.env` matches root `.env` **and**
-  `backend/.env`; `~/.aws/*` covers nested `~/.aws/sso/cache/*`. A literal `**` behaves as
-  two crossing wildcards (same reach).
-- **Path form**: the read/edit `resource` is the path **relative to the workspace root** for
-  in-workspace files (`resource: $d(relative(directory, path) || ".")`), absolute for external
-  files. Root-level and nested matching therefore verified from the same code path the
-  built-in `.env` defaults use.
-- **Precedence**: rules merge as `Ri(agent.permissions, session.permissions)` — built-in
-  defaults first, project config appended last — and resolution is `findLast` (last match
-  wins). ⇒ A project `deny` overrides the built-in `.env` `ask`; the built-in
-  `*.env.example allow` sits *earlier* in the array and would **lose** to our deny, which is
-  why the explicit `*.env.example allow` is re-stated **last**. Without it, `.env.example`
-  would have been wrongly denied.
-- **`~` expansion**: applied to `external_directory` rules (docs + `$d`/home-expansion code
-  path). The `~/.aws/*` and `~/.config/opencode/*` rules resolve in the effective config
-  (`opencode debug config` shows them verbatim); their **behavioural test is UNVERIFIED**
-  (§9) because those paths sit outside the workspace and are gated first by the default
-  `external_directory: ask`.
-- **`edit` covers edit/write/patch** as one action (docs "Available Permissions" + binary
-  action set) — one rule per file suffices.
-- **Order in the file is load-bearing**: denies → governance ask → `.env.example` allow last.
-
-### `.env` coverage table
-
-| Path shape | Rule(s) matched | Effect |
-|---|---|---|
-| root `.env` | `.env`, `*.env` | deny |
-| root `.env.local`, `.env.production` | `.env.*`, `*.env.*` | deny |
-| `backend/.env`, `backend/.env.backup` | `backend/.env(.*)`, `*.env(.*)` | deny |
-| nested `x/y/.env` | `*.env` | deny |
-| `backend/.env.example`, root `.env.example` | deny rules → then `*.env.example` allow (last match) | allow |
-| any `*.key` / `*.pem` at any depth | `**/*.key`, `**/*.pem` | deny |
-
-`.env.example` contains no secrets (public template) — verified as the only harmless
-`.env*` shape; every other variant is denied.
+The public environment template was verified to be the only harmless env-shaped file; every
+other variant in scope is denied.
 
 ## 4. Verification evidence (T1–T7)
 
-Each test ran in a **fresh `opencode run` session** (new sessions resolve the current
-config), `--auto` mode, model `opencode-go/minimax-m3.1-flash`, prompts forbidding `bash` so
-only the permission-gated tool was exercised. Service config reloaded first
-(`opencode reload` → "Configuration reloaded"); `opencode debug config` shows all 17 rules
-resolved.
+Each test ran in a **fresh agent session** (`--auto` mode; prompts forbade shell use so only
+the permission-gated tool was exercised). The service configuration was reloaded first and the
+resolved rule set inspected.
 
 | Test | Action | Expected | Result |
 |---|---|---|---|
-| T1 | read `backend/.env` | deny | **DENIED — Permission denied: read** (even under `--auto`) ✅ ENFORCED |
-| T2 | read root `.env` (disposable dummy with a placeholder value, deleted afterwards; no real secret read) | deny | **DENIED** ✅ ENFORCED |
-| T3 | read `backend/.env.example` | allow | **READ-OK** ✅ ENFORCED (no false positive) |
-| T4 | read `package.json` | allow | **READ-OK** (`react-vite-tailwind`) ✅ ENFORCED |
-| T5 | edit protected WIP `BrandingPanel.tsx` | deny | **DENIED — Permission denied: edit**; `sha256sum -c` vs pre-test baseline: **all four WIP files OK (byte-identical)** ✅ ENFORCED |
-| T6 | edit `docs/governance/MODEL_ROUTING_POLICY.md` | ask → auto-approved under `--auto` | edit permitted (probe text landed, then **reverted; hash identical to baseline** `3433d44…`) ✅ ENFORCED (ask semantics; `--auto` bypass is documented OpenCode behaviour, see §6) |
-| T7 | read same governance file | allow | **READ-OK** ✅ ENFORCED (read access preserved) |
+| T1 | read a managed environment file | deny | **DENIED** — even under `--auto` ✅ ENFORCED |
+| T2 | read the root environment file (disposable placeholder, deleted afterwards; no real secret read) | deny | **DENIED** ✅ ENFORCED |
+| T3 | read the public environment template | allow | **READ-OK** ✅ ENFORCED (no false positive) |
+| T4 | read an ordinary tracked file | allow | **READ-OK** ✅ ENFORCED |
+| T5 | edit a protected work item | deny | **DENIED**; `sha256sum -c` against the pre-test baseline: **all protected items byte-identical** ✅ ENFORCED |
+| T6 | edit a governance document | ask → auto-approved under `--auto` | edit permitted (probe text landed, then **reverted; hash identical to baseline**) ✅ ENFORCED (ask semantics; `--auto` bypass is documented agent behaviour, see §6) |
+| T7 | read the same governance document | allow | **READ-OK** ✅ ENFORCED (read access preserved) |
 
-Baselines: WIP hashes recorded before testing (`/tmp` scratch); all four re-verified
-unchanged after T5, and the T6 probe file restored to its exact pre-test hash. No secret
-content was read, printed, or copied at any point.
+Baselines: hashes of the protected items were recorded before testing in scratch space; all
+were re-verified unchanged after T5, and the T6 probe file was restored to its exact pre-test
+hash. No secret content was read, printed, or copied at any point.
 
 ## 5. Before / after permission behaviour
 
 | Scenario | Before | After |
 |---|---|---|
-| Agent reads `backend/.env` | `ask` — one "always" click approved it for the session | **denied**, cannot be approval-bypassed (explicit deny survives `--auto`) |
-| Agent edits any of the 4 WIP files | permitted silently | **denied** |
-| Agent edits `docs/governance/**` | permitted silently | **ask** (human gate; `--auto` auto-approves — see §6) |
-| Agent reads `.env.example` | allow (built-in) | allow (preserved by explicit last rule) |
+| Agent reads a managed environment file | `ask` — one "always" click approved it for the session | **denied**, cannot be approval-bypassed (explicit deny survives `--auto`) |
+| Agent edits a protected work item | permitted silently | **denied** |
+| Agent edits the governance register | permitted silently | **ask** (human gate; `--auto` auto-approves — see §6) |
+| Agent reads the public environment template | allow (built-in) | allow (preserved by explicit last rule) |
 | Agent reads ordinary files | allow | allow (unchanged) |
 | git push / reset --hard / clean -f / rebase / filter-branch | deny | deny (unchanged) |
 | git commit / add / merge | ask | ask (unchanged) |
@@ -139,12 +103,12 @@ content was read, printed, or copied at any point.
    shell command is not covered by those rules. Specific commands are deliberately not
    enumerated here. The only shell rules are the 8 pre-existing git ones (Phase E forbade
    adding more). **No secret isolation and no immutable-WIP claim is made.**
-2. **`--auto` mode auto-approves `ask` rules** (governance edits, `external_directory`,
-   default `.env` asks elsewhere). Explicit `deny` is unaffected (proven by T1/T2 under
+2. **`--auto` mode auto-approves `ask` rules** (governance edits, the external-directory
+   prompt, environment-file asks elsewhere). Explicit `deny` is unaffected (proven by T1/T2 under
    `--auto`), but the governance gate and the `~/*` external gates are approval-strength only
    in normal (non-auto) sessions.
-3. **External paths (`~/.aws/*`, `~/.config/opencode/*.json`) are double-gated** by the
-   default `external_directory: ask` first; their read-deny is defence-in-depth but its live
+3. **Paths outside the workspace (credential/config directories) are double-gated** by the
+   default external-directory prompt first; their read-deny is defence-in-depth but its live
    behaviour is UNVERIFIED (§9). The OpenCode auth store (outside the workspace) has **no**
    read-deny rule — deliberate: adding it was outside the approved rule set; flagged for
    Phase 2.
@@ -154,24 +118,24 @@ content was read, printed, or copied at any point.
 5. **`.env`-like files whose names fall outside the patterns** are unprotected — patterns
    were kept narrow per the "no broad denies" requirement; the exact gaps are not enumerated
    here.
-6. **Config self-modification**: `opencode.json` itself is editable by any agent (an `ask`
-   rule on it was **not** in the approved scope; noted for Phase 2 — a governance-gate
-   candidate).
+6. **Config self-modification**: the agent configuration file itself is editable by any agent
+   (an `ask` rule on it was **not** in the approved scope; noted for Phase 2 — a
+   governance-gate candidate).
 
 ## 7. Git-safety documentation correction (Phase E)
 
-`.opencode/specs/git-safety.md` §Standing rules now classifies every rule as
+The agent git-safety specification's "Standing rules" section now classifies every rule as
 **TOOL-ENFORCED / INSTRUCTION-ONLY / HUMAN APPROVAL**:
 
-- Corrected: `git checkout -- .`, `git restore`, mixed `git reset`, `--amend`, `-D`, `tag`,
-  `stash`, `cherry-pick`, `git config`, `--no-verify` are **INSTRUCTION-ONLY** — the previous
-  text ("Denied at the tool level" for checkout/amend) was false and is now explicitly marked
-  as a 2026-10-30 correction.
-- Tool-level facts restated exactly: deny = `git push*`, `reset --hard*`, `clean -f*`,
-  `rebase*`, `filter-branch*`; ask = `git commit*`, `git add*`, `git merge*`.
-- The DB-protection hook is labelled instruction-grade (a Kiro `askAgent` prompt, not an
-  `opencode.json` rule), and rule 4 now states that no `read`/`edit` rule stops an equivalent
-  `bash` command.
+- Corrected: the previously mislabelled git operations are **INSTRUCTION-ONLY**. The earlier
+  text claiming tool-level denial was false and is now explicitly marked as a 2026-10-30
+  correction.
+- Tool-level facts restated exactly: destructive git operations (force-push, hard reset,
+  force-clean, rebase, history rewrite) are deny; commit/add/merge are ask; every other git
+  operation is not tool-gated.
+- The database-protection hook is labelled instruction-grade (an agent prompt, not a
+  configuration rule), and the specification now states that no read/edit rule stops an
+  equivalent shell command.
 
 No git permission behaviour changed this phase (per Phase E scope).
 
@@ -179,10 +143,10 @@ No git permission behaviour changed this phase (per Phase E scope).
 
 | Question | Finding (evidence) |
 |---|---|
-| Installation/activation | npm package `opencode-supermemory@2.0.17`, listed in `opencode.json` `plugins`, resolved from the local plugin cache; `opencode plugin list` shows `supermemory 2.0.17` as **loaded** |
-| What it stores | Conversation capture on `session.idle`: assistant turns/transcripts (`message.content`, `transcript` in `dist/index.js`), plus memory scopes (project-config, architecture, error-solution, preference, learned-pattern, conversation) |
+| Installation/activation | Distributed as an npm plugin package, listed in the tracked agent configuration and resolved from the local plugin cache; the agent reports it as **loaded** |
+| What it stores | Conversation capture when a session goes idle: assistant turns and transcripts, plus memory scopes (project-config, architecture, error-solution, preference, learned-pattern, conversation) |
 | External transmission | Yes — `https://api.supermemory.ai` (the only external endpoint in the package). Content wrapped in `<private>…</private>` is redacted per its README |
-| Disable persistence | No in-plugin kill switch found; the **activation gate is the API key**: `dist/index.js` logs "Plugin disabled - SUPERMEMORY_API_KEY not set" and capture throws without it |
+| Disable persistence | No in-plugin kill switch found; the **activation gate is the API key** — capture does not run without it |
 | Is it active here? | **No.** `SUPERMEMORY_API_KEY` is not in the environment, not in the local OpenCode configuration, not in the project config → **inert** (zero data leaves this machine via this plugin today) |
 | Retention / deletion | Plugin-side `forget` tool deletes a memory by id; flush on session delete/shutdown. **Server-side retention policy: NOT documented in the plugin; provider policy not verified this session** |
 | ZDR documented/verifiable? | **No — UNVERIFIED** |
@@ -195,17 +159,18 @@ credentials were exposed during this investigation.
 
 ## 9. Unverified assumptions
 
-- Live behaviour of the `~/.aws/*` and `~/.config/opencode/*.json` read-denies: **UNVERIFIED**
+- Live behaviour of the read-denies on credential/config paths outside the workspace:
+  **UNVERIFIED**
   (external-directory gate intercepts first; testing would require approving external access,
   which was out of safe scope). Schema resolution of the rules is verified; behaviour is not.
 - Whether all subagent/plugin tool surfaces route through the same permission service: the
-  `routine` agent's own `edit: deny` was verified in its frontmatter, but plugin-provided
-  tools (oh-my-opencode MCP/skills) were not behaviourally tested.
-- Whether `opencode reload` propagates to an already-running interactive TUI session's
-  permission service (fresh `run` sessions definitely get it — all T1–T7 evidence comes from
-  fresh sessions).
-- `**/*.key` / `**/*.pem`: pattern semantics verified; no behavioural test (no safe dummy key
-  file was needed — the matcher is the same code path proven by T1–T4).
+  restricted helper agent's own edit-deny was verified in its definition, but plugin-provided
+  tool surfaces were not behaviourally tested.
+- Whether a configuration reload propagates to an already-running interactive session's
+  permission service (fresh sessions definitely get it — all T1–T7 evidence comes from fresh
+  sessions).
+- Key-material patterns: semantics verified; no behavioural test (no safe dummy key file was
+  needed — the same matcher code path proven by T1–T4 applies).
 
 ## 10. Updated OCG compliance (Phase 1 scope only)
 
@@ -223,5 +188,5 @@ was unchanged (historical: that work has since merged). No commit, push, merge, 
 switch, or staging. The four protected WIP files are byte-identical
 (sha256-verified before/after T5; the T6 governance probe fully reverted to its original
 hash). No application source, no Laravel code, no model-routing, no new agents, no secrets
-disclosed. Files changed this phase: `opencode.json` (17 appended rules),
-`.opencode/specs/git-safety.md` (accuracy correction), and this report.
+disclosed. Files changed this phase: the agent configuration (appended permission rules),
+the agent git-safety specification (accuracy correction), and this report.
