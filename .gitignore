@@ -5,3 +5,19 @@ dist/
 !.env.example
 *.log
 .agents/
+
+# ---------------------------------------------------------------------------
+# Local-only AI agent tooling.
+#
+# These paths hold agent definitions, skills, runtime settings, the harness's
+# own specs and its configuration. They must stay available in the working tree
+# but are never tracked or published. Application code, CI and shared project
+# documentation live in src/, .github/ and docs/ and are deliberately not
+# listed. `.agents/` above is the same policy, kept where it already was.
+# ---------------------------------------------------------------------------
+.opencode/
+.kiro/hooks/
+.kiro/settings/
+.kiro/skills/
+opencode.json
+skills-lock.json

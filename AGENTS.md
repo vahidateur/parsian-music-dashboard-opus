@@ -65,6 +65,8 @@ Use nvm; do not replace the system Node, and do not use `sudo`.
 | auth · RBAC · identity scope | `.opencode/specs/auth-rbac.md` |
 | test strategy, what "done" means | `.opencode/specs/testing-acceptance.md` |
 
+`.opencode/` is local-only agent tooling and is not included in the published repository snapshot; paths under it refer only to local working-tree resources.
+
 ## Working rules
 
 - Prove the root cause before implementing. Reuse the existing domain hook/repository; no
