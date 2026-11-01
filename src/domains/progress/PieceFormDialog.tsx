@@ -15,6 +15,7 @@ import { getProgressRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { useInstrumentCatalog } from "@/domains/instruments/catalog";
 import { usePrograms } from "@/domains/learning/useLearning";
+import { faNum } from "@/lib/format";
 import { useLibraryList } from "@/domains/library/useLibrary";
 import { resourceKindLabel } from "@/domains/library/types";
 import { MAX_RANGE_VALUE, RANGE_UNIT_LABEL, type Piece, type ProgressRangeUnit } from "./types";
@@ -80,7 +81,12 @@ export function PieceFormDialog({
   const editing = piece !== undefined;
   const { navigate } = useApp();
   const catalog = useInstrumentCatalog();
-  const { items: libraryItems, loading: libraryLoading } = useLibraryList({ per_page: 200 });
+  /*
+    The library list has no server-side search in its contract, so this picker
+    cannot narrow by query. It CAN be honest about the ceiling: `total` says how
+    many rows exist, and a short page says so instead of looking complete (I16).
+  */
+  const { items: libraryItems, total: libraryTotal, loading: libraryLoading } = useLibraryList({ per_page: 200 });
   const { items: programs, loading: programsLoading, error: programsError, reload: reloadPrograms } = usePrograms({ per_page: 200 });
   const repository = useMemo(() => getProgressRepository(), []);
   const activeInstruments = catalog.filter((i) => i.active || i.id === piece?.instrumentId);
@@ -290,6 +296,11 @@ export function PieceFormDialog({
             <p className="text-[11px] text-ink-500">کتابخانه خالی است؛ نخست فایل را آنجا بارگذاری کنید.</p>
           ) : (
             <div className="max-h-36 space-y-1 overflow-y-auto pl-1">
+              {libraryTotal > libraryItems.length ? (
+                <p className="px-2 pb-1 text-[11px] text-ink-500">
+                  {faNum(libraryItems.length)} از {faNum(libraryTotal)} ردیف کتابخانه نمایش داده شده است.
+                </p>
+              ) : null}
               {libraryItems.map((item) => (
                 <label
                   key={item.id}
