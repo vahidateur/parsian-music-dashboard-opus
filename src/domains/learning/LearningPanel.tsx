@@ -128,7 +128,14 @@ export function LearningPanel() {
     two reads of one academy, and a level nobody has a class for should say so
     quietly rather than look interchangeable with a level in session.
   */
-  const { items: classes } = useClasses({ per_page: 200, includeArchived: true });
+  /*
+    I16 — the per-level class count is derived from one 200-row page. When the
+    academy has more classes than that, an exact count would be a lower bound
+    presented as a measurement (D12). `total` tells us whether the page is the
+    whole catalogue, so the count is only stated exactly when it is.
+  */
+  const { items: classes, total: classesTotal } = useClasses({ per_page: 200, includeArchived: true });
+  const classesComplete = classesTotal <= classes.length;
   const contentLevel = useMemo(
     () => levels.find((level) => level.id === contentLevelId),
     [levels, contentLevelId],
@@ -369,8 +376,14 @@ export function LearningPanel() {
                   description="سطوح، ترتیب پیشرفت هنرجو و دسترسی او به منابع را تعیین می‌کنند."
                 />
               ) : (
-                <ul className="space-y-2">
-                  {levels.map((level, index) => (
+                <>
+                  {!classesComplete ? (
+                    <p className="mb-2 text-[11px] text-ink-500">
+                      شمارش کلاس هر سطح بر پایهٔ {faNum(classes.length)} از {faNum(classesTotal)} کلاس است؛ عددها ممکن است کمتر از واقعیت باشند.
+                    </p>
+                  ) : null}
+                  <ul className="space-y-2">
+                    {levels.map((level, index) => (
                     <li key={level.id}>
                       <ListRow
                         active={contentLevelId === level.id}
@@ -380,9 +393,11 @@ export function LearningPanel() {
                             ? `${faNum(level.objectives.length)} هدف یادگیری`
                             : level.description || "بدون توضیح") +
                           (level.notes ? " · یادداشت" : "") +
-                          (classes.some((c) => c.levelId === level.id)
-                            ? ` · ${faNum(classes.filter((c) => c.levelId === level.id).length)} کلاس`
-                            : "")
+                          (() => {
+                            const count = classes.filter((c) => c.levelId === level.id).length;
+                            if (count === 0) return "";
+                            return classesComplete ? ` · ${faNum(count)} کلاس` : ` · ${faNum(count)}+ کلاس`;
+                          })()
                         }
                         end={
                           <span className="flex items-center gap-1.5">
@@ -450,7 +465,8 @@ export function LearningPanel() {
                       />
                     </li>
                   ))}
-                </ul>
+                  </ul>
+                </>
               )}
               {selected && levelsTotal > levels.length && (
                 <p className="mt-2 text-[11px] text-ink-400">{partialNote("سطوح", levels.length, levelsTotal)}</p>

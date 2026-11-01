@@ -12,7 +12,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LearningPanel } from "../LearningPanel";
-import { getLearningRepository, resetRegistry, setLearningRepository } from "@/domains/registry";
+import { getClassRepository, getLearningRepository, resetRegistry, setClassRepository, setLearningRepository } from "@/domains/registry";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { withStubs } from "@/test/repositoryStubs";
 import { faNum } from "@/lib/format";
@@ -59,6 +59,29 @@ describe("truncation note numerals (G-6)", () => {
     renderPanel();
     const note = await screen.findByText(new RegExp(`^سطوح: ${faNum(1)} ردیف از ${faNum(TOTAL)}`));
     expect(note.textContent).not.toMatch(/[0-9]/);
+  });
+
+  it("does not state an exact class count when the class read is truncated (I16)", async () => {
+    await stubTruncatedReads();
+    const learning = getLearningRepository();
+    const program = (await learning.listPrograms({ per_page: 200 })).data[0]!;
+    const level = (await learning.listLevels({ per_page: 200, programId: program.id })).data[0]!;
+    setClassRepository(
+      withStubs(getClassRepository(), {
+        list: (async () => ({
+          data: [{ id: "cl_probe", levelId: level.id, title: "کلاس آزمایشی" }],
+          meta: { page: 1, per_page: 200, total: 250 },
+        })) as never,
+      }),
+    );
+
+    renderPanel();
+
+    // 250 classes exist, 1 was read: the count is a lower bound, and the panel says so.
+    const note = await screen.findByText(/شمارش کلاس هر سطح بر پایهٔ/);
+    expect(note.textContent).toContain(faNum(1));
+    expect(note.textContent).toContain(faNum(250));
+    await waitFor(() => expect(screen.getAllByText(/\+ کلاس/).length).toBeGreaterThan(0));
   });
 
   it("shows no note when the read is complete", async () => {
