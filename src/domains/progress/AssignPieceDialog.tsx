@@ -7,11 +7,12 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ds/primitives";
-import { Dialog, Field, inputCls } from "@/components/ds/patterns";
+import { Dialog, Field, SearchInput, inputCls } from "@/components/ds/patterns";
 import { getProgressRepository, getStudentRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { usePieces } from "./useProgress";
 import { ASSIGNMENT_STATUS_LABEL, type AssignmentStatus, type Piece, type PieceAssignment } from "./types";
+import { faNum } from "@/lib/format";
 import { cn } from "@/utils/cn";
 
 interface AssignDraft {
@@ -74,7 +75,25 @@ export function AssignPieceDialog({
   // `piecesLoading` is read, not ignored: the params change the moment the
   // student's instrument resolves, and the rows rendered before that belong to
   // the unfiltered query (I13).
-  const { items: pieces, loading: piecesLoading, error: piecesError, reload: reloadPieces } = usePieces({ per_page: 200, activeOnly: true, instrumentId });
+  //
+  // I16: the picker is a SERVER-SIDE search. A fixed 200-row page silently hid
+  // every later piece of a well-stocked instrument, and the operator had no way
+  // to reach it — the record existed, the list said it did not.
+  const [pieceQuery, setPieceQuery] = useState("");
+  const [selectedPiece, setSelectedPiece] = useState<{ id: string; label: string } | null>(null);
+  const pieceSearch = pieceQuery.trim();
+  const {
+    items: pieces,
+    total: piecesTotal,
+    loading: piecesLoading,
+    error: piecesError,
+    reload: reloadPieces,
+  } = usePieces({
+    ...(pieceSearch ? { search: pieceSearch } : {}),
+    per_page: 50,
+    activeOnly: true,
+    instrumentId,
+  });
 
   /** In flight until the filter is known AND that filter's page has arrived. */
   const pickerLoading = !instrumentResolved || piecesLoading;
@@ -83,10 +102,13 @@ export function AssignPieceDialog({
   // disabled and says it is loading, which is the explicit in-flight state the
   // invariant asks for instead of another query's rows.
   // On failure, options stay empty and the error is disclosed below, not as «۰ قطعه».
-  const options = useMemo(
-    () => (pickerLoading || piecesError ? [] : [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa"))),
-    [pieces, pickerLoading, piecesError],
-  );
+  const options = useMemo(() => {
+    const rows = pickerLoading || piecesError ? [] : [...pieces].sort((a, b) => a.title.localeCompare(b.title, "fa"));
+    // A chosen piece must survive a new query: the page legitimately changes,
+    // the operator's choice does not.
+    if (!selectedPiece || rows.some((piece) => piece.id === selectedPiece.id)) return rows;
+    return [{ id: selectedPiece.id, title: selectedPiece.label, composer: "" } as (typeof rows)[number], ...rows];
+  }, [pieces, pickerLoading, piecesError, selectedPiece]);
 
   const form = useEntityForm<AssignDraft, PieceAssignment>({
     initial: { pieceId: "", status: "learning", targetDate: "", notes: "" },
@@ -153,20 +175,36 @@ export function AssignPieceDialog({
 
         <Field label="قطعه" error={form.errors.pieceId} required className="sm:col-span-2">
           {(control) => (
-            <select
-              {...control}
-              className={inputCls}
-              value={form.draft.pieceId}
-              disabled={busy || pickerLoading || Boolean(piecesError)}
-              onChange={(e) => form.set("pieceId", e.target.value)}
-            >
-              <option value="">{pickerLoading ? "در حال بارگذاری قطعه‌های این ساز…" : piecesError ? "بارگذاری قطعه‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
-              {options.map((piece) => (
-                <option key={piece.id} value={piece.id}>
-                  {`${piece.title} — ${piece.composer}`}
-                </option>
-              ))}
-            </select>
+            <div>
+              <SearchInput
+                value={pieceQuery}
+                onChange={setPieceQuery}
+                placeholder="جست‌وجوی نام قطعه یا آهنگساز…"
+              />
+              <select
+                {...control}
+                className={cn(inputCls, "mt-2")}
+                value={form.draft.pieceId}
+                disabled={busy || pickerLoading || Boolean(piecesError)}
+                onChange={(e) => {
+                  const chosen = options.find((piece) => piece.id === e.target.value);
+                  form.set("pieceId", e.target.value);
+                  setSelectedPiece(chosen ? { id: chosen.id, label: chosen.title } : null);
+                }}
+              >
+                <option value="">{pickerLoading ? "در حال بارگذاری قطعه‌های این ساز…" : piecesError ? "بارگذاری قطعه‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
+                {options.map((piece) => (
+                  <option key={piece.id} value={piece.id}>
+                    {piece.composer ? `${piece.title} — ${piece.composer}` : piece.title}
+                  </option>
+                ))}
+              </select>
+              {!pickerLoading && !piecesError && piecesTotal > pieces.length ? (
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  {faNum(pieces.length)} از {faNum(piecesTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                </p>
+              ) : null}
+            </div>
           )}
         </Field>
 

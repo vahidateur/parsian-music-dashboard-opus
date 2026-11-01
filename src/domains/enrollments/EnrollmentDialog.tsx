@@ -9,12 +9,15 @@
  */
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ds/primitives";
-import { Dialog, Field, inputCls } from "@/components/ds/patterns";
+import { Dialog, Field, SearchInput, inputCls } from "@/components/ds/patterns";
 import { getEnrollmentRepository } from "@/domains/registry";
 import { useClasses } from "@/domains/classes/useClasses";
 import { useStudentList } from "@/domains/students/useStudents";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import type { Enrollment } from "./types";
+import type { AcademyClass } from "@/domains/classes/types";
+import { faNum } from "@/lib/format";
+import { cn } from "@/utils/cn";
 
 export function EnrollmentDialog({
   open,
@@ -32,15 +35,51 @@ export function EnrollmentDialog({
   onEnrolled: (enrollment: Enrollment) => void;
 }) {
   const repository = useMemo(() => getEnrollmentRepository(), []);
-  const { items: classes, loading: classesLoading, error: classesError, reload: reloadClasses } = useClasses({ per_page: 200 });
-  const { students, loading: studentsLoading, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 500 });
+  /*
+    I16 — both pickers are SERVER-SIDE searches.
+
+    They asked for 200 classes and 500 students in one page and rendered them as
+    if complete, so a record past the page could not be enrolled at all, with no
+    hint the list was short. Both contracts carry `search`, so each picker now
+    queries 50 rows and lets the operator narrow. A chosen row survives a new
+    query (it would otherwise vanish from the `<select>` and the form would keep
+    an id no visible option carries), and `total` says when the page is a slice.
+  */
+  const [studentQuery, setStudentQuery] = useState("");
+  const [classQuery, setClassQuery] = useState("");
+  const studentSearch = studentQuery.trim();
+  const classSearch = classQuery.trim();
+  const {
+    items: classItems,
+    total: classesTotal,
+    loading: classesLoading,
+    error: classesError,
+    reload: reloadClasses,
+  } = useClasses({ ...(classSearch ? { search: classSearch } : {}), per_page: 50 });
+  const {
+    students,
+    total: studentsTotal,
+    loading: studentsLoading,
+    error: studentsError,
+    reload: reloadStudents,
+  } = useStudentList({ ...(studentSearch ? { search: studentSearch } : {}), per_page: 50 });
 
   const [selectedStudent, setSelectedStudent] = useState(studentId ?? "");
   const [selectedClass, setSelectedClass] = useState(classId ?? "");
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const target = classes.find((c) => c.id === selectedClass);
+  const [selectedStudentRow, setSelectedStudentRow] = useState<{ id: string; name: string } | null>(null);
+  const [selectedClassRow, setSelectedClassRow] = useState<AcademyClass | null>(null);
+  const studentOptions = useMemo(() => {
+    if (!selectedStudentRow || students.some((student) => student.id === selectedStudentRow.id)) return students;
+    return [selectedStudentRow, ...students];
+  }, [students, selectedStudentRow]);
+  const classOptions = useMemo(() => {
+    if (!selectedClassRow || classItems.some((cls) => cls.id === selectedClassRow.id)) return classItems;
+    return [selectedClassRow, ...classItems];
+  }, [classItems, selectedClassRow]);
+  const target = classOptions.find((c) => c.id === selectedClass);
   const seatsLeft = target ? target.capacity - target.enrolled : undefined;
   const full = seatsLeft !== undefined && seatsLeft <= 0;
 
@@ -116,27 +155,63 @@ export function EnrollmentDialog({
 
         <Field label="هنرجو" required>
           {(control) => (
-            <select {...control} className={inputCls} value={selectedStudent} disabled={busy || studentsLoading || Boolean(studentsError)} onChange={(e) => setSelectedStudent(e.target.value)}>
-              <option value="">{studentsLoading ? "در حال بارگذاری هنرجویان…" : studentsError ? "بارگذاری هنرجویان ناموفق بود" : "— انتخاب کنید —"}</option>
-              {students.map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <SearchInput value={studentQuery} onChange={setStudentQuery} placeholder="جست‌وجوی نام یا تلفن هنرجو…" />
+              <select
+                {...control}
+                className={cn(inputCls, "mt-2")}
+                value={selectedStudent}
+                disabled={busy || studentsLoading || Boolean(studentsError)}
+                onChange={(e) => {
+                  const chosen = studentOptions.find((student) => student.id === e.target.value);
+                  setSelectedStudent(e.target.value);
+                  setSelectedStudentRow(chosen ? { id: chosen.id, name: chosen.name } : null);
+                }}
+              >
+                <option value="">{studentsLoading ? "در حال بارگذاری هنرجویان…" : studentsError ? "بارگذاری هنرجویان ناموفق بود" : "— انتخاب کنید —"}</option>
+                {studentOptions.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name}
+                  </option>
+                ))}
+              </select>
+              {!studentsLoading && !studentsError && studentsTotal > students.length ? (
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  {faNum(students.length)} از {faNum(studentsTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                </p>
+              ) : null}
+            </div>
           )}
         </Field>
 
         <Field label="کلاس" required>
           {(control) => (
-            <select {...control} className={inputCls} value={selectedClass} disabled={busy || classesLoading || Boolean(classesError)} onChange={(e) => setSelectedClass(e.target.value)}>
-              <option value="">{classesLoading ? "در حال بارگذاری کلاس‌ها…" : classesError ? "بارگذاری کلاس‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.title}
-                </option>
-              ))}
-            </select>
+            <div>
+              <SearchInput value={classQuery} onChange={setClassQuery} placeholder="جست‌وجوی نام کلاس…" />
+              <select
+                {...control}
+                className={cn(inputCls, "mt-2")}
+                value={selectedClass}
+                disabled={busy || classesLoading || Boolean(classesError)}
+                onChange={(e) => {
+                  const chosen = classOptions.find((cls) => cls.id === e.target.value);
+                  setSelectedClass(e.target.value);
+                  setSelectedClassRow(chosen ?? null);
+                }}
+              >
+                <option value="">{classesLoading ? "در حال بارگذاری کلاس‌ها…" : classesError ? "بارگذاری کلاس‌ها ناموفق بود" : "— انتخاب کنید —"}</option>
+                {classOptions.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.title}
+                  </option>
+                ))}
+              </select>
+              {!classesLoading && !classesError && classesTotal > classItems.length ? (
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  {faNum(classItems.length)} از {faNum(classesTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                </p>
+              ) : null}
+            </div>
           )}
         </Field>
 
