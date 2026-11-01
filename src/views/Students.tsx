@@ -952,7 +952,27 @@ export function StudentsView() {
   // as not-found. The owning repository already exposes `get(id)` which is the
   // authoritative single-record lookup. `useStudent(detailId)` is that lookup
   // with loading/error/not-found distinguishable.
-  const { students, loading, error, reload } = useStudentList({ per_page: 200 });
+  /*
+    I16 — the list search is the SERVER's, while a query is active.
+
+    The box used to filter the 200 rows already loaded, so a student past that
+    page could not be found at all: the record existed and the search said it did
+    not. The list contract carries `search`, so the query now asks the
+    repository. The page stays 200 when idle (nothing changes for a small
+    academy) and drops to 50 while searching, because the server has already
+    narrowed the set.
+  */
+  const studentSearch = query.trim();
+  const {
+    students,
+    total: studentsTotal,
+    loading,
+    error,
+    reload,
+  } = useStudentList({
+    ...(studentSearch ? { search: studentSearch } : {}),
+    per_page: studentSearch ? 50 : 200,
+  });
   const filteredStudents = useMemo(() => {
     if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
     // AUDIT-002 FIX: When teacher scope dependencies are loading or erroring, NEVER fall back to org-wide students.
@@ -1022,14 +1042,20 @@ export function StudentsView() {
       filteredStudents.filter(
         (s) =>
           (status === "all" || s.status === status) &&
-          (instrument === "all" || s.instrument === instrument) &&
-          (query === "" || s.name.includes(query) || instrumentName(s.instrument).includes(query)),
+          (instrument === "all" || s.instrument === instrument),
       ),
-    [filteredStudents, status, instrument, query],
+    [filteredStudents, status, instrument],
   );
 
   // Stats are derived from the loaded dataset — never hardcoded totals.
   // For teacher role, filteredStudents is assigned-only per T-02 smallest model.
+  /*
+    What the four cards measure. With a query active they describe the search
+    result set; otherwise they describe the loaded page. The label says which,
+    because a count is a measurement and a mislabelled count is a false claim
+    (D12).
+  */
+  const statsScope = studentSearch ? "در نتایج جست‌وجو" : "در ردیف‌های بارگذاری‌شده";
   const stats = useMemo(
     () => ({
       active: filteredStudents.filter((s) => s.status === "active").length,
@@ -1207,16 +1233,16 @@ export function StudentsView() {
 
       <StatStrip
         stats={[
-          { label: "هنرجوی فعال", value: faNum(stats.active), hint: "وضعیت فعال", onClick: () => setStatus("active") },
-          { label: "در معرض ریزش", value: faNum(stats.atRisk), tone: "warn", hint: "بیش از ۲ هفته غیبت", onClick: () => setStatus("at-risk") },
-          { label: "لیست انتظار", value: faNum(stats.waitlist), tone: "violet", hint: "نیازمند تماس", onClick: () => setStatus("waitlist") },
-          { label: "متوقف‌شده", value: faNum(stats.paused), hint: "بدون جلسهٔ فعال" },
+          { label: "هنرجوی فعال", value: faNum(stats.active), hint: `وضعیت فعال · ${statsScope}`, onClick: () => setStatus("active") },
+          { label: "در معرض ریزش", value: faNum(stats.atRisk), tone: "warn", hint: `بیش از ۲ هفته غیبت · ${statsScope}`, onClick: () => setStatus("at-risk") },
+          { label: "لیست انتظار", value: faNum(stats.waitlist), tone: "violet", hint: `نیازمند تماس · ${statsScope}`, onClick: () => setStatus("waitlist") },
+          { label: "متوقف‌شده", value: faNum(stats.paused), hint: `بدون جلسهٔ فعال · ${statsScope}` },
         ]}
       />
 
       <FilterBar
         className="mt-5"
-        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی نام هنرجو یا ساز…" />}
+        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی نام، تلفن یا کد ملی هنرجو…" />}
         trailing={
           <Segmented
             value={layout}
@@ -1241,6 +1267,12 @@ export function StudentsView() {
           </>
         }
       />
+
+      {studentsTotal > students.length ? (
+        <p className="mt-2 text-[11px] text-ink-500">
+          {faNum(students.length)} از {faNum(studentsTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+        </p>
+      ) : null}
 
       <div className="mt-5">
         {list.length === 0 ? (
