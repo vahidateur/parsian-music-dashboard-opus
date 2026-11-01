@@ -85,7 +85,14 @@ export function StudentProgressPanel({
   /** Authoring is a teacher-workflow capability that additionally needs the write permission. */
   const canAuthor = role === "teacher" && mayWrite;
   const { overview, loading, error, reload } = useStudentProgress(studentId);
-  const { items: libraryItems } = useLibraryList({ per_page: 200 });
+  /*
+    I16 — the library list is capped at 200 rows and this panel summarises it.
+    `total` tells us whether the page is the whole catalogue: a truncated page
+    cannot support an exact "N more" count, and it cannot prove that nothing is
+    accessible either.
+  */
+  const { items: libraryItems, total: libraryTotal } = useLibraryList({ per_page: 200 });
+  const libraryTruncated = libraryTotal > libraryItems.length;
   const [recording, setRecording] = useState<{ assignment: PieceAssignment; piece?: Piece } | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [pieceEdit, setPieceEdit] = useState<Piece | undefined>(undefined);
@@ -380,7 +387,7 @@ export function StudentProgressPanel({
         title="منابع در دسترس این هنرجو"
         kicker="بر پایهٔ قاعدهٔ دسترسی کتابخانه"
       >
-        {accessible.length === 0 && accessibleOverflow === 0 ? (
+        {accessible.length === 0 && accessibleOverflow === 0 && !libraryTruncated ? (
           <EmptyState
             title="منبعی در دسترس این هنرجو نیست"
             description="دسترسی هر منبع در کتابخانه تنظیم می‌شود: همهٔ هنرجویان، یا فهرست منتخب."
@@ -403,7 +410,14 @@ export function StudentProgressPanel({
             </ul>
             {accessibleOverflow > 0 && (
               <p className="mt-2 text-[10.5px] text-ink-400">
-                و {faNum(accessibleOverflow)} منبع دیگر — فهرست کامل در کتابخانه.
+                {libraryTruncated
+                  ? "و منابع بیشتری هم وجود دارد — فهرست کامل در کتابخانه."
+                  : `و ${faNum(accessibleOverflow)} منبع دیگر — فهرست کامل در کتابخانه.`}
+              </p>
+            )}
+            {accessible.length === 0 && libraryTruncated && (
+              <p className="mt-2 text-[10.5px] text-ink-400">
+                فهرست کتابخانه بیش از {faNum(libraryItems.length)} ردیف خوانده‌شده دارد؛ برای دیدن همهٔ منابع، کتابخانه را باز کنید.
               </p>
             )}
           </>

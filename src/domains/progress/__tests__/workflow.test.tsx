@@ -10,9 +10,10 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { StudentProgressPanel } from "../StudentProgressPanel";
-import { getProgressRepository, resetRegistry } from "@/domains/registry";
+import { getLibraryRepository, getProgressRepository, resetRegistry, setLibraryRepository } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { withStubs } from "@/test/repositoryStubs";
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -38,6 +39,37 @@ function renderPanel(studentId: string, role: "teacher" | "student" = "teacher")
 async function settle() {
   await waitFor(() => expect(screen.queryByText("در حال بارگذاری پیشرفت…")).toBeNull());
 }
+
+describe("the library summary is honest about a capped read (I16)", () => {
+  it("does not state an exact 'more' count when the library page is truncated", async () => {
+    const rows = Array.from({ length: 250 }, (_, index) => ({
+      id: `lib_${index + 1}`,
+      title: `منبع کتابخانه ${index + 1}`,
+      kind: "sheet",
+      visibility: "students",
+      restrictedToStudentIds: [],
+      active: true,
+    }));
+    setLibraryRepository(
+      withStubs(getLibraryRepository(), {
+        list: (async (params: { page?: number; per_page?: number } = {}) => {
+          const perPage = params.per_page ?? 200;
+          return {
+            data: rows.slice(0, perPage),
+            meta: { page: 1, per_page: perPage, total: rows.length },
+          };
+        }) as never,
+      }),
+    );
+
+    renderPanel(studentWithHistory());
+    await settle();
+
+    // 250 rows exist, 200 were read: an exact "N more" number would be wrong.
+    await waitFor(() => expect(screen.getByText(/منابع بیشتری هم وجود دارد/)).toBeDefined());
+    expect(screen.queryByText(/منبع دیگر —/)).toBeNull();
+  });
+});
 
 describe("teacher view", () => {
   it("shows the student's active pieces with their latest measurements", async () => {
