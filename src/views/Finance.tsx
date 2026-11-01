@@ -6,7 +6,7 @@ import { Button } from "@/components/ds/primitives";
 import { DemoNote } from "@/targets/environment";
 import { deferredReadTail, financeDeferredNote, notServedClause, unavailableActions } from "@/targets/targetCopy";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
-import { Field, PageHeader, Panel, inputCls } from "@/components/ds/patterns";
+import { Field, PageHeader, Panel, SearchInput, inputCls } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getFinanceRepository } from "@/domains/registry";
 import { useInvoices } from "@/domains/finance/useInvoices";
@@ -93,6 +93,14 @@ export function FinanceView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [formStudentId, setFormStudentId] = useState("");
+  /**
+   * The name behind the chosen id, kept here so a later search cannot erase the
+   * operator's choice: the option list is a server page, and a new query
+   * legitimately replaces it. Without this, the picked student would fall out of
+   * the `<select>` and the form would post an id no visible option carries.
+   */
+  const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
+  const [studentQuery, setStudentQuery] = useState("");
   const [formTitle, setFormTitle] = useState("");
   const [formAmount, setFormAmount] = useState("");
   const [formDueAt, setFormDueAt] = useState("");
@@ -106,7 +114,25 @@ export function FinanceView() {
   // hands it to the hook — the same seam the student hook offers.
   const repository = useMemo(() => getFinanceRepository(), []);
   const invoices = useInvoices(statusFilter === "all" ? { per_page: 100 } : { per_page: 100, status: statusFilter }, repository);
-  const students = useStudentList({ per_page: 200 });
+  /*
+    I16 — the student picker is a SERVER-SIDE search, not a capped local list.
+
+    The old call asked for 200 rows once and rendered them as if that were every
+    student, so in an academy with more than 200 an invoice could not be issued
+    for anyone past the ceiling — with no hint that the list was short. The list
+    contract already carries `search` (name / phone / national id on the API;
+    the demo store answers the same field), so the picker now queries 50 rows at
+    a time and lets the operator narrow by name. A chosen student survives a new
+    query (see `selectedStudent`), and `total` is read to say when the page is a
+    slice (D12: a count is a measurement, never an estimate).
+  */
+  const studentSearch = studentQuery.trim();
+  const students = useStudentList({ ...(studentSearch ? { search: studentSearch } : {}), per_page: 50 });
+  const listedStudents = students.students ?? [];
+  const studentOptions = useMemo(() => {
+    if (!selectedStudent || listedStudents.some((student) => student.id === selectedStudent.id)) return listedStudents;
+    return [selectedStudent, ...listedStudents];
+  }, [listedStudents, selectedStudent]);
 
   // A background refetch after any accepted write keeps the rendered page
   // (see useResourceList), so only the very first load takes the full
@@ -149,6 +175,8 @@ export function FinanceView() {
       notify({ tone: "success", title: `فاکتور «${created.title}» ثبت شد`, detail: `${faNum(created.amount)} تومان برای ${created.studentName ?? "هنرجو"}.` });
       setCreateOpen(false);
       setFormStudentId("");
+      setSelectedStudent(null);
+      setStudentQuery("");
       setFormTitle("");
       setFormAmount("");
       setFormDueAt("");
@@ -215,15 +243,52 @@ export function FinanceView() {
 
       {createOpen && canRecordPayment && (
         <Panel title="فاکتور جدید" className="mb-4">
+          <div className="mb-3">
+            <SearchInput
+              value={studentQuery}
+              onChange={setStudentQuery}
+              placeholder="جست‌وجوی نام، تلفن یا کد ملی هنرجو…"
+            />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="هنرجو" required>
               {(control) => (
-                <select {...control} className={inputCls} value={formStudentId} disabled={busy} onChange={(e) => setFormStudentId(e.target.value)}>
-                  <option value="">انتخاب کنید…</option>
-                  {(students.students ?? []).map((student) => (
-                    <option key={student.id} value={student.id}>{student.name}</option>
-                  ))}
-                </select>
+                <div>
+                  <select
+                    {...control}
+                    className={inputCls}
+                    value={formStudentId}
+                    disabled={busy}
+                    onChange={(e) => {
+                      const chosenId = e.target.value;
+                      setFormStudentId(chosenId);
+                      setSelectedStudent(studentOptions.find((student) => student.id === chosenId) ?? null);
+                    }}
+                  >
+                    <option value="">انتخاب کنید…</option>
+                    {studentOptions.map((student) => (
+                      <option key={student.id} value={student.id}>{student.name}</option>
+                    ))}
+                  </select>
+                  {students.error ? (
+                    <p role="alert" className="mt-1.5 text-[11px] text-danger-300">
+                      خواندن فهرست هنرجویان ناموفق بود.{" "}
+                      <button type="button" className="underline underline-offset-2" onClick={students.reload}>
+                        تلاش دوباره
+                      </button>
+                    </p>
+                  ) : students.loading && listedStudents.length === 0 ? (
+                    <p className="mt-1.5 text-[11px] text-ink-500">در حال خواندن هنرجویان…</p>
+                  ) : listedStudents.length === 0 ? (
+                    <p className="mt-1.5 text-[11px] text-ink-500">
+                      {studentSearch ? "هنرجویی با این جست‌وجو پیدا نشد." : "هنرجویی ثبت نشده است."}
+                    </p>
+                  ) : students.total > listedStudents.length ? (
+                    <p className="mt-1.5 text-[11px] text-ink-500">
+                      {faNum(listedStudents.length)} از {faNum(students.total)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                    </p>
+                  ) : null}
+                </div>
               )}
             </Field>
             <Field label="عنوان" required>

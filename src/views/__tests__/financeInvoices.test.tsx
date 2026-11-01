@@ -10,27 +10,30 @@
  * `noSuccessWithoutWrite` (the unavailable stub rejects every verb there).
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { demoStore, memoryStorage } from "@/services/demoStore";
-import { resetRegistry, setAuthRepository, setFinanceRepository, setUserRepository } from "@/domains/registry";
+import { resetRegistry, setAuthRepository, setFinanceRepository, setStudentRepository, setUserRepository } from "@/domains/registry";
 import type { FinanceRepository } from "@/domains/finance/repository";
 import type { Invoice, InvoiceListParams } from "@/domains/finance/types";
+import type { StudentRepository } from "@/domains/students/repository";
+import type { StudentListParams } from "@/domains/students/types";
 import { FinanceView } from "@/views/Finance";
 
 const ACCOUNTANT = "finance@demo.local";
 
-function makeRepo(seed: Invoice[]): FinanceRepository & { calls: string[]; lastPay: unknown } {
+function makeRepo(seed: Invoice[]): FinanceRepository & { calls: string[]; lastPay: unknown; lastCreate: unknown } {
   const rows = [...seed];
   let seq = 100;
   const calls: string[] = [];
-  const repo: FinanceRepository & { calls: string[]; lastPay: unknown } = {
+  const repo: FinanceRepository & { calls: string[]; lastPay: unknown; lastCreate: unknown } = {
     calls,
     lastPay: undefined as unknown,
+    lastCreate: undefined as unknown,
     async list(params: InvoiceListParams = {}) {
       const filtered = rows.filter((row) => !params.status || row.status === params.status);
       return { data: filtered, meta: { page: 1, per_page: 100, total: filtered.length } };
@@ -42,6 +45,7 @@ function makeRepo(seed: Invoice[]): FinanceRepository & { calls: string[]; lastP
     },
     async create(input) {
       calls.push("create");
+      repo.lastCreate = input;
       const created: Invoice = {
         id: `inv_test_${seq++}`,
         studentId: input.studentId,
@@ -86,11 +90,12 @@ const seed: Invoice[] = [
   { id: "inv_paid", studentId: "st_2", studentName: "هنرجو دو", title: "شهریه شهریور", amount: 2500000, status: "paid", issuedAt: "2026-09-01T00:00:00.000Z", dueAt: null, paidAt: "2026-09-05T00:00:00.000Z", paidByUserId: "u_accountant" },
 ];
 
-async function renderAsAccountant(repo: FinanceRepository): Promise<void> {
+async function renderAsAccountant(repo: FinanceRepository, students?: StudentRepository): Promise<void> {
   const auth = new LocalAuthRepository(demoStore, memoryStorage());
   setAuthRepository(auth);
   setUserRepository(new LocalUserRepository(demoStore));
   setFinanceRepository(repo);
+  if (students) setStudentRepository(students);
   await auth.login({ email: ACCOUNTANT, password: DEMO_PASSPHRASE });
   render(
     <AuthProvider>
@@ -183,5 +188,136 @@ describe("FinanceView with a served backend", () => {
     await screen.findByRole("table", { name: "فهرست فاکتورها" });
     // The badge is derived client-side from dueAt; no new status id exists.
     expect(screen.getByText("سررسید گذشته")).toBeDefined();
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* I16 — the student picker is a server-side search, not a capped list  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A student repository with `count` rows that honours `search` and `per_page`
+ * exactly as the API does (name match, page slice, `total` of the match). The
+ * old picker asked for 200 rows once, so a 201st student was invisible; these
+ * cases fail against that behaviour and pass only with a real search.
+ */
+function makeStudentRepo(count: number) {
+  const rows = Array.from({ length: count }, (_, index) => ({
+    id: `st_${index + 1}`,
+    name: `هنرجوی شماره ${index + 1}`,
+  }));
+  const calls: StudentListParams[] = [];
+  const state = { fail: false };
+  const list = vi.fn(async (params: StudentListParams) => {
+    calls.push(params);
+    if (state.fail) throw Object.assign(new Error("students down"), { code: "SERVER_ERROR" });
+    const query = params.search?.trim();
+    const matched = query ? rows.filter((row) => row.name.includes(query)) : rows;
+    const perPage = params.per_page ?? 20;
+    const page = params.page ?? 1;
+    return {
+      data: matched.slice((page - 1) * perPage, page * perPage),
+      meta: { page, per_page: perPage, total: matched.length },
+    };
+  });
+  const repo = {
+    list,
+    get: async () => { throw new Error("unused in this case"); },
+    create: async () => { throw new Error("unused in this case"); },
+    update: async () => { throw new Error("unused in this case"); },
+    delete: async () => { throw new Error("unused in this case"); },
+  } as unknown as StudentRepository;
+  return { repo, calls, state };
+}
+
+const SEARCH_PLACEHOLDER = "جست‌وجوی نام، تلفن یا کد ملی هنرجو…";
+
+async function openCreateForm(): Promise<HTMLSelectElement> {
+  fireEvent.click(screen.getByRole("button", { name: "فاکتور جدید" }));
+  await screen.findByPlaceholderText(SEARCH_PLACEHOLDER);
+  return document.querySelector("select") as HTMLSelectElement;
+}
+
+describe("FinanceView student picker (I16)", () => {
+  it("finds a student past the first page and issues the invoice for that id", async () => {
+    const finance = makeRepo(seed);
+    const students = makeStudentRepo(250);
+    await renderAsAccountant(finance, students.repo);
+    await screen.findByRole("table", { name: "فهرست فاکتورها" });
+
+    const select = await openCreateForm();
+    await waitFor(() => expect(select.options.length).toBeGreaterThan(1));
+    // The first page is a slice: student 201 is not in it.
+    expect(Array.from(select.options).some((option) => option.value === "st_201")).toBe(false);
+
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), {
+      target: { value: "هنرجوی شماره 201" },
+    });
+    await waitFor(() => expect(students.calls.some((call) => call.search === "هنرجوی شماره 201")).toBe(true));
+    await waitFor(() =>
+      expect(Array.from(select.options).some((option) => option.value === "st_201")).toBe(true),
+    );
+
+    fireEvent.change(select, { target: { value: "st_201" } });
+    fireEvent.change(screen.getByPlaceholderText("مثلاً شهریهٔ ترم پاییز"), { target: { value: "شهریه آبان" } });
+    fireEvent.change(screen.getByPlaceholderText("مثلاً ۳۰۰۰۰۰۰"), { target: { value: "۳۰۰۰۰۰۰" } });
+    fireEvent.click(screen.getByRole("button", { name: "ثبت فاکتور" }));
+
+    await waitFor(() => expect(finance.calls).toContain("create"));
+    expect(finance.lastCreate).toMatchObject({ studentId: "st_201" });
+  });
+
+  it("keeps the chosen student when the query changes", async () => {
+    const finance = makeRepo(seed);
+    const students = makeStudentRepo(250);
+    await renderAsAccountant(finance, students.repo);
+    await screen.findByRole("table", { name: "فهرست فاکتورها" });
+
+    const select = await openCreateForm();
+    const search = screen.getByPlaceholderText(SEARCH_PLACEHOLDER);
+    fireEvent.change(search, { target: { value: "هنرجوی شماره 9" } });
+    await waitFor(() =>
+      expect(Array.from(select.options).some((option) => option.value === "st_9")).toBe(true),
+    );
+    fireEvent.change(select, { target: { value: "st_9" } });
+
+    // A new query replaces the page; the choice must not disappear with it.
+    fireEvent.change(search, { target: { value: "چیزی که وجود ندارد" } });
+    await waitFor(() =>
+      expect(screen.getByText("هنرجویی با این جست‌وجو پیدا نشد.")).toBeDefined(),
+    );
+    expect(select.value).toBe("st_9");
+    expect(Array.from(select.options).some((option) => option.value === "st_9")).toBe(true);
+  });
+
+  it("says the page is a slice when the total exceeds it", async () => {
+    const finance = makeRepo(seed);
+    const students = makeStudentRepo(250);
+    await renderAsAccountant(finance, students.repo);
+    await screen.findByRole("table", { name: "فهرست فاکتورها" });
+    await openCreateForm();
+
+    await waitFor(() =>
+      expect(screen.getByText(/برای دیدن بقیه، جست‌وجو را محدود کنید/)).toBeDefined(),
+    );
+    expect(students.calls[0]?.per_page).toBe(50);
+  });
+
+  it("reports a failed student read with a retry instead of an empty picker", async () => {
+    const finance = makeRepo(seed);
+    const students = makeStudentRepo(10);
+    students.state.fail = true;
+    await renderAsAccountant(finance, students.repo);
+    await screen.findByRole("table", { name: "فهرست فاکتورها" });
+    await openCreateForm();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("خواندن فهرست هنرجویان ناموفق بود");
+
+    students.state.fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
+    await waitFor(() =>
+      expect(screen.queryByText(/خواندن فهرست هنرجویان ناموفق بود/)).toBeNull(),
+    );
   });
 });

@@ -49,6 +49,11 @@ describe("LocalStudentRepository", () => {
 
     const search = await repo.list({ search: seedStudents[0].name });
     expect(search.data[0]?.name).toBe(seedStudents[0].name);
+
+    // Parity with the API, which searches `national_id` too: a query the client
+    // composition can answer must not come back empty in the demo store.
+    const byNationalId = await repo.list({ search: seedStudents[0].nationalId, per_page: 100 });
+    expect(byNationalId.data.some((s) => s.id === seedStudents[0].id)).toBe(true);
   });
 
   it("paginates", async () => {

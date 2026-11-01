@@ -135,6 +135,8 @@ function matches(student: Student, params: StudentListParams): boolean {
   if (params.teacherId && student.teacherId !== params.teacherId) return false;
   const q = params.search?.trim();
   if (!q) return true;
-  const haystack = `${student.name} ${student.phone} ${student.level} ${student.guardian ?? ""}`;
+  // The API searches national id too; the demo store must answer the same field
+  // or the two compositions disagree about what a query can find.
+  const haystack = `${student.name} ${student.phone} ${student.nationalId ?? ""} ${student.level} ${student.guardian ?? ""}`;
   return haystack.includes(q);
 }
