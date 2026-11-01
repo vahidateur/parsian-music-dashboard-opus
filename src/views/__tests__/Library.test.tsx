@@ -26,7 +26,7 @@ import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
-import { getLibraryRepository, getMediaRepository, resetRegistry, setLibraryRepository, setMediaRepository } from "@/domains/registry";
+import { getLibraryRepository, getMediaRepository, resetRegistry, setLibraryRepository, setMediaRepository, setStudentRepository, setTeacherRepository } from "@/domains/registry";
 import { LocalLibraryRepository } from "@/domains/library/localRepository";
 import { ensureDemoLibraryFile } from "@/domains/library/demoContent";
 import type { LibraryRepository } from "@/domains/library/repository";
@@ -582,5 +582,64 @@ describe("G-7 · searching a library by teacher", () => {
     await waitFor(() => expect(screen.getAllByText(teacher.name).length).toBeGreaterThan(0));
     // Labelled as an attribution, so it can never read as an access rule.
     expect(screen.getAllByText(/مدرس تهیه‌کننده/).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * I16 — the create panel's student and teacher pickers search the server.
+ *
+ * They fetched 200 rows once and rendered them as the whole academy, so a
+ * student or teacher past that page could not be chosen at all.
+ */
+describe("the create panel's pickers search past the first page (I16)", () => {
+  function stubPeople(prefix: string, count: number, label: string) {
+    const rows = Array.from({ length: count }, (_, index) => ({
+      id: `${prefix}_${index + 1}`,
+      name: `${label} ${index + 1}`,
+      title: "مدرس",
+      status: "active",
+      instrument: "piano",
+    }));
+    const calls: { search?: string; per_page?: number }[] = [];
+    const list = async (params: { search?: string; per_page?: number; page?: number } = {}) => {
+      calls.push(params);
+      const query = params.search?.trim();
+      const matched = query ? rows.filter((row) => row.name.includes(query)) : rows;
+      const perPage = params.per_page ?? 20;
+      const page = params.page ?? 1;
+      return {
+        data: matched.slice((page - 1) * perPage, page * perPage),
+        meta: { page, per_page: perPage, total: matched.length },
+      };
+    };
+    return { rows, calls, list };
+  }
+
+  it("finds student 210 and teacher 210 through their pickers", async () => {
+    const students = stubPeople("st", 250, "هنرجوی شماره");
+    const teachers = stubPeople("t", 250, "مدرس شماره");
+    setStudentRepository({ list: students.list } as never);
+    setTeacherRepository({ list: teachers.list } as never);
+
+    renderLibrary();
+    await waitForCatalogue();
+    const dialog = openCreateDialog();
+
+    // Reveal the per-student picker, then search the server.
+    fireEvent.change(within(dialog).getByLabelText(/سطح دسترسی هنرجویان/), { target: { value: "some" } });
+    fireEvent.change(within(dialog).getByPlaceholderText("جست‌وجوی نام، تلفن یا کد ملی هنرجو…"), {
+      target: { value: "هنرجوی شماره 210" },
+    });
+    await waitFor(() => expect(students.calls.some((call) => call.search === "هنرجوی شماره 210")).toBe(true));
+    await waitFor(() => expect(within(dialog).getByText("هنرجوی شماره 210")).toBeDefined());
+
+    // The teacher picker does the same.
+    fireEvent.change(within(dialog).getByPlaceholderText("جست‌وجوی نام مدرس…"), {
+      target: { value: "مدرس شماره 210" },
+    });
+    await waitFor(() => expect(teachers.calls.some((call) => call.search === "مدرس شماره 210")).toBe(true));
+    await waitFor(() =>
+      expect((within(dialog).getByLabelText("مدرس تهیه‌کننده (ثبت انتساب، نه دسترسی)") as HTMLSelectElement).options.length).toBeGreaterThan(1),
+    );
   });
 });

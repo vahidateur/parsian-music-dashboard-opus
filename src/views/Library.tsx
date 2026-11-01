@@ -174,13 +174,57 @@ function LibraryItemDialog({
   // The picker's read owns its failure: a broken read must not be rendered as
   // "no students exist" (I15 — an empty picker and an unreadable one are
   // different facts, and only the read itself can tell them apart).
-  const { students, error: studentsError, reload: reloadStudents } = useStudentList({ per_page: 200 });
+  /*
+    I16 — both create-panel pickers search the SERVER while a query is active.
+
+    They fetched 200 rows once and rendered them as the whole academy, so a
+    student or teacher past that page could not be chosen at all. The page stays
+    200 when idle (no change for a small academy) and drops to 50 while
+    searching, because the server has already narrowed the set.
+  */
+  const [studentQuery, setStudentQuery] = useState("");
+  const [teacherQuery, setTeacherQuery] = useState("");
+  /** Names of checked students, so a selection survives a page it left. */
+  const [knownStudents, setKnownStudents] = useState<Record<string, string>>({});
+  const [selectedTeacher, setSelectedTeacher] = useState<{ id: string; name: string; title: string } | null>(null);
+  const studentSearch = studentQuery.trim();
+  const teacherSearch = teacherQuery.trim();
+  const {
+    students,
+    total: studentsTotal,
+    error: studentsError,
+    reload: reloadStudents,
+  } = useStudentList({
+    ...(studentSearch ? { search: studentSearch } : {}),
+    per_page: studentSearch ? 50 : 200,
+  });
 
   // G-7: the attribution picker reads the same teachers list the view resolves
   // names from, so a row can never be attributed to a teacher the picker could
   // not have chosen. Its failure is the picker's to own, exactly like the
   // student picker's — a broken read is not an empty academy.
-  const { items: teachers, error: teachersError, reload: reloadTeachers } = useTeachers({ per_page: 200 });
+  const {
+    items: teachers,
+    total: teachersTotal,
+    error: teachersError,
+    reload: reloadTeachers,
+  } = useTeachers({
+    ...(teacherSearch ? { search: teacherSearch } : {}),
+    per_page: teacherSearch ? 50 : 200,
+  });
+
+  /** Checked students first when the current page no longer contains them. */
+  const studentRows = useMemo(() => {
+    const missing = studentIds
+      .filter((id) => !students.some((student) => student.id === id))
+      .map((id) => ({ id, name: knownStudents[id] ?? id }));
+    return [...missing, ...students];
+  }, [students, studentIds, knownStudents]);
+
+  const teacherOptions = useMemo(() => {
+    if (!selectedTeacher || teachers.some((teacher) => teacher.id === selectedTeacher.id)) return teachers;
+    return [selectedTeacher, ...teachers];
+  }, [teachers, selectedTeacher]);
 
   const submit = async () => {
     if (title.trim().length < 2) {
@@ -301,14 +345,31 @@ function LibraryItemDialog({
           */}
           <Field label="مدرس تهیه‌کننده (ثبت انتساب، نه دسترسی)">
             {(c) => (
-              <select {...c} className={inputCls} value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
-                <option value="">— ثبت نشده —</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name} · {t.title}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <SearchInput value={teacherQuery} onChange={setTeacherQuery} placeholder="جست‌وجوی نام مدرس…" />
+                <select
+                  {...c}
+                  className={cn(inputCls, "mt-2")}
+                  value={teacherId}
+                  onChange={(e) => {
+                    const chosen = teacherOptions.find((t) => t.id === e.target.value);
+                    setTeacherId(e.target.value);
+                    setSelectedTeacher(chosen ? { id: chosen.id, name: chosen.name, title: chosen.title } : null);
+                  }}
+                >
+                  <option value="">— ثبت نشده —</option>
+                  {teacherOptions.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.title ? `${t.name} · ${t.title}` : t.name}
+                    </option>
+                  ))}
+                </select>
+                {!teachersError && teachersTotal > teachers.length ? (
+                  <p className="mt-1.5 text-[11px] text-ink-500">
+                    {faNum(teachers.length)} از {faNum(teachersTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                  </p>
+                ) : null}
+              </div>
             )}
           </Field>
           {teachersError ? (
@@ -370,6 +431,9 @@ function LibraryItemDialog({
           {visibility === "students" && restricted && (
             <fieldset className="rounded-xl border border-white/[0.07] p-3">
               <legend className="px-1 text-[10.5px] text-ink-400">هنرجویان دارای دسترسی</legend>
+              <div className="mb-2">
+                <SearchInput value={studentQuery} onChange={setStudentQuery} placeholder="جست‌وجوی نام، تلفن یا کد ملی هنرجو…" />
+              </div>
               <div className="max-h-40 space-y-1 overflow-y-auto pl-1">
                 {studentsError ? (
                   <p className="text-[11px] text-danger-400">
@@ -380,16 +444,17 @@ function LibraryItemDialog({
                   </p>
                 ) : (
                   <>
-                    {students.length === 0 && <p className="text-[11px] text-ink-500">هنرجویی ثبت نشده است.</p>}
-                    {students.map((student) => (
+                    {studentRows.length === 0 && <p className="text-[11px] text-ink-500">هنرجویی ثبت نشده است.</p>}
+                    {studentRows.map((student) => (
                   <label key={student.id} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-[12px] text-ink-200 hover:bg-white/[0.04]">
                     <input
                       type="checkbox"
                       className="accent-gold-500"
                       checked={studentIds.includes(student.id)}
-                      onChange={(e) =>
-                        setStudentIds((prev) => (e.target.checked ? [...prev, student.id] : prev.filter((id) => id !== student.id)))
-                      }
+                      onChange={(e) => {
+                        setKnownStudents((prev) => ({ ...prev, [student.id]: student.name }));
+                        setStudentIds((prev) => (e.target.checked ? [...prev, student.id] : prev.filter((id) => id !== student.id)));
+                      }}
                     />
                     <span>{student.name}</span>
                   </label>
@@ -397,6 +462,11 @@ function LibraryItemDialog({
                   </>
                 )}
               </div>
+              {!studentsError && studentsTotal > students.length ? (
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  {faNum(students.length)} از {faNum(studentsTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                </p>
+              ) : null}
             </fieldset>
           )}
 

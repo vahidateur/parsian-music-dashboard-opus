@@ -9,7 +9,7 @@
  * `studentIds`/`enrolled`/`waitlist` are intentionally absent: enrollment is
  * the authoritative Student↔Class relationship and is managed separately.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { InstrumentId } from "@/domains/instruments/types";
 import { faNum } from "@/lib/format";
 import { instrumentChoices, useInstrumentCatalog } from "@/domains/instruments/catalog";
@@ -18,7 +18,7 @@ import { WEEKDAYS } from "@/domains/scheduling/weekdays";
 import { isHhMm } from "@/domains/scheduling/dateBridge";
 import type { AcademyClass } from "@/domains/classes/types";
 import { Button } from "@/components/ds/primitives";
-import { Dialog, Field, inputCls } from "@/components/ds/patterns";
+import { Dialog, Field, SearchInput, inputCls } from "@/components/ds/patterns";
 import { getClassRepository } from "@/domains/registry";
 import { useEntityForm, type FieldErrors } from "@/domains/shared/useEntityForm";
 import { useRooms } from "@/domains/rooms/useRooms";
@@ -110,7 +110,31 @@ export function ClassFormDialog({
   }, [catalog, academyClass]);
 
   const repository = useMemo(() => getClassRepository(), []);
-  const { items: teachers, loading: teachersLoading, error: teachersError, reload: reloadTeachers } = useTeachers({ assignableOnly: true, per_page: 200 });
+  /*
+    I16 — the teacher picker searches the SERVER while a query is active.
+
+    A single 200-row page was rendered as the whole staff, so a teacher past it
+    could not be assigned to a class at all. The page stays 200 when idle and
+    drops to 50 while searching, because the server has already narrowed it.
+  */
+  const [teacherQuery, setTeacherQuery] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState<{ id: string; name: string } | null>(null);
+  const teacherSearch = teacherQuery.trim();
+  const {
+    items: teachers,
+    total: teachersTotal,
+    loading: teachersLoading,
+    error: teachersError,
+    reload: reloadTeachers,
+  } = useTeachers({
+    ...(teacherSearch ? { search: teacherSearch } : {}),
+    assignableOnly: true,
+    per_page: teacherSearch ? 50 : 200,
+  });
+  const teacherOptions = useMemo(() => {
+    if (!selectedTeacher || teachers.some((teacher) => teacher.id === selectedTeacher.id)) return teachers;
+    return [selectedTeacher, ...teachers];
+  }, [teachers, selectedTeacher]);
   const { items: rooms, loading: roomsLoading, error: roomsError, reload: reloadRooms } = useRooms({ assignableOnly: true, per_page: 200 });
 
   const { items: programs, error: programsError } = usePrograms({ per_page: 200 });
@@ -261,14 +285,32 @@ export function ClassFormDialog({
 
         <Field label="مدرس" error={form.errors.teacherId} required>
           {(control) => (
-            <select {...control} className={inputCls} value={form.draft.teacherId} disabled={busy || teachersLoading || Boolean(teachersError)} onChange={(e) => form.set("teacherId", e.target.value)}>
-              <option value="">{teachersLoading ? "در حال بارگذاری مدرسین…" : teachersError ? "بارگذاری مدرسین ناموفق بود" : "— انتخاب کنید —"}</option>
-              {teachers.map((teacher) => (
-                <option key={teacher.id} value={teacher.id}>
-                  {teacher.name}
-                </option>
-              ))}
-            </select>
+            <div>
+              <SearchInput value={teacherQuery} onChange={setTeacherQuery} placeholder="جست‌وجوی نام مدرس…" />
+              <select
+                {...control}
+                className={cn(inputCls, "mt-2")}
+                value={form.draft.teacherId}
+                disabled={busy || teachersLoading || Boolean(teachersError)}
+                onChange={(e) => {
+                  const chosen = teacherOptions.find((teacher) => teacher.id === e.target.value);
+                  form.set("teacherId", e.target.value);
+                  setSelectedTeacher(chosen ? { id: chosen.id, name: chosen.name } : null);
+                }}
+              >
+                <option value="">{teachersLoading ? "در حال بارگذاری مدرسین…" : teachersError ? "بارگذاری مدرسین ناموفق بود" : "— انتخاب کنید —"}</option>
+                {teacherOptions.map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.name}
+                  </option>
+                ))}
+              </select>
+              {!teachersError && teachersTotal > teachers.length ? (
+                <p className="mt-1.5 text-[11px] text-ink-500">
+                  {faNum(teachers.length)} از {faNum(teachersTotal)} — برای دیدن بقیه، جست‌وجو را محدود کنید.
+                </p>
+              ) : null}
+            </div>
           )}
         </Field>
 
