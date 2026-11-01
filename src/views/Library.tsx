@@ -48,7 +48,7 @@ const shelves: { id: string; label: string; kind: ResourceKind; instrument: Inst
   { id: "sh4", label: "ویدیوهای آموزشی", kind: "video", instrument: "violin" },
 ];
 import { useMediaObjectUrl } from "@/domains/media/useMedia";
-import { faNum } from "@/lib/format";
+import { NO_DATA, faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge } from "@/components/ds/primitives";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ds/states";
@@ -528,9 +528,17 @@ export function LibraryView() {
   // relationship; this view resolves only the id the item already carries, the
   // same way it already resolves `studentId` to a student name in the drawer.
   const { items: teachers } = useTeachers({ per_page: 200 });
+  /*
+    I16 — the teacher page holds 200 rows, so a teacher past it has no name in
+    this map. An empty string renders as a blank byline, which reads like "no
+    teacher" rather than "this teacher is outside the page we read" - so an
+    unresolved name now shows the project's unknown marker (D12: say what you do
+    not know). A resource with NO teacher keeps the empty string, because
+    "ثبت نشده" (not recorded) is the truth in that case.
+  */
   const teacherName = useMemo(() => {
     const byId = new Map<string, string>(teachers.map((t) => [t.id, t.name]));
-    return (id?: string): string => (id ? byId.get(id) ?? "" : "");
+    return (id?: string): string => (id ? byId.get(id) ?? NO_DATA : "");
   }, [teachers]);
 
   const { items, total, loading, error, reload } = useLibraryList({ per_page: 200 });
@@ -830,7 +838,9 @@ export function LibraryView() {
                     </button>
                   </span>
                 ) : (
-                  open.restrictedToStudentIds!.map((id) => students.find((s) => s.id === id)?.name ?? id).join("، ")
+                  open.restrictedToStudentIds!
+                    .map((id) => students.find((s) => s.id === id)?.name ?? NO_DATA)
+                    .join("، ")
                 )}
                 <span className="mt-1 block text-[10.5px] text-ink-400">
                   قاعدهٔ دسترسی یک تابع خالص است (studentCanAccess) تا هر خوانندهٔ این فهرست — از جمله پرتال آیندهٔ
