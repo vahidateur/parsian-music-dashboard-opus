@@ -541,7 +541,21 @@ export function LibraryView() {
     return (id?: string): string => (id ? byId.get(id) ?? NO_DATA : "");
   }, [teachers]);
 
-  const { items, total, loading, error, reload } = useLibraryList({ per_page: 200 });
+  /*
+    I16 — the catalogue search is the SERVER's, while a query is active.
+
+    The box filtered the 200 rows already loaded, so a resource past that page
+    could not be found at all: the record existed and the search said it did
+    not. The list contract carries `search` (inherited from `ListParams`) and
+    both the API and the demo repository implement it, so the query now asks the
+    repository. The page stays 200 when idle and drops to 50 while searching,
+    because the server has already narrowed the set.
+  */
+  const search = query.trim();
+  const { items, total, loading, error, reload } = useLibraryList({
+    per_page: search ? 50 : 200,
+    ...(search ? { search } : {}),
+  });
 
   const file = useLibraryFile(open);
   const audioUrl = useMediaObjectUrl(open?.kind === "audio" ? open.mediaId : undefined);
@@ -569,21 +583,6 @@ export function LibraryView() {
         const vis = r.visibility ?? "students";
         if (vis !== visibilityFilter) return false;
       }
-      if (query) {
-        // G-7: a teacher query matches a REAL `teacherId` -> `Teacher.name` link.
-        // `composer` is still searched, but only as the creator attribution it
-        // now honestly is — it is no longer a stand-in for the teacher, so a
-        // score that merely names a composer never answers a teacher search.
-        const q = query;
-        if (
-          !r.title.includes(q) &&
-          !r.composer.includes(q) &&
-          !r.level.includes(q) &&
-          !instrumentName(r.instrument).includes(q) &&
-          !teacherName(r.teacherId).includes(q)
-        )
-          return false;
-      }
       return true;
     });
     if (sort === "popular") return [...out].sort((a, b) => b.uses - a.uses);
@@ -595,7 +594,7 @@ export function LibraryView() {
       if (aTime && bTime) return bTime - aTime;
       return 0;
     });
-  }, [items, kind, inst, levelFilter, visibilityFilter, query, sort, teacherName]);
+  }, [items, kind, inst, levelFilter, visibilityFilter, sort]);
 
   const stats = useMemo(() => {
     const byKind = (k: ResourceKind) => items.filter((r) => r.kind === k).length;
@@ -610,6 +609,9 @@ export function LibraryView() {
   }, [items]);
 
   const truncationNote = partialNote("کتابخانه", items.length, total);
+  // A count is a measurement (D12): with a query active the cards describe the
+  // search result set, and say so.
+  const statsScope = search ? " · در نتایج جست‌وجو" : "";
 
   if (loading) return <LoadingState className="py-32" label="در حال باز کردن کتابخانه…" />;
   if (error)
@@ -645,10 +647,10 @@ export function LibraryView() {
 
       <StatStrip
         stats={[
-          { label: "کل منابع", value: faNum(total), hint: `${faNum(stats.sheets)} نت · ${faNum(stats.audio)} فایل صوتی` },
+          { label: "کل منابع", value: faNum(total), hint: `${faNum(stats.sheets)} نت · ${faNum(stats.audio)} فایل صوتی${statsScope}` },
           { label: "پراستفاده‌ترین", value: stats.mostUsed?.title ?? "—", hint: stats.mostUsed ? `${faNum(stats.mostUsed.uses)} بار استفاده` : "هنوز منبعی ثبت نشده" },
-          { label: "دارای فایل", value: faNum(stats.withFile), tone: "violet", hint: "قابل دریافت از همین مرورگر" },
-          { label: "سازهای پوشش‌داده‌شده", value: faNum(stats.instruments), unit: "ساز", hint: "بر اساس منابع موجود" },
+          { label: "دارای فایل", value: faNum(stats.withFile), tone: "violet", hint: `قابل دریافت از همین مرورگر${statsScope}` },
+          { label: "سازهای پوشش‌داده‌شده", value: faNum(stats.instruments), unit: "ساز", hint: `بر اساس منابع موجود${statsScope}` },
         ]}
       />
       {truncationNote && <p className="mt-2 text-[11px] text-ink-400">{truncationNote} — برای بارگذاری کامل نیاز به سرور است.</p>}
@@ -682,7 +684,7 @@ export function LibraryView() {
 
       <FilterBar
         className="mt-5"
-        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی عنوان، آهنگساز، مدرس یا ساز…" />}
+        search={<SearchInput value={query} onChange={setQuery} placeholder="جستجوی عنوان، آهنگساز یا مدرس…" />}
         trailing={
           <Segmented
             value={sort}

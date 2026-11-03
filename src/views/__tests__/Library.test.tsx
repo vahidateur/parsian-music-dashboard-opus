@@ -410,7 +410,8 @@ describe("Library.tsx source boundaries", () => {
   });
 
   it("states its page size explicitly", () => {
-    expect(source).toMatch(/useLibraryList\(\{\s*per_page:\s*\d+/);
+    // Idle 200 / searching 50: both are literals in the call, never a default.
+    expect(source).toMatch(/useLibraryList\(\{\s*per_page:\s*(?:\d+|search \? \d+ : \d+)/);
   });
 });
 
