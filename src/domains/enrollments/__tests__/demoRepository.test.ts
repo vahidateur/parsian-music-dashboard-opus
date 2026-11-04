@@ -10,6 +10,7 @@ import { ApiError } from "@/api/errors";
 import { LocalEnrollmentRepository } from "@/domains/enrollments/localRepository";
 import { LocalClassRepository } from "@/domains/classes/localRepository";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { demoStore } from "@/services/demoStore";
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {
   try {
@@ -83,5 +84,59 @@ describe("LocalEnrollmentRepository", () => {
   it("rejects enrollment into an archived class", async () => {
     await classes.archive("cl10");
     expect(await codeOf(repo.enroll({ studentId: "st1", classId: "cl10" }))).toBe("CLASS_ARCHIVED");
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* I16 — search over the related student and class                     */
+  /* ------------------------------------------------------------------ */
+
+  it("searches the related student's name", async () => {
+    const all = await repo.list({ per_page: 1000 });
+    const seeded = all.data.find((e) => demoStore.students.find(e.studentId));
+    const student = demoStore.students.find(seeded!.studentId)!;
+
+    const found = await repo.list({ search: student.name, per_page: 1000 });
+
+    expect(found.data.some((e) => e.id === seeded!.id)).toBe(true);
+    // Every row really points at the matching student (or a class named so).
+    for (const row of found.data) {
+      const name = demoStore.students.find(row.studentId)?.name ?? "";
+      const title = demoStore.classes.find(row.classId)?.title ?? "";
+      expect(`${name} ${title}`).toContain(student.name);
+    }
+  });
+
+  it("searches the related class's title", async () => {
+    const all = await repo.list({ per_page: 1000 });
+    const seeded = all.data.find((e) => demoStore.classes.find(e.classId));
+    const academyClass = demoStore.classes.find(seeded!.classId)!;
+
+    const found = await repo.list({ search: academyClass.title, per_page: 1000 });
+
+    expect(found.data.some((e) => e.id === seeded!.id)).toBe(true);
+    for (const row of found.data) {
+      const name = demoStore.students.find(row.studentId)?.name ?? "";
+      const title = demoStore.classes.find(row.classId)?.title ?? "";
+      expect(`${name} ${title}`).toContain(academyClass.title);
+    }
+  });
+
+  it("composes the term with the membership filters", async () => {
+    const target = demoStore.students.all()[0]!;
+
+    const found = await repo.list({ search: target.name, activeOnly: true, per_page: 1000 });
+
+    expect(found.data.every((e) => e.status === "active")).toBe(true);
+    for (const row of found.data) {
+      const name = demoStore.students.find(row.studentId)?.name ?? "";
+      const title = demoStore.classes.find(row.classId)?.title ?? "";
+      expect(`${name} ${title}`).toContain(target.name);
+    }
+  });
+
+  it("treats a blank term as no filter", async () => {
+    const all = await repo.list({ per_page: 1000 });
+    const blank = await repo.list({ search: "   ", per_page: 1000 });
+    expect(blank.data.length).toBe(all.data.length);
   });
 });

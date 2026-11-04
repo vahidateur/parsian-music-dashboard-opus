@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Support\Api\ApiException;
 use App\Support\Pagination;
 use App\Support\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -54,6 +55,23 @@ final class EnrollmentService
         }
         if (filter_var($filters['active'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             $query->where('status', 'active');
+        }
+
+        /*
+            I16 — an enrollment row carries ids only, so a text query has to look
+            through the records it points at: the student's name and the class
+            title, the two things a membership row is read by. Both related
+            models are org-scoped by `BelongsToOrganization`, so `whereHas`
+            inherits the tenant constraint and cannot match another academy's
+            records. A blank query is no query.
+        */
+        $term = trim((string) ($filters['search'] ?? ''));
+        if ($term !== '') {
+            $like = '%'.$term.'%';
+            $query->where(function (Builder $inner) use ($like): void {
+                $inner->whereHas('student', fn (Builder $student): Builder => $student->where('name', 'like', $like))
+                    ->orWhereHas('academyClass', fn (Builder $class): Builder => $class->where('title', 'like', $like));
+            });
         }
 
         return $query->orderBy('created_at')->orderBy('id')

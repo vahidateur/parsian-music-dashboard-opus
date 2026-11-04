@@ -7,13 +7,22 @@
  * query and that a resource beyond the first page can be found.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { LibraryView } from "@/views/Library";
 import { getLibraryRepository, resetRegistry, setLibraryRepository } from "@/domains/registry";
 import { withStubs } from "@/test/repositoryStubs";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import type { LibraryItem, LibraryListParams } from "@/domains/library/types";
+
+/*
+  Measured 2026-11-04: this case renders the whole LibraryView. On its own it
+  takes ~1.9 s; alongside two other heavy view files ~3.9 s; inside the full
+  parallel suite ~5.8 s, which is past the 5 s default. It completes correctly
+  and passes whenever it is given the time, so this is a budget, not a hang -
+  the same measured convention the other heavy view suites use.
+*/
+vi.setConfig({ testTimeout: 60_000 });
 
 afterEach(cleanup);
 beforeEach(() => {

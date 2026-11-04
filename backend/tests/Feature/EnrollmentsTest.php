@@ -278,4 +278,191 @@ class EnrollmentsTest extends TestCase
         }
         $this->assertSame(1, Enrollment::query()->where('status', 'active')->count());
     }
+
+    /* ------------------------------------------------------------------ */
+    /* I16 — server-side search over the related student and class         */
+    /* ------------------------------------------------------------------ */
+
+    /** A second class in the default org, for title-matching cases. */
+    private function secondClass(string $id = 'c2', string $title = 'کلاس ویولن'): AcademyClass
+    {
+        return AcademyClass::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => $id,
+            'teacher_id' => 't1',
+            'room_id' => 'r1',
+            'title' => $title,
+            'level' => 'سطح ۲',
+        ]);
+    }
+
+    private function enrollRow(string $id, string $studentId, string $classId, string $status = 'active'): Enrollment
+    {
+        return Enrollment::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => $id,
+            'student_id' => $studentId,
+            'class_id' => $classId,
+            'status' => $status,
+        ]);
+    }
+
+    public function test_list_searches_by_student_name(): void
+    {
+        $this->actingAsRole('manager');
+        DB::table('students')->where('id', 's1')->update(['name' => 'آرمین کاویانی']);
+        DB::table('students')->where('id', 's2')->update(['name' => 'سارا رضایی']);
+
+        $this->enrollRow('enr_s1', 's1', 'c1');
+        $this->enrollRow('enr_s2', 's2', 'c1');
+
+        $this->getJson('/api/v1/enrollments?search='.urlencode('آرمین'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_s1')
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_list_searches_by_class_title(): void
+    {
+        $this->actingAsRole('manager');
+        $this->secondClass();
+        DB::table('students')->where('id', 's1')->update(['name' => 'آرمین کاویانی']);
+        DB::table('students')->where('id', 's2')->update(['name' => 'سارا رضایی']);
+
+        $this->enrollRow('enr_s1', 's1', 'c1');
+        $this->enrollRow('enr_s2', 's2', 'c2');
+
+        $this->getJson('/api/v1/enrollments?search='.urlencode('ویولن'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_s2')
+            ->assertJsonPath('meta.total', 1);
+    }
+
+    public function test_search_composes_with_the_existing_filters(): void
+    {
+        $this->actingAsRole('manager');
+        DB::table('students')->where('id', 's1')->update(['name' => 'آرمین کاویانی']);
+
+        $this->enrollRow('enr_open', 's1', 'c1', 'active');
+        $this->enrollRow('enr_done', 's1', 'c1', 'completed');
+
+        // Same term, narrower membership filter: only the completed row answers.
+        $this->getJson('/api/v1/enrollments?search='.urlencode('آرمین').'&status=completed')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_done');
+
+        // `active=1` and the term together keep only active rows.
+        $this->getJson('/api/v1/enrollments?search='.urlencode('آرمین').'&active=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_open');
+    }
+
+    public function test_empty_or_whitespace_search_applies_no_filter(): void
+    {
+        $this->actingAsRole('manager');
+        $this->enrollRow('enr_a', 's1', 'c1');
+        $this->enrollRow('enr_b', 's2', 'c1');
+
+        foreach (['', '%20%20', '%20%20%20'] as $raw) {
+            $this->getJson('/api/v1/enrollments?search='.$raw)
+                ->assertOk()
+                ->assertJsonPath('meta.total', 2);
+        }
+    }
+
+    public function test_search_never_matches_another_organizations_records(): void
+    {
+        $other = $this->makeOrganization();
+        Student::factory()->create([
+            'organization_id' => $other->id, 'id' => 's_other', 'name' => 'آرمین کاویانی',
+        ]);
+        AcademyClass::factory()->create([
+            'organization_id' => $other->id, 'id' => 'c_other',
+            'teacher_id' => 't1', 'room_id' => 'r1', 'title' => 'کلاس ویولن',
+        ]);
+        Enrollment::factory()->create([
+            'organization_id' => $other->id, 'id' => 'enr_other',
+            'student_id' => 's_other', 'class_id' => 'c_other',
+        ]);
+
+        $this->actingAsRole('manager');
+
+        // The term exists only in the other academy: the scoped query finds nothing.
+        $this->getJson('/api/v1/enrollments?search='.urlencode('آرمین'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/enrollments?search='.urlencode('ویولن'))
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_search_finds_a_matching_enrollment_beyond_the_first_page(): void
+    {
+        $this->actingAsRole('manager');
+        DB::table('students')->where('id', 's1')->update(['name' => 'دانش‌آموز هدف']);
+        DB::table('students')->where('id', 's2')->update(['name' => 'بقیهٔ هنرجویان']);
+
+        // 204 non-matching rows first, so the target can only appear on page 3.
+        // Enrollments are unique per (student, class), so each bulk row needs its
+        // own student.
+        for ($i = 0; $i < 204; $i++) {
+            $sid = 's_bulk_'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+            Student::factory()->create([
+                'organization_id' => $this->defaultOrganization()->id,
+                'id' => $sid,
+                'name' => 'هنرجوی شماره '.$i,
+            ]);
+            $this->enrollRow('enr_bulk_'.str_pad((string) $i, 3, '0', STR_PAD_LEFT), $sid, 'c1');
+        }
+        $target = $this->enrollRow('enr_target', 's1', 'c1');
+        $target->forceFill(['created_at' => now()->addHour()])->save();
+
+        // Without a term the row sits on page 3 — genuinely beyond the first page.
+        $this->getJson('/api/v1/enrollments?per_page=100&page=3')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 205)
+            ->assertJsonFragment(['id' => 'enr_target']);
+
+        // With the term the server finds it: one match, on the filtered page 1.
+        $this->getJson('/api/v1/enrollments?search='.urlencode('دانش‌آموز').'&per_page=100&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.per_page', 100)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_target');
+
+        $this->assertSame(205, DB::table('enrollments')->count());
+    }
+
+    public function test_search_longer_than_200_characters_is_rejected(): void
+    {
+        $this->actingAsRole('manager');
+
+        $this->getJson('/api/v1/enrollments?search='.str_repeat('a', 201))
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'ENROLLMENT_INVALID');
+
+        // The boundary itself is accepted (and simply matches nothing here).
+        $this->getJson('/api/v1/enrollments?search='.str_repeat('a', 200))
+            ->assertOk();
+    }
+
+    public function test_search_is_case_insensitive_for_latin_text(): void
+    {
+        $this->actingAsRole('manager');
+        $this->secondClass('c2', 'Piano Class');
+        $this->enrollRow('enr_s1', 's1', 'c1');
+        $this->enrollRow('enr_s2', 's2', 'c2');
+
+        $this->getJson('/api/v1/enrollments?search='.urlencode('piano'))
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', 'enr_s2');
+    }
 }

@@ -27,6 +27,8 @@ final class ListEnrollmentsRequest extends ApiFormRequest
             'class_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'status' => ['sometimes', 'nullable', Rule::in(Enrollment::STATUSES)],
             'active' => ['sometimes', 'nullable', Rule::in(['0', '1', 'true', 'false'])],
+            // I16: free text over the related student's name and the class title.
+            'search' => ['sometimes', 'nullable', 'string', 'max:200'],
         ];
     }
 }

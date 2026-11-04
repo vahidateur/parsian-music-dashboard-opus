@@ -28,11 +28,24 @@ export class LocalEnrollmentRepository implements EnrollmentRepository {
   constructor(private readonly store: DemoStore = demoStore) {}
 
   async list(params: EnrollmentListParams = {}): Promise<Page<Enrollment>> {
+    /*
+      I16 — an enrollment row carries ids only, so a text query has to look
+      through the records it points at: the student's name and the class title,
+      the same two fields the API searches. A blank query is no query.
+    */
+    const term = params.search?.trim();
+    const searchable = term ? term.toLocaleLowerCase() : "";
     const filtered = this.store.enrollments.all().filter((e) => {
       if (params.studentId && e.studentId !== params.studentId) return false;
       if (params.classId && e.classId !== params.classId) return false;
       if (params.status && e.status !== params.status) return false;
       if (params.activeOnly && !occupiesSeat(e)) return false;
+      if (searchable) {
+        const studentName = this.store.students.find(e.studentId)?.name ?? "";
+        const classTitle = this.store.classes.find(e.classId)?.title ?? "";
+        const haystack = `${studentName} ${classTitle}`.toLocaleLowerCase();
+        if (!haystack.includes(searchable)) return false;
+      }
       return true;
     });
     return paginate(filtered, params);

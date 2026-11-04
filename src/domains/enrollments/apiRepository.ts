@@ -48,5 +48,6 @@ export function toQuery(params: EnrollmentListParams): QueryParams {
     class_id: params.classId,
     status: params.status,
     active: params.activeOnly ? 1 : undefined,
+    search: params.search,
   };
 }
