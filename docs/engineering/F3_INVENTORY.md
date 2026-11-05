@@ -36,7 +36,7 @@
 - **Tests:** settingsHonesty appearance section labeled as device-local, not server-persisted, theme buttons exist — PASS
 
 ### Disabled Honest Controls
-- **Status:** complete — notifications 7 toggles disabled with deferral Surface "اعلان‌ها نیازمند سرور است — دامنهٔ اعلان‌ها هنوز پیاده‌سازی نشده و این تنظیمات ذخیره نمی‌شود. ... صرفاً نمایشی", localization 6 selects disabled with Surface "بومی‌سازی هنوز به دامنهٔ تنظیمات متصل نشده ... صرفاً نمایشی", session-rules 4 inputs disabled with Surface "قواعد جلسه هنوز به دامنهٔ زمان‌بندی متصل نشده ... صرفاً نمایشی", working-hours Friday toggle disabled "— غیرفعال" + expanded working hours inputs disabled with Surface "ساعات کاری هنوز به دامنهٔ زمان‌بندی متصل نشده ... صرفاً نمایشی" — all disabled with explicit deferral, Toggle disabled prop exists — complete per M-6, 14 cases in settingsHonesty.test PASS.
+- **Status:** complete — notifications 7 toggles disabled with deferral Surface "اعلان‌ها نیازمند سرور است — دامنهٔ اعلان‌ها هنوز پیاده‌سازی نشده و این تنظیمات ذخیره نمی‌شود. ... صرفاً نمایشی", localization 6 selects disabled with Surface "بومی‌سازی هنوز به دامنهٔ تنظیمات متصل نشده ... صرفاً نمایشی", Toggle disabled prop exists — complete per M-6. **Superseded 2026-09-22 (`606e95c`):** session rules and working hours are now editable and persist through the organization domain; their disabled state and deferral Surfaces are gone. `settingsHonesty.test.tsx` carries 16 cases after the 2026-11-05 page-level status repair (14 at this inventory's writing).
 
 ### Token Architecture
 - **Status:** partial — CSS vars --brand-primary, --brand-accent, --brand-text, --brand-font-fa written to document.documentElement.style via applyBranding, isHexColor guard prevents injection, index.css consumes vars via var(--brand-*, fallback) for accent scale, Persian font stack, body text — complete, fallback pre-branding values — complete, CSP style-src self + unsafe-inline attr narrow exception documented in deploy/nginx.conf + cspCompatibility.test — complete, BUT light/dark tokens: currently dark + glass themes, not light/dark per task — light theme deferred C, token architecture should support light/dark via CSS vars --bg --text --border but currently Tailwind uses ink-900 etc dark only — gap but C deferred, not blocking F3; viewer accent vs org accent naming confusion O-04 remains OPEN per PROP-THEME-01.
@@ -83,9 +83,9 @@
    - DoD: security hex strict prevents injection, no data URL for logo/favicon, CSP narrow exception preserved.
 
 4. **F3-4 Disabled Controls Honesty Preservation**
-   - Goal: Verify notifications 7 toggles, localization 6 selects, session-rules 4 inputs, Friday toggle disabled all with explicit deferral Surfaces honest, no fake save, Toggle disabled prop — already complete per M-6, but ensure no regression from F3-1/F3-2.
+   - Goal: Verify notifications 7 toggles and localization 6 selects stay disabled with explicit deferral Surfaces, no fake save, Toggle disabled prop — already complete per M-6, but ensure no regression from F3-1/F3-2. (Session rules and working hours were still disabled at F3; `606e95c`, 2026-09-22, later wired them.)
    - Files: `Settings.tsx` — no change expected, but verify.
-   - Tests: `settingsHonesty.test.tsx` 14 cases PASS.
+   - Tests: `settingsHonesty.test.tsx` 16 cases PASS after the 2026-11-05 page-level status repair (14 at F3).
 
 **Order rationale**: Reset first (leaf, no dependency, required visible outcome), then draft preview (depends on reset + draft state, optional but improves UX), then token architecture doc + naming clarification (depends on reset/preview), then disabled controls verification (leaf, ensures no regression).
 

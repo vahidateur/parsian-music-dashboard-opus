@@ -64,7 +64,6 @@ export function SettingsView() {
   /** How many colours this viewer has typed by hand — the preview line says so. */
   const typedColorCount = Object.values(colors).filter(Boolean).length;
   const [section, setSection] = useState<SectionId>("profile");
-  const [dirty, setDirty] = useState(false);
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     overdue: true,
     atRisk: true,
@@ -77,7 +76,6 @@ export function SettingsView() {
 
   const set = (k: string) => (v: boolean) => {
     setToggles((p) => ({ ...p, [k]: v }));
-    setDirty(true);
   };
 
   return (
@@ -86,18 +84,6 @@ export function SettingsView() {
         kicker="سیستم"
         title="تنظیمات"
         description="پیکربندی آموزشگاه، دسترسی‌ها و رفتار سامانه — بخش‌بندی‌شده تا هیچ‌وقت با یک فرم غول‌پیکر روبه‌رو نشوید."
-        actions={
-          dirty ? (
-            <>
-              <Button size="sm" variant="ghost" onClick={() => setDirty(false)}>انصراف</Button>
-              <Button size="sm" variant="primary" onClick={() => { setDirty(false); notify({ tone: "info", title: "ذخیرهٔ تنظیمات نیازمند سرور است", detail: "این تغییرات ماندگار نیستند. تنظیمات ظاهر جداگانه ذخیره می‌شود." }); }}>
-                <Check className="size-3.5" /> ذخیرهٔ تغییرات
-              </Button>
-            </>
-          ) : (
-            <StatusBadge tone="ok" label="همه‌چیز ذخیره شده" />
-          )
-        }
       />
 
       <div className="grid gap-4 lg:grid-cols-[240px_1fr]">

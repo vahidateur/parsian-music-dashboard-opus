@@ -48,7 +48,7 @@
 ## 9. Loading / Empty / Error States
 - BrandingPanel: LoadingState "در حال بارگذاری هویت آموزشگاه…", ErrorState with retry owns message "بارگذاری ناموفق بود", success only after resolve, no silent empty — verified M-4 failure disclosure.
 - Appearance: no loading, immediate from localStorage, preview live.
-- Disabled controls: notifications 7 toggles disabled, localization 6 selects disabled, session-rules 4 inputs disabled, Friday toggle disabled "— غیرفعال" + working hours inputs disabled — all with explicit deferral Surfaces honest "نیازمند سرور است ... صرفاً نمایشی ... ذخیره نمی‌شود" — verified M-6, 14 cases PASS, no fake success.
+- Disabled controls: notifications 7 toggles disabled, localization 6 selects disabled — both with explicit deferral Surfaces honest "نیازمند سرور است ... صرفاً نمایشی ... ذخیره نمی‌شود" — verified M-6, no fake success. (Session-rules 4 inputs and the working-hours window/Friday toggle were disabled at F3; `606e95c`, 2026-09-22, wired them to the organization domain. `settingsHonesty.test.tsx` carries 16 cases after the 2026-11-05 page-level status repair.)
 
 ## 10. Test Strategy
 - Branding validation: hex strict rejects shorthand/named, font allow-list, empty name, logo reference not resolving, leaves stored untouched when validation fails — 12 tests in branding.test.ts PASS.

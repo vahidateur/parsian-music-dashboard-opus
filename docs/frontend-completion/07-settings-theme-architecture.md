@@ -12,11 +12,8 @@
 - Hero uses useBranding + useAuth (M10) — no BrandingSettings persistence/schema change — VERIFIED
 - Appearance: theme (dark/glass), accent (gold/violet/amber? Actually accentLabels), density (comfortable/compact), motion (bool) — device-local per-browser via savePref localStorage keys ava:theme etc — VERIFIED Settings.tsx appearance section
 - Settings sections: settingsSections presentation config owned by view (M10) — VERIFIED
-- Honesty: notifications 2 surfaces, localization 1, session rules 1, working hours expanded — all disabled controls with explicit deferral Surfaces stating server required — VERIFIED M-6
-  - 7 notification toggles disabled
-  - 6 localization selects disabled
-  - 4 session-rules inputs disabled
-  - Friday toggle disabled "— غیرفعال"
+- Honesty: notifications 2 surfaces (7 toggles) and localization 1 surface (6 selects) remain disabled controls with explicit deferral Surfaces stating server required — VERIFIED M-6; PB-5 (resolved 2026-10-02) keeps notifications out of v1
+- Session rules (4 inputs) and working hours (window + Friday toggle) were disabled at the M-6 freeze; `606e95c` (2026-09-22) wired both to the organization domain — they are editable, persist through the repository, and name their consumers, superseding the disabled state recorded at `a3867a6`
 - Toggle disabled prop exists — VERIFIED
 
 ## Token Architecture — Desired (A + B)
@@ -70,7 +67,7 @@
 - Academy identity name/tagline/logo/color system typography light/dark tokens CSS vars preview reset persistence org vs device-local schema doc exists
 - BrandingPanel writes through repo, success only after resolve, error with retry, dirty check, no fake persistence
 - Appearance theme localStorage honest device-local, preview live, reset works, no backend claim
-- Disabled controls (notifications/localization/working-hours/session-rules) have explicit deferral Surfaces, disabled prop, no fake save
+- Disabled controls (notifications/localization) have explicit deferral Surfaces, disabled prop, no fake save; session rules and working hours are wired to the organization domain and covered by tests
 - No scattered theme keys for org data — org data single record — VERIFIED D2
 - No data URL for logo/favicon — mediaId ref only — VERIFIED
 

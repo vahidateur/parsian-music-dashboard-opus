@@ -83,7 +83,7 @@
 - Hero uses useBranding + useAuth (M10) — VERIFIED, no BrandingSettings persistence change
 - Appearance theme: device-local per-browser preference (ava:theme, ava:accent etc) via savePref, not org data — DOCUMENTED D2
 - Settings view: 13 sections? Actually settingsSections presentation config owned by view — VERIFIED M10
-- Honesty: notification toggles 7 disabled, localization 6 selects disabled, working-hours 4 inputs + Friday toggle disabled "— غیرفعال", session rules disabled, all with explicit deferral Surfaces stating server required — VERIFIED M-6
+- Honesty: notification toggles 7 disabled, localization 6 selects disabled, working-hours 4 inputs + Friday toggle disabled "— غیرفعال", session rules disabled, all with explicit deferral Surfaces stating server required — VERIFIED M-6 *(historical snapshot, 2026-09-19: session rules and working hours were wired later at `606e95c`, 2026-09-22, and are no longer disabled)*
 - Toggle component disabled prop — VERIFIED
 
 ### Dashboard

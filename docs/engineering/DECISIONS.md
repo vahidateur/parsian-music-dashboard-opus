@@ -3229,6 +3229,28 @@ own register, and never amend a D-entry.
 **Status.** ✅ Pointer in force — recorded 2026-10-30. Documentation-only; no product or
 architecture decision changed.
 
+## 44. M-6 reopening — the Settings page makes no save claim it cannot know
+
+**Context.** M-6 (Settings honesty) closed at the Arena Frontend Freeze (`a3867a6`,
+2026-09-19) with disabled deferral Surfaces for notifications, localization, session
+rules and working hours. `606e95c` (2026-09-22) later wired session rules and working
+hours to the organization domain, leaving the page header's «همه‌چیز ذخیره شده» badge
+driven by a `dirty` flag that only the now-disabled notification toggles could set. It
+was therefore permanently on, and contradicted a panel holding unsaved edits
+(«ذخیره‌نشده») — the "fake save" M-6 exists to prevent.
+
+**Decision.** The page-level save/discard actions and the status badge are removed; the
+Settings page renders no global persistence claim. Each panel owns its save state and
+says so. Notifications and localization stay disabled (PB-5: no notifications domain in
+v1); session rules and working hours are unchanged.
+
+**Enforced by.** `src/views/__tests__/settingsHonesty.test.tsx` — the former badge
+assertion is inverted, and a new case edits a working-hours field and asserts the panel
+says «ذخیره‌نشده» while the page makes no global claim.
+
+**Status.** ✅ In force — 2026-11-05. Owner-authorized (narrow M-6 reopening: remove the
+false page-level claim only; no feature, backend, API or pagination change).
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

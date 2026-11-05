@@ -232,9 +232,30 @@ describe("M-6 unimplemented settings do NOT report fake success", () => {
     // Check that all switches in notifications are disabled, so no dirty
     fireEvent.click(screen.getByRole("button", { name: /اعلان‌ها/ }));
     await screen.findByText(/اعلان‌ها نیازمند سرور است/);
-    // Top save button should NOT appear because disabled controls don't set dirty
+    /*
+      No page-level save or status claim at all: the page cannot know whether the
+      panels below hold unsaved edits, so it makes no claim. The old "everything
+      is saved" badge was driven by the disabled notification toggles and could
+      never be true.
+    */
     expect(screen.queryByText(/ذخیرهٔ تغییرات/)).toBeNull();
-    expect(screen.getByText(/همه‌چیز ذخیره شده/)).toBeTruthy();
+    expect(screen.queryByText(/همه‌چیز ذخیره شده/)).toBeNull();
+  });
+
+  it("editing a working-hours field does not make the page claim everything is saved", async () => {
+    renderSettings();
+    await waitFor(() => expect(screen.queryByText(/در حال بارگذاری هویت آموزشگاه/)).toBeNull(), { timeout: 5000 });
+
+    // Profile is the default section, so the working-hours panel is visible.
+    const start = (await screen.findByLabelText(/شروع روز کاری/)) as HTMLInputElement;
+    fireEvent.change(start, { target: { value: "08:30" } });
+
+    // The panel itself says the change is unsaved…
+    expect(await screen.findByText("ذخیره‌نشده")).toBeTruthy();
+    // …and the page makes no contradictory global claim. (A panel may still
+    // offer its own save button; the removed page-level one had no such owner.)
+    expect(screen.queryByText(/همه‌چیز ذخیره شده/)).toBeNull();
+    expect(screen.queryByText(/ذخیرهٔ تنظیمات نیازمند سرور است/)).toBeNull();
   });
 });
 
