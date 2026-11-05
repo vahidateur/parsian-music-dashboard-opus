@@ -3,7 +3,7 @@ import { resetRuntimeConfig, setRuntimeConfig } from "@/api/config";
 import { ApiStudentRepository } from "@/domains/students/apiRepository";
 import { LocalStudentRepository } from "@/domains/students/localRepository";
 import type { StudentRepository } from "@/domains/students/repository";
-import { getApiClient, getStudentRepository, resetRegistry, setStudentRepository } from "@/domains/registry";
+import { getApiClient, getStudentRepository, resetRegistry, setStudentRepository, studentScopeIsServerEnforced } from "@/domains/registry";
 
 afterEach(() => {
   resetRegistry();
@@ -27,5 +27,13 @@ describe("repository selection", () => {
     expect(getStudentRepository()).toBe(fake);
     setStudentRepository(undefined);
     expect(getStudentRepository()).toBeInstanceOf(LocalStudentRepository);
+  });
+
+  it("reports server-enforced student scope only in api mode", () => {
+    // Local mode has no server scope, so the view keeps its own T-02 filter.
+    expect(studentScopeIsServerEnforced()).toBe(false);
+    setRuntimeConfig({ mode: "api", apiBaseUrl: "https://backend.test/api/v1" });
+    // API mode selects ApiStudentRepository, whose list/get are scoped in SQL.
+    expect(studentScopeIsServerEnforced()).toBe(true);
   });
 });

@@ -66,6 +66,7 @@ import { UNAVAILABLE_DOMAINS, type UnavailableDomain } from "@/domains/shared/un
 export {
   getApiClient,
   setAuthToken,
+  studentScopeIsServerEnforced,
   setProgressRepository,
   setSchedulingRepository,
   setAttendanceRepository,

@@ -83,6 +83,16 @@ const overrides: Overrides = {};
 
 const isApiMode = (): boolean => getRuntimeConfig().mode === "api";
 
+/**
+ * Whether the ACTIVE student repository enforces T-02 in SQL.
+ *
+ * `mode === "api"` selects `ApiStudentRepository`, whose `list` and `get` are
+ * scoped server-side by `StudentAccessPolicy::scopeQuery`. The local store has
+ * no server scope, so the view keeps its own assignment filter there. A test
+ * override is a seam, not a production selection.
+ */
+export const studentScopeIsServerEnforced = (): boolean => isApiMode();
+
 export function getApiClient(): ApiClient {
   if (!client) {
     client = new ApiClient({

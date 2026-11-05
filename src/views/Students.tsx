@@ -9,7 +9,7 @@ import { paymentLabel, type PaymentStatus } from "@/lib/financeVocabulary";
 import { studentStatusLabel, type ActivityEntry, type Student, type StudentStatus } from "@/domains/students/types";
 import { useStudentList, useStudent } from "@/domains/students";
 import { StudentFormDialog } from "@/domains/students/StudentFormDialog";
-import { getStudentRepository } from "@/domains/registry";
+import { getStudentRepository, studentScopeIsServerEnforced } from "@/domains/registry";
 import { ATTENDANCE_STATUSES, ATTENDANCE_STATUS_LABEL, type AttendanceStatus } from "@/domains/attendance/types";
 import { useAttendanceRecords } from "@/domains/attendance/useAttendance";
 import { useClasses } from "@/domains/classes/useClasses";
@@ -933,6 +933,14 @@ export function StudentsView() {
   try { user = useAuth().user; } catch { user = null; }
   const canWriteStudents = useCan("students.write") || !user;
   const demoEnvironment = useIsDemoEnvironment();
+  /*
+    API mode: the server already applied T-02 in SQL to the student list and to
+    every `get(id)` (`StudentAccessPolicy::scopeQuery`), so the two capped scope
+    reads below must not narrow that answer — they can only hide students the
+    server authorized. Local mode has no server scope, so the client filter is
+    its only enforcement and stays.
+  */
+  const serverScopedStudents = studentScopeIsServerEnforced();
   // For T-02 assigned-only filtering (teacher sees assigned students only as smallest model)
   const classesForScope = useClasses({ per_page: 200 });
   const enrollmentsForScope = useEnrollments({ per_page: 200 });
@@ -975,6 +983,10 @@ export function StudentsView() {
   });
   const filteredStudents = useMemo(() => {
     if (!user || user.role !== "teacher" || !(user as any).teacherId) return students;
+    // Server-scoped list (API mode): the backend already enforced T-02, and the
+    // scope reads are capped at the API page limit — re-deriving here would
+    // turn their truncation into a false "not found".
+    if (serverScopedStudents) return students;
     // AUDIT-002 FIX: When teacher scope dependencies are loading or erroring, NEVER fall back to org-wide students.
     // Return safe restricted empty set instead of leaking org-wide.
     if (classesForScope.loading || enrollmentsForScope.loading) return [];
@@ -985,7 +997,7 @@ export function StudentsView() {
       enrollmentsForScope.items.map((e: any) => ({ studentId: e.studentId, classId: e.classId, status: e.status })),
     );
     return students.filter((s) => assigned.has(s.id));
-  }, [students, user, classesForScope.items, classesForScope.loading, classesForScope.error, enrollmentsForScope.items, enrollmentsForScope.loading, enrollmentsForScope.error]);
+  }, [students, user, serverScopedStudents, classesForScope.items, classesForScope.loading, classesForScope.error, enrollmentsForScope.items, enrollmentsForScope.loading, enrollmentsForScope.error]);
   const { student: detailStudent, loading: detailLoading, error: detailError, reload: reloadDetail } = useStudent(
     detailId ?? undefined,
   );
@@ -1074,7 +1086,7 @@ export function StudentsView() {
   // When a deep-link is active, resolution is independent of the 200-row ceiling
   if (detailId) {
     const isTeacherWithId = user?.role === "teacher" && (user as any).teacherId;
-    const teacherScopeLoadingForDetail = isTeacherWithId ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+    const teacherScopeLoadingForDetail = isTeacherWithId && !serverScopedStudents ? (classesForScope.loading || enrollmentsForScope.loading) : false;
     if (detailLoading || teachers.loading || teacherScopeLoadingForDetail) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
     if (detailError) {
       if (detailError.kind === "not_found") {
@@ -1110,8 +1122,9 @@ export function StudentsView() {
     }
     // SEC-003-01 defense-in-depth: teacher deep-link must not render unassigned student.
     // Reuses canonical scope function isAssignedStudent, respects loading/error, renders 404 style.
-    // Backend object-level authorization remains mandatory.
-    if (isTeacherWithId) {
+    // Backend object-level authorization remains mandatory. In API mode the server's
+    // `get(id)` already applies that scope, and these capped reads cannot second-guess it.
+    if (isTeacherWithId && !serverScopedStudents) {
       if (classesForScope.error || enrollmentsForScope.error) {
         return (
           <EmptyState
@@ -1161,7 +1174,7 @@ export function StudentsView() {
   // List view: existing behavior and pagination remain unchanged
   // AUDIT-002 FIX: For teacher role, scope dependencies loading should show loading state, not empty (false empty) nor org-wide leak.
   const isTeacherForLoading = user?.role === "teacher" && (user as any).teacherId;
-  const teacherScopeLoading = isTeacherForLoading ? (classesForScope.loading || enrollmentsForScope.loading) : false;
+  const teacherScopeLoading = isTeacherForLoading && !serverScopedStudents ? (classesForScope.loading || enrollmentsForScope.loading) : false;
   if (loading || teachers.loading || teacherScopeLoading) return <LoadingState className="py-32" label="در حال باز کردن پروندهٔ هنرجویان…" />;
   if (error)
     return (

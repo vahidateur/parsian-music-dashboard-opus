@@ -68,6 +68,7 @@ import { coreOverrides as overrides, coreIsApiMode as isApiMode, getApiClient, s
 export {
   getApiClient,
   setAuthToken,
+  studentScopeIsServerEnforced,
   setProgressRepository,
   setSchedulingRepository,
   setAttendanceRepository,
