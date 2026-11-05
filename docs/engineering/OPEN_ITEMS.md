@@ -1376,7 +1376,7 @@ recovery and the zero-record tests both remaining green.
 - **Done when:** `per_page: 0` has one documented meaning, a test in the owning module pins it, and
   the three call sites above agree with it.
 
-### I15. Fourteen list consumers discard `error`, so a failed read is rendered as an empty one (found 2026-09-13 during M3's acceptance audit)
+### I15. List consumers discard `error`, so a failed read is rendered as an empty one (found 2026-09-13 during M3's acceptance audit)
 - **What:** `useResourceList` exposes `error` beside `items`
   (`src/domains/shared/useResource.ts:55`) and **keeps the previous page when a refetch fails**
   (`src/domains/shared/useResource.ts:113`). A consumer that destructures only `items` — or `items`
@@ -1386,20 +1386,26 @@ recovery and the zero-record tests both remaining green.
 - **Found where:** M3's assignment surface discarded the catalogue read's error and answered
   «منبعی برای اتصال باقی نمانده» — a false empty of exactly the shape I13 Checkpoint 1 removed from
   six consumers, in a new place. **That one is fixed**, at `3bec881`, with a regression case and a
-  reversion check in `src/domains/learning/__tests__/LevelContentPanel.test.tsx`. **Fourteen remain**,
-  none of them touched by that pass, because fixing one of fifteen inside M3 would have been the
-  unrelated cleanup the milestone forbids:
-  `src/domains/learning/LearningPanel.tsx:84` (instruments) and `:104` (levels — a failed levels read
-  renders «این دوره هنوز سطحی ندارد» for a program that has twelve),
-  `src/domains/learning/StudentLearningPanel.tsx:28`, `:36` and `:205`,
-  `src/domains/classes/ClassFormDialog.tsx:104` and `:105`,
-  `src/domains/enrollments/EnrollmentDialog.tsx:35`,
-  `src/domains/gallery/GalleryPanel.tsx:68`,
-  `src/domains/progress/AssignPieceDialog.tsx:77`,
-  `src/domains/progress/PieceFormDialog.tsx:75`,
-  `src/domains/progress/StudentProgressPanel.tsx:78`,
-  `src/domains/students/StudentFormDialog.tsx:109` and
-  `src/views/Messages.tsx:105`.
+  reversion check in `src/domains/learning/__tests__/LevelContentPanel.test.tsx`.
+- **Re-verified 2026-11-05 (the fourteen-site inventory it carried was stale).** All fourteen sites
+  this item originally listed now take `error` and disclose failure through `ErrorState`/alert:
+  `LearningPanel` (instruments, levels), `StudentLearningPanel` (placement, eligible and locked
+  content, programs, levels), `ClassFormDialog` (teachers, rooms), `EnrollmentDialog` (classes,
+  students), `GalleryPanel` (images), `AssignPieceDialog` (pieces), `PieceFormDialog` (programs),
+  `StudentProgressPanel` (timeline), `StudentFormDialog` (teachers) and `Messages` (threads).
+  **The re-scan found two more library reads that were never on the list, and they were fixed on
+  2026-11-05:** `src/domains/progress/PieceFormDialog.tsx:89` and
+  `src/domains/progress/StudentProgressPanel.tsx:94` — both read `useLibraryList` without its
+  `error`, so a failed library read rendered «کتابخانه خالی است» / «منبعی در دسترس این هنرجو نیست»
+  instead of a failure. Both now take `error` + `reload` and render the panel's existing
+  `ErrorState`/alert with retry; the empty copy is reachable only when the read actually succeeded.
+- **What the broader scan found, recorded rather than silently claimed fixed.** Other list reads
+  still do not take `error`, but they resolve *labels or support data* rather than rendering an
+  empty list/picker: the class ladder's programs/levels/enrollments/rooms/sessions/students reads in
+  `src/views/Classes.tsx`, the teacher-name map in `src/views/Library.tsx:530`, and the support
+  reads in `Attendance`, `Scheduling`, `Compensation`, `Teachers` and `Finance`. A failed one of
+  those renders `NO_DATA` («—») or omits the label — honest, but outside this item's original
+  "empty state or empty picker" boundary. They are **not** claimed as fixed here.
 - **Why it survived:** the primary read of nearly every view *does* take `error`
   (`src/domains/gallery/GalleryPanel.tsx:57`, `src/domains/rooms/RoomsPanel.tsx:25`,
   `src/views/Classes.tsx:268`, `src/views/Teachers.tsx:348`), so the pattern reads as deliberate —
@@ -1410,10 +1416,17 @@ recovery and the zero-record tests both remaining green.
   "picker unavailable" affordance in `src/components/ds/patterns.tsx` so fourteen sites do not invent
   fourteen wordings. **Not** `useResourceList`: the hook is already honest, and I13's remaining
   readers are a separate, unauthorized item.
-- **Done when:** no consumer renders an empty state or an empty picker for a read that failed, pinned
-  by a gate of the same shape as `src/domains/shared/__tests__/staleQueryGates.test.tsx`.
-- **Status:** recorded 2026-09-13, **not authorized, not started**. M3 fixed its own instance and
-  stopped there, on purpose.
+- **Done when:** no list/read consumer renders an empty state or an empty picker for a read that
+  failed. The acceptance criterion is **broader than the original fourteen sites**: it covers every
+  consumer of a list/derived read that can fail, not just the ones inventoried here. It is pinned by
+  `src/domains/shared/__tests__/failureDisclosureI15.test.tsx`, which now covers the fixed consumers
+  (including both library reads) with a failure case and a legitimate-empty case each.
+- **Status:** **partially fixed, not closed.** The two remaining documented consumers were fixed on
+  2026-11-05 (no commit recorded yet at this writing); the twelve earlier fixes are pinned by the
+  gate above. The broader acceptance criterion is not yet proven across every support read listed
+  above — those render `NO_DATA` rather than an empty state, which is why they are recorded as
+  outside the current boundary rather than silently counted as done. I13's remaining readers and
+  I14 stay separate and untouched.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination

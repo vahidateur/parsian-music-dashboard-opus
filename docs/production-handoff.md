@@ -1,5 +1,9 @@
 # Production hand-off checklist
 
+> **Historical snapshot — pre-consolidation (2026-09).** The checklist and its test count predate
+> the F0–F10 and M-phase work. The live figure lives in
+> [PROJECT_STATE.md](../engineering/PROJECT_STATE.md) §4 and is deliberately not duplicated here.
+
 Status of this build: **demo-complete, not production-deployable.**
 Every blocking item below is a backend item. The frontend is structured so that
 each one is a repository swap, not a rewrite.
@@ -95,7 +99,7 @@ Status labels used throughout the docs:
 Executed, with results reproduced below in the final report:
 
 - [x] `npm run typecheck` — clean.
-- [x] `npm test` — 38 files / 340 tests passing.
+- [x] `npm test` — the live figure is recorded in [PROJECT_STATE.md](engineering/PROJECT_STATE.md) §4; this checklist's original count (38 files / 340 tests) is historical.
 - [x] `npm run build` — clean single-file bundle.
 - [x] Dev server + built bundle serve HTTP 200, including under a proxied preview `Host`.
 - [x] Seed referential integrity — 0 orphans/duplicates across 13 collections (script-verified).

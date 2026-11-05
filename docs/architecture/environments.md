@@ -55,12 +55,17 @@ opposite direction. See `docs/architecture/demo-data.md` for the lifecycle model
 
 ## Demo-only material must not leak
 
-`isDemoMode()` gates every demo affordance. Two independent layers:
+Two independent axes, not one gate (see the table above):
 
-1. `listDemoAccounts()` returns `[]` outside demo mode.
-2. The login screen renders no demo panel, passphrase or "بدون امنیت واقعی" banner.
+1. **Data-source axis** — `listDemoAccounts()` returns `[]` outside demo mode, and an api-mode build
+   offers no demo credential panel. Asserted by
+   `src/views/__tests__/loginDemoIsolation.test.tsx`, which runs in api mode.
+2. **Lifecycle axis** — in the demo composition the login screen **does** render the demo panel in an
+   EMPTY environment, because that environment is signable-in and has no other way in. Its *wording*
+   comes from `useIsDemoEnvironment()`, so it never calls the customer's own data "demo data" (H3).
 
-Both are asserted in `src/views/__tests__/loginDemoIsolation.test.tsx`.
+The earlier claim that `isDemoMode()` alone gates every affordance was wrong; this section now states
+the two-axis rule the table above already describes.
 
 ## What `api` mode does **not** yet give you
 

@@ -86,7 +86,7 @@ export function PieceFormDialog({
     cannot narrow by query. It CAN be honest about the ceiling: `total` says how
     many rows exist, and a short page says so instead of looking complete (I16).
   */
-  const { items: libraryItems, total: libraryTotal, loading: libraryLoading } = useLibraryList({ per_page: 200 });
+  const { items: libraryItems, total: libraryTotal, loading: libraryLoading, error: libraryError, reload: reloadLibrary } = useLibraryList({ per_page: 200 });
   const { items: programs, loading: programsLoading, error: programsError, reload: reloadPrograms } = usePrograms({ per_page: 200 });
   const repository = useMemo(() => getProgressRepository(), []);
   const activeInstruments = catalog.filter((i) => i.active || i.id === piece?.instrumentId);
@@ -290,7 +290,14 @@ export function PieceFormDialog({
 
         <fieldset className="sm:col-span-2 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5">
           <legend className="px-1 text-[10.5px] text-ink-400">محتوای آموزشی پیوست (از کتابخانه)</legend>
-          {libraryLoading ? (
+          {libraryError ? (
+            <p role="alert" className="rounded-xl border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-[12px] text-danger-400">
+              بارگذاری کتابخانه ناموفق بود: {libraryError.message}{" "}
+              <button type="button" className="underline" onClick={reloadLibrary}>
+                تلاش دوباره
+              </button>
+            </p>
+          ) : libraryLoading ? (
             <p className="text-[11px] text-ink-500">در حال بارگذاری کتابخانه…</p>
           ) : libraryItems.length === 0 ? (
             <p className="text-[11px] text-ink-500">کتابخانه خالی است؛ نخست فایل را آنجا بارگذاری کنید.</p>
