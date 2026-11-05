@@ -516,7 +516,14 @@ describe("exporting from the view", () => {
     // In flight: the control reports the wait, and nothing has been downloaded
     // or claimed.
     await waitForExporting();
-    expect(chat.messages).toBe(1);
+    /*
+      The export read is identifiable by its ceiling (per_page 1000); the view's
+      own thread reads use per_page 200 and may land in any order under load, so
+      a bare total would count the harness's render schedule instead of the
+      export — the same reason the duplicate-guard case below asserts a delta
+      and the retargeting case asserts exportReads.
+    */
+    expect(exportReads(chat)).toHaveLength(1);
     expect(downloaded).toHaveLength(0);
     expect(successRings()).toBe(0);
     expect(toastText()).toBe("");
@@ -571,7 +578,12 @@ describe("exporting from the view", () => {
 
     await waitFor(() => expect(downloaded).toHaveLength(1));
     expect(exportReads(chat)).toHaveLength(1);
-    expect(chat.messages).toBe(1);
+    /*
+      No bare total here: `exportReads` above already proves exactly one export,
+      and the delta at the click storm proves the clicks added exactly one read.
+      An absolute total would also count the view's own thread re-reads, which
+      may legitimately land in this window under load.
+    */
   });
 
   it("reports a failed read honestly, downloads nothing, and stays usable", async () => {

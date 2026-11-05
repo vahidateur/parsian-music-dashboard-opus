@@ -153,18 +153,31 @@ describe("settings panels over an EMPTY environment", () => {
     renderPanel(BrandingPanel);
     await waitFor(() => expect(screen.getByText("هویت آموزشگاه")).toBeTruthy());
 
+    /*
+      Wait until the form is genuinely writable before typing: `AuthProvider`
+      must have restored `branding.write` (so the save button is rendered and
+      the input is enabled) and `BrandingPanel` must have adopted the stored
+      record into `draft` (so its sync effect cannot overwrite the edit).
+    */
+    const saveButton = (await screen.findByRole("button", { name: "ذخیرهٔ تغییرات" })) as HTMLButtonElement;
     const name = screen.getByLabelText(/نام آموزشگاه/) as HTMLInputElement;
+    await waitFor(() => {
+      expect(name.disabled).toBe(false);
+      expect(name.value).toBe(demoStore.snapshot().branding.academyName);
+    });
+
     fireEvent.change(name, { target: { value: "آموزشگاه موسیقی پارس" } });
-    fireEvent.click(screen.getByRole("button", { name: "ذخیرهٔ تغییرات" }));
+    await waitFor(() => expect(saveButton.disabled).toBe(false));
+    fireEvent.click(saveButton);
+
+    // Persistence first, notification second: separating the two phases tells
+    // us whether a timeout stalled in the repository write or in toast dispatch.
+    await waitFor(() => expect(demoStore.snapshot().branding.academyName).toBe("آموزشگاه موسیقی پارس"));
 
     // `Toasts` marks its region `aria-live="polite"` (ActionSheet.tsx).
     const toast = () => document.querySelector('[aria-live="polite"]')?.textContent ?? "";
     await waitFor(() => expect(toast()).toContain("هویت آموزشگاه ذخیره شد"), { timeout: 8000 });
     expect(toast()).toContain("تغییرات در داده‌ها ثبت شد.");
     expect(toast()).not.toContain("دمو");
-
-    // The write reached the store, so the wording is a claim about something
-    // that happened.
-    await waitFor(() => expect(demoStore.snapshot().branding.academyName).toBe("آموزشگاه موسیقی پارس"));
   }, 20_000);
 });

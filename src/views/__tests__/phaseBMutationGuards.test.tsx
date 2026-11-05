@@ -90,7 +90,10 @@ describe("Phase B mutation guards", () => {
     await renderAs("teacher1@demo.local", <MessagesView />);
     await waitFor(() => expect(screen.queryByText("در حال بارگذاری گفتگوها…")).toBeNull());
     expect(screen.getByRole("button", { name: "گفتگوی جدید" })).toBeTruthy();
-    expect(screen.getByLabelText("متن پیام")).toBeTruthy();
+    // The composer appears one render after the list loads, when the first
+    // thread is auto-selected — so wait for it instead of reading it
+    // synchronously, as the reader case above already does for its notice.
+    expect(await screen.findByLabelText("متن پیام")).toBeTruthy();
   });
 
   it("hides branding save from a settings reader", async () => {
