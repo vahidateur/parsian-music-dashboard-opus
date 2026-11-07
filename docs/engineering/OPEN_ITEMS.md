@@ -1399,13 +1399,25 @@ recovery and the zero-record tests both remaining green.
   `error`, so a failed library read rendered «کتابخانه خالی است» / «منبعی در دسترس این هنرجو نیست»
   instead of a failure. Both now take `error` + `reload` and render the panel's existing
   `ErrorState`/alert with retry; the empty copy is reachable only when the read actually succeeded.
+- **Gallery view — a third missed consumer, found and fixed on 2026-11-07.**
+  `src/views/Gallery.tsx` read `useAlbums` without its `error` and checked only
+  `imagesState.error`, so an album-read failure rendered as an empty album rail and an empty album
+  filter, and as «۰ آلبوم» in the header and footer — a claim about the academy made from an error.
+  The view now checks **both** `imagesState.error` and `albumsState.error`; either failure renders
+  the existing `ErrorState` with a retry that reloads both reads. Pinned by
+  `src/views/__tests__/galleryView.test.tsx` ("discloses a failed album read instead of an empty
+  album rail and zero counts"): the focused run reported **4 test files / 15 tests passed**,
+  `npx tsc --noEmit` passed, and `git diff --check` was clean for the two code/test files. (The
+  `GalleryPanel` inside Settings already handled its albums read; this was the standalone view.)
 - **What the broader scan found, recorded rather than silently claimed fixed.** Other list reads
   still do not take `error`, but they resolve *labels or support data* rather than rendering an
   empty list/picker: the class ladder's programs/levels/enrollments/rooms/sessions/students reads in
   `src/views/Classes.tsx`, the teacher-name map in `src/views/Library.tsx:530`, and the support
   reads in `Attendance`, `Scheduling`, `Compensation`, `Teachers` and `Finance`. A failed one of
   those renders `NO_DATA` («—») or omits the label — honest, but outside this item's original
-  "empty state or empty picker" boundary. They are **not** claimed as fixed here.
+  "empty state or empty picker" boundary. **That boundary was too generous for the standalone
+  Gallery view, whose albums read fed an empty rail and a zero count; it is now fixed above.** The
+  `NO_DATA`/omission cases are **not** full error disclosure and are **not** claimed as fixed here.
 - **Why it survived:** the primary read of nearly every view *does* take `error`
   (`src/domains/gallery/GalleryPanel.tsx:57`, `src/domains/rooms/RoomsPanel.tsx:25`,
   `src/views/Classes.tsx:268`, `src/views/Teachers.tsx:348`), so the pattern reads as deliberate —
@@ -1419,14 +1431,15 @@ recovery and the zero-record tests both remaining green.
 - **Done when:** no list/read consumer renders an empty state or an empty picker for a read that
   failed. The acceptance criterion is **broader than the original fourteen sites**: it covers every
   consumer of a list/derived read that can fail, not just the ones inventoried here. It is pinned by
-  `src/domains/shared/__tests__/failureDisclosureI15.test.tsx`, which now covers the fixed consumers
-  (including both library reads) with a failure case and a legitimate-empty case each.
-- **Status:** **partially fixed, not closed.** The two remaining documented consumers were fixed on
-  2026-11-05 (no commit recorded yet at this writing); the twelve earlier fixes are pinned by the
-  gate above. The broader acceptance criterion is not yet proven across every support read listed
-  above — those render `NO_DATA` rather than an empty state, which is why they are recorded as
-  outside the current boundary rather than silently counted as done. I13's remaining readers and
-  I14 stay separate and untouched.
+  `src/domains/shared/__tests__/failureDisclosureI15.test.tsx`, which covers the fixed consumers
+  (including both library reads) with a failure case and a legitimate-empty case each, plus
+  `src/views/__tests__/galleryView.test.tsx` for the standalone Gallery view.
+- **Status:** **partially fixed, not closed.** The two library reads were fixed on 2026-11-05 and
+  are in commit `ea949bc`; the standalone Gallery view was fixed on 2026-11-07 and is uncommitted
+  at this writing. The broader acceptance criterion is **not** proven across every support read
+  listed above — those render `NO_DATA` or omit the label, which is not full error disclosure and
+  is why they are recorded as outside the current boundary rather than silently counted as done.
+  I13's remaining readers and I14 stay separate and untouched.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination
@@ -2050,28 +2063,39 @@ Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb8467
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 
-Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documentation only.
+Recorded as the audit trail of what was stale. **RESOLVED 2026-11-05** — the five documents below
+were corrected or explicitly marked as historical snapshots in `ea949bc`
+(`fix: complete I15 error disclosure and refresh docs`), so the "Done when" clause is now met. The
+table is kept as the record of what was wrong and how it was handled, not as an open list.
 
-| Document | Stale claim |
-|---|---|
-| `docs/gap-matrix.md` | A "Phase 0 audit" that lists teachers, classes, enrollments, scheduling, attendance, finance, messaging, library, notifications and reports as **NOT IMPLEMENTED**, and uses a different phase numbering from this ledger |
-| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media); and its registry count — "Six domains were added" / "These six resolve to Demo in BOTH modes", which [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §3 already corrected to ten — is now **eleven** after Class Compensation P1 added `src/domains/registry.ts:231`. **The count sentence only was corrected in place** by this reconciliation (the section now says eleven and names the five additions); the rest of that document's staleness — the claims listed above — is **still recorded here and still unedited**, because they belong to the domain-by-domain migration status, not to the counts |
-| `docs/production-handoff.md` | "Verified in this build … `npm test` — 38 files / 340 tests" (the suite has grown far past that; the live figure lives in [PROJECT_STATE.md](PROJECT_STATE.md) §4, deliberately not duplicated here) |
-| `docs/architecture/auth.md` | "Known limitations" section predates the Phase 2 lifecycle model (the bootstrap-account section added in Phase 2 is current) |
-| `docs/architecture/environments.md` | Lines 56–63 ("Demo-only material must not leak") claim `isDemoMode()` gates every demo affordance and that "the login screen renders no demo panel, passphrase or «بدون امنیت واقعی» banner", citing `src/views/__tests__/loginDemoIsolation.test.tsx`. Both claims hold only in **api** mode — which is exactly the mode that test runs — and both contradict the "Two independent axes" section of the same file (lines 42–52). In code the login panel is gated on the data-source axis and **does** render in EMPTY; its *wording* now comes from `useIsDemoEnvironment()` (see H3). Recorded, not rewritten |
+| Document | Stale claim | Resolution |
+|---|---|---|
+| `docs/gap-matrix.md` | A "Phase 0 audit" that lists teachers, classes, enrollments, scheduling, attendance, finance, messaging, library, notifications and reports as **NOT IMPLEMENTED**, and uses a different phase numbering from this ledger | ✅ RESOLVED — dated historical-snapshot banner added at the top; the live ledger is named |
+| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media); and its registry count — "Six domains were added" / "These six resolve to Demo in BOTH modes", which [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §3 already corrected to ten — is now **eleven** after Class Compensation P1 added `src/domains/registry.ts:231`. **The count sentence only was corrected in place** by this reconciliation (the section now says eleven and names the five additions); the rest of that document's staleness was **still recorded here and unedited at the time of this audit**, because it belongs to the domain-by-domain migration status, not to the counts — it is now date-labelled as historical | ✅ RESOLVED — dated historical-snapshot banner added; the stale migration sentences are labelled historical |
+| `docs/production-handoff.md` | "Verified in this build … `npm test` — 38 files / 340 tests" (the suite has grown far past that; the live figure lives in [PROJECT_STATE.md](PROJECT_STATE.md) §4, deliberately not duplicated here) | ✅ RESOLVED — dated banner; the stale count now points at `PROJECT_STATE.md` §4 |
+| `docs/architecture/auth.md` | "Known limitations" section predates the Phase 2 lifecycle model (the bootstrap-account section added in Phase 2 is current) | ✅ RESOLVED — dated historical-snapshot banner added |
+| `docs/architecture/environments.md` | Lines 56–63 ("Demo-only material must not leak") claim `isDemoMode()` gates every demo affordance and that "the login screen renders no demo panel, passphrase or «بدون امنیت واقعی» banner", citing `src/views/__tests__/loginDemoIsolation.test.tsx`. Both claims hold only in **api** mode — which is exactly the mode that test runs — and both contradict the "Two independent axes" section of the same file (lines 42–52). In code the login panel is gated on the data-source axis and **does** render in EMPTY; its *wording* now comes from `useIsDemoEnvironment()` (see H3). Recorded at the time; the section was later corrected | ✅ RESOLVED — the section was corrected to the two-axis rule; the old one-gate claim is explicitly marked wrong |
 
 **Done when:** each document is either corrected or explicitly marked as a historical snapshot
 with its date, so no future session mistakes it for the current truth.
 
 ## BACKEND (all of it — nothing here is optional)
 
-There is no backend in this repository. `api` mode is a seam pointing at a server that does not
-exist. The authoritative blocker list, per-domain schemas and the "must be enforced server-side"
-rules live in `docs/production-handoff.md` and `docs/security.md` §8 — do not duplicate them
-here. Headline items: real sessions and password hashing, server-side authorization and tenant
-isolation, database and API, capacity and scheduling conflict enforcement in transactions,
-append-only attendance/progress grants, money precision and idempotency, media storage, audit
-log, rate limiting, MFA, and a penetration test.
+> **Updated 2026-11-05.** The sentence that used to open this section — «There is no backend in this
+> repository» — predates the Laravel API under `backend/` and is no longer true. The API now
+> implements the domains its feature suite exercises (students, enrollments, classes, scheduling,
+> attendance, organization, finance, and others), with server-side authorization in policies such
+> as `StudentAccessPolicy`; the frontend's `api` mode therefore points at a real implementation for
+> the domains it serves. This update claims only what the tree shows: not that the backend is
+> production-ready, and not that every frontend domain has a server counterpart — the
+> unavailable/API boundaries stay recorded in the domain ledgers.
+
+The authoritative blocker list, per-domain schemas and the "must be enforced server-side" rules
+live in `docs/production-handoff.md` and `docs/security.md` §8 — do not duplicate them
+here. Headline items still owed: real sessions and password hashing, server-side authorization and
+tenant isolation, database and API hardening, capacity and scheduling conflict enforcement in
+transactions, append-only attendance/progress grants, money precision and idempotency, media
+storage, audit log, rate limiting, MFA, and a penetration test.
 
 ---
 

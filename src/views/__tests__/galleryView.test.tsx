@@ -19,8 +19,14 @@ import { AppProvider } from "@/context/AppContext";
 import { GalleryView } from "../Gallery";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { DEMO_GALLERY_PHOTOS } from "@/domains/demo/gallerySeed";
+import { ApiError } from "@/api/errors";
+import { getGalleryRepository, resetRegistry, setGalleryRepository } from "@/domains/registry";
+import { withStubs, type Stubs } from "@/test/repositoryStubs";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  resetRegistry();
+});
 beforeEach(() => {
   resetToDemoEnvironment();
 });
@@ -93,5 +99,24 @@ describe("the showcase", () => {
     expect(await screen.findByText(/فضای ذخیره‌سازی تصویر در این مرورگر در دسترس نیست/)).toBeDefined();
     expect((await screen.findAllByText("فایل تصویر در این مرورگر موجود نیست")).length).toBeGreaterThan(0);
     expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("discloses a failed album read instead of an empty album rail and zero counts", async () => {
+    const real = getGalleryRepository();
+    setGalleryRepository(withStubs(real, {
+      listAlbums: async () => {
+        throw new ApiError({ kind: "network", message: "آلبوم‌ها در دسترس نیستند" });
+      },
+    } as Stubs<typeof real>));
+
+    renderView();
+
+    // The failure is reported as a failure, with the view's own retry control.
+    expect(await screen.findByText(/بارگذاری گالری ناموفق بود/)).toBeDefined();
+    expect(screen.getByText(/آلبوم‌ها در دسترس نیستند/)).toBeDefined();
+    expect(screen.getByRole("button", { name: /تلاش دوباره/ })).toBeDefined();
+    // And no claim is made from the failed read: no «۰ آلبوم» and no empty state.
+    expect(screen.queryByText(/۰ آلبوم/)).toBeNull();
+    expect(screen.queryByText(/هنوز تصویری بایگانی نشده است/)).toBeNull();
   });
 });

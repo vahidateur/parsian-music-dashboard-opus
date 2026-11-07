@@ -127,8 +127,22 @@ export function GalleryView() {
   ], [albums, albumCounts, images.length]);
 
   if (!bytes.settled || !settledOnce) return <LoadingState label="در حال باز کردن تالار گالری…" />;
-  if (imagesState.error) return <ErrorState error={imagesState.error} onRetry={imagesState.reload} />;
+  /*
+    I15 — a failed albums read used to render as an empty album rail, an empty
+    album filter and «۰ آلبوم» in the header/footer: a claim about the academy
+    made from an error. The images read and the albums read are both required to
+    describe the gallery honestly, so either failure is the view's failure.
+  */
   const reload = () => { imagesState.reload(); albumsState.reload(); };
+  if (imagesState.error || albumsState.error) {
+    return (
+      <ErrorState
+        title="بارگذاری گالری ناموفق بود"
+        error={(imagesState.error ?? albumsState.error)!}
+        onRetry={reload}
+      />
+    );
+  }
 
   const runBatch = async (verb: "move" | "delete", targetAlbumId?: string) => {
     const ids = selectedVisible.map((image) => image.id);
