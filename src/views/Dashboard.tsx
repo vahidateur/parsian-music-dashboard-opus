@@ -87,13 +87,17 @@ function PulseCard({
         ))}
       </div>
       <div className="mt-5">
-        <PulseWaveform
-          height={72}
-          accent={accent}
-          now={pulseNow}
-          sessions={toPulseSessions(pulse.sessions, pulse.clashIds)}
-          loading={pulse.loading}
-        />
+        {pulse.error ? (
+          <p className="text-[11.5px] leading-relaxed text-ink-400">تقویم امروز خوانده نشد.</p>
+        ) : (
+          <PulseWaveform
+            height={72}
+            accent={accent}
+            now={pulseNow}
+            sessions={toPulseSessions(pulse.sessions, pulse.clashIds)}
+            loading={pulse.loading}
+          />
+        )}
       </div>
     </Surface>
   );
@@ -194,7 +198,7 @@ function ManagementDashboard() {
   // would give each its own idea of whether the read succeeded — and a retry that
   // cleared one while the other still showed dashes.
   const hero = useHeroStats();
-  const heroError = hero.error ?? insights.error;
+  const heroError = hero.error ?? insights.error ?? pulse.error;
 
   return (
     <div className="flex flex-col gap-5 lg:grid lg:grid-cols-12 lg:gap-5">
@@ -295,6 +299,7 @@ function ManagementDashboard() {
               // tiles answer to, and the one the read set answers to.
               hero.reload();
               insights.reload();
+              pulse.reload?.();
             }}
           />
         )}

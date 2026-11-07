@@ -457,7 +457,17 @@ export function CancelSessionDialog({
   */
   const organization = useOrganization();
   const now = useAcademyClock();
-  const graceWindow = cancellationWindow(organization.settings, session.date, session.startTime, now);
+  /*
+    The window is a claim about the academy's own rule, so it may only be made
+    when that rule was actually read. `useOrganization` keeps its defaults on a
+    failed read; presenting those as the academy's policy would state a rule the
+    academy never chose. While loading or failed, the dialog says the rule is
+    unknown instead of quoting a default.
+  */
+  const rulesReady = !organization.loading && organization.error === null;
+  const graceWindow = rulesReady
+    ? cancellationWindow(organization.settings, session.date, session.startTime, now)
+    : null;
 
   const form = useEntityForm<CancelDraft, Session>({
     initial: { reason: "" },
@@ -536,7 +546,20 @@ export function CancelSessionDialog({
           )}
         </Field>
 
-        {graceWindow && graceWindow.graceMinutes > 0 && (
+        {organization.error ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-warn-200"
+          >
+            قواعد آموزشگاه خوانده نشد؛ مهلت لغو بدون جریمه نامشخص است و هیچ عددی از پیش‌فرض نمایش داده
+            نمی‌شود.{" "}
+            <button type="button" className="underline" onClick={organization.reload}>
+              تلاش دوباره
+            </button>
+          </div>
+        ) : organization.loading ? (
+          <p className="text-[11px] text-ink-500">در حال خواندن قواعد آموزشگاه…</p>
+        ) : graceWindow && graceWindow.graceMinutes > 0 ? (
           <p
             className={cn(
               "rounded-xl border p-3 text-[11px] leading-relaxed",
@@ -550,7 +573,7 @@ export function CancelSessionDialog({
               : `مهلت لغو بدون جریمه (${faNum(organization.settings.cancellationGraceHours)} ساعت پیش از جلسه) گذشته است؛ ${faNum(Math.max(0, graceWindow.minutesUntilStart))} دقیقه تا شروع جلسه مانده.`}{" "}
             سامانه جریمه‌ای ثبت نمی‌کند؛ این فقط وضعیتِ قاعدهٔ خودِ آموزشگاه است.
           </p>
-        )}
+        ) : null}
 
         <p className="text-[11px] leading-relaxed text-ink-500">
           جلسه لغو می‌شود و با دلیل شما در تقویم می‌ماند؛ حذف نمی‌شود و جلسهٔ جایگزینی ساخته

@@ -208,13 +208,15 @@ export function Hero({
                   <span className="text-ink-200">ریتم امروز</span>
                   <span className="text-ink-500">·</span>
                   <span>
-                    {pulse.loading
-                      ? "در حال خواندن تقویم…"
-                      : scheduledToday === 0
-                        ? "جلسه‌ای روی تقویم نیست"
-                        : `${faNum(scheduledToday)} جلسه — ${
-                            pulse.live > 0 ? `${faNum(pulse.live)} در حال برگزاری` : "اکنون کلاسی در جریان نیست"
-                          }`}
+                    {pulse.error
+                      ? "تقویم امروز خوانده نشد"
+                      : pulse.loading
+                        ? "در حال خواندن تقویم…"
+                        : scheduledToday === 0
+                          ? "جلسه‌ای روی تقویم نیست"
+                          : `${faNum(scheduledToday)} جلسه — ${
+                              pulse.live > 0 ? `${faNum(pulse.live)} در حال برگزاری` : "اکنون کلاسی در جریان نیست"
+                            }`}
                   </span>
                   {pulse.conflicts > 0 && pulse.firstConflictStart && (
                     <>
@@ -248,8 +250,14 @@ export function Hero({
                 riding just above that axis, at the same fraction of the day.
               */}
               <div className="relative">
-                <PulseWaveform height={104} accent={accent} sessions={waveSessions} now={now} loading={pulse.loading} />
-                {now >= DAY_START && now <= DAY_END && !pulse.loading && (
+                {pulse.error ? (
+                  <p className="flex h-[104px] items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.015] px-4 text-center text-[11.5px] leading-relaxed text-ink-400">
+                    تقویم امروز خوانده نشد — موجی برای رسم وجود ندارد.
+                  </p>
+                ) : (
+                  <PulseWaveform height={104} accent={accent} sessions={waveSessions} now={now} loading={pulse.loading} />
+                )}
+                {now >= DAY_START && now <= DAY_END && !pulse.loading && !pulse.error && (
                   <span
                     className="numeral pointer-events-none absolute bottom-[22px] -translate-x-1/2 rounded-md border border-gold-500/30 bg-ink-950/90 px-1.5 py-0.5 text-[10px] font-medium text-gold-300"
                     style={{ left: `${nowPct}%` }}

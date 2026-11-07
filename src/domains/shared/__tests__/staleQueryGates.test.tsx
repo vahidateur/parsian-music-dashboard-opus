@@ -19,7 +19,7 @@
  * the registry, so the window is as wide as the test needs and nothing depends
  * on winning a race. No sleeps, no retries, no timeout is lengthened.
  */
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useEffect } from "react";
 import { AppProvider, useApp } from "@/context/AppContext";
@@ -50,6 +50,7 @@ import {
   setTeacherRepository,
 } from "@/domains/registry";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
+import { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 
 afterEach(cleanup);
@@ -373,5 +374,139 @@ describe("I13 consumer gates — no stale rows, and no false empty, during a par
     void teachers;
     void classes;
     void rooms;
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Command palette — a failed search is not an empty result            */
+/* ------------------------------------------------------------------ */
+
+describe("CommandPalette search failure disclosure (I15-A1)", () => {
+  const PLACEHOLDER = "چه کاری می‌خواهید انجام دهید؟ جستجو یا فرمان…";
+
+  function renderPalette() {
+    function PaletteHarness() {
+      const { openPalette } = useApp();
+      useEffect(() => {
+        openPalette();
+      }, [openPalette]);
+      return <CommandPalette />;
+    }
+    return render(
+      <AppProvider>
+        <PaletteHarness />
+      </AppProvider>,
+    );
+  }
+
+  function stubStudentSearch(
+    list: (params: { search?: string }, signal?: AbortSignal) => Promise<unknown>,
+  ) {
+    // One failing domain is enough: the hook's aggregate is all-or-nothing.
+    setStudentRepository(withStubs(getStudentRepository(), { list: list as never }));
+  }
+
+  function emptyPage() {
+    return { data: [], meta: { page: 1, per_page: 5, total: 0 } };
+  }
+
+  it("renders an explicit failure, not «چیزی پیدا نشد», when the aggregate search fails", async () => {
+    stubStudentSearch(async () => {
+      throw new ApiError({ kind: "network", message: "جستجو در دسترس نیست." });
+    });
+    renderPalette();
+
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "ژژژ" } });
+
+    expect(await screen.findByText("جستجوی رکوردها انجام نشد")).toBeDefined();
+    expect(screen.queryByText("چیزی پیدا نشد")).toBeNull();
+    expect(screen.getByRole("button", { name: "تلاش دوباره" })).toBeDefined();
+  });
+
+  it("still says «چیزی پیدا نشد» for a successful search that found nothing", async () => {
+    stubStudentSearch(async () => emptyPage());
+    renderPalette();
+
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "ژژژ" } });
+
+    expect(await screen.findByText("چیزی پیدا نشد")).toBeDefined();
+    expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
+  });
+
+  it("still renders records for a successful search", async () => {
+    const student = (await getStudentRepository().list({ per_page: 1 })).data[0];
+    renderPalette();
+
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: student.name } });
+
+    expect((await screen.findAllByText(student.name)).length).toBeGreaterThan(0);
+    expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
+  });
+
+  it("recovers through the retry control after a failed search", async () => {
+    let fail = true;
+    const realStudents = getStudentRepository();
+    stubStudentSearch(async (params, signal) => {
+      if (fail) throw new ApiError({ kind: "network", message: "جستجو در دسترس نیست." });
+      return realStudents.list(params as never, signal);
+    });
+    renderPalette();
+
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "ژژژ" } });
+    await screen.findByText("جستجوی رکوردها انجام نشد");
+
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
+
+    await waitFor(() => expect(screen.getByText("چیزی پیدا نشد")).toBeDefined());
+    expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
+  });
+
+  it("clears the previous failure when a new query begins", async () => {
+    let fail = true;
+    const realStudents = getStudentRepository();
+    stubStudentSearch(async (params, signal) => {
+      if (fail) throw new ApiError({ kind: "network", message: "جستجو در دسترس نیست." });
+      return realStudents.list(params as never, signal);
+    });
+    renderPalette();
+
+    const input = screen.getByPlaceholderText(PLACEHOLDER);
+    fireEvent.change(input, { target: { value: "ژژژ" } });
+    await screen.findByText("جستجوی رکوردها انجام نشد");
+
+    fail = false;
+    fireEvent.change(input, { target: { value: "ژژژ۲" } });
+
+    await waitFor(() => expect(screen.getByText("چیزی پیدا نشد")).toBeDefined());
+    expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
+  });
+
+  it("cannot let a stale failed query overwrite a newer successful one", async () => {
+    const realStudents = getStudentRepository();
+    const student = (await realStudents.list({ per_page: 1 })).data[0];
+    let rejectStale!: (cause: unknown) => void;
+    const stale = new Promise<never>((_, reject) => {
+      rejectStale = reject;
+    });
+    stubStudentSearch(async (params, signal) => {
+      if (params.search === "ژژژ") return stale;
+      return realStudents.list(params as never, signal);
+    });
+    renderPalette();
+
+    const input = screen.getByPlaceholderText(PLACEHOLDER);
+    fireEvent.change(input, { target: { value: "ژژژ" } });
+    // The first query is still in flight; a newer query answers first.
+    fireEvent.change(input, { target: { value: student.name } });
+    expect((await screen.findAllByText(student.name)).length).toBeGreaterThan(0);
+
+    await act(async () => {
+      rejectStale(new ApiError({ kind: "network", message: "جستجوی کهنه شکست خورد." }));
+    });
+
+    // The stale rejection belongs to a query nobody is looking at.
+    expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
+    expect((await screen.findAllByText(student.name)).length).toBeGreaterThan(0);
   });
 });

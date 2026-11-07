@@ -1409,6 +1409,38 @@ recovery and the zero-record tests both remaining green.
   album rail and zero counts"): the focused run reported **4 test files / 15 tests passed**,
   `npx tsc --noEmit` passed, and `git diff --check` was clean for the two code/test files. (The
   `GalleryPanel` inside Settings already handled its albums read; this was the standalone view.)
+- **A1/A2/A3 — three additional read-failure paths, fixed 2026-11-07 (uncommitted).**
+  - **A1 — command-palette search.** `useDomainSearch` performed four repository reads under
+    `Promise.all` and caught a rejection into `results: []`, `loading: false`; the palette then said
+    «چیزی پیدا نشد». The hook now exposes `error: ApiError | null` and `retry`, normalizes the
+    rejection, clears the error when a new attempt starts, and ignores cancelled/superseded
+    requests. The aggregate is **all-or-nothing**: a partial list would silently omit a domain, so
+    the palette reports «جستجوی رکوردها انجام نشد» (with retry) instead of a false empty; the
+    disclosure is also visible when command/navigation groups match. Pinned by
+    `src/domains/shared/__tests__/staleQueryGates.test.tsx` (failure, successful-empty, results,
+    retry, new-query clears error, stale failure cannot overwrite): **12/12 passed**.
+  - **A2 — cancel-session policy.** `CancelSessionDialog` computed the grace window from
+    `useOrganization().settings` unconditionally; a failed read keeps `DEFAULT_ORGANIZATION_SETTINGS`
+    (24 h), so the dialog quoted a default as the academy's rule. The dialog now computes the window
+    only when `!organization.loading && organization.error === null`; loading says
+    «در حال خواندن قواعد آموزشگاه…», failure shows an explicit alert that the policy is unknown
+    (no number) with the hook's `organization.reload`, and the successful rendering is unchanged.
+    Pinned by `src/views/__tests__/schedulingWrites.test.tsx` (failure + successful load):
+    **18/18 passed**.
+  - **A3 — dashboard day pulse.** `useDayPulse` exposed `error`, but `Dashboard` built `heroError`
+    from only `hero.error ?? insights.error`; a failed one-day read left the Hero saying
+    «جلسه‌ای روی تقویم نیست». `heroError` now includes `pulse.error` (after the existing
+    precedence), the page retry also calls `pulse.reload?.()`, the Hero says «تقویم امروز خوانده
+    نشد» and draws a dashed unavailable panel instead of an empty wave, and the mobile `PulseCard`
+    shows a failure line instead of an empty waveform. Pinned by
+    `src/views/__tests__/dashboardInsightsLive.test.tsx` (failure, successful empty, populated):
+    **10/10 passed**. `npx tsc --noEmit` passed for all three; the full suite passed (252 files /
+    3000 passed / 4 skipped, exit 0).
+  - **Non-blocking coverage gaps (missing tests, not implementation defects).** No dedicated rendered
+    test combines command/navigation matches with a failed domain search — the banner path is
+    source-verified. The mobile `PulseCard` failure disclosure is source-verified but has no
+    dedicated rendered regression test. Both gaps are recorded rather than hidden; neither is a
+    confirmed defect.
 - **What the broader scan found, recorded rather than silently claimed fixed.** Other list reads
   still do not take `error`, but they resolve *labels or support data* rather than rendering an
   empty list/picker: the class ladder's programs/levels/enrollments/rooms/sessions/students reads in
@@ -1433,13 +1465,19 @@ recovery and the zero-record tests both remaining green.
   consumer of a list/derived read that can fail, not just the ones inventoried here. It is pinned by
   `src/domains/shared/__tests__/failureDisclosureI15.test.tsx`, which covers the fixed consumers
   (including both library reads) with a failure case and a legitimate-empty case each, plus
-  `src/views/__tests__/galleryView.test.tsx` for the standalone Gallery view.
-- **Status:** **partially fixed, not closed.** The two library reads were fixed on 2026-11-05 and
-  are in commit `ea949bc`; the standalone Gallery view was fixed on 2026-11-07 and is uncommitted
-  at this writing. The broader acceptance criterion is **not** proven across every support read
-  listed above — those render `NO_DATA` or omit the label, which is not full error disclosure and
-  is why they are recorded as outside the current boundary rather than silently counted as done.
-  I13's remaining readers and I14 stay separate and untouched.
+  `src/views/__tests__/galleryView.test.tsx` for the standalone Gallery view, and the A1/A2/A3
+  focused suites `src/domains/shared/__tests__/staleQueryGates.test.tsx`,
+  `src/views/__tests__/schedulingWrites.test.tsx` and
+  `src/views/__tests__/dashboardInsightsLive.test.tsx`.
+- **Status:** **Partially fixed — A1/A2/A3 implemented and verified; I15 pending final acceptance.**
+  The two library reads were fixed on 2026-11-05 and are in commit `ea949bc`; the standalone Gallery
+  view was fixed on 2026-11-07 and is in commit `8694181`; A1/A2/A3 were fixed on 2026-11-07 and are
+  uncommitted at this writing. Their focused runs passed (Gallery 4 files / 15 tests; A1 12/12;
+  A2 18/18; A3 10/10) and `npx tsc --noEmit` passed; the full suite passed (252 files / 3000 passed /
+  4 skipped, exit 0), and final human acceptance is still pending. The broader acceptance criterion
+  is **not** proven across every support read listed above — those render `NO_DATA` or omit the label,
+  which is not full error disclosure and is why they are recorded as outside the current boundary
+  rather than silently counted as done. I13's remaining readers and I14 stay separate and untouched.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination

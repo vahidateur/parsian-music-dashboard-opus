@@ -28,17 +28,19 @@
  * (2026-09-01). Pinning the date makes "today has a calendar" a property of the
  * fixture rather than of the day the suite happens to run.
  */
-import { cleanup, render, waitFor, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import { LocalUserRepository } from "@/domains/auth/localUserRepository";
 import { BOOTSTRAP_ADMIN_EMAIL, isDemoEnvironment } from "@/domains/demo/lifecycle";
-import { getStudentRepository, resetRegistry, setAuthRepository, setUserRepository } from "@/domains/registry";
+import { getSchedulingRepository, getStudentRepository, resetRegistry, setAuthRepository, setSchedulingRepository, setUserRepository } from "@/domains/registry";
 import { demoStore, memoryStorage } from "@/services/demoStore";
 import { SEEDED_CONFLICT } from "@/domains/demo/schedulingSeed";
 import { resetToDemoEnvironment, resetToEmptyEnvironment } from "@/test/demoEnvironment";
+import { withStubs } from "@/test/repositoryStubs";
+import { ApiError } from "@/api/errors";
 import { Dashboard } from "@/views/Dashboard";
 import { faNum, faToman, NO_DATA } from "@/lib/format";
 
@@ -351,5 +353,94 @@ describe("EMPTY — the four panels in a customer's own empty academy", () => {
     // Nothing stored means nothing to name.
     expect(text).not.toContain("اتاق ۱");
     expect(text).not.toContain("پیانو گروهی");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* I15-A3 — a failed day pulse is not an empty calendar               */
+/* ------------------------------------------------------------------ */
+
+describe("the day pulse's failure disclosure", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 1, 12, 0, 0));
+    /*
+      The pulse text lives in the desktop Hero; jsdom's matchMedia answers false
+      for every query, so the dashboard renders its compact (mobile) variant and
+      the Hero's pulse block is absent. Force the desktop query for this describe
+      only, so the surface under fix is the one rendered.
+    */
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query.includes("min-width: 1024px"),
+          media: query,
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+        }) as unknown as MediaQueryList,
+    );
+    resetToDemoEnvironment();
+    resetRegistry();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Fails only the one-day pulse read; the 13-week insights read still answers. */
+  function failOnlyTheDayPulse() {
+    const real = getSchedulingRepository();
+    setSchedulingRepository(
+      withStubs(real, {
+        list: async (params: { from?: string; to?: string }, signal?: AbortSignal) => {
+          if (params.from === params.to) {
+            throw new ApiError({ kind: "network", message: "تقویم امروز در دسترس نیست." });
+          }
+          return real.list(params as never, signal);
+        },
+      } as never),
+    );
+  }
+
+  it("does not claim «جلسه‌ای روی تقویم نیست» when the pulse read fails", async () => {
+    failOnlyTheDayPulse();
+    await renderDashboard();
+    await settle();
+
+    expect(screen.queryByText("جلسه‌ای روی تقویم نیست")).toBeNull();
+    expect(screen.getAllByText(/تقویم امروز خوانده نشد/).length).toBeGreaterThan(0);
+    // The page-level disclosure and its retry are present.
+    expect(screen.getByText("خواندن رکوردها کامل نشد")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /تلاش دوباره/ })).toBeTruthy();
+  });
+
+  it("still says «جلسه‌ای روی تقویم نیست» for a successful empty day", async () => {
+    const real = getSchedulingRepository();
+    setSchedulingRepository(
+      withStubs(real, {
+        list: async (params: { from?: string; to?: string }, signal?: AbortSignal) =>
+          params.from === params.to
+            ? { data: [], meta: { page: 1, per_page: 200, total: 0 } }
+            : real.list(params as never, signal),
+      } as never),
+    );
+    await renderDashboard();
+    await settle();
+
+    expect(screen.getByText("جلسه‌ای روی تقویم نیست")).toBeTruthy();
+    expect(screen.queryByText(/تقویم امروز خوانده نشد/)).toBeNull();
+  });
+
+  it("still renders the stored day's pulse when the read succeeds", async () => {
+    await renderDashboard();
+    await settle();
+
+    expect(screen.queryByText(/تقویم امروز خوانده نشد/)).toBeNull();
+    expect(screen.queryByText("جلسه‌ای روی تقویم نیست")).toBeNull();
+    expect(screen.getAllByText(/جلسه —/).length).toBeGreaterThan(0);
   });
 });
