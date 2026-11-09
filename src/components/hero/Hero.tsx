@@ -6,6 +6,7 @@ import { useAcademyNow } from "@/domains/shared/clock";
 import type { DayPulse } from "@/domains/shared/useDayPulse";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { useBranding } from "@/domains/branding/useBranding";
+import { BrandingIdentityNotice } from "@/domains/branding/BrandingIdentityNotice";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { faNum, faTime, faToday, greetingFor, minutesToFaTime, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -79,7 +80,8 @@ export function Hero({
   const todayIso = academyIsoDate();
   // Identity (M10/D3): the academy name/tagline come from the M8 branding
   // read; the greeting is the signed-in operator, not a fixture manager.
-  const { branding } = useBranding();
+  const { branding, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useBranding();
+  const identityReady = !brandingLoading && brandingError === null;
   const { user } = useAuth();
   const firstName = user?.name.trim().split(/\s+/)[0] ?? null;
   // The wave is a picture of THESE rows — the same read the live count and the
@@ -143,7 +145,7 @@ export function Hero({
           <span className="text-ink-500">·</span>
           <span>{faToday(todayIso)}</span>
           <span className="hidden text-ink-500 sm:inline">·</span>
-          <span className="hidden sm:inline">{branding.academyName}</span>
+          <span className="hidden sm:inline">{identityReady ? branding.academyName : null}</span>
         </div>
 
         {/* greeting — the largest thing on the plate, as in the reference */}
@@ -162,9 +164,19 @@ export function Hero({
               </>
             )}
           </h1>
-          <p className={cn("flex flex-wrap items-center justify-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
-            {subline ?? branding.tagline}
-          </p>
+          {(subline !== undefined || identityReady) && (
+            <p className={cn("flex flex-wrap items-center justify-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
+              {subline ?? branding.tagline}
+            </p>
+          )}
+          {(brandingLoading || brandingError) && (
+            <BrandingIdentityNotice
+              loading={brandingLoading}
+              error={brandingError}
+              onRetry={reloadBranding}
+              className="mt-2 block text-center"
+            />
+          )}
         </div>
 
         {!compact && (

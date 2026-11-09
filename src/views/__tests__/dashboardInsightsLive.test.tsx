@@ -28,7 +28,7 @@
  * (2026-09-01). Pinning the date makes "today has a calendar" a property of the
  * fixture rather than of the day the suite happens to run.
  */
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/context/AppContext";
 import { AuthProvider } from "@/domains/auth/AuthContext";
@@ -442,5 +442,86 @@ describe("the day pulse's failure disclosure", () => {
     expect(screen.queryByText(/تقویم امروز خوانده نشد/)).toBeNull();
     expect(screen.queryByText("جلسه‌ای روی تقویم نیست")).toBeNull();
     expect(screen.getAllByText(/جلسه —/).length).toBeGreaterThan(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* I15-A3 — the mobile pulse card's failure disclosure                */
+/* ------------------------------------------------------------------ */
+
+describe("the mobile day pulse card's failure disclosure", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 1, 12, 0, 0));
+    /*
+      Force the compact layout a phone asks for: the desktop query answers
+      false, so `useMediaQuery` renders the mobile PulseCard and the desktop
+      Hero's pulse block is absent.
+    */
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: false,
+          media: query,
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          addListener: () => {},
+          removeListener: () => {},
+          dispatchEvent: () => false,
+        }) as unknown as MediaQueryList,
+    );
+    resetToDemoEnvironment();
+    resetRegistry();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Fails the first one-day pulse read, then answers the retry with an empty day. */
+  function failThenEmptyTheDayPulse() {
+    const real = getSchedulingRepository();
+    let dayReads = 0;
+    setSchedulingRepository(
+      withStubs(real, {
+        list: async (params: { from?: string; to?: string }, signal?: AbortSignal) => {
+          if (params.from === params.to) {
+            dayReads += 1;
+            if (dayReads === 1) {
+              throw new ApiError({ kind: "network", message: "تقویم امروز در دسترس نیست." });
+            }
+            return { data: [], meta: { page: 1, per_page: 200, total: 0 } };
+          }
+          return real.list(params as never, signal);
+        },
+      } as never),
+    );
+    return () => dayReads;
+  }
+
+  it("discloses the failure in the mobile card and retries the pulse read", async () => {
+    const dayReads = failThenEmptyTheDayPulse();
+    await renderDashboard();
+    await settle();
+
+    // The compact layout is the one on screen: no desktop Hero pulse block.
+    expect(screen.queryByText("ریتم امروز")).toBeNull();
+    // The PulseCard's own kicker proves the mobile card rendered.
+    expect(screen.getByText(/^فعالیت امروز/)).toBeTruthy();
+
+    // The card names the failed calendar read instead of drawing an empty wave.
+    expect(screen.getByText("تقویم امروز خوانده نشد.")).toBeTruthy();
+    expect(screen.queryByRole("img", { name: /ریتم روز/ })).toBeNull();
+    expect(screen.queryByText("جلسه‌ای روی تقویم نیست")).toBeNull();
+    // The page-level disclosure and its retry are present.
+    expect(screen.getByText("خواندن رکوردها کامل نشد")).toBeTruthy();
+
+    expect(dayReads()).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: /تلاش دوباره/ }));
+
+    // Retry reached the day-pulse read: the second call is the observable proof.
+    await waitFor(() => expect(dayReads()).toBe(2));
+    await waitFor(() => expect(screen.queryByText("تقویم امروز خوانده نشد.")).toBeNull());
   });
 });

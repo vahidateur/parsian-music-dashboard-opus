@@ -509,4 +509,30 @@ describe("CommandPalette search failure disclosure (I15-A1)", () => {
     expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull();
     expect((await screen.findAllByText(student.name)).length).toBeGreaterThan(0);
   });
+
+  it("keeps a matching navigation result visible beside the failure disclosure", async () => {
+    let calls = 0;
+    stubStudentSearch(async () => {
+      calls += 1;
+      if (calls === 1) throw new ApiError({ kind: "network", message: "جستجو در دسترس نیست." });
+      return emptyPage();
+    });
+    renderPalette();
+
+    fireEvent.change(screen.getByPlaceholderText(PLACEHOLDER), { target: { value: "تنظیمات" } });
+
+    // The failure is disclosed while the navigation group still matches — the
+    // banner must not be hidden just because `groups` is non-empty.
+    expect(await screen.findByText("جستجوی رکوردها انجام نشد")).toBeDefined();
+    expect(screen.getByRole("option", { name: "تنظیمات" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "تلاش دوباره" })).toBeDefined();
+    expect(screen.queryByText("چیزی پیدا نشد")).toBeNull();
+    expect(calls).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "تلاش دوباره" }));
+
+    await waitFor(() => expect(screen.queryByText("جستجوی رکوردها انجام نشد")).toBeNull());
+    expect(calls).toBe(2);
+    expect(screen.getByRole("option", { name: "تنظیمات" })).toBeDefined();
+  });
 });

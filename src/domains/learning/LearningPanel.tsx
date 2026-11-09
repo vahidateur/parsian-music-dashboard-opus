@@ -350,7 +350,7 @@ export function LearningPanel() {
                     twelve is the same false count, in a new shape, as the
                     «۱ سطح» heading that made I11's harness lie.
                   */}
-                  سطوح «{selected.name}»{levelsLoading ? "" : ` — ${faNum(levels.length)} سطح`}
+                  سطوح «{selected.name}»{levelsLoading || levelsError ? "" : ` — ${faNum(levels.length)} سطح`}
                 </h3>
                 <Button
                   size="sm"
