@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Media;
 
+use App\Domain\Media\MediaPolicy;
 use App\Domain\Media\MediaRules;
 use App\Http\Requests\ApiFormRequest;
 use Illuminate\Http\UploadedFile;
@@ -23,6 +24,15 @@ final class StoreMediaRequest extends ApiFormRequest
     protected string $errorCode = 'MEDIA_INVALID';
 
     protected string $errorMessage = 'فایل انتخاب‌شده معتبر نیست.';
+
+    /**
+     * Authorize before validation so an actor without a media-bearing write
+     * permission gets 403, not a 422 validation oracle.
+     */
+    protected function authorizeBeforeValidation(): void
+    {
+        app(MediaPolicy::class)->authorizeUpload($this->user());
+    }
 
     /** @return array<string, mixed> */
     public function rules(): array
