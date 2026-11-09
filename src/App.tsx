@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { getRuntimeConfig } from "@/api/config";
 import { AppProvider, useApp } from "@/context/AppContext";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
+import { PolicyUnavailableBanner } from "@/domains/auth/PolicyUnavailableBanner";
 import { defaultViewFor } from "@/domains/auth/permissions";
 import { LoginView } from "@/views/Login";
 import { SessionGuard } from "@/security/SessionGuard";
@@ -91,6 +92,7 @@ function ViewOutlet() {
 
 function Shell() {
   const { view, filter, detailId, openPalette, closePalette, paletteOpen, railCollapsed } = useApp();
+  const { session } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Instruments are runtime data, but ~60 call sites need a synchronous
@@ -105,7 +107,7 @@ function Shell() {
     projection current for the whole session — including for the operator who
     just edited it.
   */
-  useRolePolicySync();
+  useRolePolicySync(session?.token ?? null);
 
   // Global command shortcut
   useEffect(() => {
@@ -144,6 +146,7 @@ function Shell() {
       >
         <TopBar onMenu={() => setMenuOpen(true)} />
         <main className="mx-auto max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-6">
+          <PolicyUnavailableBanner />
           {/* Target seam: demo provisioning + the D8 data-source disclosure
               (demo composition). Empty in the client composition. */}
           <ShellFeatures />

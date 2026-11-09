@@ -5,6 +5,7 @@ import { ApiError } from "@/api/errors";
 import { AuthProvider, useAuth } from "@/domains/auth/AuthContext";
 import { DEMO_PASSPHRASE, LocalAuthRepository } from "@/domains/auth/localAuthRepository";
 import type { AuthRepository } from "@/domains/auth/repository";
+import type { Session } from "@/domains/auth/types";
 import { DemoDataManager } from "@/domains/demo/demoDataManager";
 import { DemoStoreImpl, memoryStorage } from "@/services/demoStore";
 
@@ -25,6 +26,7 @@ function Probe() {
       <span data-testid="finance">{String(auth.can("finance.write"))}</span>
       <span data-testid="settings-view">{String(auth.canAccess("settings"))}</span>
       <span data-testid="error">{auth.error?.code ?? "-"}</span>
+      <span data-testid="policy-error">{auth.policyError?.code ?? "-"}</span>
       <button onClick={() => void auth.login({ email: "admin@demo.local", password: DEMO_PASSPHRASE })}>ok</button>
       <button onClick={() => void auth.login({ email: "admin@demo.local", password: "wrong" })}>bad</button>
       <button onClick={() => void auth.logout()}>out</button>
@@ -103,5 +105,42 @@ describe("AuthProvider lifecycle", () => {
     } as unknown as AuthRepository;
     renderAuth(broken);
     await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("unauthenticated"));
+  });
+
+  it("keeps a valid identity and exposes a policy-unavailable restore error", async () => {
+    const policyError = new ApiError({
+      kind: "server",
+      code: "ROLE_POLICY_UNAVAILABLE",
+      message: "local role policy unavailable",
+    });
+    const session: Session = {
+      user: {
+        id: "usr_policy",
+        name: "Policy Probe",
+        email: "policy@test.local",
+        role: "teacher",
+        status: "active",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      permissions: [],
+      token: "test-token",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const repo = {
+      restoreDetailed: vi.fn(async () => ({ session, expiredReason: null, policyError })),
+      restore: vi.fn(async () => session),
+      login: vi.fn(),
+      logout: vi.fn(),
+      me: vi.fn(),
+    } as unknown as AuthRepository;
+
+    renderAuth(repo);
+
+    await waitFor(() => expect(screen.getByTestId("status").textContent).toBe("authenticated"));
+    expect(screen.getByTestId("user").textContent).toBe("policy@test.local");
+    expect(screen.getByTestId("finance").textContent).toBe("false");
+    expect(screen.getByTestId("policy-error").textContent).toBe("ROLE_POLICY_UNAVAILABLE");
+    expect(screen.getByTestId("error").textContent).toBe("-");
   });
 });

@@ -5,8 +5,20 @@ import { SESSION_TTL_MS } from "@/domains/auth/session";
 import { anchorSessionClock, clearSessionClock, notifySessionEnded, readSessionEnded, resetSessionClock, type SessionEndReason } from "@/security/useIdleTimeout";
 import { getAuthRepository } from "@/domains/registry";
 import { setSessionExpiredHandler } from "@/domains/registryCore";
-import { can, canAccessView, canAll, canAny, clearRolePolicies, getRolePolicy, type Permission } from "./permissions";
-import { useRolePolicyVersion } from "./useRoles";
+import {
+  beginRolePolicySession,
+  can,
+  canAccessView,
+  canAll,
+  canAny,
+  endRolePolicySession,
+  getRolePolicy,
+  markRolePolicyFreshFromSession,
+  markRolePolicyUnavailable,
+  requestRolePolicyRefresh,
+  type Permission,
+} from "./permissions";
+import { useRolePolicyState, useRolePolicyVersion } from "./useRoles";
 import type { AuthRepository } from "./repository";
 import type { AuthStatus, LoginInput, Session } from "./types";
 import type { ViewId } from "@/lib/viewContracts";
@@ -24,6 +36,14 @@ export interface AuthState {
   user: Session["user"] | null;
   permissions: Permission[];
   error: ApiError | null;
+  /**
+   * A local role-policy failure, separate from login/authentication errors.
+   * The shell discloses this; it must never render `error` (login errors).
+   */
+  policyError: ApiError | null;
+  policyRetrying: boolean;
+  /** Re-reads the authoritative local policy and rebuilds the session snapshot. */
+  retryPolicy: () => Promise<void>;
   /**
    * Why the last session ended, shown on the login screen. Set by
    * server-side expiry (idle/absolute), a cross-tab sign-out, or a 401
@@ -57,6 +77,9 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
   const [error, setError] = useState<ApiError | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [policyError, setPolicyError] = useState<ApiError | null>(null);
+  const [policyRetrying, setPolicyRetrying] = useState(false);
+  const policyRetryingRef = useRef(false);
   const mounted = useRef(true);
   // Synchronous mirror of `session` for event handlers that must decide
   // re-entrantly: a second 401 (or a second tab's broadcast) arriving while
@@ -82,7 +105,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     let active = true;
     repo
       .restoreDetailed()
-      .then(({ session: restored, expiredReason }) => {
+      .then(({ session: restored, expiredReason, policyError }) => {
         if (!active) return;
         if (restored) {
           // Re-anchor the absolute clock to the token's own expiry. Without
@@ -91,13 +114,18 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
           // party it is meant to constrain.
           anchorSessionClock(restored.expiresAt, SESSION_TTL_MS);
         }
-        // The permission projection is module-scoped for synchronous gates, so
-        // clear the previous session before the new one can render. A failed
-        // policy read then falls back deterministically to this session's own
-        // issued permissions rather than retaining another user's role edit.
-        clearRolePolicies();
+        // The projection is session-scoped: the new session starts from an
+        // empty/loading state, and no previous session's records may survive.
+        if (restored) {
+          beginRolePolicySession(restored.token, policyError == null);
+          if (policyError) markRolePolicyUnavailable(policyError, restored.token);
+        } else {
+          endRolePolicySession();
+        }
         setSession(restored);
         setStatus(restored ? "authenticated" : "unauthenticated");
+        setPolicyError(policyError ?? null);
+        setError(null);
         // A stored session that provably outlived a lifetime ceiling says so
         // on the login screen (idle vs absolute); any other boot failure
         // stays silent, exactly as before — boot must not probe credentials.
@@ -105,8 +133,12 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       })
       .catch(() => {
         if (!active) return;
+        endRolePolicySession();
         setSession(null);
         setStatus("unauthenticated");
+        setPolicyError(null);
+        setPolicyRetrying(false);
+        policyRetryingRef.current = false;
         setNotice(null);
       });
     return () => {
@@ -126,9 +158,12 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
         // previous one's remaining absolute lifetime.
         resetSessionClock();
         clearAttempts();
-        clearRolePolicies();
+        beginRolePolicySession(next.token, true);
         setSession(next);
         setStatus("authenticated");
+        setPolicyError(null);
+        setPolicyRetrying(false);
+        policyRetryingRef.current = false;
         return true;
       } catch (cause) {
         // Record the failure for the client-side backoff. The authoritative
@@ -145,14 +180,77 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
 
   const clearSessionState = useCallback(() => {
     clearSessionClock();
-    clearRolePolicies();
+    endRolePolicySession();
     if (mounted.current) {
       sessionRef.current = null;
       setSession(null);
       setStatus("unauthenticated");
       setError(null);
+      setPolicyError(null);
+      setPolicyRetrying(false);
+      policyRetryingRef.current = false;
     }
   }, []);
+
+  /**
+   * Re-reads the authoritative policy for the CURRENT session and rebuilds the
+   * permission snapshot. A failed retry keeps the identity, empty permissions,
+   * and the disclosure; it never falls back to shipped defaults.
+   */
+  const retryPolicy = useCallback(async () => {
+    if (policyRetryingRef.current) return;
+    const current = sessionRef.current;
+    if (!current) return;
+    const expectedToken = current.token;
+
+    policyRetryingRef.current = true;
+    setPolicyRetrying(true);
+    try {
+      let restored: Session | null;
+      let nextPolicyError: ApiError | undefined;
+      let expiredReason: "idle" | "absolute" | null = null;
+
+      if (repo.reauthorize) {
+        // Prefer re-reading authorization for the CURRENT session: this works
+        // even when the credential is memory-only and avoids a storage round-trip.
+        restored = await repo.reauthorize(current);
+      } else {
+        const outcome = await repo.restoreDetailed();
+        restored = outcome.session;
+        nextPolicyError = outcome.policyError;
+        expiredReason = outcome.expiredReason;
+      }
+
+      // A login/logout/expiry during the read wins; do not apply a stale result.
+      if (!mounted.current || sessionRef.current?.token !== expectedToken) return;
+
+      if (restored) {
+        beginRolePolicySession(restored.token, nextPolicyError == null);
+        if (nextPolicyError) {
+          markRolePolicyUnavailable(nextPolicyError, restored.token);
+        } else {
+          markRolePolicyFreshFromSession(restored.token);
+          requestRolePolicyRefresh();
+        }
+        setSession(restored);
+        setStatus("authenticated");
+        setPolicyError(nextPolicyError ?? null);
+        setError(null);
+      } else {
+        endRolePolicySession();
+        clearSessionState();
+        setNotice(expiredReason ? SESSION_END_NOTICE[expiredReason] : null);
+      }
+    } catch (cause) {
+      if (!mounted.current || sessionRef.current?.token !== expectedToken) return;
+      setPolicyError(apiErrorFromThrown(cause));
+    } finally {
+      if (mounted.current) {
+        policyRetryingRef.current = false;
+        setPolicyRetrying(false);
+      }
+    }
+  }, [repo, clearSessionState]);
 
   const logout = useCallback(async () => {
     try {
@@ -182,11 +280,14 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       } finally {
         notifySessionEnded(reason);
         clearSessionClock();
-        clearRolePolicies();
+        endRolePolicySession();
         if (mounted.current) {
           setSession(null);
           setStatus("unauthenticated");
           setError(null);
+          setPolicyError(null);
+          setPolicyRetrying(false);
+          policyRetryingRef.current = false;
           setNotice(SESSION_END_NOTICE[reason]);
         }
       }
@@ -242,17 +343,28 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
     itself carries are the fallback for the frames before that projection has
     been read (and for a backend that issues its own set).
   */
+  const rolePolicy = useRolePolicyState();
   const policyVersion = useRolePolicyVersion();
   const permissions = useMemo(() => {
     if (!session) return [];
-    // An administrator's edit wins over what the session was issued with; until
-    // the policy projection has been read (or in a deployment where nobody has
-    // edited anything) the session's own set is the answer — in API mode that set
-    // is the server's, and the client never second-guesses it.
-    const edited = getRolePolicy(session.user.role);
-    return edited ? [...edited.permissions] : session.permissions;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, policyVersion]);
+    /*
+      A session-level policy failure is fail-closed. Otherwise, a validated
+      projection for THIS session may supply the live matrix; a projection from
+      another session (or a loading one) must never do so.
+    */
+    if (policyError) return [];
+    const sameSession =
+      rolePolicy.sessionKey === null || rolePolicy.sessionKey === session.token;
+    if (sameSession && rolePolicy.status === "unavailable") return [];
+    if (
+      sameSession &&
+      (rolePolicy.status === "fresh" || rolePolicy.status === "stale")
+    ) {
+      const edited = getRolePolicy(session.user.role);
+      if (edited) return [...edited.permissions];
+    }
+    return session.permissions;
+  }, [session, policyError, rolePolicy, policyVersion]);
   const holder = useMemo(() => ({ permissions }), [permissions]);
 
   const value = useMemo<AuthState>(
@@ -262,6 +374,9 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       user: session?.user ?? null,
       permissions,
       error,
+      policyError,
+      policyRetrying,
+      retryPolicy,
       notice,
       pending,
       login,
@@ -273,7 +388,7 @@ export function AuthProvider({ children, repository }: { children: ReactNode; re
       canAll: (list) => canAll(holder, list),
       canAccess: (view) => canAccessView(holder, view),
     }),
-    [status, session, permissions, error, notice, pending, login, logout, expireSession, holder],
+    [status, session, permissions, error, policyError, policyRetrying, retryPolicy, notice, pending, login, logout, expireSession, holder],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -9,17 +9,29 @@
  * repository is the only writer, and the cache holds nothing that a re-read
  * cannot rebuild.
  */
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { apiErrorFromThrown, type ApiError } from "@/api/errors";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { apiErrorFromThrown, ApiError } from "@/api/errors";
 import { getRoleRepository } from "@/domains/registry";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import {
+  beginRolePolicyRequest,
+  commitRolePolicy,
+  failRolePolicy,
+  getRolePolicies,
+  getRolePolicyState,
   getRolePolicyVersion,
-  setRolePolicies,
+  invalidateRolePolicy,
+  isRolePolicyProjectionValid,
+  isRolePolicyTicketCurrent,
+  registerRolePolicyRefresh,
+  requestRolePolicyRefresh,
   subscribeRolePolicy,
+  subscribeRolePolicyState,
   type Permission,
   type RoleId,
   type RolePolicyRecord,
+  type RolePolicySyncState,
+  type RolePolicyTicket,
 } from "./permissions";
 import type { UpdateRoleInput } from "./roleRepository";
 
@@ -28,30 +40,97 @@ export function useRolePolicyVersion(): number {
   return useSyncExternalStore(subscribeRolePolicy, getRolePolicyVersion, getRolePolicyVersion);
 }
 
+/** Subscribes to the projection lifecycle (loading/fresh/stale/unavailable). */
+export function useRolePolicyState(): RolePolicySyncState {
+  return useSyncExternalStore(subscribeRolePolicyState, getRolePolicyState, getRolePolicyState);
+}
+
+interface SyncFlight {
+  key: string;
+  controller: AbortController;
+  ticket: RolePolicyTicket;
+  promise: Promise<void>;
+}
+
+let syncFlight: SyncFlight | null = null;
+
+function invalidPolicyError(message: string): ApiError {
+  return new ApiError({ kind: "server", code: "ROLE_POLICY_INVALID", message });
+}
+
 /**
- * Keeps the policy cache in step with the repository.
+ * One in-flight synchronization per session+data version.
  *
- * Refreshes on every persisted write (`dataVersion`), so an administrator who
- * edits a role sees the panel change under their own session without signing out
- * and back in — which is the point of the feature.
- *
- * A failed read leaves the previous projection in place rather than clearing it:
- * silently dropping everybody to the shipped defaults would revoke access an
- * academy granted, and a stale matrix is the smaller wrong.
+ * The first caller starts the read; duplicate consumers/refresh clicks share
+ * that promise. A newer session/data version aborts the old controller and the
+ * ticket generation rejects any response that still resolves.
  */
-export function useRolePolicySync(): void {
+function syncRolePolicy(sessionKey: string, dataVersion: number): Promise<void> {
+  const key = `${sessionKey}:${dataVersion}`;
+  if (
+    syncFlight?.key === key &&
+    !syncFlight.controller.signal.aborted &&
+    isRolePolicyTicketCurrent(syncFlight.ticket)
+  ) {
+    return syncFlight.promise;
+  }
+  if (syncFlight) syncFlight.controller.abort();
+
+  const ticket = beginRolePolicyRequest(sessionKey);
+  if (!ticket) return Promise.resolve();
+
+  const controller = new AbortController();
+  const flight: SyncFlight = { key, controller, ticket, promise: Promise.resolve() };
+  flight.promise = getRoleRepository()
+    .list(controller.signal)
+    .then((page) => {
+      if (!isRolePolicyProjectionValid(page.data)) {
+        throw invalidPolicyError("قواعد دسترسی نقش‌ها معتبر نیست.");
+      }
+      commitRolePolicy(ticket, page.data);
+    })
+    .catch((cause: unknown) => {
+      const normalized = apiErrorFromThrown(cause);
+      // A superseded/aborted request is the newer request's problem. A
+      // cancellation that is still the latest (a custom repository aborted on
+      // its own) must settle the lifecycle instead of leaving it refreshing.
+      if (normalized.kind === "cancelled" && !isRolePolicyTicketCurrent(ticket)) return;
+      failRolePolicy(ticket, normalized);
+    })
+    .finally(() => {
+      if (syncFlight === flight) syncFlight = null;
+    });
+
+  syncFlight = flight;
+  return flight.promise;
+}
+
+/**
+ * The single global synchronization owner.
+ *
+ * `sessionKey` is the authenticated session token. The hook subscribes to the
+ * central lifecycle and exposes a refresh callback used by the shell banner.
+ * `useRoles` is a panel-local read and never publishes this projection.
+ */
+export function useRolePolicySync(sessionKey?: string | null): {
+  state: RolePolicySyncState;
+  refresh: () => void;
+} {
   const dataVersion = useDataVersion();
+  const state = useRolePolicyState();
+  const key = sessionKey === undefined ? state.sessionKey : sessionKey;
+
+  const refresh = useCallback(() => {
+    if (key) void syncRolePolicy(key, dataVersion);
+  }, [key, dataVersion]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getRoleRepository()
-      .list(controller.signal)
-      .then((page) => setRolePolicies(page.data))
-      .catch(() => {
-        /* keep the previous projection; the panel says so where roles are shown */
-      });
-    return () => controller.abort();
-  }, [dataVersion]);
+    if (key) void syncRolePolicy(key, dataVersion);
+  }, [key, dataVersion]);
+
+  useEffect(() => registerRolePolicyRefresh(refresh), [refresh]);
+
+  return { state, refresh };
 }
 
 export interface RolesState {
@@ -67,38 +146,53 @@ export interface RolesState {
 /** The Settings surface's own read + writes over the role matrix. */
 export function useRoles(): RolesState {
   const dataVersion = useDataVersion();
+  const policyState = useRolePolicyState();
   useRolePolicyVersion();
+  const globalRoles = getRolePolicies();
   const [roles, setRoles] = useState<RolePolicyRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const [nonce, setNonce] = useState(0);
+  const latest = useRef(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    const ticket = ++latest.current;
     setLoading(true);
     getRoleRepository()
       .list(controller.signal)
       .then((page) => {
+        if (ticket !== latest.current) return;
         setRoles(page.data);
         setError(null);
       })
       .catch((cause: unknown) => {
+        if (ticket !== latest.current) return;
         const normalized = apiErrorFromThrown(cause);
         if (normalized.kind === "cancelled") return;
         setError(normalized);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (ticket === latest.current) setLoading(false);
+      });
     return () => controller.abort();
   }, [nonce, dataVersion]);
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = useCallback(() => {
+    setNonce((n) => n + 1);
+    requestRolePolicyRefresh();
+  }, []);
 
   const update = useCallback(async (id: RoleId, input: UpdateRoleInput): Promise<ApiError | null> => {
     setSaving(true);
     try {
       const saved = await getRoleRepository().update(id, input);
       setRoles((prev) => prev.map((row) => (row.id === saved.id ? saved : row)));
+      // A mutation invalidates the projection until the authoritative re-read
+      // succeeds; it never publishes the partial write as a fresh matrix.
+      invalidateRolePolicy();
+      requestRolePolicyRefresh();
       return null;
     } catch (cause) {
       return apiErrorFromThrown(cause);
@@ -112,6 +206,8 @@ export function useRoles(): RolesState {
     try {
       const saved = await getRoleRepository().reset(id);
       setRoles((prev) => prev.map((row) => (row.id === saved.id ? saved : row)));
+      invalidateRolePolicy();
+      requestRolePolicyRefresh();
       return null;
     } catch (cause) {
       return apiErrorFromThrown(cause);
@@ -120,9 +216,29 @@ export function useRoles(): RolesState {
     }
   }, []);
 
+  /*
+   * Once the global projection is usable, the panel reads it instead of
+   * maintaining a second, potentially contradictory copy. The local read is
+   * only a fallback for the first frame / when the global projection is
+   * loading or unavailable; it never writes the projection.
+   */
+  const useGlobal =
+    (policyState.status === "fresh" || policyState.status === "stale") && globalRoles.length > 0;
+  const effectiveRoles = useGlobal ? globalRoles : roles;
+  const effectiveLoading = useGlobal ? false : loading;
+  const effectiveError = useGlobal ? null : error;
+
   return useMemo(
-    () => ({ roles, loading, error, reload, saving, update, reset }),
-    [roles, loading, error, reload, saving, update, reset],
+    () => ({
+      roles: effectiveRoles,
+      loading: effectiveLoading,
+      error: effectiveError,
+      reload,
+      saving,
+      update,
+      reset,
+    }),
+    [effectiveRoles, effectiveLoading, effectiveError, reload, saving, update, reset],
   );
 }
 

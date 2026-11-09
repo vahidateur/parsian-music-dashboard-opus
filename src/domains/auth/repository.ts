@@ -1,3 +1,4 @@
+import type { ApiError } from "@/api/errors";
 import type { Page } from "@/api/types";
 import type { AuthUser, CreateUserInput, LoginInput, Session, UpdateUserInput } from "./types";
 import type { SessionEndReason } from "@/security/useIdleTimeout";
@@ -21,9 +22,20 @@ export interface AuthRepository {
    * The shell shows the reason as a notice; `restore()` keeps its
    * null-on-any-failure contract for every existing caller.
    */
-  restoreDetailed(): Promise<{ session: Session | null; expiredReason: Extract<SessionEndReason, "idle" | "absolute"> | null }>;
+  restoreDetailed(): Promise<{
+    session: Session | null;
+    expiredReason: Extract<SessionEndReason, "idle" | "absolute"> | null;
+    /** Present when the identity is valid but the local role policy could not be read. */
+    policyError?: ApiError;
+  }>;
   /** Re-reads the current principal from the source of truth. */
   me(): Promise<Session>;
+  /**
+   * Re-reads authorization for an already-valid session without requiring the
+   * persisted credential. Local auth uses this for policy recovery; API auth
+   * may omit it and fall back to `restoreDetailed`.
+   */
+  reauthorize?(session: Session): Promise<Session>;
 }
 
 /** User administration. Separate from authentication by design. */

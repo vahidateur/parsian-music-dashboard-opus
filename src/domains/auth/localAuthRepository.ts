@@ -1,9 +1,11 @@
-import { ApiError } from "@/api/errors";
+import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { SESSION_TTL_MS } from "./session";
 import { isDemoMode } from "@/api/config";
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import { demoCredentialStore, type DemoCredentialStore } from "./demoCredentials";
-import { permissionsForRole } from "./permissions";
+import { LocalRoleRepository, rolePolicyInvalid, rolePolicyUnavailable, ROLE_POLICY_INVALID, ROLE_POLICY_UNAVAILABLE } from "./localRoleRepository";
+import { isPermission, isRoleId, type RoleId, type RolePolicyRecord } from "./permissions";
+import type { RoleRepository } from "./roleRepository";
 import type { AuthRepository } from "./repository";
 import type { AuthUser, LoginInput, Session } from "./types";
 
@@ -112,6 +114,7 @@ export class LocalAuthRepository implements AuthRepository {
     private readonly storage: SessionStorageLike = browserStorage() ?? memory(),
     private readonly now: () => number = () => Date.now(),
     private readonly credentials: DemoCredentialStore = demoCredentialStore(),
+    private readonly roles: RoleRepository = new LocalRoleRepository(store),
   ) {}
 
   async login({ email, password }: LoginInput): Promise<Session> {
@@ -136,7 +139,7 @@ export class LocalAuthRepository implements AuthRepository {
       throw new ApiError({ kind: "authorization", code: "AUTH_USER_DISABLED", message: "این حساب غیرفعال است." });
     }
 
-    const session = this.sessionFor(user, demoToken(), new Date(this.now() + SESSION_TTL_MS).toISOString());
+    const session = await this.sessionFor(user, demoToken(), new Date(this.now() + SESSION_TTL_MS).toISOString());
     this.persist({ userId: user.id, token: session.token, expiresAt: session.expiresAt });
     return session;
   }
@@ -146,7 +149,9 @@ export class LocalAuthRepository implements AuthRepository {
   }
 
   async restore(): Promise<Session | null> {
-    return (await this.restoreDetailed()).session;
+    const { session, policyError } = await this.restoreDetailed();
+    if (policyError) throw policyError;
+    return session;
   }
 
   /**
@@ -155,7 +160,11 @@ export class LocalAuthRepository implements AuthRepository {
    * missing, malformed, or disowned credential stays silent — boot must not
    * distinguish those states.
    */
-  async restoreDetailed(): Promise<{ session: Session | null; expiredReason: "idle" | "absolute" | null }> {
+  async restoreDetailed(): Promise<{
+    session: Session | null;
+    expiredReason: "idle" | "absolute" | null;
+    policyError?: ApiError;
+  }> {
     const persisted = this.readPersisted();
     if (!persisted) return { session: null, expiredReason: null };
 
@@ -170,7 +179,21 @@ export class LocalAuthRepository implements AuthRepository {
       this.storage.removeItem(AUTH_SESSION_KEY);
       return { session: null, expiredReason: null };
     }
-    return { session: this.sessionFor(user, persisted.token, persisted.expiresAt), expiredReason: null };
+
+    try {
+      return {
+        session: await this.sessionFor(user, persisted.token, persisted.expiresAt),
+        expiredReason: null,
+      };
+    } catch (cause) {
+      // Keep the identity and make the policy failure explicit; do not sign a
+      // valid session out and do not fabricate a permission set.
+      return {
+        session: { user, permissions: [], token: persisted.token, expiresAt: persisted.expiresAt },
+        expiredReason: null,
+        policyError: this.policyErrorFrom(cause),
+      };
+    }
   }
 
   async me(): Promise<Session> {
@@ -179,8 +202,51 @@ export class LocalAuthRepository implements AuthRepository {
     return session;
   }
 
-  private sessionFor(user: AuthUser, token: string, expiresAt: string): Session {
-    return { user, permissions: permissionsForRole(user.role), token, expiresAt };
+  async reauthorize(session: Session): Promise<Session> {
+    const record = await this.roleSnapshot(session.user.role);
+    return { ...session, permissions: [...record.permissions] };
+  }
+
+  /**
+   * The session's permissions are a snapshot of the current LOCAL role record.
+   *
+   * This deliberately does not read `permissionsForRole`/`getRolePolicy`: the
+   * module projection exists for synchronous UI gates, not as an authentication
+   * source. A stale projection from a previous session must not become the next
+   * session's permissions.
+   */
+  private async sessionFor(user: AuthUser, token: string, expiresAt: string): Promise<Session> {
+    const record = await this.roleSnapshot(user.role);
+    return { user, permissions: [...record.permissions], token, expiresAt };
+  }
+
+  private async roleSnapshot(role: RoleId): Promise<RolePolicyRecord> {
+    try {
+      const record = await this.roles.get(role);
+      if (
+        !record ||
+        record.id !== role ||
+        !isRoleId(record.id) ||
+        !Array.isArray(record.permissions) ||
+        record.permissions.some((permission) => !isPermission(permission))
+      ) {
+        throw rolePolicyInvalid(role);
+      }
+      return record;
+    } catch (cause) {
+      throw this.policyErrorFrom(cause, role);
+    }
+  }
+
+  private policyErrorFrom(cause: unknown, role?: RoleId): ApiError {
+    const normalized = apiErrorFromThrown(cause);
+    if (normalized.code === ROLE_POLICY_INVALID || normalized.code === ROLE_POLICY_UNAVAILABLE) {
+      return normalized;
+    }
+    if (normalized.code === "ROLE_NOT_FOUND" && role !== undefined) {
+      return rolePolicyInvalid(role);
+    }
+    return rolePolicyUnavailable(normalized);
   }
 
   private persist(value: PersistedSession): void {

@@ -11,8 +11,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ReactElement } from "react";
 import { AppProvider } from "@/context/AppContext";
 import { useAuth } from "@/domains/auth/AuthContext";
-import { clearRolePolicies, setRolePolicies } from "@/domains/auth/permissions";
-import { resetRegistry } from "@/domains/registry";
+import { clearRolePolicies } from "@/domains/auth/permissions";
+import { getRoleRepository, resetRegistry } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 import { FinanceView } from "@/views/Finance";
@@ -143,15 +143,9 @@ describe("Phase B mutation guards", () => {
   });
 
   it("shows the honest empty export state when the issued set has no export permission", async () => {
-    setRolePolicies([
-      {
-        id: "accountant",
-        label: "مالی",
-        scope: "org",
-        customized: true,
-        permissions: ["finance.read", "finance.write"],
-      },
-    ]);
+    await getRoleRepository().update("accountant", {
+      permissions: ["finance.read", "finance.write"],
+    });
     await renderAs("finance@demo.local", <ImportExportCenter />);
     expect(screen.getByText("برای هیچ موجودیتی مجوز خروجی ندارید.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /دانلود خروجی/ })).toBeNull();
