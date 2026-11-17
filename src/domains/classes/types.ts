@@ -45,10 +45,23 @@ export interface AcademyClass {
   duration: number;
   enrolled: number;
   capacity: number;
-  attendanceAvg: number;
-  waitlist: number;
-  tuition: number;
-  termProgress: number;
+  /**
+   * Teacher responses omit the student-derived class metrics (T-02-B).
+   */
+  attendanceAvg?: number;
+  /**
+   * Teacher responses omit the inactive-enrollment count (T-02-C: normal
+   * enrollment reads expose active rows only).
+   */
+  waitlist?: number;
+  /**
+   * Teacher responses omit the class tuition (T-02-B financial redaction).
+   */
+  tuition?: number;
+  /**
+   * Teacher responses omit the student-derived class metrics (T-02-B).
+   */
+  termProgress?: number;
   studentIds: string[];
 }
 

@@ -45,6 +45,7 @@ import {
   getTeacherRepository,
   resetRegistry,
   setAttendanceRepository,
+  setEnrollmentRepository,
   setSchedulingRepository,
   setTeacherRepository,
 } from "@/domains/registry";
@@ -253,7 +254,7 @@ describe("class membership", () => {
     // repository wrote, in place of the literal that used to be charged to
     // every profile regardless of what it was enrolled in.
     await openTab(TABS.finance);
-    expect(bodyText()).toContain(faToman(enrollment.pricingPlan.amount, true));
+    expect(bodyText()).toContain(faToman(enrollment.pricingPlan?.amount ?? 0, true));
     expect(bodyText()).not.toContain("ثبت‌نامی برای محاسبهٔ شهریه وجود ندارد");
 
     // 3. Withdrawing releases the seat, and the profile stops claiming the class.
@@ -268,6 +269,30 @@ describe("class membership", () => {
     expect(bodyText()).not.toContain(klass.title);
     await openTab(TABS.finance);
     expect(bodyText()).toContain("ثبت‌نامی برای محاسبهٔ شهریه وجود ندارد");
+  });
+
+  it("renders an enrollment without a pricing plan as NO_DATA, not a crash", async () => {
+    const student = await unenrolledStudent();
+    const klass = await classWithRoom();
+    const enrollment = await getEnrollmentRepository().enroll({ studentId: student.id, classId: klass.id });
+
+    // A teacher response omits the pricing plan (T-02-C). The profile must
+    // render the enrollment without inventing a price or crashing.
+    const withoutPricing = { ...enrollment };
+    delete withoutPricing.pricingPlan;
+    setEnrollmentRepository(
+      withStubs(getEnrollmentRepository(), {
+        list: async () => ({ data: [withoutPricing], meta: { page: 1, per_page: 200, total: 1 } }),
+        get: async () => withoutPricing,
+      }),
+    );
+
+    renderRoute(`#/students/${student.id}`);
+    await settled();
+    await openTab(TABS.finance);
+    expect(bodyText()).toContain("شهریهٔ دوره");
+    expect(bodyText()).not.toContain(faToman(enrollment.pricingPlan?.amount ?? 0, true));
+    expect(bodyText()).not.toContain("ثبت‌نامی برای محاسبهٔ شهریه وجود ندارد");
   });
 
   it("reads the enrollment's own status: a waitlisted student is not a member", async () => {

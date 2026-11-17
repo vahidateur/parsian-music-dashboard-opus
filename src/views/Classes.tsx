@@ -55,12 +55,11 @@ import { blockingFailure } from "@/domains/shared/errorAvailability";
  *     read over the Sat→Fri week containing the academy's own day, with each
  *     column a real date rather than a frozen weekday index.
  *
- * WHAT DELIBERATELY DID NOT CHANGE: `attendanceAvg`, `termProgress`, `tuition`,
- * `capacity` and the room's own `occupancy` are fields of the rows the
- * repositories serve. They are not relations, nothing here may re-derive them,
- * and no contract exists that would answer them differently. The two numbers
- * that were NOT row fields — the trend deltas on seat occupancy and average
- * attendance — are gone, because nothing in this build measured a change.
+ * WHAT DELIBERATELY DID NOT CHANGE: `capacity` is a row field and stays. The
+ * student-derived metrics (`attendanceAvg`, `termProgress`), the waitlist count
+ * and `tuition` are still row fields for organization-wide roles, but a teacher
+ * response omits them under T-02-B/C; the detail renders those cards only when
+ * the server sent the field.
  *
  * Empty, loading and unavailable stay three different things; a read that
  * returned fewer rows than it counted says «N ردیف از M» instead of passing a
@@ -353,7 +352,9 @@ function ClassDetail({
             {/*
               The three write controls follow `classes.write`. A session without it
               (teacher, accountant — both hold `classes.read` only) can open this
-              surface and read everything on it, but is not offered edit, archive or
+              surface, but a teacher's read is scoped to their own classes and
+              omits tuition/waitlist/student-derived metrics; the accountant keeps
+              the organization-wide read. Neither is offered edit, archive or
               enrol: the register renders no control rather than a disabled one.
             */}
             {mayWrite ? (
@@ -386,17 +387,23 @@ function ClassDetail({
             {waiting > 0 && <div className="mt-1 text-[11px] text-violet-300">{faNum(waiting)} نفر در لیست انتظار</div>}
           </div>
         </Surface>
-        <Surface className="flex flex-col justify-center gap-2 p-5">
-          <div className="text-[11.5px] text-ink-300">میانگین حضور</div>
-          <div className="nums text-xl font-semibold leading-none text-ink-50">{faPercent(c.attendanceAvg)}</div>
-          <Meter value={c.attendanceAvg} tone={c.attendanceAvg >= 90 ? "ok" : "warn"} />
-        </Surface>
-        <Surface className="flex flex-col justify-center gap-2 p-5">
-          <div className="text-[11.5px] text-ink-300">پیشرفت دوره</div>
-          <div className="nums text-xl font-semibold leading-none text-ink-50">{faPercent(c.termProgress)}</div>
-          <Meter value={c.termProgress} tone="gold" />
-          <div className="nums text-[11px] text-ink-400">شهریه: {faToman(c.tuition)}</div>
-        </Surface>
+        {c.attendanceAvg !== undefined && (
+          <Surface className="flex flex-col justify-center gap-2 p-5">
+            <div className="text-[11.5px] text-ink-300">میانگین حضور</div>
+            <div className="nums text-xl font-semibold leading-none text-ink-50">{faPercent(c.attendanceAvg)}</div>
+            <Meter value={c.attendanceAvg} tone={c.attendanceAvg >= 90 ? "ok" : "warn"} />
+          </Surface>
+        )}
+        {c.termProgress !== undefined && (
+          <Surface className="flex flex-col justify-center gap-2 p-5">
+            <div className="text-[11.5px] text-ink-300">پیشرفت دوره</div>
+            <div className="nums text-xl font-semibold leading-none text-ink-50">{faPercent(c.termProgress)}</div>
+            <Meter value={c.termProgress} tone="gold" />
+            {c.tuition !== undefined && (
+              <div className="nums text-[11px] text-ink-400">شهریه: {faToman(c.tuition)}</div>
+            )}
+          </Surface>
+        )}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -634,7 +641,7 @@ function ClassesRoster({
           },
           // The average is over the rows' own `attendanceAvg`; the fabricating
           // `delta: 2.1` beside it is gone.
-          { label: "میانگین حضور", value: faPercent(meanOf(classes, (c) => c.attendanceAvg)) },
+          { label: "میانگین حضور", value: faPercent(meanOf(classes.filter((c) => c.attendanceAvg !== undefined), (c) => c.attendanceAvg ?? 0)) },
         ]}
       />
 

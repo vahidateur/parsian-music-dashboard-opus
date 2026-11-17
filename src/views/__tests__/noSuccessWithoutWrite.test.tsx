@@ -751,7 +751,7 @@ describe("class waitlist", () => {
       classId: cls.id,
       status: "waitlist",
     });
-    expect((await getClassRepository().get(cls.id)).waitlist).toBeGreaterThan(0);
+    expect((await getClassRepository().get(cls.id)).waitlist ?? 0).toBeGreaterThan(0);
 
     renderView(`#/classes/${cls.id}`, ClassesView);
     await settled();

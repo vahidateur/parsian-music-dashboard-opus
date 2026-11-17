@@ -17,8 +17,11 @@ export interface Enrollment {
   /** Jalali display date, matching the rest of the demo dataset. */
   startDate: string;
   endDate?: string;
-  /** Tuition plan snapshot at enrollment time (Toman per term). */
-  pricingPlan: { label: string; amount: number };
+  /**
+   * Tuition plan snapshot at enrollment time (Toman per term). Omitted from
+   * teacher responses under T-02-C financial redaction.
+   */
+  pricingPlan?: { label: string; amount: number };
 }
 
 import type { ListParams } from "@/api/types";

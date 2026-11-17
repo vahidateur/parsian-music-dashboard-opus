@@ -74,8 +74,8 @@ export const classColumns: ExportColumn<AcademyClass>[] = [
   { key: "duration", header: "مدت", accessor: (c) => String(c.duration) },
   { key: "enrolled", header: "ثبت‌نام", accessor: (c) => String(c.enrolled) },
   { key: "capacity", header: "ظرفیت", accessor: (c) => String(c.capacity) },
-  { key: "waitlist", header: "لیست انتظار", accessor: (c) => String(c.waitlist) },
-  { key: "tuition", header: "شهریه", accessor: (c) => String(c.tuition) },
+  { key: "waitlist", header: "لیست انتظار", accessor: (c) => String(c.waitlist ?? "") },
+  { key: "tuition", header: "شهریه", accessor: (c) => String(c.tuition ?? "") },
   { key: "status", header: "وضعیت", accessor: (c) => (c.status === "archived" ? "بایگانی" : "فعال") },
 ];
 
@@ -93,8 +93,8 @@ export const enrollmentColumns: ExportColumn<EnrollmentRow>[] = [
   { key: "status", header: "وضعیت", accessor: (r) => r.enrollment.status },
   { key: "startDate", header: "تاریخ شروع", accessor: (r) => r.enrollment.startDate },
   { key: "endDate", header: "تاریخ پایان", accessor: (r) => r.enrollment.endDate ?? "" },
-  { key: "pricingPlan", header: "طرح شهریه", accessor: (r) => r.enrollment.pricingPlan.label },
-  { key: "amount", header: "مبلغ", accessor: (r) => String(r.enrollment.pricingPlan.amount) },
+  { key: "pricingPlan", header: "طرح شهریه", accessor: (r) => r.enrollment.pricingPlan?.label ?? "" },
+  { key: "amount", header: "مبلغ", accessor: (r) => String(r.enrollment.pricingPlan?.amount ?? "") },
 ];
 
 /* ---------------- Library ---------------- */
