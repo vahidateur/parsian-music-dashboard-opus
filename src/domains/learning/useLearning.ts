@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getLearningRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { useResourceList, type ListState } from "@/domains/shared/useResource";
 import type {
@@ -110,6 +111,10 @@ function useDerived<T>(load: (signal?: AbortSignal) => Promise<T>, initial: T, d
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         if (ticket !== latest.current || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) {
+          setState({ key: deps, data: initial, loading: false, error: normalized });
+          return;
+        }
         // Keep whatever data this key already had, as before: a failed refetch
         // reports the failure without discarding a value that is still this
         // student's.

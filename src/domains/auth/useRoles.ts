@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { apiErrorFromThrown, ApiError } from "@/api/errors";
 import { getRoleRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import {
   beginRolePolicyRequest,
@@ -171,6 +172,7 @@ export function useRoles(): RolesState {
         if (ticket !== latest.current) return;
         const normalized = apiErrorFromThrown(cause);
         if (normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) setRoles([]);
         setError(normalized);
       })
       .finally(() => {

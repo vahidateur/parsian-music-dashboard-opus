@@ -1,8 +1,10 @@
 import { useCallback, useEffect } from "react";
+import { apiErrorFromThrown } from "@/api/errors";
 import { getInstrumentRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { useResourceList, type ListState } from "@/domains/shared/useResource";
-import { setInstrumentCatalog } from "./catalog";
+import { clearInstrumentCatalog, setInstrumentCatalog } from "./catalog";
 import type { InstrumentListParams, InstrumentRecord } from "./types";
 
 /** Instrument list, refreshed automatically after any persisted write. */
@@ -35,9 +37,13 @@ export function useInstrumentCatalogSync(): void {
       // academy realistically defines tens of instruments, not thousands.
       .list({ per_page: 500 }, controller.signal)
       .then((page) => setInstrumentCatalog(page.data))
-      .catch(() => {
-        // A failed refresh leaves the previous snapshot in place. Labels going
-        // stale is far better than every table falling back to raw ids.
+      .catch((cause: unknown) => {
+        // A denied catalogue read must not leave the previous names on screen;
+        // an empty cache falls back to ids. Other failures keep the snapshot:
+        // labels going stale is better than every table falling back to raw ids.
+        if (invalidatesOnAuthorization(apiErrorFromThrown(cause))) {
+          clearInstrumentCatalog();
+        }
       });
     return () => controller.abort();
   }, [dataVersion]);

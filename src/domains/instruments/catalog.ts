@@ -143,6 +143,20 @@ export function resetInstrumentCatalog(): void {
   emit();
 }
 
+/**
+ * Drops the catalogue after the server denies the read.
+ *
+ * Falling back to the seeded set would present shipped names as if they were
+ * the academy's current catalogue. An empty cache makes every lookup fall back
+ * to the stored id — honest, and never a previous authorized snapshot.
+ */
+export function clearInstrumentCatalog(): void {
+  if (catalog.length === 0) return;
+  catalog = [];
+  byId = new Map();
+  emit();
+}
+
 /** Current snapshot. Stable identity between changes, safe for `useSyncExternalStore`. */
 export function getInstrumentCatalog(): readonly InstrumentRecord[] {
   return catalog;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { emptyPage, type Page } from "@/api/types";
+import { invalidatesOnAuthorization } from "./authorizationInvalidation";
 import { useDataVersion } from "./dataVersion";
 
 /**
@@ -110,6 +111,16 @@ export function useResourceList<T, P>(
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         if (ticket !== latest.current || normalized.kind === "cancelled") return;
+        /*
+         * A denied read must not keep showing the previous page: the server
+         * has just refused this query, so those rows are no longer proven
+         * accessible. Other errors keep the rows (a retryable failure is not a
+         * denial), and other hooks keep their own caches untouched.
+         */
+        if (invalidatesOnAuthorization(normalized)) {
+          setState({ key, page: emptyPage<T>(), loading: false, error: normalized });
+          return;
+        }
         setState((current) => ({ ...current, key, loading: false, error: normalized }));
       });
     return () => controller.abort();

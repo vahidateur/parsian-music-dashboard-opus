@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getProgressRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { useResourceList, type ListState } from "@/domains/shared/useResource";
 import type { StudentProgressOverview } from "./repository";
@@ -87,6 +88,7 @@ export function useStudentProgress(studentId: string | undefined): StudentProgre
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         if (mine !== ticket.current || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) setOverview(undefined);
         setError(normalized);
       })
       .finally(() => {

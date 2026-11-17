@@ -30,6 +30,7 @@ import {
 import { ATTENDED_STATUSES, type AttendanceRecord } from "@/domains/attendance/types";
 import type { Target } from "@/lib/viewContracts";
 import { useDataVersion } from "./dataVersion";
+import { invalidatesOnAuthorization } from "./authorizationInvalidation";
 import { blockingFailure } from "@/domains/shared/errorAvailability";
 
 export interface AcademyMetrics {
@@ -243,6 +244,7 @@ export function useAcademyMetrics(): AcademyMetricsState {
         // Showing stale numbers would be worse than showing none — and showing
         // zeros would be worse still, because a zero is a measurement. The set
         // becomes unavailable and the error becomes the product's to display.
+        if (invalidatesOnAuthorization(normalized)) setMetrics(EMPTY);
         setAvailable(false);
         setError(normalized);
       })
