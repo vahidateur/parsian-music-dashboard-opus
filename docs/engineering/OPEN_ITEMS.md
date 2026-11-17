@@ -1513,14 +1513,15 @@ recovery and the zero-record tests both remaining green.
     user decision is DISCLOSE; it is not implemented here.
   - **C3b — Classes program/level ladder: unresolved.** The programs/levels reads still omit the
     ladder on failure; the omission is not silently accepted or implemented.
-  - **C5 — role-policy background fallback: INVESTIGATE (Stage 15 mitigation verified before commit;
+  - **C5 — role-policy background fallback: INVESTIGATE (Stage 15/16 mitigations in the working tree;
     not resolved).** Historically `useRolePolicySync` kept the previous projection on a failed
     role-list read, so authorization gates could run on stale policy without disclosure. Stage 15
     now marks that last-known-good state Stale, scopes it to the current session, and discloses it;
-    the security implications of consuming last-known-good authorization data, API 403 recovery,
-    and final backend acceptance remain a separate investigation. C5 is not resolved. At the time
-    of the Stage 13–15 verification, these changes were present in the working tree and had not yet
-    been committed.
+    Stage 16 adds targeted 403 invalidation without logging out or rewriting the role-policy
+    snapshot. The security implications of consuming last-known-good authorization data, final
+    backend acceptance, MySQL CI, and any residual API-contract ambiguity remain open. C5 is not
+    resolved. At the time of the Stage 13–16 verification, these changes were present in the
+    working tree and had not yet been committed.
     - **Stage 13/13.1 progress (verified before commit).** Demo/Local session permissions now come
       from the current local role repository (`LocalAuthRepository` + `LocalRoleRepository`), not
       the module projection; missing or invalid local policy is explicit and never falls back to
@@ -1582,6 +1583,27 @@ recovery and the zero-record tests both remaining green.
       lazy-chunk case, which passed 9/9 focused and in the final run). API 403 recovery,
       final backend authorization acceptance, MySQL row-lock CI verification, and any residual
       lifecycle or API-contract ambiguity remain open. C5 remains **INVESTIGATE**, not resolved.
+    - **Stage 16 API 403 recovery and targeted sensitive-cache invalidation (working tree,
+      uncommitted).** `ApiClient` still invokes `onUnauthenticated` only for 401. A 403 remains
+      `authorization`, a 404 remains `not_found`, and a 5xx remains `server`; none of those ends
+      the session or is converted into an empty success. A read that receives a 403 drops its own
+      cached page/value through the shared `invalidatesOnAuthorization` rule:
+      `useResourceList` covers the list domains, with equivalent clearing in the bespoke student
+      list, users, student progress, learning/scheduling derived reads, branding, organization,
+      academy metrics, the role-panel read, and the instrument catalogue. Unrelated reads keep
+      their caches. Each hook's existing ticket/abort guard rejects a late response, so an old
+      query or tenant cannot repopulate the invalidated state. Media bytes: a 403 revokes the
+      object URL and surfaces a denial in the profile-photo, gallery, message-attachment and
+      library-preview surfaces; a 404 remains the legitimate “missing file” state. A denied
+      mutation is not replayed and does not clear read caches (a write denial is not proof of a
+      read denial). A resource-level 403 never changes the role-policy lifecycle; only a failed
+      role-list read uses the Stage 15 Stale/Unavailable path. Tests: `authorizationInvalidation`
+      8/8, a `ProfilePhotoField` media-denial case, a `useLibraryFile` denial case, and a `client`
+      403/404/5xx no-logout case; the 21-file focused run passed **270 tests**, all three
+      typechecks and both builds exited 0, and the full frontend suite passed **260 files / 3081
+      tests, 4 skipped, 422.30 s**. Remaining: final backend authorization/security acceptance,
+      MySQL row-lock CI verification, stale last-known-good role-policy security acceptance, API
+      permission-contract ambiguity, and browser QA. C5 remains **INVESTIGATE**, not resolved.
 - **Why it survived:** the primary read of nearly every view *does* take `error`
   (`src/domains/gallery/GalleryPanel.tsx:57`, `src/domains/rooms/RoomsPanel.tsx:25`,
   `src/views/Classes.tsx:268`, `src/views/Teachers.tsx:348`), so the pattern reads as deliberate —
