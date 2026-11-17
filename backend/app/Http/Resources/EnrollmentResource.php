@@ -11,9 +11,15 @@ use App\Models\User;
  * T-02-C (C1): a teacher response omits the pricing plan. The teacher sees only
  * active enrollments in classes they own; the financial snapshot is not part of
  * that operational read.
+ *
+ * Visibility is an allow-list, not "everyone except teacher": a missing actor or
+ * a role outside the permission vocabulary fails closed and omits the plan.
  */
 final class EnrollmentResource
 {
+    /** Roles that may see the enrollment financial snapshot. */
+    private const FINANCIAL_ROLES = ['administrator', 'manager', 'staff', 'accountant'];
+
     /** @return array<string, mixed> */
     public static function toWire(Enrollment $enrollment, ?User $actor = null): array
     {
@@ -28,7 +34,7 @@ final class EnrollmentResource
             $wire['endDate'] = $enrollment->end_date;
         }
 
-        if ($actor?->role !== 'teacher') {
+        if (in_array($actor?->role, self::FINANCIAL_ROLES, true)) {
             $wire['pricingPlan'] = [
                 'label' => $enrollment->pricing_label,
                 'amount' => $enrollment->pricing_amount,

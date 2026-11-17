@@ -15,13 +15,20 @@ use App\Models\User;
  * redacts the financial fields (`tuition`) and the inactive-enrollment count
  * (`waitlist`); the active roster (`studentIds`, `enrolled`) stays because it is
  * exactly the teacher's assigned students.
+ *
+ * Visibility is an allow-list, not "everyone except teacher": a missing actor or
+ * a role outside the permission vocabulary fails closed and omits the same
+ * fields, so an unresolved identity can never widen what is serialized.
  */
 final class ClassResource
 {
+    /** Roles that may see the financial and student-derived class fields. */
+    private const FINANCIAL_ROLES = ['administrator', 'manager', 'staff', 'accountant'];
+
     /** @return array<string, mixed> */
     public static function toWire(AcademyClass $class, ?User $actor = null): array
     {
-        $isTeacher = $actor?->role === 'teacher';
+        $seesFinancials = in_array($actor?->role, self::FINANCIAL_ROLES, true);
 
         $wire = [
             'id' => $class->id,
@@ -51,7 +58,7 @@ final class ClassResource
                 : [],
         ];
 
-        if (! $isTeacher) {
+        if ($seesFinancials) {
             $wire['attendanceAvg'] = $class->attendance_avg;
             $wire['waitlist'] = (int) ($class->waitlist_count ?? 0);
             $wire['tuition'] = $class->tuition;
