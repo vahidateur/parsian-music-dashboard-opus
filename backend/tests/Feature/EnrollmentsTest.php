@@ -324,6 +324,46 @@ class EnrollmentsTest extends TestCase
         $this->assertSame('active', DB::table('enrollments')->where('id', $active->id)->value('status'));
     }
 
+    public function test_teacher_enrollment_list_omits_the_pricing_plan(): void
+    {
+        $row = $this->enrollRow('enr_active', 's1', 'c1', 'active');
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->getJson('/api/v1/enrollments')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $row->id)
+            ->assertJsonMissingPath('data.0.pricingPlan');
+
+        $this->actingAsRole('accountant');
+        $this->getJson('/api/v1/enrollments')
+            ->assertOk()
+            ->assertJsonPath('data.0.pricingPlan.amount', $row->pricing_amount);
+    }
+
+    public function test_teacher_without_teacher_id_is_pb1_on_enrollment_writes(): void
+    {
+        $row = $this->enrollRow('enr_active', 's1', 'c1', 'active');
+
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $this->postJson('/api/v1/enrollments', ['studentId' => 's2', 'classId' => 'c1'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->patchJson("/api/v1/enrollments/{$row->id}", ['status' => 'cancelled'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson("/api/v1/enrollments/{$row->id}/withdraw")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->deleteJson("/api/v1/enrollments/{$row->id}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+
+        $this->assertSame('active', DB::table('enrollments')->where('id', $row->id)->value('status'));
+        $this->assertSame(1, DB::table('enrollments')->where('id', $row->id)->count());
+    }
+
     public function test_list_filters(): void
     {
         $org = $this->defaultOrganization()->id;

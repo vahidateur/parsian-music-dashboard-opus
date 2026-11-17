@@ -477,6 +477,90 @@ class ClassesTest extends TestCase
         $this->assertSame('active', DB::table('classes')->where('id', $foreign->id)->value('status'));
     }
 
+    public function test_teacher_override_can_archive_only_their_own_class(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['teacher_id' => 't1']);
+        $theirs = $this->class(['teacher_id' => 't2']);
+
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->postJson("/api/v1/classes/{$mine->id}/archive")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'archived');
+        $this->assertSame('archived', DB::table('classes')->where('id', $mine->id)->value('status'));
+
+        // Object scope still wins over the granted verb, and nothing changes.
+        $this->postJson("/api/v1/classes/{$theirs->id}/archive")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+        $this->assertSame('active', DB::table('classes')->where('id', $theirs->id)->value('status'));
+
+        $this->deleteJson("/api/v1/classes/{$theirs->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+        $this->assertSame(1, DB::table('classes')->where('id', $theirs->id)->count());
+    }
+
+    public function test_teacher_override_delete_is_scoped_and_blocked_by_enrollments(): void
+    {
+        $empty = $this->class();
+        $occupied = $this->class();
+        $this->enroll($occupied->id, 'active');
+
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->deleteJson("/api/v1/classes/{$occupied->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'CLASS_HAS_ENROLLMENTS');
+        $this->assertSame(1, DB::table('classes')->where('id', $occupied->id)->count());
+
+        $this->deleteJson("/api/v1/classes/{$empty->id}")->assertNoContent();
+        $this->assertSame(0, DB::table('classes')->where('id', $empty->id)->count());
+    }
+
+    public function test_teacher_without_teacher_id_is_pb1_on_class_writes(): void
+    {
+        $class = $this->class();
+
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['title' => 'هیچ'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson("/api/v1/classes/{$class->id}/archive")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->deleteJson("/api/v1/classes/{$class->id}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+
+        $this->assertSame('active', DB::table('classes')->where('id', $class->id)->value('status'));
+        $this->assertSame(1, DB::table('classes')->where('id', $class->id)->count());
+    }
+
+    public function test_teacher_class_list_redacts_financial_and_student_derived_fields(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['tuition' => 2500000]);
+        $this->class(['teacher_id' => 't2']);
+        $this->enroll($mine->id, 'waitlist');
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $response = $this->getJson('/api/v1/classes')->assertOk();
+        $this->assertSame([$mine->id], array_column($response->json('data'), 'id'));
+        $response
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonMissingPath('data.0.tuition')
+            ->assertJsonMissingPath('data.0.waitlist')
+            ->assertJsonMissingPath('data.0.attendanceAvg')
+            ->assertJsonMissingPath('data.0.termProgress')
+            ->assertJsonPath('data.0.title', $mine->title);
+    }
+
     public function test_accountant_reads_but_cannot_write(): void
     {
         $this->actingAsRole('accountant');
