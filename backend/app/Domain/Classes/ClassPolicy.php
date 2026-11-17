@@ -24,6 +24,12 @@ use Illuminate\Database\Eloquent\Builder;
  */
 final class ClassPolicy
 {
+    /**
+     * Fields a teacher may never write, regardless of a `classes.write`
+     * override: money and student-derived metrics (T-02-B write side).
+     */
+    public const TEACHER_FORBIDDEN_WRITE_FIELDS = ['tuition', 'attendanceAvg', 'termProgress'];
+
     public function __construct(private readonly PermissionGate $gate) {}
 
     public function authorizeRead(User $actor): void
@@ -81,5 +87,37 @@ final class ClassPolicy
         if ($own !== null && trim((string) $teacherId) !== $own) {
             throw new ApiException(403, 'FORBIDDEN', 'تغییر مدرس کلاس برای نقش مدرس مجاز نیست.');
         }
+    }
+
+    /**
+     * T-02-B write side: a teacher may never write the financial or
+     * student-derived class fields, even when a role override grants
+     * `classes.write`. Presence alone is the denial — the value is never
+     * inspected, so `null` and malformed payloads are rejected the same way.
+     *
+     * @param  array<string, mixed>  $input  raw request payload, before validation
+     */
+    public function assertTeacherWriteFieldsAllowed(User $actor, array $input): void
+    {
+        if ($actor->role !== 'teacher') {
+            return;
+        }
+
+        $denied = array_values(array_filter(
+            self::TEACHER_FORBIDDEN_WRITE_FIELDS,
+            static fn (string $field): bool => array_key_exists($field, $input),
+        ));
+
+        if ($denied === []) {
+            return;
+        }
+
+        throw new ApiException(
+            403,
+            'FORBIDDEN',
+            'تغییر شهریه و شاخص‌های کلاس برای نقش مدرس مجاز نیست.',
+            [],
+            ['deniedFields' => $denied],
+        );
     }
 }

@@ -112,6 +112,7 @@ final class ClassService
     public function create(User $actor, array $input): AcademyClass
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherWriteFieldsAllowed($actor, $input);
         $this->policy->assertTeacherIdAllowed($actor, $input['teacherId'] ?? null);
 
         $class = new AcademyClass;
@@ -130,6 +131,7 @@ final class ClassService
     public function update(User $actor, string $id, array $input): AcademyClass
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherWriteFieldsAllowed($actor, $input);
 
         DB::transaction(function () use ($id, $input, $actor): void {
             $class = $this->find($id, $actor, lock: true);

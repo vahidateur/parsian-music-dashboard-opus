@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -63,6 +64,19 @@ class ClassesTest extends TestCase
         Enrollment::factory()->create(['organization_id' => $org, 'student_id' => $student->id, 'class_id' => $classId, 'status' => $status]);
 
         return $student;
+    }
+
+    /** Grants the teacher role `classes.write` through a saved role override. */
+    private function grantTeacherClassesWrite(): void
+    {
+        DB::table('roles')->insert([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'teacher',
+            'label' => 'مدرس',
+            'scope' => '',
+            'permissions' => json_encode([...config('permissions.defaults.teacher'), 'classes.write']),
+            'updated_at' => now(),
+        ]);
     }
 
     public function test_unauthenticated_is_401(): void
@@ -160,14 +174,7 @@ class ClassesTest extends TestCase
         $mine = $this->class(['title' => 'کلاس من', 'teacher_id' => 't1']);
         $theirs = $this->class(['title' => 'کلاس دیگری', 'teacher_id' => 't2']);
 
-        DB::table('roles')->insert([
-            'organization_id' => $this->defaultOrganization()->id,
-            'id' => 'teacher',
-            'label' => 'مدرس',
-            'scope' => '',
-            'permissions' => json_encode([...config('permissions.defaults.teacher'), 'classes.write']),
-            'updated_at' => now(),
-        ]);
+        $this->grantTeacherClassesWrite();
 
         $this->actingAsRole('teacher', ['teacher_id' => 't1']);
 
@@ -189,10 +196,116 @@ class ClassesTest extends TestCase
             ->assertStatus(403)
             ->assertJsonPath('error.code', 'FORBIDDEN');
 
-        // Creating a class they own remains possible with the granted verb.
+        // T-02-B write side (2026-11-16): creation requires `tuition`, and a teacher
+        // write carrying it is denied, so the granted verb cannot create a class.
+        // That is the approved policy, not a regression to work around here.
         $this->postJson('/api/v1/classes', $this->payload(['teacherId' => 't1']))
-            ->assertCreated()
-            ->assertJsonPath('data.teacherId', 't1');
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', ['tuition']);
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function protectedWriteFields(): array
+    {
+        return [
+            'tuition' => ['tuition'],
+            'attendanceAvg' => ['attendanceAvg'],
+            'termProgress' => ['termProgress'],
+        ];
+    }
+
+    #[DataProvider('protectedWriteFields')]
+    public function test_teacher_override_cannot_patch_a_protected_class_field(string $field): void
+    {
+        $class = $this->class(['title' => 'قبل', 'tuition' => 1000]);
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", [$field => 42])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', [$field]);
+
+        $fresh = $class->fresh();
+        $this->assertSame('قبل', $fresh->title);
+        $this->assertSame(1000, $fresh->tuition);
+    }
+
+    #[DataProvider('protectedWriteFields')]
+    public function test_teacher_override_cannot_create_a_class_with_a_protected_field(string $field): void
+    {
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $payload = $this->payload();
+        unset($payload['tuition']);
+        $payload[$field] = 42;
+
+        $before = AcademyClass::query()->count();
+
+        $this->postJson('/api/v1/classes', $payload)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', [$field]);
+
+        $this->assertSame($before, AcademyClass::query()->count());
+    }
+
+    public function test_teacher_override_mixed_payload_is_rejected_without_a_partial_write(): void
+    {
+        $class = $this->class(['title' => 'قبل', 'capacity' => 2, 'tuition' => 1000]);
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", [
+            'title' => 'بعد',
+            'capacity' => 5,
+            'tuition' => 9000,
+        ])->assertStatus(403)->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $fresh = $class->fresh();
+        $this->assertSame('قبل', $fresh->title);
+        $this->assertSame(2, $fresh->capacity);
+        $this->assertSame(1000, $fresh->tuition);
+    }
+
+    public function test_teacher_override_null_protected_field_is_still_denied(): void
+    {
+        $class = $this->class();
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => null])
+            ->assertStatus(403)
+            ->assertJsonPath('error.deniedFields', ['tuition']);
+    }
+
+    public function test_teacher_override_invalid_protected_field_is_403_not_422(): void
+    {
+        $class = $this->class();
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => 'not-a-number'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_manager_and_administrator_can_still_write_financial_fields(): void
+    {
+        $class = $this->class(['tuition' => 1000]);
+
+        $this->actingAsRole('manager');
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => 7000, 'attendanceAvg' => 80])
+            ->assertOk()
+            ->assertJsonPath('data.tuition', 7000)
+            ->assertJsonPath('data.attendanceAvg', 80);
+
+        $this->actingAsRole('administrator');
+        $this->patchJson("/api/v1/classes/{$class->id}", ['termProgress' => 40])
+            ->assertOk()
+            ->assertJsonPath('data.termProgress', 40);
     }
 
     public function test_manager_class_teacher_transfer_behavior_is_unchanged_by_stage_18_1(): void
