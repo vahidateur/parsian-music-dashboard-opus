@@ -15,10 +15,12 @@
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { ProfilePhotoField } from "../ProfilePhotoField";
 import { createMemoryBlobStore, setBlobStore } from "../blobStore";
-import { getMediaRepository, resetRegistry } from "@/domains/registry";
+import type { MediaRepository } from "../repository";
+import { getMediaRepository, resetRegistry, setMediaRepository } from "@/domains/registry";
 import { demoStore } from "@/services/demoStore";
 import { resetToDemoEnvironment } from "@/test/demoEnvironment";
 
@@ -113,6 +115,27 @@ describe("uploading", () => {
       </AppProvider>,
     );
     expect(screen.getByText("سم")).toBeDefined();
+  });
+
+  it("says access was denied instead of claiming the photo is missing", async () => {
+    setMediaRepository({
+      list: vi.fn(),
+      get: vi.fn(),
+      create: vi.fn(),
+      delete: vi.fn(),
+      getBlob: vi.fn(async () => {
+        throw new ApiError({ kind: "authorization", status: 403, message: "دسترسی ندارید." });
+      }),
+    } as unknown as MediaRepository);
+
+    render(
+      <AppProvider>
+        <ProfilePhotoField mediaId="md_denied" personName="سارا محمدی" onChange={vi.fn()} />
+      </AppProvider>,
+    );
+
+    expect(await screen.findByText("دسترسی به این تصویر مجاز نیست")).toBeTruthy();
+    expect(screen.queryByText("تصویر در این مرورگر موجود نیست")).toBeNull();
   });
 });
 

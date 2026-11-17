@@ -11,6 +11,7 @@
  * import from here).
  */
 import { useEffect, useRef, useState } from "react";
+import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getMediaRepository } from "@/domains/registry";
 
 /**
@@ -28,12 +29,30 @@ import { getMediaRepository } from "@/domains/registry";
  * when mediaId changes, and the returned URL is only exposed when it was
  * created for the current mediaId — no frame can show a previous asset.
  */
-export function useMediaObjectUrl(mediaId: string | undefined): string | undefined {
+export interface MediaObjectState {
+  url: string | undefined;
+  /** The bytes read failure, or `null` while loading/available/missing. */
+  error: ApiError | null;
+}
+
+/**
+ * Resolves a media id to a temporary object URL and the failure behind it.
+ *
+ * `url` is `undefined` while loading and when the blob is genuinely missing
+ * (a 404, normal after a backup restore). A 403 is different: it is exposed as
+ * `error` so a surface can say access was denied instead of claiming the file
+ * does not exist. Any previous URL is revoked before a new read starts.
+ */
+export function useMediaObjectState(mediaId: string | undefined): MediaObjectState {
   const [url, setUrl] = useState<string | undefined>(undefined);
   const [urlFor, setUrlFor] = useState<string | undefined>(undefined);
+  const [error, setError] = useState<ApiError | null>(null);
+  const [errorFor, setErrorFor] = useState<string | undefined>(undefined);
   const createdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    setError(null);
+    setErrorFor(undefined);
     if (!mediaId) {
       if (createdRef.current) {
         URL.revokeObjectURL(createdRef.current);
@@ -66,11 +85,17 @@ export function useMediaObjectUrl(mediaId: string | undefined): string | undefin
         createdRef.current = created;
         setUrl(created);
         setUrlFor(mediaId);
+        setError(null);
+        setErrorFor(mediaId);
       })
-      .catch(() => {
+      .catch((cause: unknown) => {
         if (revoked) return;
+        const normalized = apiErrorFromThrown(cause);
+        if (normalized.kind === "cancelled") return;
         setUrl(undefined);
         setUrlFor(undefined);
+        setError(normalized);
+        setErrorFor(mediaId);
       });
 
     return () => {
@@ -84,9 +109,16 @@ export function useMediaObjectUrl(mediaId: string | undefined): string | undefin
     };
   }, [mediaId]);
 
-  // Render-time guard: only expose URL when it was created for current mediaId
-  // This prevents one frame where old URL is still in state while new mediaId is being loaded
-  if (mediaId === undefined) return undefined;
-  if (urlFor !== mediaId) return undefined;
-  return url;
+  // Render-time guard: only expose a URL or error when it belongs to the
+  // current mediaId. This prevents one frame where the previous asset's
+  // result is shown while the new one is loading.
+  if (mediaId === undefined) return { url: undefined, error: null };
+  const currentError = errorFor === mediaId ? error : null;
+  if (urlFor !== mediaId) return { url: undefined, error: currentError };
+  return { url, error: currentError };
+}
+
+/** Backwards-compatible URL-only view; surfaces that must disclose use the state hook. */
+export function useMediaObjectUrl(mediaId: string | undefined): string | undefined {
+  return useMediaObjectState(mediaId).url;
 }

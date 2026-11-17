@@ -195,7 +195,7 @@ describe("the attachment surface is repository-backed", () => {
     const card = MESSAGES_SURFACE.find((file) => file.name === "views/messages/MessageAttachment.tsx")!;
     expect(card.source).toContain("getMediaRepository()");
     // The sanctioned seam for stored bytes — it owns creation AND revocation.
-    expect(card.source).toContain("useMediaObjectUrl(");
+    expect(card.source).toContain("useMediaObjectState(");
     // The reference comes off the STORED message, not from a pending local File.
     expect(MESSAGES_VIEW).toContain("message.mediaId");
     for (const file of MESSAGES_SURFACE) {

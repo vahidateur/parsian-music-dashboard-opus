@@ -36,7 +36,7 @@ import { useEffect, useState } from "react";
 import { FileText, Image as ImageIcon, Music, TriangleAlert } from "lucide-react";
 import { getMediaRepository } from "@/domains/registry";
 import { attachmentStorageNote } from "@/targets/targetCopy";
-import { useMediaObjectUrl } from "@/domains/media/useMedia";
+import { useMediaObjectState } from "@/domains/media/useMedia";
 import type { MediaAsset, MediaKind } from "@/domains/media/types";
 import { cn } from "@/utils/cn";
 import { KIND_LABEL, formatBytes } from "./attachmentRules";
@@ -48,7 +48,7 @@ const KIND_ICON: Record<MediaKind, typeof ImageIcon> = {
 };
 
 export function MessageAttachment({ mediaId }: { mediaId: string }) {
-  const url = useMediaObjectUrl(mediaId);
+  const { url, error: mediaError } = useMediaObjectState(mediaId);
   const [asset, setAsset] = useState<MediaAsset | null>(null);
   const [metadataMissing, setMetadataMissing] = useState(false);
   const [bytes, setBytes] = useState<"checking" | "present" | "absent">("checking");
@@ -86,6 +86,20 @@ export function MessageAttachment({ mediaId }: { mediaId: string }) {
       alive = false;
     };
   }, [mediaId]);
+
+  if (mediaError?.kind === "authorization") {
+    return (
+      <div className="mt-2 rounded-xl border border-danger-500/30 bg-danger-500/[0.07] px-3 py-2">
+        <p className="flex items-center gap-1.5 text-[11px] font-medium text-danger-300">
+          <TriangleAlert className="size-3 shrink-0" aria-hidden />
+          دسترسی به این پیوست مجاز نیست
+        </p>
+        <p className="mt-1 text-[10.5px] leading-relaxed text-ink-400">
+          پیام ثبت شده است، اما سرور خواندن فایل آن را برای این حساب رد کرد.
+        </p>
+      </div>
+    );
+  }
 
   if (metadataMissing) {
     return (

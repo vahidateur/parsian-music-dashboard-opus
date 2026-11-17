@@ -47,7 +47,7 @@ const shelves: { id: string; label: string; kind: ResourceKind; instrument: Inst
   { id: "sh3", label: "نمونه‌های شنیداری", kind: "audio", instrument: "voice" },
   { id: "sh4", label: "ویدیوهای آموزشی", kind: "video", instrument: "violin" },
 ];
-import { useMediaObjectUrl } from "@/domains/media/useMedia";
+import { useMediaObjectState } from "@/domains/media/useMedia";
 import { NO_DATA, faNum } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
 import { Button, InstrumentGlyph, StatusBadge } from "@/components/ds/primitives";
@@ -558,12 +558,12 @@ export function LibraryView() {
   });
 
   const file = useLibraryFile(open);
-  const audioUrl = useMediaObjectUrl(open?.kind === "audio" ? open.mediaId : undefined);
-  // The PDF is opened through useMediaObjectUrl rather than a URL built here,
+  const { url: audioUrl, error: audioError } = useMediaObjectState(open?.kind === "audio" ? open.mediaId : undefined);
+  // The PDF is opened through useMediaObjectState rather than a URL built here,
   // because that hook is the only owner of object-URL creation and revocation in
   // this codebase. Gated on the asset's validated MIME type, so a text note (which
   // renders from bytes the drawer already holds) never triggers a spare blob URL.
-  const previewUrl = useMediaObjectUrl(
+  const { url: previewUrl, error: previewError } = useMediaObjectState(
     open && needsPreviewObjectUrl(file.asset?.mimeType) ? open.mediaId : undefined,
   );
 
@@ -790,7 +790,7 @@ export function LibraryView() {
 
             {/* Preview sits on the detail surface itself — no new route, per the
                 F1 disposition this view documents. */}
-            <ResourcePreview file={file} previewUrl={previewUrl} kind={open.kind} />
+            <ResourcePreview file={file} previewUrl={previewUrl} previewError={previewError} kind={open.kind} />
 
             {(open.kind === "audio" || open.peaks) && (
               <AudioMessagePlayer
@@ -799,7 +799,13 @@ export function LibraryView() {
                 title={open.title}
                 peaks={open.peaks}
                 durationSeconds={file.asset?.durationSeconds}
-                unavailableReason={audioUrl ? undefined : "فایل صوتی این منبع در این مرورگر ذخیره نشده است، بنابراین پخشی وجود ندارد. هر زمان فایل بارگذاری شود، همین کنترل آن را واقعاً پخش می‌کند."}
+                unavailableReason={
+                  audioError?.kind === "authorization"
+                    ? "دسترسی به فایل صوتی این منبع برای این حساب مجاز نیست."
+                    : audioUrl
+                      ? undefined
+                      : "فایل صوتی این منبع در این مرورگر ذخیره نشده است، بنابراین پخشی وجود ندارد. هر زمان فایل بارگذاری شود، همین کنترل آن را واقعاً پخش می‌کند."
+                }
               />
             )}
             <dl className="grid grid-cols-2 gap-3 text-[12.5px]">
