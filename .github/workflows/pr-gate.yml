@@ -1,0 +1,127 @@
+# Stable pull-request gate.
+#
+# WHY THIS EXISTS
+#   `frontend-tests` and `backend-tests` are path-filtered, so a PR that touches
+#   only one side never produces the other check. A ruleset that requires either
+#   check by name therefore either blocks valid PRs or passes with no evidence.
+#   `pr-gate` runs on every pull request, decides which sides are applicable,
+#   runs exactly those reusable workflows, and fails unless every applicable
+#   side succeeded. It never passes because a required check was skipped.
+#
+# REQUIRED STATUS CHECK
+#   The job id and `name` below are both `pr-gate`; that is the check to require
+#   on `main` AFTER this workflow has run successfully on GitHub once.
+#
+# PATH LISTS
+#   Mirrored from the two workflow files on purpose (a workflow cannot read its
+#   own trigger filters at runtime). If a filter changes there, change it here
+#   too. `.github/workflows/pr-gate.yml` counts as both sides, so editing the
+#   gate always re-runs everything.
+
+name: pr-gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Classify changed paths
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          changed="$(git diff --name-only "$base" "$head")"
+          frontend=false
+          backend=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in
+              src/*|data/*|docs/engineering/*|docs/governance/*|public/*|index.html|package.json|package-lock.json|vite.config.ts|tsconfig*.json|.nvmrc|.github/workflows/frontend-tests.yml|.github/workflows/pr-gate.yml)
+                frontend=true ;;
+            esac
+            case "$f" in
+              backend/*|.github/workflows/backend-tests.yml|.github/workflows/pr-gate.yml)
+                backend=true ;;
+            esac
+          done <<< "$changed"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "changed files:"; echo "$changed"
+          echo "frontend=$frontend backend=$backend"
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/frontend-tests.yml
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    permissions:
+      contents: read
+      checks: write
+    uses: ./.github/workflows/backend-tests.yml
+
+  gate:
+    name: pr-gate
+    needs: [changes, frontend, backend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate applicable results
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          FRONTEND_NEEDED: ${{ needs.changes.outputs.frontend }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_NEEDED: ${{ needs.changes.outputs.backend }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+        run: |
+          set -euo pipefail
+
+          # Path detection must itself succeed; without it "not applicable"
+          # cannot be distinguished from "we failed to look".
+          if [ "$CHANGES_RESULT" != "success" ]; then
+            echo "::error::path detection ended as $CHANGES_RESULT"
+            exit 1
+          fi
+
+          check() {
+            name="$1"; needed="$2"; result="$3"
+            if [ "$needed" = "true" ]; then
+              if [ "$result" != "success" ]; then
+                echo "::error::$name is applicable but ended as $result"
+                exit 1
+              fi
+              echo "$name: success (applicable)"
+            else
+              # A skipped job is correct when not applicable; a success is
+              # harmless. Anything else (failure, cancelled) must fail the gate.
+              case "$result" in
+                skipped|success) echo "$name: $result (not applicable)" ;;
+                *) echo "::error::$name is not applicable but ended as $result"; exit 1 ;;
+              esac
+            fi
+          }
+
+          check frontend "$FRONTEND_NEEDED" "$FRONTEND_RESULT"
+          check backend "$BACKEND_NEEDED" "$BACKEND_RESULT"
+          echo "pr-gate: every applicable check succeeded"

@@ -24,6 +24,7 @@ name: frontend-tests
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths: &frontend_paths
       - 'src/**'
