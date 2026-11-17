@@ -2,10 +2,12 @@
 
 namespace App\Domain\Progress;
 
+use App\Domain\Students\StudentAccessPolicy;
 use App\Models\Piece;
 use App\Models\PieceAssignment;
 use App\Models\ProgressEvent;
 use App\Models\Student;
+use App\Models\User;
 use App\Support\Api\ApiException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,14 +37,17 @@ final class ProgressEventService
     public function __construct(
         private readonly Analytics $analytics,
         private readonly RecommendationEngine $recommendations,
+        private readonly AssignmentService $assignments,
+        private readonly StudentAccessPolicy $students,
     ) {}
 
     /**
      * @param  array<string, mixed>  $filters  validated query (student_id, piece_id, assignment_id, since, until)
      */
-    public function paginate(array $filters, int $page, int $perPage): LengthAwarePaginator
+    public function paginate(array $filters, int $page, int $perPage, User $actor): LengthAwarePaginator
     {
         return ProgressEvent::query()
+            ->whereIn('student_id', $this->students->scopeQuery(Student::query(), $actor)->select('students.id'))
             ->when(filled($filters['student_id'] ?? null), fn (Builder $q): Builder => $q->where('student_id', $filters['student_id']))
             ->when(filled($filters['piece_id'] ?? null), fn (Builder $q): Builder => $q->where('piece_id', $filters['piece_id']))
             ->when(filled($filters['assignment_id'] ?? null), fn (Builder $q): Builder => $q->where('assignment_id', $filters['assignment_id']))
@@ -60,11 +65,11 @@ final class ProgressEventService
      *
      * @throws ApiException ASSIGNMENT_NOT_FOUND, PROGRESS_INVALID
      */
-    public function record(array $input): ProgressEvent
+    public function record(array $input, User $actor): ProgressEvent
     {
-        // A foreign assignment is invisible to the scoped query, so this 404s
-        // rather than leaking that the id exists elsewhere.
-        $assignment = (new AssignmentService)->findOrFail((string) $input['assignmentId']);
+        // A foreign or out-of-scope assignment is invisible to the scoped
+        // query, so this 404s rather than leaking that the id exists.
+        $assignment = $this->assignments->findOrFail((string) $input['assignmentId'], $actor);
         $piece = $assignment->piece;
 
         $fields = $this->validateSemantics($input, $assignment, $piece);
@@ -116,9 +121,9 @@ final class ProgressEventService
      *
      * @throws ApiException STUDENT_NOT_FOUND
      */
-    public function assignmentsFor(string $studentId): array
+    public function assignmentsFor(string $studentId, User $actor): array
     {
-        return $this->assignmentsForStudent($this->studentOrFail($studentId))
+        return $this->assignmentsForStudent($this->studentOrFail($studentId, $actor))
             ->map(fn (PieceAssignment $assignment): array => [
                 'assignment' => $assignment,
                 'piece' => $assignment->piece,
@@ -135,9 +140,9 @@ final class ProgressEventService
      *
      * @throws ApiException STUDENT_NOT_FOUND
      */
-    private function studentOrFail(string $studentId): Student
+    private function studentOrFail(string $studentId, User $actor): Student
     {
-        $student = Student::query()->whereKey($studentId)->first();
+        $student = $this->students->scopeQuery(Student::query(), $actor)->whereKey($studentId)->first();
         if ($student === null) {
             throw ApiException::notFound('STUDENT_NOT_FOUND', "هنرجو با شناسهٔ {$studentId} یافت نشد.");
         }
@@ -169,9 +174,9 @@ final class ProgressEventService
      *
      * @throws ApiException STUDENT_NOT_FOUND
      */
-    public function overviewFor(string $studentId): array
+    public function overviewFor(string $studentId, User $actor): array
     {
-        $student = $this->studentOrFail($studentId);
+        $student = $this->studentOrFail($studentId, $actor);
         $assignments = $this->assignmentsForStudent($student);
 
         // One query for the whole history, then grouped in memory — not a

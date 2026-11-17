@@ -90,7 +90,7 @@ final class SessionService
         $this->policy->assertTeacherLinked($actor);
         $this->policy->authorizeWrite($actor);
 
-        $class = $this->requireClass((string) $input['classId']);
+        $class = $this->requireClass((string) $input['classId'], $actor);
 
         return DB::transaction(function () use ($class, $input): ClassSession {
             $candidate = [
@@ -347,7 +347,7 @@ final class SessionService
         // The scope applies here too: the plan requires PB-1 to fail closed on
         // EVERY session endpoint, and a conflict check is a session read.
         $this->policy->teacherScope($actor);
-        $this->requireClass((string) $candidate['classId']);
+        $this->requireClass((string) $candidate['classId'], $actor);
 
         return $this->conflicts->check($candidate);
     }
@@ -382,9 +382,17 @@ final class SessionService
         return $query->where('class_sessions.teacher_id', $teacherId);
     }
 
-    private function requireClass(string $classId): AcademyClass
+    private function requireClass(string $classId, ?User $actor = null): AcademyClass
     {
-        $class = AcademyClass::query()->whereKey($classId)->first();
+        $query = AcademyClass::query()->whereKey($classId);
+        if ($actor !== null) {
+            $teacherId = $this->policy->teacherScope($actor);
+            if ($teacherId !== null) {
+                $query->where('teacher_id', $teacherId);
+            }
+        }
+
+        $class = $query->first();
         if ($class === null) {
             throw ApiException::validation(
                 'SESSION_CLASS_NOT_FOUND',

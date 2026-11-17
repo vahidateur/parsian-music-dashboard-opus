@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -103,6 +104,42 @@ class SchedulingTest extends TestCase
         $this->patchJson("/api/v1/sessions/$id", ['notes' => 'x'])->assertStatus(403);
         $this->deleteJson("/api/v1/sessions/$id")->assertStatus(403);
         $this->postJson("/api/v1/sessions/$id/cancel", ['reason' => 'x'])->assertStatus(403);
+    }
+
+    public function test_teacher_permission_override_cannot_use_another_teachers_class_in_scheduling(): void
+    {
+        $otherClass = $this->klass(['teacher_id' => 't9']);
+
+        DB::table('roles')->insert([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'teacher',
+            'label' => 'مدرس',
+            'scope' => '',
+            'permissions' => json_encode([...config('permissions.defaults.teacher'), 'schedule.write']),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        // Creating/checking/generating against another teacher's class is the
+        // same 422 as a missing class: the id is not an authorization oracle.
+        $this->postJson('/api/v1/sessions', $this->payload(['classId' => $otherClass->id]))
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'SESSION_CLASS_NOT_FOUND');
+        $this->postJson('/api/v1/sessions/check-conflicts', $this->payload(['classId' => $otherClass->id]))
+            ->assertStatus(422)
+            ->assertJsonPath('error.code', 'SESSION_CLASS_NOT_FOUND');
+        $this->postJson('/api/v1/sessions/generate?preview=1', [
+            'classId' => $otherClass->id,
+            'from' => Carbon::today()->addDay()->toDateString(),
+            'to' => Carbon::today()->addDays(6)->toDateString(),
+        ])->assertStatus(422)->assertJsonPath('error.code', 'SESSION_CLASS_NOT_FOUND');
+
+        // The granted verb still works for the teacher's own class.
+        $own = $this->klass(['teacher_id' => 't1']);
+        $this->postJson('/api/v1/sessions', $this->payload(['classId' => $own->id]))
+            ->assertCreated()
+            ->assertJsonPath('data.classId', $own->id);
     }
 
     public function test_accountant_has_no_schedule_permission_at_all(): void

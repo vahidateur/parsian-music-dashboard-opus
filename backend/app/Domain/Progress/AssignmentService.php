@@ -2,8 +2,11 @@
 
 namespace App\Domain\Progress;
 
+use App\Domain\Students\StudentAccessPolicy;
 use App\Models\PieceAssignment;
 use App\Models\ProgressEvent;
+use App\Models\Student;
+use App\Models\User;
 use App\Support\Api\ApiException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,6 +26,8 @@ use Illuminate\Support\Str;
  */
 final class AssignmentService
 {
+    public function __construct(private readonly StudentAccessPolicy $students) {}
+
     /** camelCase wire key → snake_case column. */
     private const COLUMN_MAP = [
         'studentId' => 'student_id',
@@ -37,9 +42,10 @@ final class AssignmentService
     /**
      * @param  array<string, mixed>  $filters  validated query (student_id, piece_id, teacher_id, status, active_only)
      */
-    public function paginate(array $filters, int $page, int $perPage): LengthAwarePaginator
+    public function paginate(array $filters, int $page, int $perPage, User $actor): LengthAwarePaginator
     {
         return PieceAssignment::query()
+            ->whereIn('student_id', $this->students->scopeQuery(Student::query(), $actor)->select('students.id'))
             ->when(filled($filters['student_id'] ?? null), fn (Builder $q): Builder => $q->where('student_id', $filters['student_id']))
             ->when(filled($filters['piece_id'] ?? null), fn (Builder $q): Builder => $q->where('piece_id', $filters['piece_id']))
             ->when(filled($filters['teacher_id'] ?? null), fn (Builder $q): Builder => $q->where('teacher_id', $filters['teacher_id']))
@@ -50,9 +56,12 @@ final class AssignmentService
             ->paginate(perPage: $perPage, page: $page);
     }
 
-    public function findOrFail(string $id): PieceAssignment
+    public function findOrFail(string $id, User $actor): PieceAssignment
     {
-        $assignment = PieceAssignment::query()->whereKey($id)->first();
+        $assignment = PieceAssignment::query()
+            ->whereKey($id)
+            ->whereIn('student_id', $this->students->scopeQuery(Student::query(), $actor)->select('students.id'))
+            ->first();
 
         if ($assignment === null) {
             throw ApiException::notFound('ASSIGNMENT_NOT_FOUND', 'تخصیص قطعه یافت نشد.');
@@ -66,12 +75,16 @@ final class AssignmentService
      *
      * @throws ApiException ASSIGNMENT_DUPLICATE when an open assignment exists
      */
-    public function create(array $input): PieceAssignment
+    public function create(array $input, User $actor): PieceAssignment
     {
         $attributes = $this->attributes($input);
         $attributes['status'] = $input['status'] ?? 'planned';
         $attributes['assigned_at'] = $input['assignedAt'] ?? now();
         $attributes['notes'] = $input['notes'] ?? '';
+
+        if ($this->students->scopeQuery(Student::query(), $actor)->whereKey($attributes['student_id'])->first() === null) {
+            throw ApiException::notFound('STUDENT_NOT_FOUND', 'هنرجو یافت نشد.');
+        }
 
         return DB::transaction(function () use ($input, $attributes): PieceAssignment {
             // One OPEN assignment per (student, piece). A closed one does not
@@ -102,8 +115,9 @@ final class AssignmentService
     }
 
     /** @param  array<string, mixed>  $input  validated camelCase wire input */
-    public function update(PieceAssignment $assignment, array $input): PieceAssignment
+    public function update(PieceAssignment $assignment, array $input, User $actor): PieceAssignment
     {
+        $this->assertInScope($assignment, $actor);
         $attributes = $this->attributes($input);
 
         // Closing stamps the moment; reopening clears it, so the field never
@@ -135,8 +149,10 @@ final class AssignmentService
      *
      * @throws ApiException ASSIGNMENT_HAS_HISTORY when events exist
      */
-    public function delete(PieceAssignment $assignment): void
+    public function delete(PieceAssignment $assignment, User $actor): void
     {
+        $this->assertInScope($assignment, $actor);
+
         DB::transaction(function () use ($assignment): void {
             // lockForUpdate on the count: a concurrent append must not slip an
             // event in between the check and the delete.
@@ -154,6 +170,14 @@ final class AssignmentService
 
             $assignment->delete();
         });
+    }
+
+    /** Fail closed when the assignment's student is outside the actor's T-02 scope. */
+    private function assertInScope(PieceAssignment $assignment, User $actor): void
+    {
+        if ($this->students->scopeQuery(Student::query(), $actor)->whereKey($assignment->student_id)->first() === null) {
+            throw ApiException::notFound('ASSIGNMENT_NOT_FOUND', 'تخصیص قطعه یافت نشد.');
+        }
     }
 
     /**

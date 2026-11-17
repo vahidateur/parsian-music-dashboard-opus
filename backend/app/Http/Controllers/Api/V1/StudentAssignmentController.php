@@ -46,7 +46,7 @@ final class StudentAssignmentController extends Controller
 
         return ApiResponse::item(array_map(
             [ProgressOverviewResource::class, 'toWirePair'],
-            $this->events->assignmentsFor($id),
+            $this->events->assignmentsFor($id, $request->user()),
         ));
     }
 }

@@ -32,6 +32,6 @@ final class ProgressOverviewController extends Controller
     {
         $this->policy->authorizeRead($request->user());
 
-        return ApiResponse::item(ProgressOverviewResource::toWire($this->events->overviewFor($id)));
+        return ApiResponse::item(ProgressOverviewResource::toWire($this->events->overviewFor($id, $request->user())));
     }
 }

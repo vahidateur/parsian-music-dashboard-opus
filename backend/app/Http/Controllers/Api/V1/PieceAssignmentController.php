@@ -38,7 +38,7 @@ final class PieceAssignmentController extends Controller
         $pagination = Pagination::fromRequest($request);
 
         return ApiResponse::page(
-            $this->assignments->paginate($request->validated(), $pagination->page, $pagination->perPage),
+            $this->assignments->paginate($request->validated(), $pagination->page, $pagination->perPage, $request->user()),
             PieceAssignmentResource::toWire(...),
         );
     }
@@ -47,20 +47,24 @@ final class PieceAssignmentController extends Controller
     {
         $this->policy->authorizeRead($request->user());
 
-        return ApiResponse::item(PieceAssignmentResource::toWire($this->assignments->findOrFail($id)));
+        return ApiResponse::item(PieceAssignmentResource::toWire($this->assignments->findOrFail($id, $request->user())));
     }
 
     public function store(StoreAssignmentRequest $request): JsonResponse
     {
         return ApiResponse::item(
-            PieceAssignmentResource::toWire($this->assignments->create($request->validated())),
+            PieceAssignmentResource::toWire($this->assignments->create($request->validated(), $request->user())),
             201,
         );
     }
 
     public function update(UpdateAssignmentRequest $request, string $id): JsonResponse
     {
-        $assignment = $this->assignments->update($this->assignments->findOrFail($id), $request->validated());
+        $assignment = $this->assignments->update(
+            $this->assignments->findOrFail($id, $request->user()),
+            $request->validated(),
+            $request->user(),
+        );
 
         return ApiResponse::item(PieceAssignmentResource::toWire($assignment));
     }
@@ -68,7 +72,7 @@ final class PieceAssignmentController extends Controller
     public function destroy(Request $request, string $id): Response
     {
         $this->policy->authorizeWrite($request->user());
-        $this->assignments->delete($this->assignments->findOrFail($id));
+        $this->assignments->delete($this->assignments->findOrFail($id, $request->user()), $request->user());
 
         return ApiResponse::noContent();
     }

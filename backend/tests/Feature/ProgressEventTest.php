@@ -96,8 +96,9 @@ class ProgressEventTest extends TestCase
         $org = $this->defaultOrganization();
         $fixture = $this->makeStudent($org);
 
-        // administrator, manager, teacher and staff all hold progress.read.
-        foreach (['administrator', 'manager', 'teacher', 'staff'] as $role) {
+        // administrator, manager and staff hold progress.read; teacher reads
+        // only its assigned students (covered by the teacher-scope test below).
+        foreach (['administrator', 'manager', 'staff'] as $role) {
             $this->actingAsRole($role);
             $this->getJson(self::EVENTS)->assertOk();
             $this->getJson($this->overviewUrl($fixture['student']))->assertOk();
@@ -119,7 +120,7 @@ class ProgressEventTest extends TestCase
     {
         // Each role writes against a fresh assignment so the one-open-assignment
         // rule is not what decides the outcome.
-        foreach (['administrator', 'manager', 'teacher'] as $role) {
+        foreach (['administrator', 'manager'] as $role) {
             $fixture = $this->makeStudent($this->defaultOrganization());
             $this->actingAsRole($role);
             $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id))->assertStatus(201);
@@ -137,7 +138,7 @@ class ProgressEventTest extends TestCase
 
         // Nothing was written by a refused caller. Counted without the tenant
         // scope, because no request is in flight at this point.
-        $this->assertDatabaseCount('progress_events', 3);
+        $this->assertDatabaseCount('progress_events', 2);
     }
 
     /** Authorization precedes validation: no 422 as an oracle for a 403. */
@@ -150,6 +151,35 @@ class ProgressEventTest extends TestCase
 
         // The refusal precedes the lookup, so no assignment is named back.
         $this->assertDatabaseCount('progress_events', 0);
+    }
+
+    public function test_a_teacher_reaches_only_assigned_students(): void
+    {
+        $org = $this->defaultOrganization();
+        $assigned = $this->makeStudent($org);
+        $other = $this->makeStudent($org);
+
+        $this->actingAsAssignedTeacher($assigned['student']);
+
+        // Assigned student: overview, list and write are all reachable.
+        $this->getJson($this->overviewUrl($assigned['student']))->assertOk();
+        $this->getJson($this->assignmentsUrl($assigned['student']))->assertOk();
+        $this->postJson(self::EVENTS, $this->eventPayload($assigned['assignment']->id))->assertStatus(201);
+        $this->getJson(self::EVENTS)->assertOk()->assertJsonPath('meta.total', 1);
+
+        // Another teacher's student is invisible, not merely filtered.
+        $this->getJson($this->overviewUrl($other['student']))
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'STUDENT_NOT_FOUND');
+        $this->getJson($this->assignmentsUrl($other['student']))
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'STUDENT_NOT_FOUND');
+        $this->postJson(self::EVENTS, $this->eventPayload($other['assignment']->id))
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ASSIGNMENT_NOT_FOUND');
+
+        // The list is still scoped to the one assigned student.
+        $this->getJson(self::EVENTS)->assertJsonPath('meta.total', 1);
     }
 
     /* ------------------------------------------------------------------ */
@@ -239,7 +269,7 @@ class ProgressEventTest extends TestCase
         $org = $this->defaultOrganization();
         $fixture = $this->makeStudent($org);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, [
             'assignmentId' => $fixture['assignment']->id,
@@ -287,7 +317,7 @@ class ProgressEventTest extends TestCase
         $otherStudent = Student::factory()->create(['organization_id' => $org->id]);
         $otherPiece = $this->makePiece($org);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id, [
             'studentId' => $otherStudent->id,
@@ -323,7 +353,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization());
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id, $overrides))
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'PROGRESS_INVALID');
@@ -338,7 +368,7 @@ class ProgressEventTest extends TestCase
             'closed_at' => now(),
         ]);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id))
             ->assertStatus(422)
             ->assertJsonPath('error.code', 'PROGRESS_INVALID')
@@ -350,7 +380,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization(), ['range_unit' => 'freeform']);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id, [
             'rangeStart' => 1,
             'rangeEnd' => 8,
@@ -363,7 +393,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization(), ['range_unit' => 'freeform']);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id))
             ->assertStatus(422)
             ->assertJsonPath('error.fields.rangeLabel.0', 'برای این قطعه، توضیح محدوده الزامی است.');
@@ -378,7 +408,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization(), ['range_unit' => 'measure', 'total_range' => 40]);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($fixture['assignment']->id, [
             'rangeStart' => 1,
@@ -399,7 +429,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization());
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         // Defaults to now. Compared by clock distance rather than by string,
         // because the column stores whole seconds while `now()` carries
@@ -427,7 +457,7 @@ class ProgressEventTest extends TestCase
     {
         $fixture = $this->makeStudent($this->defaultOrganization());
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->getJson('/api/v1/piece-assignments/'.$fixture['assignment']->id)
             ->assertOk()
             ->assertJsonPath('data.latest', null);
@@ -443,7 +473,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($this->defaultOrganization(), [], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($id, [
             'mastery' => 40, 'recordedAt' => '2026-01-01T00:00:00.000Z', 'tempoBpm' => 60,
@@ -476,7 +506,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($this->defaultOrganization(), [], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($id, ['mastery' => 40]));
 
         $newestId = $this->postJson(self::EVENTS, $this->eventPayload($id, [
@@ -513,7 +543,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($this->defaultOrganization(), [], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->postJson(self::EVENTS, $this->eventPayload($id))->assertStatus(201);
 
         $this->actingAsRole('manager');
@@ -545,7 +575,7 @@ class ProgressEventTest extends TestCase
     {
         $student = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $this->getJson($this->overviewUrl($student))
             ->assertOk()
             ->assertJsonPath('data.assignments', [])
@@ -567,7 +597,7 @@ class ProgressEventTest extends TestCase
             'status' => 'learning', 'assigned_at' => now(),
         ], $student);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $response = $this->getJson($this->overviewUrl($student))->assertOk();
 
         // Both assignments are listed, newest first; only the open one is
@@ -583,7 +613,7 @@ class ProgressEventTest extends TestCase
         $org = $this->defaultOrganization();
         $first = $this->makeStudent($org, [], ['status' => 'learning']);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->getJson($this->overviewUrl($first['student']))
             ->assertOk()
@@ -612,7 +642,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $flat = fn (string $at): array => [
             'mastery' => 50, 'tempoBpm' => 60, 'rangeStart' => 1, 'rangeEnd' => 8, 'recordedAt' => $at,
@@ -645,7 +675,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         foreach (['2026-01-01', '2026-01-03', '2026-01-05'] as $day) {
             $this->postJson(self::EVENTS, $this->eventPayload($id, [
@@ -669,7 +699,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         foreach ([['2026-01-01', 60], ['2026-01-11', 50], ['2026-01-21', 40]] as [$day, $mastery]) {
             $this->postJson(self::EVENTS, $this->eventPayload($id, [
@@ -701,7 +731,7 @@ class ProgressEventTest extends TestCase
             'status' => 'learning', 'assigned_at' => now()->subDays(2),
         ], $student);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($improving['assignment']->id, [
             'mastery' => 40, 'rangeStart' => 1, 'rangeEnd' => 4, 'recordedAt' => '2026-01-01T00:00:00.000Z',
@@ -740,7 +770,7 @@ class ProgressEventTest extends TestCase
             ]);
         }
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
         $response = $this->getJson($this->overviewUrl($fixture['student']))->assertOk();
 
         $this->assertCount(20, $response->json('data.recentEvents'));
@@ -757,7 +787,7 @@ class ProgressEventTest extends TestCase
         $learning = $this->makeStudent($org, [], ['status' => 'learning']);
         $polishing = $this->makeStudent($org, [], ['status' => 'polishing']);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($learning['assignment']->id, ['mastery' => 90]))->assertStatus(201);
         $this->postJson(self::EVENTS, $this->eventPayload($polishing['assignment']->id, ['mastery' => 90]))->assertStatus(201);
@@ -778,7 +808,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->postJson(self::EVENTS, $this->eventPayload($id, [
             'mastery' => 50, 'rangeStart' => 1, 'rangeEnd' => 4,
@@ -813,7 +843,7 @@ class ProgressEventTest extends TestCase
         $fixture = $this->makeStudent($org, ['total_range' => 100], ['status' => 'learning']);
         $id = $fixture['assignment']->id;
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         foreach ([['2026-01-01', 60], ['2026-01-11', 50], ['2026-01-21', 40]] as [$day, $mastery]) {
             $this->postJson(self::EVENTS, $this->eventPayload($id, [
@@ -843,7 +873,7 @@ class ProgressEventTest extends TestCase
         ProgressEvent::factory()->forAssignment($a['assignment'])->create(['recorded_at' => '2026-01-10 00:00:00']);
         ProgressEvent::factory()->forAssignment($b['assignment'])->create(['recorded_at' => '2026-03-10 00:00:00']);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->getJson(self::EVENTS)->assertOk()->assertJsonPath('meta.total', 2);
         $this->getJson(self::EVENTS.'?student_id='.$a['student']->id)->assertJsonPath('meta.total', 1);
@@ -895,7 +925,7 @@ class ProgressEventTest extends TestCase
         $older = $this->makeStudent($org, ['title' => 'قطعهٔ قدیمی'], ['assigned_at' => now()->subDays(3)], $student);
         $newer = $this->makeStudent($org, ['title' => 'قطعهٔ جدید'], ['assigned_at' => now()->subDay()], $student);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $payload = $this->getJson($this->assignmentsUrl($student))->assertOk()->json('data');
 
@@ -929,7 +959,7 @@ class ProgressEventTest extends TestCase
         $tieLow = $this->makeStudent($org, [], ['assigned_at' => $shared, 'id' => 'as_aaa_low'], $student);
         $tieHigh = $this->makeStudent($org, [], ['assigned_at' => $shared, 'id' => 'as_zzz_high'], $student);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $ids = collect($this->getJson($this->assignmentsUrl($student))->assertOk()->json('data'))
             ->pluck('assignment.id')
@@ -946,7 +976,7 @@ class ProgressEventTest extends TestCase
     {
         $student = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
 
-        $this->actingAsRole('teacher');
+        $this->actingAsRole('manager');
 
         $this->getJson($this->assignmentsUrl($student))
             ->assertOk()
@@ -974,7 +1004,7 @@ class ProgressEventTest extends TestCase
         $org = $this->defaultOrganization();
         $student = $this->makeStudent($org)['student'];
 
-        foreach (['administrator', 'manager', 'teacher', 'staff'] as $role) {
+        foreach (['administrator', 'manager', 'staff'] as $role) {
             $this->actingAsRole($role);
             $this->getJson($this->assignmentsUrl($student))->assertOk();
         }

@@ -6,8 +6,10 @@ use App\Models\Instrument;
 use App\Models\LearningContent;
 use App\Models\LearningLevel;
 use App\Models\LearningProgram;
+use App\Models\LevelContentLink;
 use App\Models\MediaAsset;
 use App\Models\Student;
+use App\Models\StudentPlacement;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\Concerns\ActsAsRole;
@@ -110,13 +112,23 @@ class LearningTest extends TestCase
 
     public function test_reading_requires_learning_read(): void
     {
-        foreach (['administrator', 'manager', 'teacher', 'staff'] as $role) {
+        foreach (['administrator', 'manager', 'staff'] as $role) {
             $this->actingAsRole($role);
             $this->getJson(self::BASE.'/programs')->assertOk();
             $this->getJson(self::BASE.'/levels')->assertOk();
             $this->getJson(self::BASE.'/content')->assertOk();
             $this->getJson(self::BASE.'/placements')->assertOk();
         }
+
+        // Teacher curriculum reads are org-wide; student-targeted placement
+        // reads fail closed for an unlinked teacher (PB-1).
+        $this->actingAsRole('teacher');
+        $this->getJson(self::BASE.'/programs')->assertOk();
+        $this->getJson(self::BASE.'/levels')->assertOk();
+        $this->getJson(self::BASE.'/content')->assertOk();
+        $this->getJson(self::BASE.'/placements')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
 
         // The accountant is the one role the vocabulary gives no learning
         // permission at all, so even a read is refused.
@@ -439,6 +451,55 @@ class LearningTest extends TestCase
         $this->deleteJson(self::BASE."/students/{$student->id}/placement")->assertNoContent();
         $this->getJson(self::BASE."/students/{$student->id}/placement")->assertStatus(404);
         $this->deleteJson(self::BASE."/students/{$student->id}/placement")->assertStatus(404);
+    }
+
+    public function test_a_teacher_reaches_only_placements_of_assigned_students(): void
+    {
+        $org = $this->defaultOrganization();
+        $program = LearningProgram::factory()->create(['organization_id' => $org->id]);
+        $level = LearningLevel::factory()->create(['organization_id' => $org->id, 'program_id' => $program->id]);
+        $assignedStudent = $this->student();
+        $otherStudent = $this->student();
+
+        $this->actingAsAssignedTeacher($assignedStudent);
+
+        $this->postJson(self::BASE.'/placements', [
+            'studentId' => $assignedStudent->id, 'programId' => $program->id, 'levelId' => $level->id,
+        ])->assertOk()->assertJsonPath('data.studentId', $assignedStudent->id);
+
+        $this->getJson(self::BASE."/students/{$assignedStudent->id}/placement")->assertOk();
+        $this->getJson(self::BASE.'/placements')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson(self::BASE."/students/{$assignedStudent->id}/eligible-content")->assertOk();
+
+        // The reverse eligibility read is scoped the same way: the other
+        // student is placed at the same level but is not the teacher's.
+        $content = LearningContent::factory()->create(['organization_id' => $org->id]);
+        LevelContentLink::factory()->create([
+            'organization_id' => $org->id,
+            'level_id' => $level->id,
+            'content_id' => $content->id,
+        ]);
+        StudentPlacement::factory()->create([
+            'organization_id' => $org->id,
+            'student_id' => $otherStudent->id,
+            'program_id' => $program->id,
+            'level_id' => $level->id,
+        ]);
+        $this->getJson(self::BASE."/content/{$content->id}/eligible-students")
+            ->assertOk()
+            ->assertJsonPath('data', [$assignedStudent->id]);
+
+        // An unassigned student is indistinguishable from a missing one.
+        $this->getJson(self::BASE."/students/{$otherStudent->id}/placement")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'PLACEMENT_NOT_FOUND');
+        $this->postJson(self::BASE.'/placements', [
+            'studentId' => $otherStudent->id, 'programId' => $program->id, 'levelId' => $level->id,
+        ])->assertStatus(422)->assertJsonPath('error.code', 'PLACEMENT_INVALID');
+        $this->getJson(self::BASE."/students/{$otherStudent->id}/eligible-content")
+            ->assertOk()
+            ->assertJsonPath('data', []);
+        $this->getJson(self::BASE.'/placements')->assertJsonPath('meta.total', 1);
     }
 
     public function test_placement_validates_its_inputs(): void
