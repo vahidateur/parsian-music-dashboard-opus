@@ -22,29 +22,29 @@ final class EnrollmentController extends Controller
     {
         $page = $this->enrollments->list($request->user(), $request->validated(), Pagination::fromRequest($request));
 
-        return ApiResponse::page($page, EnrollmentResource::toWire(...));
+        return ApiResponse::page($page, fn ($enrollment): array => EnrollmentResource::toWire($enrollment, $request->user()));
     }
 
     public function show(Request $request, string $id): JsonResponse
     {
-        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->get($request->user(), $id)));
+        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->get($request->user(), $id), $request->user()));
     }
 
     public function store(StoreEnrollmentRequest $request): JsonResponse
     {
         $enrollment = $this->enrollments->enroll($request->user(), $request->validated());
 
-        return ApiResponse::item(EnrollmentResource::toWire($enrollment), 201);
+        return ApiResponse::item(EnrollmentResource::toWire($enrollment, $request->user()), 201);
     }
 
     public function update(UpdateEnrollmentRequest $request, string $id): JsonResponse
     {
-        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->update($request->user(), $id, $request->validated())));
+        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->update($request->user(), $id, $request->validated()), $request->user()));
     }
 
     public function withdraw(Request $request, string $id): JsonResponse
     {
-        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->withdraw($request->user(), $id)));
+        return ApiResponse::item(EnrollmentResource::toWire($this->enrollments->withdraw($request->user(), $id), $request->user()));
     }
 
     public function destroy(Request $request, string $id): Response

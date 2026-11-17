@@ -47,7 +47,7 @@ final class EnrollmentService
     {
         $this->policy->authorizeRead($actor);
 
-        $query = Enrollment::query();
+        $query = $this->policy->scopeQuery(Enrollment::query(), $actor);
         foreach (['student_id' => 'student_id', 'class_id' => 'class_id', 'status' => 'status'] as $param => $column) {
             if (($filters[$param] ?? '') !== '') {
                 $query->where($column, $filters[$param]);
@@ -82,7 +82,7 @@ final class EnrollmentService
     {
         $this->policy->authorizeRead($actor);
 
-        return $this->find($id);
+        return $this->find($id, $actor);
     }
 
     /** @param  array<string, mixed>  $input  validated wire input */
@@ -139,8 +139,8 @@ final class EnrollmentService
     {
         $this->policy->authorizeWrite($actor);
 
-        return $this->guardDuplicate(fn (): Enrollment => DB::transaction(function () use ($id, $input): Enrollment {
-            $enrollment = $this->find($id);
+        return $this->guardDuplicate(fn (): Enrollment => DB::transaction(function () use ($id, $input, $actor): Enrollment {
+            $enrollment = $this->find($id, $actor);
             $class = AcademyClass::query()->whereKey($enrollment->class_id)->lockForUpdate()->firstOrFail();
 
             if (array_key_exists('status', $input)) {
@@ -174,8 +174,8 @@ final class EnrollmentService
     {
         $this->policy->authorizeWrite($actor);
 
-        return DB::transaction(function () use ($id): Enrollment {
-            $enrollment = $this->find($id);
+        return DB::transaction(function () use ($id, $actor): Enrollment {
+            $enrollment = $this->find($id, $actor);
             $enrollment->status = 'cancelled';
             $enrollment->end_date = self::today();
             $enrollment->save();
@@ -187,12 +187,12 @@ final class EnrollmentService
     public function delete(User $actor, string $id): void
     {
         $this->policy->authorizeWrite($actor);
-        $this->find($id)->delete();
+        $this->find($id, $actor)->delete();
     }
 
-    private function find(string $id): Enrollment
+    private function find(string $id, User $actor): Enrollment
     {
-        $enrollment = Enrollment::query()->whereKey($id)->first();
+        $enrollment = $this->policy->scopeQuery(Enrollment::query(), $actor)->whereKey($id)->first();
         if ($enrollment === null) {
             throw ApiException::notFound('ENROLLMENT_NOT_FOUND', "ثبت‌نام با شناسهٔ {$id} یافت نشد.");
         }

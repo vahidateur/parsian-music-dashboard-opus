@@ -2,7 +2,11 @@
 
 namespace Tests\Concerns;
 
+use App\Models\AcademyClass;
+use App\Models\Enrollment;
 use App\Models\Organization;
+use App\Models\Student;
+use App\Models\Teacher;
 use App\Models\User;
 use App\Support\Tenancy\TenantContext;
 
@@ -58,6 +62,34 @@ trait ActsAsRole
         $this->useToken($this->tokenFor($user));
 
         return $user;
+    }
+
+    /**
+     * A teacher linked to a teacher row, with an active enrollment in a class
+     * the teacher owns for the given student. This is the T-02 fixture: the
+     * student is inside that teacher's assigned scope.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function actingAsAssignedTeacher(Student $student, array $attributes = []): User
+    {
+        $organization = Organization::query()->findOrFail($student->organization_id);
+        $teacher = Teacher::factory()->create([
+            'organization_id' => $organization->id,
+            ...$attributes,
+        ]);
+        $class = AcademyClass::factory()->create([
+            'organization_id' => $organization->id,
+            'teacher_id' => $teacher->id,
+        ]);
+        Enrollment::factory()->create([
+            'organization_id' => $organization->id,
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'status' => 'active',
+        ]);
+
+        return $this->actingAsRole('teacher', ['teacher_id' => $teacher->id], $organization);
     }
 
     /** Sends subsequent requests with this Bearer token. */

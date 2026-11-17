@@ -77,7 +77,7 @@ final class ClassService
     {
         $this->policy->authorizeRead($actor);
 
-        $query = self::withProjection(AcademyClass::query());
+        $query = $this->policy->scopeQuery(self::withProjection(AcademyClass::query()), $actor);
         if (($filters['search'] ?? '') !== '') {
             $like = '%'.trim((string) $filters['search']).'%';
             $query->where(fn (Builder $q) => $q->where('title', 'like', $like)->orWhere('level', 'like', $like));
@@ -105,13 +105,14 @@ final class ClassService
     {
         $this->policy->authorizeRead($actor);
 
-        return $this->load($id);
+        return $this->load($id, $actor);
     }
 
     /** @param  array<string, mixed>  $input  validated wire input */
     public function create(User $actor, array $input): AcademyClass
     {
         $this->policy->authorizeWrite($actor);
+        $this->policy->assertTeacherIdAllowed($actor, $input['teacherId'] ?? null);
 
         $class = new AcademyClass;
         $class->id = 'cl_'.strtolower((string) Str::ulid());
@@ -122,7 +123,7 @@ final class ClassService
         $this->fill($class, $input);
         $class->save();
 
-        return $this->load($class->id);
+        return $this->load($class->id, $actor);
     }
 
     /** @param  array<string, mixed>  $input  validated wire input */
@@ -130,8 +131,11 @@ final class ClassService
     {
         $this->policy->authorizeWrite($actor);
 
-        DB::transaction(function () use ($id, $input): void {
-            $class = $this->find($id, lock: true);
+        DB::transaction(function () use ($id, $input, $actor): void {
+            $class = $this->find($id, $actor, lock: true);
+            if (array_key_exists('teacherId', $input)) {
+                $this->policy->assertTeacherIdAllowed($actor, $input['teacherId']);
+            }
             if (array_key_exists('capacity', $input)) {
                 $active = Enrollment::query()->where('class_id', $class->id)->where('status', 'active')->count();
                 if ((int) $input['capacity'] < $active) {
@@ -146,26 +150,26 @@ final class ClassService
             $class->save();
         });
 
-        return $this->load($id);
+        return $this->load($id, $actor);
     }
 
     /** Archived classes accept no new enrollment; existing rows are kept. */
     public function archive(User $actor, string $id): AcademyClass
     {
         $this->policy->authorizeWrite($actor);
-        $class = $this->find($id);
+        $class = $this->find($id, $actor);
         $class->status = 'archived';
         $class->save();
 
-        return $this->load($id);
+        return $this->load($id, $actor);
     }
 
     public function delete(User $actor, string $id): void
     {
         $this->policy->authorizeWrite($actor);
 
-        DB::transaction(function () use ($id): void {
-            $class = $this->find($id, lock: true);
+        DB::transaction(function () use ($id, $actor): void {
+            $class = $this->find($id, $actor, lock: true);
             $rows = Enrollment::query()->where('class_id', $class->id)->count();
             if ($rows > 0) {
                 throw ApiException::conflict(
@@ -177,10 +181,11 @@ final class ClassService
         });
     }
 
-    /** Tenant-scoped lookup; another organization's id is a 404 too. */
-    public function find(string $id, bool $lock = false): AcademyClass
+    /** Tenant- and T-02-scoped lookup; another organization's or teacher's id is a 404 too. */
+    public function find(string $id, User $actor, bool $lock = false): AcademyClass
     {
-        $class = AcademyClass::query()->whereKey($id)->when($lock, fn (Builder $q) => $q->lockForUpdate())->first();
+        $query = $this->policy->scopeQuery(AcademyClass::query(), $actor);
+        $class = $query->whereKey($id)->when($lock, fn (Builder $q) => $q->lockForUpdate())->first();
         if ($class === null) {
             throw self::notFound($id);
         }
@@ -188,9 +193,10 @@ final class ClassService
         return $class;
     }
 
-    private function load(string $id): AcademyClass
+    private function load(string $id, User $actor): AcademyClass
     {
-        $class = self::withProjection(AcademyClass::query())->whereKey($id)->first();
+        $query = $this->policy->scopeQuery(self::withProjection(AcademyClass::query()), $actor);
+        $class = $query->whereKey($id)->first();
         if ($class === null) {
             throw self::notFound($id);
         }

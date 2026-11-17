@@ -199,6 +199,131 @@ class EnrollmentsTest extends TestCase
         $this->deleteJson('/api/v1/enrollments/x')->assertStatus(403);
     }
 
+    public function test_teacher_reads_only_active_enrollments_in_owned_classes(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2']);
+        AcademyClass::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'c2',
+            'teacher_id' => 't2',
+            'room_id' => 'r1',
+            'capacity' => 5,
+            'title' => 'کلاس دیگر',
+        ]);
+
+        $active = $this->enrollRow('enr_active', 's1', 'c1', 'active');
+        $waiting = $this->enrollRow('enr_waiting', 's2', 'c1', 'waitlist');
+        $cancelled = $this->enrollRow('enr_cancelled', 's3', 'c1', 'cancelled');
+        $otherActive = $this->enrollRow('enr_other', 's1', 'c2', 'active');
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $response = $this->getJson('/api/v1/enrollments')->assertOk();
+        $this->assertSame([$active->id], array_column($response->json('data'), 'id'));
+        $response->assertJsonPath('meta.total', 1);
+
+        // Filters and search cannot widen the class/active scope.
+        $this->getJson('/api/v1/enrollments?class_id=c2')
+            ->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/enrollments?status=waitlist')
+            ->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/enrollments?status=active')
+            ->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $active->id);
+        $this->getJson('/api/v1/enrollments?student_id=s1')
+            ->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $active->id);
+
+        DB::table('students')->where('id', 's2')->update(['name' => 'هنرجوی دیگر']);
+        DB::table('students')->where('id', 's1')->update(['name' => 'هنرجوی من']);
+        $this->getJson('/api/v1/enrollments?search='.urlencode('هنرجوی دیگر'))
+            ->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/enrollments?search='.urlencode('کلاس دیگر'))
+            ->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/enrollments?search='.urlencode('هنرجوی من'))
+            ->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $active->id);
+
+        // Direct ids cannot bypass: other class and inactive own-class rows are 404.
+        $this->getJson("/api/v1/enrollments/{$otherActive->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ENROLLMENT_NOT_FOUND');
+        $this->getJson("/api/v1/enrollments/{$waiting->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ENROLLMENT_NOT_FOUND');
+        $this->getJson("/api/v1/enrollments/{$cancelled->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ENROLLMENT_NOT_FOUND');
+        $this->getJson("/api/v1/enrollments/{$active->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.pricingPlan');
+
+        // Organization-wide roles still see the full, priced row.
+        $this->actingAsRole('manager');
+        $this->getJson("/api/v1/enrollments/{$active->id}")
+            ->assertOk()
+            ->assertJsonPath('data.pricingPlan.amount', $active->pricing_amount);
+    }
+
+    public function test_teacher_without_teacher_id_is_pb1_on_enrollment_reads(): void
+    {
+        $this->enrollRow('enr_active', 's1', 'c1', 'active');
+
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $this->getJson('/api/v1/enrollments')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1')
+            ->assertJsonPath('error.decision', 'PB-1');
+        $this->getJson('/api/v1/enrollments/enr_missing')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+    }
+
+    public function test_a_teacher_permission_override_cannot_write_enrollments(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2']);
+        AcademyClass::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'c2',
+            'teacher_id' => 't2',
+            'room_id' => 'r1',
+            'capacity' => 5,
+        ]);
+        $active = $this->enrollRow('enr_active', 's1', 'c1', 'active');
+
+        DB::table('roles')->insert([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'teacher',
+            'label' => 'مدرس',
+            'scope' => '',
+            'permissions' => json_encode([...config('permissions.defaults.teacher'), 'classes.write']),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        // Enrollment is the edge that creates student scope; a teacher cannot
+        // self-grant it even when a role override grants classes.write.
+        $this->postJson('/api/v1/enrollments', ['studentId' => 's2', 'classId' => 'c1'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->postJson('/api/v1/enrollments', ['studentId' => 's2', 'classId' => 'c2'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->patchJson("/api/v1/enrollments/{$active->id}", ['status' => 'cancelled'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->postJson("/api/v1/enrollments/{$active->id}/withdraw")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->deleteJson("/api/v1/enrollments/{$active->id}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $this->assertSame('active', DB::table('enrollments')->where('id', $active->id)->value('status'));
+    }
+
     public function test_list_filters(): void
     {
         $org = $this->defaultOrganization()->id;
