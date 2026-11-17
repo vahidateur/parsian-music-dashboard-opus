@@ -19,7 +19,7 @@ Evidence was frozen frontend (PR #4 / local contracts) plus prior session audits
 |---|---|---|---|
 | T-02 | Teacher student-read scope | **ACCEPTED / ASSIGNED-ONLY — REAFFIRMED 2026-11-12 (T-02-A)** | Enforce in query/policy; owner decision extends the rule to all student-targeted operations |
 | T-02-A | T-02 Student Access Scope — owner reaffirmation and extension | **APPROVED — 2026-11-12; Progress/Learning enforcement implemented 2026-11-13; Stage 18.1 B2/C1 implemented 2026-11-14** | Progress/Learning and class/enrollment student-targeted queries enforced; Stages 18.2–18.6 pending |
-| T-02-B | Class visibility for teachers | **APPROVED — B2 — IMPLEMENTED 2026-11-14** | Assigned-class-only server scope and field redaction; see [F2 decision packet](T02_F2_OWNER_DECISION_PACKET.md) |
+| T-02-B | Class visibility for teachers | **APPROVED — B2 — IMPLEMENTED 2026-11-14; write-side field denial APPROVED 2026-11-16** | Assigned-class-only server scope and field redaction; a teacher write carrying `tuition`/`attendanceAvg`/`termProgress` is denied `403` regardless of a `classes.write` override (2026-11-16); see [F2 decision packet](T02_F2_OWNER_DECISION_PACKET.md) |
 | T-02-C | Enrollment visibility for teachers | **APPROVED — C1 — IMPLEMENTED 2026-11-14** | Active-only, assigned-class server scope and pricing redaction; see [F2 decision packet](T02_F2_OWNER_DECISION_PACKET.md) |
 | T-02-D | Historical teacher access after assignment termination | **APPROVED — D2 — 2026-11-14** | Implementation pending Stage 18.2 after provenance/history design; see [F2 decision packet](T02_F2_OWNER_DECISION_PACKET.md) |
 | T-02-E | Withdrawn/completed student access | **APPROVED — E1 — 2026-11-14** | Implementation pending Stage 18.2; see [F2 decision packet](T02_F2_OWNER_DECISION_PACKET.md) |
@@ -160,6 +160,38 @@ independent Reception role). `O-24` is confirmed as invoice-only v1 with no fina
 lifecycle expansion. Stage 18.1 (B2/C1/PB-1/redaction/role-override guards) is implemented;
 Stages 18.2–18.6 are pending. T-02 remains blocked until implementation and verification
 of the remaining stages.
+
+### T-02-B write-side addendum — teacher financial-field write denial (2026-11-16)
+
+**Status:** `APPROVED`. **Decision date:** 2026-11-16. **Decision source:** the owner's
+explicit decision in the 2026-11-16 engineering session. No separate approval artifact,
+approval ID, event ID or reviewer identity exists, and none is claimed here.
+
+**Policy.** A class creation or update request must be rejected with HTTP `403` and the
+standard `FORBIDDEN` code when the authenticated actor is a teacher and the request payload
+contains any of `tuition`, `attendanceAvg` or `termProgress`. The rule applies whether or
+not the teacher holds `classes.write` through a role override, on both create and update,
+for a protected field submitted alone or mixed with permitted fields, and whenever the key
+is present — including an explicit `null` or an invalid value/type. The whole request is
+rejected: protected fields are never silently stripped and the remaining fields are never
+partially saved. Administrators and managers keep their existing authorized behaviour.
+
+**Rationale.** `classes.write` is a verb grant. It must not widen a teacher's object scope
+(`T-02-B` B2) and it must not widen their field scope to financial or student-derived data.
+
+**Implementation status.** Recorded before implementation; the implementation and its
+focused test evidence are appended to this checkpoint only after that focused run passes.
+
+**Implementation (2026-11-16).** Enforced once in
+`ClassPolicy::assertTeacherWriteFieldsAllowed()` and invoked from
+`StoreClassRequest`/`UpdateClassRequest::authorizeBeforeValidation()` — before validation, so a
+present-but-invalid value is a `403`, not a `422` — and again from
+`ClassService::create()`/`update()` for internal callers. Class and enrollment resources now
+use an allow-list, so a missing or unrecognized actor fails closed instead of falling through
+to the unrestricted branch. Focused evidence: the T-02 field matrix **10 passed (41
+assertions)**, `ResourceSerializationTest` **14 passed (47 assertions)**, and
+`ClassesTest` + `EnrollmentsTest` **51 passed (374 assertions)**. The full backend suite was
+not re-run in this wave.
 
 **Related findings and acceptance criteria.** Stage 17 F1/F2; C5.2, C5.4, C5.5. F1 is
 fixed for the Progress/Learning surfaces as of 2026-11-13; F2 B2/C1 are implemented as of
