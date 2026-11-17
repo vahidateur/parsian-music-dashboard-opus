@@ -38,7 +38,7 @@ permissions:
   checks: write
 
 concurrency:
-  group: backend-tests-${{ github.ref }}
+  group: backend-tests-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
