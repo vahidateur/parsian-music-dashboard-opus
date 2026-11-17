@@ -98,6 +98,16 @@ Key versions after update:
 - `php artisan test` (MySQL 8.4.13) — 473 passed, 0 skipped, 3274 assertions
 - HTTP smoke — executed by GitHub Actions on the published dependency branch
 
+### CI reliability note
+
+The first full frontend run on this branch hit a known timing-sensitive assertion in
+`emptyEnvironmentPanels.test.tsx` (the empty-environment branding save case) that was already
+stabilized in PR #25 by commit `c9e6c2b`. Because this branch starts from `main`, it did not
+contain that fix. The same test-only stabilization is applied here as a separate commit so
+the dependency PR's CI is reliable; it changes no product code and no assertion semantics —
+it only waits for the form to be writable before clicking save. The change is identical to
+`c9e6c2b`, so it will merge cleanly once PR #25 is merged first.
+
 ## Owner decisions still open
 
 - Confirm the real backend deployment topology for the two UNKNOWN HttpFoundation
