@@ -34,7 +34,7 @@ import { releaseStagedMedia } from "@/domains/media/release";
 import { prepareImageUpload } from "@/domains/media/prepareImage";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "@/domains/media/types";
 import { useAlbums, useGalleryImages } from "./useGallery";
-import { useMediaObjectUrl } from "@/domains/media/useMedia";
+import { useMediaObjectState } from "@/domains/media/useMedia";
 import type { GalleryAlbum, GalleryImage } from "./types";
 import { cn } from "@/utils/cn";
 
@@ -54,7 +54,7 @@ function Thumb({
   mayWrite: boolean;
   onRemove: () => void;
 }) {
-  const url = useMediaObjectUrl(image.mediaId);
+  const { url, error } = useMediaObjectState(image.mediaId);
 
   return (
     <li className="group relative overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.02]">
@@ -62,7 +62,9 @@ function Thumb({
         <img src={url} alt={image.alt} className="aspect-[4/3] w-full object-cover" />
       ) : (
         <div className="flex aspect-[4/3] w-full items-center justify-center px-2 text-center text-[10.5px] leading-relaxed text-ink-500">
-          فایل تصویر در این مرورگر موجود نیست
+          {error?.kind === "authorization"
+            ? "دسترسی به این تصویر مجاز نیست"
+            : "فایل تصویر در این مرورگر موجود نیست"}
         </div>
       )}
       <div className="p-2">

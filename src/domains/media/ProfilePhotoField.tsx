@@ -28,7 +28,7 @@ import { Button } from "@/components/ds/primitives";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getMediaRepository } from "@/domains/registry";
 import { prepareImageUpload } from "@/domains/media/prepareImage";
-import { useMediaObjectUrl } from "./useMedia";
+import { useMediaObjectState } from "./useMedia";
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_BYTES } from "./types";
 import { faNum } from "@/lib/format";
 import { cn } from "@/utils/cn";
@@ -51,7 +51,7 @@ export function ProfilePhotoField({
    */
   onChange: (nextMediaId: string | undefined, releasedMediaId?: string) => void;
 }) {
-  const url = useMediaObjectUrl(mediaId);
+  const { url, error: mediaError } = useMediaObjectState(mediaId);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -102,10 +102,12 @@ export function ProfilePhotoField({
           <img src={url} alt={`تصویر ${personName}`} className="size-full object-cover" />
         ) : mediaId ? (
           // Metadata exists but the bytes do not — normal after a backup
-          // restore, since backups carry no binaries. Say so rather than
-          // showing a broken image.
+          // restore, since backups carry no binaries. A denied read is NOT that
+          // state: say access was refused rather than claim the file is gone.
           <span className="px-1.5 text-center text-[9.5px] leading-tight text-ink-500">
-            تصویر در این مرورگر موجود نیست
+            {mediaError?.kind === "authorization"
+              ? "دسترسی به این تصویر مجاز نیست"
+              : "تصویر در این مرورگر موجود نیست"}
           </span>
         ) : initials ? (
           <span className="text-lg font-semibold text-ink-400">{initials}</span>

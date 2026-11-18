@@ -38,6 +38,8 @@ export interface DayPulse {
   /** True while the calendar read has not answered; the wave must not guess. */
   loading: boolean;
   error: ApiError | null;
+  /** Re-runs the underlying day read. Optional so pure test doubles stay valid. */
+  reload?: () => void;
 }
 
 export function useDayPulse(todayIso: string, nowMinutes: number): DayPulse {
@@ -66,5 +68,5 @@ export function useDayPulse(todayIso: string, nowMinutes: number): DayPulse {
       clashIds,
     };
   }, [sessions.items, nowMinutes, todayIso]);
-  return { ...pulse, loading: sessions.loading, error: sessions.error };
+  return { ...pulse, loading: sessions.loading, error: sessions.error, reload: sessions.reload };
 }

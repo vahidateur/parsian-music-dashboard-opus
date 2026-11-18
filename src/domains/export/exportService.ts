@@ -107,8 +107,8 @@ export async function buildExportTable(entity: ExportEntity, filters: Record<str
           r.enrollment.status,
           r.enrollment.startDate,
           r.enrollment.endDate ?? "",
-          r.enrollment.pricingPlan.label,
-          String(r.enrollment.pricingPlan.amount),
+          r.enrollment.pricingPlan?.label ?? "",
+          String(r.enrollment.pricingPlan?.amount ?? ""),
         ]),
         total,
       };

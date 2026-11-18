@@ -1376,7 +1376,7 @@ recovery and the zero-record tests both remaining green.
 - **Done when:** `per_page: 0` has one documented meaning, a test in the owning module pins it, and
   the three call sites above agree with it.
 
-### I15. Fourteen list consumers discard `error`, so a failed read is rendered as an empty one (found 2026-09-13 during M3's acceptance audit)
+### I15. List consumers discard `error`, so a failed read is rendered as an empty one (found 2026-09-13 during M3's acceptance audit)
 - **What:** `useResourceList` exposes `error` beside `items`
   (`src/domains/shared/useResource.ts:55`) and **keeps the previous page when a refetch fails**
   (`src/domains/shared/useResource.ts:113`). A consumer that destructures only `items` — or `items`
@@ -1386,20 +1386,224 @@ recovery and the zero-record tests both remaining green.
 - **Found where:** M3's assignment surface discarded the catalogue read's error and answered
   «منبعی برای اتصال باقی نمانده» — a false empty of exactly the shape I13 Checkpoint 1 removed from
   six consumers, in a new place. **That one is fixed**, at `3bec881`, with a regression case and a
-  reversion check in `src/domains/learning/__tests__/LevelContentPanel.test.tsx`. **Fourteen remain**,
-  none of them touched by that pass, because fixing one of fifteen inside M3 would have been the
-  unrelated cleanup the milestone forbids:
-  `src/domains/learning/LearningPanel.tsx:84` (instruments) and `:104` (levels — a failed levels read
-  renders «این دوره هنوز سطحی ندارد» for a program that has twelve),
-  `src/domains/learning/StudentLearningPanel.tsx:28`, `:36` and `:205`,
-  `src/domains/classes/ClassFormDialog.tsx:104` and `:105`,
-  `src/domains/enrollments/EnrollmentDialog.tsx:35`,
-  `src/domains/gallery/GalleryPanel.tsx:68`,
-  `src/domains/progress/AssignPieceDialog.tsx:77`,
-  `src/domains/progress/PieceFormDialog.tsx:75`,
-  `src/domains/progress/StudentProgressPanel.tsx:78`,
-  `src/domains/students/StudentFormDialog.tsx:109` and
-  `src/views/Messages.tsx:105`.
+  reversion check in `src/domains/learning/__tests__/LevelContentPanel.test.tsx`.
+- **Re-verified 2026-11-05 (the fourteen-site inventory it carried was stale).** All fourteen sites
+  this item originally listed now take `error` and disclose failure through `ErrorState`/alert:
+  `LearningPanel` (instruments, levels), `StudentLearningPanel` (placement, eligible and locked
+  content, programs, levels), `ClassFormDialog` (teachers, rooms), `EnrollmentDialog` (classes,
+  students), `GalleryPanel` (images), `AssignPieceDialog` (pieces), `PieceFormDialog` (programs),
+  `StudentProgressPanel` (timeline), `StudentFormDialog` (teachers) and `Messages` (threads).
+  **The re-scan found two more library reads that were never on the list, and they were fixed on
+  2026-11-05:** `src/domains/progress/PieceFormDialog.tsx:89` and
+  `src/domains/progress/StudentProgressPanel.tsx:94` — both read `useLibraryList` without its
+  `error`, so a failed library read rendered «کتابخانه خالی است» / «منبعی در دسترس این هنرجو نیست»
+  instead of a failure. Both now take `error` + `reload` and render the panel's existing
+  `ErrorState`/alert with retry; the empty copy is reachable only when the read actually succeeded.
+- **Gallery view — a third missed consumer, found and fixed on 2026-11-07.**
+  `src/views/Gallery.tsx` read `useAlbums` without its `error` and checked only
+  `imagesState.error`, so an album-read failure rendered as an empty album rail and an empty album
+  filter, and as «۰ آلبوم» in the header and footer — a claim about the academy made from an error.
+  The view now checks **both** `imagesState.error` and `albumsState.error`; either failure renders
+  the existing `ErrorState` with a retry that reloads both reads. Pinned by
+  `src/views/__tests__/galleryView.test.tsx` ("discloses a failed album read instead of an empty
+  album rail and zero counts"): the focused run reported **4 test files / 15 tests passed**,
+  `npx tsc --noEmit` passed, and `git diff --check` was clean for the two code/test files. (The
+  `GalleryPanel` inside Settings already handled its albums read; this was the standalone view.)
+- **A1/A2/A3 — three additional read-failure paths, fixed 2026-11-07 and committed in `9eb9276`;
+  the two Stage 6 rendered tests are uncommitted at this writing.**
+  - **A1 — command-palette search.** `useDomainSearch` performed four repository reads under
+    `Promise.all` and caught a rejection into `results: []`, `loading: false`; the palette then said
+    «چیزی پیدا نشد». The hook now exposes `error: ApiError | null` and `retry`, normalizes the
+    rejection, clears the error when a new attempt starts, and ignores cancelled/superseded
+    requests. The aggregate is **all-or-nothing**: a partial list would silently omit a domain, so
+    the palette reports «جستجوی رکوردها انجام نشد» (with retry) instead of a false empty; the
+    disclosure is also visible when command/navigation groups match. Pinned by
+    `src/domains/shared/__tests__/staleQueryGates.test.tsx` (failure, successful-empty, results,
+    retry, new-query clears error, stale failure cannot overwrite, and the rendered combined state —
+    a matching navigation result stays visible beside the failure disclosure while retry recovers
+    the search): **13/13 passed**.
+  - **A2 — cancel-session policy.** `CancelSessionDialog` computed the grace window from
+    `useOrganization().settings` unconditionally; a failed read keeps `DEFAULT_ORGANIZATION_SETTINGS`
+    (24 h), so the dialog quoted a default as the academy's rule. The dialog now computes the window
+    only when `!organization.loading && organization.error === null`; loading says
+    «در حال خواندن قواعد آموزشگاه…», failure shows an explicit alert that the policy is unknown
+    (no number) with the hook's `organization.reload`, and the successful rendering is unchanged.
+    Pinned by `src/views/__tests__/schedulingWrites.test.tsx` (failure + successful load):
+    **18/18 passed**.
+  - **A3 — dashboard day pulse.** `useDayPulse` exposed `error`, but `Dashboard` built `heroError`
+    from only `hero.error ?? insights.error`; a failed one-day read left the Hero saying
+    «جلسه‌ای روی تقویم نیست». `heroError` now includes `pulse.error` (after the existing
+    precedence), the page retry also calls `pulse.reload?.()`, the Hero says «تقویم امروز خوانده
+    نشد» and draws a dashed unavailable panel instead of an empty wave, and the mobile `PulseCard`
+    shows a failure line instead of an empty waveform. Pinned by
+    `src/views/__tests__/dashboardInsightsLive.test.tsx` (failure, successful empty, populated, and
+    the rendered mobile `PulseCard`: the compact layout is selected with the test's mocked mobile
+    `matchMedia`, the failure is disclosed, no empty waveform or empty-calendar copy is rendered, and
+    retry reaches the day-pulse read): **11/11 passed**.
+  - **Verification evidence (historical Stage 7.1).** `npx tsc --noEmit` — exit 0; `npm test` —
+    exit 0, **252/252 test files passed, 3002 passed, 4 skipped, 0 failed, 409.24 s**. This was the
+    Stage 7.1 run; it includes the two Stage 6 tests and predates the C1/C2/C4 work. Stage 9B's
+    255/3015 result is recorded below.
+  - **Coverage gaps closed (2026-11-07).** The two previously recorded gaps now have dedicated
+    rendered regression tests: A1's command/navigation match combined with a failed domain search
+    (`keeps a matching navigation result visible beside the failure disclosure`) and A3's mobile
+    `PulseCard` failure disclosure and retry (`discloses the failure in the mobile card and retries
+    the pulse read`). The A3 case is a rendered responsive-layout test under jsdom with mocked
+    `matchMedia`, not a physical-device or browser end-to-end test. Both gaps were missing test
+    coverage, not implementation defects; neither claim is broader than the tests.
+- **C1/C2/C4 — three confirmed read-failure/default-or-zero paths, fixed 2026-11-07 and verified
+  in the working tree (uncommitted, not released).**
+  - **C1 — branding shell fallback.** `useBranding` starts from `DEFAULT_BRANDING`; a real branding
+    read failure used to leave that default rendered by the shell as the academy's identity. The
+    identity surfaces (`Sidebar`, `TopBar`, `Hero`, `Login`) now distinguish four states: initial
+    loading («در حال خواندن هویت آموزشگاه…»), successfully loaded branding, the intentional
+    `DOMAIN_UNAVAILABLE` organization fallback, and an actual failure («هویت آموزشگاه خوانده نشد»
+    with retry). The default name/tagline is not presented as confirmed identity; the
+    product-level visual CSS application is unchanged. Pinned by
+    `src/domains/branding/__tests__/brandingIdentityFailure.test.tsx` (all four surfaces, loading,
+    loaded, failure, and the organization fallback): **7/7 passed**. Retry is source-verified
+    through `useBranding().reload`; it has no dedicated rendered retry test yet. Multiple
+    simultaneous `role="alert"` notices across `Sidebar`/`TopBar`/`Hero` remain an accessibility
+    UX consideration. **Status: implemented and verified in the working tree.**
+  - **C2 — compensation prefill.** `ScheduleCompensationDialog` computed the end time from
+    `organization.settings.defaultSessionMinutes` even while the organization read was loading or
+    failed, so it could prefill a 60-minute make-up although the academy's rule was unknown. The
+    end time is now calculated only when `!organization.loading && organization.error === null`;
+    the original session's date, start time, room and teacher remain prefilled, loading and failure
+    disclose the unavailable policy, failure leaves the end time empty, and retry uses
+    `organization.reload`. A `touched` ref prevents a late rule from overwriting a user edit.
+    Pinned by `src/views/__tests__/compensationPrefillFailure.test.tsx` (failure without a
+    60-minute fallback, retry recovery to 11:30, loaded 90-minute prefill): **3/3 passed**; the
+    existing `src/views/__tests__/compensationUi.test.tsx` remains **16/16 passed**, with only
+    asynchronous-prefill waits added and no assertion weakened. The `touched` path has no dedicated
+    rendered test, and a refresh failure after a prior successful read can retain the last
+    successfully read draft value — a residual edge case. **Status: implemented and verified in the
+    working tree.**
+  - **C4 — learning levels count.** `LearningPanel` printed «۰ سطح» as soon as the levels read
+    failed, beside the `ErrorState` that said the read failed. The heading now withholds the count
+    while `levelsLoading || levelsError`; the `ErrorState` remains, a successful empty result still
+    shows «۰ سطح» with the empty state, and a successful non-empty result shows the real count.
+    Pinned by `src/domains/learning/__tests__/learningLevelsCountFailure.test.tsx` (failure,
+    successful empty, successful non-empty): **3/3 passed**; the existing
+    `src/domains/learning/__tests__/LearningPanel.test.tsx` remains **11/11 passed**. Retry wiring
+    (`onRetry={reloadLevels}`) is source-verified; no new retry-click regression test was added.
+    **Status: implemented and verified in the working tree.**
+  - **Stage 9B verification (latest).** `npx tsc --noEmit` — exit 0, no diagnostics. `npm test` —
+    exit 0, **255/255 test files, 3015 passed, 4 skipped, 0 failed, 484.12 s**. The +3 files and
+    +13 tests are exactly the three Stage 8 regression suites (C1 7, C2 3, C4 3); no failures,
+    timeouts or unhandled exceptions were reported. This is a full-suite result, not browser or
+    physical-device E2E. Stage 7.1's 252/3002/4/409.24 s remains the historical baseline above.
+  - **Known CRLF warning (not a whitespace defect).** `git diff --check` flags
+    `src/components/layout/TopBar.tsx` and `src/domains/learning/LearningPanel.tsx`. Both files are
+    uniformly CRLF (TopBar 216 CRLF / 0 bare LF / 0 bare CR; LearningPanel 538 / 0 / 0); every
+    flagged line ends CRLF with no space or tab before the line ending. The warnings are Git's CRLF
+    interpretation; no line endings were normalized and no Git configuration was changed.
+- **What the broader scan found, recorded rather than silently claimed fixed.** Other list reads
+  still do not take `error`, but they resolve *labels or support data* rather than rendering an
+  empty list/picker: the class ladder's programs/levels/enrollments/rooms/sessions/students reads in
+  `src/views/Classes.tsx`, the teacher-name map in `src/views/Library.tsx:530`, and the support
+  reads in `Attendance`, `Scheduling`, `Compensation`, `Teachers` and `Finance`. A failed one of
+  those renders `NO_DATA` («—») or omits the label — honest, but outside this item's original
+  "empty state or empty picker" boundary. **That boundary was too generous for the standalone
+  Gallery view, whose albums read fed an empty rail and a zero count; it is now fixed above.** The
+  `NO_DATA`/omission cases are **not** full error disclosure and are **not** claimed as fixed here.
+- **Outstanding C-level decisions (not accepted, not closed).**
+  - **C3a — Library teacher byline: DISCLOSE.** A failed teacher read must not silently appear as an
+    ordinary missing byline; a failure disclosure/retry remains to be implemented and tested. The
+    user decision is DISCLOSE; it is not implemented here.
+  - **C3b — Classes program/level ladder: unresolved.** The programs/levels reads still omit the
+    ladder on failure; the omission is not silently accepted or implemented.
+  - **C5 — role-policy background fallback: INVESTIGATE (Stage 15/16 mitigations in the working tree;
+    not resolved).** Historically `useRolePolicySync` kept the previous projection on a failed
+    role-list read, so authorization gates could run on stale policy without disclosure. Stage 15
+    now marks that last-known-good state Stale, scopes it to the current session, and discloses it;
+    Stage 16 adds targeted 403 invalidation without logging out or rewriting the role-policy
+    snapshot. The security implications of consuming last-known-good authorization data, final
+    backend acceptance, MySQL CI, and any residual API-contract ambiguity remain open. C5 is not
+    resolved. At the time of the Stage 13–16 verification, these changes were present in the
+    working tree and had not yet been committed.
+    - **Stage 13/13.1 progress (verified before commit).** Demo/Local session permissions now come
+      from the current local role repository (`LocalAuthRepository` + `LocalRoleRepository`), not
+      the module projection; missing or invalid local policy is explicit and never falls back to
+      shipped defaults. A restored identity whose policy is unavailable keeps an empty permission
+      set and shows a persistent shell disclosure with a retry that re-reads the current session’s
+      policy through `reauthorize` (falling back to `restoreDetailed` when a repository has no such
+      method). Focused evidence: `localAuthRolePolicy` 10/10, `policyUnavailableRecovery` 8/8,
+      `AuthContext` 8/8; the combined focused run passed **16 files / 219 tests**, and
+      `npx tsc --noEmit` exited 0. The global projection Fresh/Stale/Unavailable lifecycle, API 403
+      recovery, final backend authorization acceptance and the API-mode `toPermissions` fallback
+      review remain open. C5 remains **INVESTIGATE**, not resolved.
+    - **Stage 14 Media review (verified before commit).** All five Media endpoints were
+      re-inspected. `POST /media` now authorizes in `StoreMediaRequest::authorizeBeforeValidation`
+      (403 before 422; no record or bytes written) and the controller no longer duplicates that
+      check. `GET /media` retains its filtered-list behavior (invalid filters are validation, not a
+      permission oracle); `GET /media/{id}`, `GET /media/{id}/bytes` and `DELETE /media/{id}` retain
+      same-tenant 403 / missing 404 and cross-tenant 404 semantics, with per-object authorization
+      before bytes or deletion and no metadata, path or content on denial. `MediaTest` passed
+      **32/32 (155 assertions)**; the full backend suite passed **478 tests, 2 skipped** (MySQL-only
+      row-lock interleavings), **3289 assertions**, exit 0, **21.99 s**, on PHP 8.4.23 / SQLite
+      `:memory:` / `Storage::fake`; no production database was touched. Media MySQL concurrency
+      remains environment-limited; final backend security acceptance and the other C5 items remain
+      open. C5 remains **INVESTIGATE**, not resolved.
+    - **Stage 15 role-policy projection lifecycle (verified before commit; no backend changes).**
+      One owner: `useRolePolicySync(sessionKey)` in `src/App.tsx` (the Shell passes
+      `session.token`) is the only writer of the module projection in
+      `src/domains/auth/permissions.ts`. `useRoles` is a panel-local read and never publishes the
+      projection; it displays the global Fresh/Stale snapshot when available and otherwise falls
+      back to its own read, whose responses carry a generation guard. Contract:
+      `loading` = a session is active but no validated projection exists yet; `fresh` = a
+      validated read for this session succeeded (`lastSuccessfulSyncAt` updates even when content
+      is unchanged); `stale` = a previously successful snapshot for this session exists but the
+      latest refresh failed or a successful mutation invalidated it; `unavailable` = no safe
+      snapshot for this session, so effective permissions stay empty. `beginRolePolicySession` /
+      `endRolePolicySession` clear the previous projection and increment session and request
+      generations; late responses and failures from an old session or an older request are
+      rejected. Concurrent refreshes for the same session+data version share one in-flight
+      promise; a newer request aborts the old controller, and ticket checks reject any response
+      that still resolves. Mutation invalidation also makes the in-flight ticket obsolete, so
+      dedupe cannot reuse a doomed read. `AuthContext` uses the projection only when its
+      `sessionKey` matches the current session and the status is Fresh or Stale (Stale is the
+      documented last-known-good); Unavailable yields `[]`; Loading and foreign sessions fall back
+      to the session's own server/local-issued permissions. `ApiAuthRepository.toPermissions` no
+      longer falls back to `permissionsForRole`: a missing/non-array payload throws
+      `AUTH_BAD_PAYLOAD` (fail closed), an explicit empty array stays empty, and unknown ids are
+      dropped. A role read with zero records or an unknown role id is treated as invalid
+      (Unavailable, or Stale with a last-known-good snapshot), not as "nobody customized
+      anything". A partial list is accepted: roles absent from it fall back to the session's own
+      issued permissions, never to shipped defaults. The shell banner consumes the central state: Fresh/Loading render nothing, Stale
+      shows a persistent non-blocking warning with retry, Unavailable keeps the blocking
+      disclosure; the Stage 13.1 `policyError` disclosure/retry takes precedence. No TTL, polling
+      or focus/resume revalidation was added; freshness is driven by successful sync, session
+      transitions and known mutations. Focused evidence: `rolePolicyLifecycle` 22/22 and
+      `rolePolicySyncIntegration` 14/14; the combined focused run passed **10 files / 153 tests**;
+      `npx tsc --noEmit`, `tsconfig.demo.json` and `tsconfig.client.json` all exited 0, and
+      `npm run build:demo` / `npm run build:client` both exited 0; the full
+      frontend suite passed **259 files / 3070 tests, 4 skipped, 485.48 s** on the final tree (an
+      earlier full run hit a 5 s test-level timeout in the pre-existing `routeProtection`
+      lazy-chunk case, which passed 9/9 focused and in the final run). API 403 recovery,
+      final backend authorization acceptance, MySQL row-lock CI verification, and any residual
+      lifecycle or API-contract ambiguity remain open. C5 remains **INVESTIGATE**, not resolved.
+    - **Stage 16 API 403 recovery and targeted sensitive-cache invalidation (working tree,
+      uncommitted).** `ApiClient` still invokes `onUnauthenticated` only for 401. A 403 remains
+      `authorization`, a 404 remains `not_found`, and a 5xx remains `server`; none of those ends
+      the session or is converted into an empty success. A read that receives a 403 drops its own
+      cached page/value through the shared `invalidatesOnAuthorization` rule:
+      `useResourceList` covers the list domains, with equivalent clearing in the bespoke student
+      list, users, student progress, learning/scheduling derived reads, branding, organization,
+      academy metrics, the role-panel read, and the instrument catalogue. Unrelated reads keep
+      their caches. Each hook's existing ticket/abort guard rejects a late response, so an old
+      query or tenant cannot repopulate the invalidated state. Media bytes: a 403 revokes the
+      object URL and surfaces a denial in the profile-photo, gallery, message-attachment and
+      library-preview surfaces; a 404 remains the legitimate “missing file” state. A denied
+      mutation is not replayed and does not clear read caches (a write denial is not proof of a
+      read denial). A resource-level 403 never changes the role-policy lifecycle; only a failed
+      role-list read uses the Stage 15 Stale/Unavailable path. Tests: `authorizationInvalidation`
+      8/8, a `ProfilePhotoField` media-denial case, a `useLibraryFile` denial case, and a `client`
+      403/404/5xx no-logout case; the 21-file focused run passed **270 tests**, all three
+      typechecks and both builds exited 0, and the full frontend suite passed **260 files / 3081
+      tests, 4 skipped, 422.30 s**. Remaining: final backend authorization/security acceptance,
+      MySQL row-lock CI verification, stale last-known-good role-policy security acceptance, API
+      permission-contract ambiguity, and browser QA. C5 remains **INVESTIGATE**, not resolved.
 - **Why it survived:** the primary read of nearly every view *does* take `error`
   (`src/domains/gallery/GalleryPanel.tsx:57`, `src/domains/rooms/RoomsPanel.tsx:25`,
   `src/views/Classes.tsx:268`, `src/views/Teachers.tsx:348`), so the pattern reads as deliberate —
@@ -1410,10 +1614,36 @@ recovery and the zero-record tests both remaining green.
   "picker unavailable" affordance in `src/components/ds/patterns.tsx` so fourteen sites do not invent
   fourteen wordings. **Not** `useResourceList`: the hook is already honest, and I13's remaining
   readers are a separate, unauthorized item.
-- **Done when:** no consumer renders an empty state or an empty picker for a read that failed, pinned
-  by a gate of the same shape as `src/domains/shared/__tests__/staleQueryGates.test.tsx`.
-- **Status:** recorded 2026-09-13, **not authorized, not started**. M3 fixed its own instance and
-  stopped there, on purpose.
+- **Done when:** no list/read consumer renders an empty state or an empty picker for a read that
+  failed. The acceptance criterion is **broader than the original fourteen sites**: it covers every
+  consumer of a list/derived read that can fail, not just the ones inventoried here. It is pinned by
+  `src/domains/shared/__tests__/failureDisclosureI15.test.tsx`, which covers the fixed consumers
+  (including both library reads) with a failure case and a legitimate-empty case each, plus
+  `src/views/__tests__/galleryView.test.tsx` for the standalone Gallery view, the A1/A2/A3
+  focused suites `src/domains/shared/__tests__/staleQueryGates.test.tsx`,
+  `src/views/__tests__/schedulingWrites.test.tsx` and
+  `src/views/__tests__/dashboardInsightsLive.test.tsx`, and the C1/C2/C4 focused suites
+  `src/domains/branding/__tests__/brandingIdentityFailure.test.tsx`,
+  `src/views/__tests__/compensationPrefillFailure.test.tsx` and
+  `src/domains/learning/__tests__/learningLevelsCountFailure.test.tsx`.
+- **Status:** **OPEN — implementation progress verified; acceptance incomplete. I15 remains open.**
+  A1/A2/A3 are implemented and verified, and their documented regression-coverage gaps are closed.
+  C1/C2/C4 are implemented and verified in the working tree, not committed or released. C3a is
+  decided as DISCLOSE but not implemented; C3b remains unresolved; C5 requires a separate security
+  investigation. The two library reads were fixed on 2026-11-05 and are in commit `ea949bc`; the
+  standalone Gallery view was fixed on 2026-11-07 and is in commit `8694181`; A1/A2/A3
+  implementation and their original regression tests are in commit `9eb9276`; the two Stage 6
+  rendered tests and the C1/C2/C4 implementation and tests are uncommitted at this writing.
+  Focused runs passed (Gallery 4 files / 15 tests; A1 13/13; A2 18/18; A3 11/11; C1 7/7; C2 3/3;
+  C4 3/3). Stage 7.1: `npx tsc --noEmit` — exit 0; `npm test` — exit 0, 252/252 test files, 3002
+  passed, 4 skipped, 0 failed, 409.24 s (the earlier 3000-pass run predates the two Stage 6 tests).
+  Stage 9B (latest): `npx tsc --noEmit` — exit 0; `npm test` — exit 0, 255/255 test files, 3015
+  passed, 4 skipped, 0 failed, 484.12 s. The broader acceptance criterion is **not** proven across
+  every support read listed above — those render `NO_DATA` or omit the label, which is not full
+  error disclosure and is why they are recorded as outside the current boundary rather than
+  silently counted as done. The C-level review split into C1/C2/C4 (fixed above), C3a (DISCLOSE,
+  outstanding), C3b (unresolved) and C5 (INVESTIGATE, security review). I13's remaining readers and
+  I14 stay separate and untouched.
 
 ### I16. Lists that mean "everything" stop at `per_page: 200`, and counts report `items.length` instead of `total` (found 2026-09-13 during M3's acceptance audit)
 - **What:** the house convention for "load the whole list" is `{ per_page: 200 }` with no pagination
@@ -2037,28 +2267,39 @@ Lineage pointer only, added after Decision A. Accepted baseline: `7ff23379bb8467
 
 ## DOCUMENTATION DRIFT (authoritative docs that contradict the code)
 
-Recorded, **not** fixed — Phase 2 was explicitly scoped to lifecycle documentation only.
+Recorded as the audit trail of what was stale. **RESOLVED 2026-11-05** — the five documents below
+were corrected or explicitly marked as historical snapshots in `ea949bc`
+(`fix: complete I15 error disclosure and refresh docs`), so the "Done when" clause is now met. The
+table is kept as the record of what was wrong and how it was handled, not as an open list.
 
-| Document | Stale claim |
-|---|---|
-| `docs/gap-matrix.md` | A "Phase 0 audit" that lists teachers, classes, enrollments, scheduling, attendance, finance, messaging, library, notifications and reports as **NOT IMPLEMENTED**, and uses a different phase numbering from this ledger |
-| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media); and its registry count — "Six domains were added" / "These six resolve to Demo in BOTH modes", which [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §3 already corrected to ten — is now **eleven** after Class Compensation P1 added `src/domains/registry.ts:231`. **The count sentence only was corrected in place** by this reconciliation (the section now says eleven and names the five additions); the rest of that document's staleness — the claims listed above — is **still recorded here and still unedited**, because they belong to the domain-by-domain migration status, not to the counts |
-| `docs/production-handoff.md` | "Verified in this build … `npm test` — 38 files / 340 tests" (the suite has grown far past that; the live figure lives in [PROJECT_STATE.md](PROJECT_STATE.md) §4, deliberately not duplicated here) |
-| `docs/architecture/auth.md` | "Known limitations" section predates the Phase 2 lifecycle model (the bootstrap-account section added in Phase 2 is current) |
-| `docs/architecture/environments.md` | Lines 56–63 ("Demo-only material must not leak") claim `isDemoMode()` gates every demo affordance and that "the login screen renders no demo panel, passphrase or «بدون امنیت واقعی» banner", citing `src/views/__tests__/loginDemoIsolation.test.tsx`. Both claims hold only in **api** mode — which is exactly the mode that test runs — and both contradict the "Two independent axes" section of the same file (lines 42–52). In code the login panel is gated on the data-source axis and **does** render in EMPTY; its *wording* now comes from `useIsDemoEnvironment()` (see H3). Recorded, not rewritten |
+| Document | Stale claim | Resolution |
+|---|---|---|
+| `docs/gap-matrix.md` | A "Phase 0 audit" that lists teachers, classes, enrollments, scheduling, attendance, finance, messaging, library, notifications and reports as **NOT IMPLEMENTED**, and uses a different phase numbering from this ledger | ✅ RESOLVED — dated historical-snapshot banner added at the top; the live ledger is named |
+| `docs/architecture/data-layer.md` | "Scheduling itself is **not** implemented here"; "Attendance, Finance, Messages, Library and Reports remain … fixture renderers with no domain layer yet"; migration table says Library is PARTIAL with "no seeded audio" (Phase 1 shipped real library media); and its registry count — "Six domains were added" / "These six resolve to Demo in BOTH modes", which [PRODUCT_PHASE_SPECIFICATION.md](PRODUCT_PHASE_SPECIFICATION.md) §3 already corrected to ten — is now **eleven** after Class Compensation P1 added `src/domains/registry.ts:231`. **The count sentence only was corrected in place** by this reconciliation (the section now says eleven and names the five additions); the rest of that document's staleness was **still recorded here and unedited at the time of this audit**, because it belongs to the domain-by-domain migration status, not to the counts — it is now date-labelled as historical | ✅ RESOLVED — dated historical-snapshot banner added; the stale migration sentences are labelled historical |
+| `docs/production-handoff.md` | "Verified in this build … `npm test` — 38 files / 340 tests" (the suite has grown far past that; the live figure lives in [PROJECT_STATE.md](PROJECT_STATE.md) §4, deliberately not duplicated here) | ✅ RESOLVED — dated banner; the stale count now points at `PROJECT_STATE.md` §4 |
+| `docs/architecture/auth.md` | "Known limitations" section predates the Phase 2 lifecycle model (the bootstrap-account section added in Phase 2 is current) | ✅ RESOLVED — dated historical-snapshot banner added |
+| `docs/architecture/environments.md` | Lines 56–63 ("Demo-only material must not leak") claim `isDemoMode()` gates every demo affordance and that "the login screen renders no demo panel, passphrase or «بدون امنیت واقعی» banner", citing `src/views/__tests__/loginDemoIsolation.test.tsx`. Both claims hold only in **api** mode — which is exactly the mode that test runs — and both contradict the "Two independent axes" section of the same file (lines 42–52). In code the login panel is gated on the data-source axis and **does** render in EMPTY; its *wording* now comes from `useIsDemoEnvironment()` (see H3). Recorded at the time; the section was later corrected | ✅ RESOLVED — the section was corrected to the two-axis rule; the old one-gate claim is explicitly marked wrong |
 
 **Done when:** each document is either corrected or explicitly marked as a historical snapshot
 with its date, so no future session mistakes it for the current truth.
 
 ## BACKEND (all of it — nothing here is optional)
 
-There is no backend in this repository. `api` mode is a seam pointing at a server that does not
-exist. The authoritative blocker list, per-domain schemas and the "must be enforced server-side"
-rules live in `docs/production-handoff.md` and `docs/security.md` §8 — do not duplicate them
-here. Headline items: real sessions and password hashing, server-side authorization and tenant
-isolation, database and API, capacity and scheduling conflict enforcement in transactions,
-append-only attendance/progress grants, money precision and idempotency, media storage, audit
-log, rate limiting, MFA, and a penetration test.
+> **Updated 2026-11-05.** The sentence that used to open this section — «There is no backend in this
+> repository» — predates the Laravel API under `backend/` and is no longer true. The API now
+> implements the domains its feature suite exercises (students, enrollments, classes, scheduling,
+> attendance, organization, finance, and others), with server-side authorization in policies such
+> as `StudentAccessPolicy`; the frontend's `api` mode therefore points at a real implementation for
+> the domains it serves. This update claims only what the tree shows: not that the backend is
+> production-ready, and not that every frontend domain has a server counterpart — the
+> unavailable/API boundaries stay recorded in the domain ledgers.
+
+The authoritative blocker list, per-domain schemas and the "must be enforced server-side" rules
+live in `docs/production-handoff.md` and `docs/security.md` §8 — do not duplicate them
+here. Headline items still owed: real sessions and password hashing, server-side authorization and
+tenant isolation, database and API hardening, capacity and scheduling conflict enforcement in
+transactions, append-only attendance/progress grants, money precision and idempotency, media
+storage, audit log, rate limiting, MFA, and a penetration test.
 
 ---
 

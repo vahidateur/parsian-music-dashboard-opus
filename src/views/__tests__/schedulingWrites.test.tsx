@@ -50,9 +50,11 @@ import type { AcademyClass, ClassListParams } from "@/domains/classes/types";
 import {
   getAttendanceRepository,
   getEnrollmentRepository,
+  getOrganizationRepository,
   getSchedulingRepository,
   resetRegistry,
   setClassRepository,
+  setOrganizationRepository,
   setRoomRepository,
   setSchedulingRepository,
   setTeacherRepository,
@@ -457,6 +459,7 @@ afterEach(() => {
   setClassRepository(undefined);
   setRoomRepository(undefined);
   setTeacherRepository(undefined);
+  setOrganizationRepository(undefined);
   window.location.hash = "";
 });
 
@@ -830,6 +833,43 @@ describe("cancel", () => {
     expect(await within(dialog).findByText("دلیل لغو الزامی است.")).toBeTruthy();
     expect(scheduling.state.cancels).toHaveLength(0);
     expect(toastText()).toBe("");
+  });
+
+  it("does not present the default cancellation window when the rules read fails", async () => {
+    install(schedulingStub([SESSION_TODAY]));
+    const real = getOrganizationRepository();
+    setOrganizationRepository(withStubs(real, {
+      get: async () => {
+        throw new ApiError({ kind: "network", message: "قواعد آموزشگاه در دسترس نیست." });
+      },
+    } as Stubs<typeof real>));
+    renderView();
+
+    const dialog = await openCancel(THEORY_CLASS.title);
+
+    // The rule could not be read: the default 24-hour window is not quoted.
+    expect(within(dialog).queryByText(/۲۴ ساعت/)).toBeNull();
+    expect(within(dialog).queryByText(/سامانه جریمه‌ای ثبت نمی‌کند/)).toBeNull();
+    // The failure is named, with the hook's own retry.
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert.textContent).toContain("قواعد آموزشگاه خوانده نشد");
+    expect(alert.textContent).toContain("نامشخص");
+    expect(within(dialog).getByRole("button", { name: /تلاش دوباره/ })).toBeTruthy();
+  });
+
+  it("still reports the academy's own cancellation window when the rules load", async () => {
+    install(schedulingStub([SESSION_TODAY]));
+    const real = getOrganizationRepository();
+    setOrganizationRepository(withStubs(real, {
+      get: async () => ({ ...(await real.get()), cancellationGraceHours: 999 }),
+    } as Stubs<typeof real>));
+    renderView();
+
+    const dialog = await openCancel(THEORY_CLASS.title);
+
+    // 999 hours puts the deadline far in the past, so the loaded rule is quoted.
+    expect(await within(dialog).findByText(/۹۹۹ ساعت پیش از جلسه/)).toBeTruthy();
+    expect(within(dialog).queryByRole("alert")).toBeNull();
   });
 
   it("shows the cancelled session from a re-read, and withdraws the write controls", async () => {

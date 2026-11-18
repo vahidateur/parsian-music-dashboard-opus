@@ -32,7 +32,7 @@ final class ProgressEventController extends Controller
         $pagination = Pagination::fromRequest($request);
 
         return ApiResponse::page(
-            $this->events->paginate($request->validated(), $pagination->page, $pagination->perPage),
+            $this->events->paginate($request->validated(), $pagination->page, $pagination->perPage, $request->user()),
             ProgressEventResource::toWire(...),
         );
     }
@@ -40,7 +40,7 @@ final class ProgressEventController extends Controller
     public function store(StoreProgressEventRequest $request): JsonResponse
     {
         return ApiResponse::item(
-            ProgressEventResource::toWire($this->events->record($request->validated())),
+            ProgressEventResource::toWire($this->events->record($request->validated(), $request->user())),
             201,
         );
     }

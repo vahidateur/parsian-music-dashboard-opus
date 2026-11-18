@@ -24,6 +24,7 @@ name: frontend-tests
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths: &frontend_paths
       - 'src/**'
@@ -45,7 +46,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-tests-${{ github.ref }}
+  group: frontend-tests-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

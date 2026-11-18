@@ -33,7 +33,7 @@
  * the record the domain returned — as INFORMATION, never as a gate, with
  * `undefined` rendered as «نامشخص» rather than as a «no».
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ds/primitives";
 import { Dialog, Field, Toggle, inputCls } from "@/components/ds/patterns";
 import { compensationDefaultFor } from "@/domains/compensation/derive";
@@ -450,6 +450,16 @@ export function ScheduleCompensationDialog({
   const organization = useOrganization();
 
   /*
+   * The proposed LENGTH is the academy's own rule, so it may only be quoted
+   * after that rule was actually read. `useOrganization` keeps its defaults on
+   * a failed read; presenting those as the academy's policy would offer a
+   * 60-minute make-up to an academy that teaches 90-minute lessons. While the
+   * read is in flight or failed, the duration is unknown and the end time stays
+   * empty; retry reloads the rule.
+   */
+  const rulesReady = !organization.loading && organization.error === null;
+
+  /*
    * The default is the domain's own `compensationDefaultFor` — the original's date,
    * room and teacher, and a lesson as long as this academy's lessons are — a
    * PREFILL, not a booking and not a search. `null` (the original is gone, or its
@@ -457,18 +467,31 @@ export function ScheduleCompensationDialog({
    * slot.
    */
   const initial = useMemo<ScheduleDraft>(() => {
-    // The proposed length is the academy's own default session length, so a
-    // 90-minute academy is offered a 90-minute make-up rather than a constant.
-    const fallback = compensationDefaultFor(original, organization.settings.defaultSessionMinutes);
+    // Date, start, room and teacher are the original session's own facts and
+    // stay prefilled even when the academy's length rule is unavailable. Only
+    // the END time is the rule's answer, so only it is withheld until the read
+    // succeeds — a 90-minute academy is offered a 90-minute make-up, not 60.
+    const slot = original
+      ? {
+          date: original.date,
+          startTime: original.startTime,
+          roomId: original.roomId,
+          teacherId: original.teacherId,
+        }
+      : null;
+    const endTime =
+      rulesReady && original
+        ? (compensationDefaultFor(original, organization.settings.defaultSessionMinutes)?.endTime ?? "")
+        : "";
     return {
-      date: fallback ? jalaliInputValue(fallback.date) : "",
-      startTime: fallback?.startTime ?? "",
-      endTime: fallback?.endTime ?? "",
-      roomId: fallback?.roomId ?? "",
-      teacherId: fallback?.teacherId ?? "",
+      date: slot ? jalaliInputValue(slot.date) : "",
+      startTime: slot?.startTime ?? "",
+      endTime,
+      roomId: slot?.roomId ?? "",
+      teacherId: slot?.teacherId ?? "",
       acknowledgeWarnings: false,
     };
-  }, [original, organization.settings.defaultSessionMinutes]);
+  }, [original, organization.settings.defaultSessionMinutes, rulesReady]);
 
   const form = useEntityForm<ScheduleDraft, SessionCompensation>({
     open,
@@ -493,6 +516,20 @@ export function ScheduleCompensationDialog({
     onSuccess: onWritten,
   });
 
+  /*
+   * The dialog can open before the organization read answers. When it does,
+   * the form starts empty; once the rule arrives, apply the prefill — unless
+   * the operator has already typed, in which case their draft wins.
+   */
+  const touched = useRef(false);
+  const setField = <K extends keyof ScheduleDraft>(key: K, value: ScheduleDraft[K]) => {
+    touched.current = true;
+    form.set(key, value);
+  };
+  useEffect(() => {
+    if (rulesReady && !touched.current) form.reset();
+  }, [rulesReady, form.reset]);
+
   return (
     <Dialog
       open={open}
@@ -509,6 +546,22 @@ export function ScheduleCompensationDialog({
       }
     >
       <div className="space-y-3">
+        {organization.error ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-warn-200"
+          >
+            <p className="font-medium">مدت پیش‌فرض جلسه خوانده نشد</p>
+            <p className="mt-0.5 text-warn-300/90">
+              عددی از پیش‌فرض نمایش داده نمی‌شود؛ مدت جلسه را خودتان وارد کنید.
+            </p>
+            <button type="button" className="mt-1.5 underline" onClick={organization.reload}>
+              تلاش دوباره
+            </button>
+          </div>
+        ) : organization.loading ? (
+          <p className="text-[11px] text-ink-500">در حال خواندن قواعد آموزشگاه…</p>
+        ) : null}
         <dl className="grid grid-cols-2 gap-2 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-[12px]">
           <dt className="text-ink-400">هنرجوی ثابت‌شده</dt>
           <dd className="text-ink-100">{frozenStudentName}</dd>
@@ -532,7 +585,7 @@ export function ScheduleCompensationDialog({
                 className={inputCls}
                 placeholder="۱۴۰۴/۰۷/۰۱"
                 value={form.draft.date}
-                onChange={(e) => form.set("date", e.target.value)}
+                onChange={(e) => setField("date", e.target.value)}
               />
             )}
           </Field>
@@ -544,7 +597,7 @@ export function ScheduleCompensationDialog({
                   className={inputCls}
                   placeholder="۱۶:۰۰"
                   value={form.draft.startTime}
-                  onChange={(e) => form.set("startTime", e.target.value)}
+                  onChange={(e) => setField("startTime", e.target.value)}
                 />
               )}
             </Field>
@@ -555,7 +608,7 @@ export function ScheduleCompensationDialog({
                   className={inputCls}
                   placeholder="۱۷:۰۰"
                   value={form.draft.endTime}
-                  onChange={(e) => form.set("endTime", e.target.value)}
+                  onChange={(e) => setField("endTime", e.target.value)}
                 />
               )}
             </Field>
@@ -570,7 +623,7 @@ export function ScheduleCompensationDialog({
                 className={inputCls}
                 disabled={roomsUnavailable}
                 value={form.draft.roomId}
-                onChange={(e) => form.set("roomId", e.target.value)}
+                onChange={(e) => setField("roomId", e.target.value)}
               >
                 <option value="">{roomsUnavailable ? "نامشخص" : "انتخاب اتاق…"}</option>
                 {rooms.map((r) => (
@@ -586,7 +639,7 @@ export function ScheduleCompensationDialog({
                 className={inputCls}
                 disabled={teachersUnavailable}
                 value={form.draft.teacherId}
-                onChange={(e) => form.set("teacherId", e.target.value)}
+                onChange={(e) => setField("teacherId", e.target.value)}
               >
                 <option value="">{teachersUnavailable ? "نامشخص" : "انتخاب مدرس…"}</option>
                 {teachers.map((t) => (
@@ -607,7 +660,7 @@ export function ScheduleCompensationDialog({
         */}
         <Toggle
           checked={form.draft.acknowledgeWarnings}
-          onChange={(v) => form.set("acknowledgeWarnings", v)}
+          onChange={(v) => setField("acknowledgeWarnings", v)}
           label="هشدارهای برنامه‌ریزی این ثبت را می‌پذیرم."
         />
 

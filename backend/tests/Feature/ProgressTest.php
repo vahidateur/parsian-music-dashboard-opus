@@ -80,8 +80,9 @@ class ProgressTest extends TestCase
 
     public function test_reading_requires_progress_read(): void
     {
-        // administrator, manager, teacher and staff all hold progress.read.
-        foreach (['administrator', 'manager', 'teacher', 'staff'] as $role) {
+        // administrator, manager and staff hold progress.read; teacher reads
+        // only assigned students (covered by the ProgressEvent teacher-scope test).
+        foreach (['administrator', 'manager', 'staff'] as $role) {
             $this->actingAsRole($role);
             $this->getJson(self::PIECES)->assertOk();
             $this->getJson(self::ASSIGNMENTS)->assertOk();
@@ -114,6 +115,48 @@ class ProgressTest extends TestCase
                 ->assertJsonPath('error.code', 'FORBIDDEN')
                 ->assertJsonPath('error.permission', 'progress.write');
         }
+    }
+
+    public function test_a_teacher_reaches_only_assignments_of_assigned_students(): void
+    {
+        $org = $this->defaultOrganization();
+        $assignedStudent = Student::factory()->create(['organization_id' => $org->id]);
+        $otherStudent = Student::factory()->create(['organization_id' => $org->id]);
+        $piece = $this->makePiece();
+
+        $assigned = PieceAssignment::factory()->create([
+            'organization_id' => $org->id,
+            'student_id' => $assignedStudent->id,
+            'piece_id' => $piece->id,
+        ]);
+        $other = PieceAssignment::factory()->create([
+            'organization_id' => $org->id,
+            'student_id' => $otherStudent->id,
+            'piece_id' => $piece->id,
+        ]);
+
+        $this->actingAsAssignedTeacher($assignedStudent);
+
+        $this->getJson(self::ASSIGNMENTS)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $assigned->id);
+
+        $this->getJson(self::ASSIGNMENTS.'/'.$other->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ASSIGNMENT_NOT_FOUND');
+        $this->patchJson(self::ASSIGNMENTS.'/'.$other->id, ['status' => 'paused'])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ASSIGNMENT_NOT_FOUND');
+        $this->deleteJson(self::ASSIGNMENTS.'/'.$other->id)
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'ASSIGNMENT_NOT_FOUND');
+
+        // Creating against an unassigned student is a 404, same as a missing one.
+        $this->postJson(self::ASSIGNMENTS, [
+            'studentId' => $otherStudent->id,
+            'pieceId' => $piece->id,
+        ])->assertStatus(404)->assertJsonPath('error.code', 'STUDENT_NOT_FOUND');
     }
 
     public function test_deleting_requires_progress_write(): void

@@ -520,10 +520,10 @@ export function deriveAttentionItems({
     });
   }
 
-  const waitlisted = classes.filter((klass) => klass.waitlist > 0);
+  const waitlisted = classes.filter((klass) => (klass.waitlist ?? 0) > 0);
   if (waitlisted.length > 0) {
-    const seats = waitlisted.reduce((sum, klass) => sum + klass.waitlist, 0);
-    const biggest = topBy(waitlisted, (klass) => klass.waitlist)!;
+    const seats = waitlisted.reduce((sum, klass) => sum + (klass.waitlist ?? 0), 0);
+    const biggest = topBy(waitlisted, (klass) => klass.waitlist ?? 0)!;
     items.push({
       id: "class-waitlists",
       severity: "warning",
@@ -868,10 +868,10 @@ export function deriveIntelligenceCards({
     });
   }
 
-  const waitlisted = classes.filter((klass) => klass.waitlist > 0);
+  const waitlisted = classes.filter((klass) => (klass.waitlist ?? 0) > 0);
   if (waitlisted.length > 0) {
-    const seats = waitlisted.reduce((sum, klass) => sum + klass.waitlist, 0);
-    const biggest = topBy(waitlisted, (klass) => klass.waitlist)!;
+    const seats = waitlisted.reduce((sum, klass) => sum + (klass.waitlist ?? 0), 0);
+    const biggest = topBy(waitlisted, (klass) => klass.waitlist ?? 0)!;
     const full = classes.filter((klass) => klass.enrolled >= klass.capacity).length;
     cards.push({
       id: "waitlists",
@@ -888,7 +888,7 @@ export function deriveIntelligenceCards({
         },
         { label: "کلاس‌های ثبت‌شده", value: metrics ? faNum(metrics.classes) : NO_DATA },
       ],
-      insight: `بیشترین تقاضا در «${biggest.title}» با ${faNum(biggest.waitlist)} نفر در انتظار است؛ ظرفیت ثبت‌شدهٔ آن ${faNum(biggest.enrolled)} از ${faNum(biggest.capacity)} است.`,
+      insight: `بیشترین تقاضا در «${biggest.title}» با ${faNum(biggest.waitlist ?? 0)} نفر در انتظار است؛ ظرفیت ثبت‌شدهٔ آن ${faNum(biggest.enrolled)} از ${faNum(biggest.capacity)} است.`,
       action: { label: "بررسی ظرفیت کلاس‌ها", target: { view: "classes" } },
       confidence: confidenceFor(waitlisted.length, seats),
       source,

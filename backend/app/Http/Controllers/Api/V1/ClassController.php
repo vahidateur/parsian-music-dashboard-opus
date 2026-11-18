@@ -22,29 +22,29 @@ final class ClassController extends Controller
     {
         $page = $this->classes->list($request->user(), $request->validated(), Pagination::fromRequest($request));
 
-        return ApiResponse::page($page, ClassResource::toWire(...));
+        return ApiResponse::page($page, fn ($class): array => ClassResource::toWire($class, $request->user()));
     }
 
     public function show(Request $request, string $id): JsonResponse
     {
-        return ApiResponse::item(ClassResource::toWire($this->classes->get($request->user(), $id)));
+        return ApiResponse::item(ClassResource::toWire($this->classes->get($request->user(), $id), $request->user()));
     }
 
     public function store(StoreClassRequest $request): JsonResponse
     {
         $class = $this->classes->create($request->user(), $request->validated());
 
-        return ApiResponse::item(ClassResource::toWire($class), 201);
+        return ApiResponse::item(ClassResource::toWire($class, $request->user()), 201);
     }
 
     public function update(UpdateClassRequest $request, string $id): JsonResponse
     {
-        return ApiResponse::item(ClassResource::toWire($this->classes->update($request->user(), $id, $request->validated())));
+        return ApiResponse::item(ClassResource::toWire($this->classes->update($request->user(), $id, $request->validated()), $request->user()));
     }
 
     public function archive(Request $request, string $id): JsonResponse
     {
-        return ApiResponse::item(ClassResource::toWire($this->classes->archive($request->user(), $id)));
+        return ApiResponse::item(ClassResource::toWire($this->classes->archive($request->user(), $id), $request->user()));
     }
 
     public function destroy(Request $request, string $id): Response

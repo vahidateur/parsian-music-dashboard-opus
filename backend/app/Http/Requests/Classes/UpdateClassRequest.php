@@ -18,7 +18,10 @@ final class UpdateClassRequest extends ApiFormRequest
 
     protected function authorizeBeforeValidation(): void
     {
-        app(ClassPolicy::class)->authorizeWrite($this->user());
+        $policy = app(ClassPolicy::class);
+        $policy->authorizeWrite($this->user());
+        // Raw payload, before validation can turn a present-but-invalid field into a 422.
+        $policy->assertTeacherWriteFieldsAllowed($this->user(), $this->all());
     }
 
     /** @return array<string, mixed> */

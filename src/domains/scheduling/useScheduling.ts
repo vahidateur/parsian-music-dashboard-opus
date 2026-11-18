@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getSchedulingRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { useResourceList, type ListState, type Paged } from "@/domains/shared/useResource";
 import type {
@@ -164,6 +165,10 @@ function useDerivedRead<T>(
         const normalized = apiErrorFromThrown(cause);
         // A cancelled request is not a failure the user should see.
         if (mine !== ticket.current || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) {
+          setState({ key, data: undefined, loading: false, error: normalized });
+          return;
+        }
         // Keep whatever this key already had: a failed refetch reports the
         // failure without discarding a value that is still this query's.
         setState((previous) =>

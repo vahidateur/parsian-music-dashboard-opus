@@ -239,7 +239,7 @@ final class LearningController extends Controller
         $pagination = Pagination::fromRequest($request);
 
         return ApiResponse::page(
-            $this->learning->listPlacements($filters, $pagination->page, $pagination->perPage),
+            $this->learning->listPlacements($filters, $pagination->page, $pagination->perPage, $request->user()),
             LearningService::toPlacementWire(...),
         );
     }
@@ -247,7 +247,7 @@ final class LearningController extends Controller
     public function showPlacement(Request $request, string $studentId): JsonResponse
     {
         $this->policy->authorizeRead($request->user());
-        $placement = $this->learning->getStudentPlacement($studentId);
+        $placement = $this->learning->getStudentPlacement($studentId, $request->user());
         if ($placement === null) {
             throw ApiException::notFound('PLACEMENT_NOT_FOUND', 'سطح‌بندی هنرجو یافت نشد.');
         }
@@ -260,13 +260,13 @@ final class LearningController extends Controller
         $this->policy->authorizeWrite($request->user());
         $input = app(AssignPlacementRequest::class)->validated();
 
-        return ApiResponse::item(LearningService::toPlacementWire($this->learning->assignPlacement($input)));
+        return ApiResponse::item(LearningService::toPlacementWire($this->learning->assignPlacement($input, $request->user())));
     }
 
     public function destroyPlacement(Request $request, string $studentId): Response
     {
         $this->policy->authorizeWrite($request->user());
-        $this->learning->removePlacement($studentId);
+        $this->learning->removePlacement($studentId, $request->user());
 
         return ApiResponse::noContent();
     }
@@ -277,7 +277,7 @@ final class LearningController extends Controller
     {
         $this->policy->authorizeRead($request->user());
 
-        $rows = $this->learning->eligibleContent($studentId);
+        $rows = $this->learning->eligibleContent($studentId, $request->user());
 
         return ApiResponse::list($rows, 1, max(count($rows), 1), count($rows));
     }
@@ -286,7 +286,7 @@ final class LearningController extends Controller
     {
         $this->policy->authorizeRead($request->user());
 
-        $rows = $this->learning->lockedContent($studentId);
+        $rows = $this->learning->lockedContent($studentId, $request->user());
 
         return ApiResponse::list($rows, 1, max(count($rows), 1), count($rows));
     }
@@ -295,7 +295,7 @@ final class LearningController extends Controller
     {
         $this->policy->authorizeRead($request->user());
 
-        $ids = $this->learning->eligibleStudentIds($contentId);
+        $ids = $this->learning->eligibleStudentIds($contentId, $request->user());
 
         return ApiResponse::list($ids, 1, max(count($ids), 1), count($ids));
     }

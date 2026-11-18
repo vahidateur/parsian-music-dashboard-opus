@@ -32,6 +32,7 @@
  */
 import { useEffect, useState } from "react";
 import { ExternalLink, FileText, Info } from "lucide-react";
+import type { ApiError } from "@/api/errors";
 import { ALLOWED_DOCUMENT_TYPES } from "@/domains/media/types";
 import { cn } from "@/utils/cn";
 import type { LibraryFileState, ResourceKind } from "./types";
@@ -56,6 +57,8 @@ export interface ResourcePreviewProps {
   file: LibraryFileState;
   /** Object URL for a stored PDF, from `useMediaObjectUrl`. Undefined until it lands. */
   previewUrl?: string;
+  /** The PDF bytes read failure, so a denial is not shown as a spinner. */
+  previewError?: ApiError | null;
   /** Resource kind, only to be honest about the one case that can never preview. */
   kind: ResourceKind;
 }
@@ -74,7 +77,7 @@ export function needsPreviewObjectUrl(mimeType: string | undefined): boolean {
   return mimeType === PDF_TYPE;
 }
 
-export function ResourcePreview({ file, previewUrl, kind }: ResourcePreviewProps) {
+export function ResourcePreview({ file, previewUrl, previewError, kind }: ResourcePreviewProps) {
   const mimeType = file.asset?.mimeType;
 
   // Plain text is rendered from the bytes the drawer already holds, so no
@@ -121,6 +124,13 @@ export function ResourcePreview({ file, previewUrl, kind }: ResourcePreviewProps
 
   if (mimeType === PDF_TYPE) {
     if (!previewUrl) {
+      if (previewError?.kind === "authorization") {
+        return (
+          <p className="rounded-xl border border-danger-500/25 bg-danger-500/[0.06] p-3.5 text-[11.5px] leading-relaxed text-danger-400">
+            دسترسی به فایل این منبع برای این حساب مجاز نیست، بنابراین پیش‌نمایشی وجود ندارد.
+          </p>
+        );
+      }
       return (
         <p className="rounded-xl border border-white/[0.07] bg-black/20 p-3.5 text-[11.5px] text-ink-400">
           در حال آماده‌سازی پیش‌نمایش…

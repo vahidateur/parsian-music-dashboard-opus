@@ -25,6 +25,7 @@ import {
   getGalleryRepository,
   getInstrumentRepository,
   getLearningRepository,
+  getLibraryRepository,
   getProgressRepository,
   getRoomRepository,
   getStudentRepository,
@@ -34,6 +35,7 @@ import {
   setGalleryRepository,
   setInstrumentRepository,
   setLearningRepository,
+  setLibraryRepository,
   setProgressRepository,
   setRoomRepository,
   setStudentRepository,
@@ -291,6 +293,26 @@ describe("StudentProgressPanel failure disclosure", () => {
     await waitFor(() => expect(screen.queryByText(/در حال بارگذاری سابقهٔ پیشرفت/)).toBeNull());
     expect(await screen.findByText(/سابقه‌ای ثبت نشده/)).toBeDefined();
   });
+
+  it("library failure discloses, not the empty resources state", async () => {
+    setLibraryRepository(rejectingList(getLibraryRepository()));
+    render(<AppProvider><StudentProgressPanel studentId="st1" studentName="Test" role="teacher" /></AppProvider>);
+    await waitFor(() => expect(screen.queryByText(/در حال بارگذاری پیشرفت/)).toBeNull());
+    expect(await screen.findByText(/بارگذاری منابع کتابخانه ناموفق بود/)).toBeDefined();
+    expect(screen.queryByText(/منبعی در دسترس این هنرجو نیست/)).toBeNull();
+    expect(screen.getByRole("button", { name: /تلاش دوباره/ })).toBeDefined();
+  });
+
+  it("legitimate empty library still renders the honest empty state", async () => {
+    const real = getLibraryRepository();
+    setLibraryRepository(withStubs(real, {
+      list: async () => emptyPage(),
+    } as Stubs<typeof real>));
+    render(<AppProvider><StudentProgressPanel studentId="st1" studentName="Test" role="teacher" /></AppProvider>);
+    await waitFor(() => expect(screen.queryByText(/در حال بارگذاری پیشرفت/)).toBeNull());
+    expect(await screen.findByText(/منبعی در دسترس این هنرجو نیست/)).toBeDefined();
+    expect(screen.queryByText(/بارگذاری منابع کتابخانه ناموفق بود/)).toBeNull();
+  });
 });
 
 /* ---------------- AssignPieceDialog ---------------- */
@@ -331,6 +353,24 @@ describe("PieceFormDialog failure disclosure", () => {
     await waitFor(() => expect(screen.queryByText(/بارگذاری دوره‌ها ناموفق بود/)).toBeNull());
     // Should still have — بدون دوره —
     expect(screen.getByText(/بدون دوره/)).toBeDefined();
+  });
+
+  it("library failure discloses, not the empty library copy", async () => {
+    setLibraryRepository(rejectingList(getLibraryRepository()));
+    render(<AppProvider><PieceFormDialog open onClose={() => {}} onSaved={() => {}} /></AppProvider>);
+    expect(await screen.findByText(/بارگذاری کتابخانه ناموفق بود/)).toBeDefined();
+    expect(screen.queryByText(/کتابخانه خالی است/)).toBeNull();
+    expect(screen.getByRole("button", { name: /تلاش دوباره/ })).toBeDefined();
+  });
+
+  it("legitimate empty library does not show an error", async () => {
+    const real = getLibraryRepository();
+    setLibraryRepository(withStubs(real, {
+      list: async () => emptyPage(),
+    } as Stubs<typeof real>));
+    render(<AppProvider><PieceFormDialog open onClose={() => {}} onSaved={() => {}} /></AppProvider>);
+    expect(await screen.findByText(/کتابخانه خالی است/)).toBeDefined();
+    expect(screen.queryByText(/بارگذاری کتابخانه ناموفق بود/)).toBeNull();
   });
 });
 

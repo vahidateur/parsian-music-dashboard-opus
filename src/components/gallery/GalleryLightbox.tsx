@@ -13,7 +13,7 @@ import { Button } from "@/components/ds/primitives";
 import { Field, inputCls } from "@/components/ds/patterns";
 import { apiErrorFromThrown } from "@/api/errors";
 import { getGalleryRepository } from "@/domains/registry";
-import { useMediaObjectUrl } from "@/domains/media/useMedia";
+import { useMediaObjectState } from "@/domains/media/useMedia";
 import type { GalleryImage } from "@/domains/gallery/types";
 import { isoToJalaliDisplay } from "@/domains/scheduling/dateBridge";
 import { faNum } from "@/lib/format";
@@ -47,7 +47,7 @@ export function GalleryLightbox({
 }) {
   const { notify } = useApp();
   const image = images[index];
-  const url = useMediaObjectUrl(image?.mediaId);
+  const { url, error } = useMediaObjectState(image?.mediaId);
   const total = images.length;
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -148,7 +148,7 @@ export function GalleryLightbox({
       {total > 1 && <><LightboxNav side="next" onClick={() => onIndex((index + 1) % total)} /><LightboxNav side="previous" onClick={() => onIndex((index - 1 + total) % total)} /></>}
       <div className={cn("my-auto grid w-full max-w-6xl gap-0 overflow-hidden rounded-3xl border border-white/[0.08] bg-ink-900/95 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.95)]", canSeeDetails && "lg:grid-cols-[minmax(0,1fr)_340px]")} onClick={(event) => event.stopPropagation()}>
         <div ref={frameRef} className="relative flex min-h-[42vh] items-center justify-center bg-black/60 p-3 sm:min-h-[62vh] sm:p-6">
-          {url ? <img src={url} alt={image.alt} className="max-h-[70vh] rounded-2xl object-contain shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)]" /> : <span className="flex h-[46vh] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-photo-fg/15 text-center text-[11.5px] text-photo-muted"><ImageOff className="size-7 opacity-70" /> فایل تصویر در این مرورگر در دسترس نیست<span className="text-[10.5px] text-photo-faint">شناسنامهٔ تصویر همچنان معتبر است.</span></span>}
+          {url ? <img src={url} alt={image.alt} className="max-h-[70vh] rounded-2xl object-contain shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)]" /> : <span className="flex h-[46vh] w-full flex-col items-center justify-center gap-3 rounded-2xl border border-photo-fg/15 text-center text-[11.5px] text-photo-muted"><ImageOff className="size-7 opacity-70" /> {error?.kind === "authorization" ? "دسترسی به این تصویر مجاز نیست" : "فایل تصویر در این مرورگر در دسترس نیست"}<span className="text-[10.5px] text-photo-faint">شناسنامهٔ تصویر همچنان معتبر است.</span></span>}
           <button type="button" onClick={() => void toggleFullscreen()} aria-label={fullscreen ? "خروج از تمام‌صفحه" : "نمایش تمام‌صفحه"} className="absolute bottom-4 left-4 rounded-xl border border-white/15 bg-black/55 p-2 text-photo-muted backdrop-blur-sm hover:border-gold-400/50 hover:text-gold-100">{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</button>
         </div>
         {canSeeDetails && <aside className="flex max-h-[70vh] flex-col overflow-y-auto border-t border-white/[0.06] bg-white/[0.02] p-5 lg:max-h-none lg:border-r lg:border-t-0">

@@ -14,7 +14,13 @@ import { ApiError } from "@/api/errors";
 import { AppProvider } from "@/context/AppContext";
 import { createMemoryBlobStore, getBlobStore, setBlobStore } from "@/domains/media/blobStore";
 import { LocalMediaRepository } from "@/domains/media/localRepository";
-import { getLibraryRepository, resetRegistry, setLibraryRepository } from "@/domains/registry";
+import type { MediaRepository } from "@/domains/media/repository";
+import {
+  getLibraryRepository,
+  resetRegistry,
+  setLibraryRepository,
+  setMediaRepository,
+} from "@/domains/registry";
 import { createEmptyDataset } from "@/domains/demo/seed";
 import {
   DEMO_LIBRARY_ASSET,
@@ -221,6 +227,29 @@ describe("useLibraryFile — the demo record", () => {
     expect(result.current.asset?.id).toBe(DEMO_LIBRARY_ASSET_ID);
     expect(result.current.reason).toContain("موجود نیست");
     expect(result.current.error).toBeNull();
+  });
+
+  it("reports a denied file as access denied, not as missing bytes", async () => {
+    const denied = () =>
+      new ApiError({ kind: "authorization", status: 403, message: "دسترسی ندارید." });
+    setMediaRepository({
+      list: vi.fn(),
+      get: vi.fn(async () => {
+        throw denied();
+      }),
+      create: vi.fn(),
+      delete: vi.fn(),
+      getBlob: vi.fn(async () => {
+        throw denied();
+      }),
+    } as unknown as MediaRepository);
+
+    const item = await getLibraryRepository().get(DEMO_LIBRARY_RESOURCE_ID);
+    const { result } = renderHook(() => useLibraryFile(item), { wrapper });
+
+    await waitFor(() => expect(result.current.status).toBe("missing"));
+    expect(result.current.reason).toContain("مجاز نیست");
+    expect(result.current.blob).toBeUndefined();
   });
 });
 

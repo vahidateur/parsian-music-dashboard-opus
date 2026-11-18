@@ -176,6 +176,19 @@ async function settled() {
   await waitFor(() => expect(screen.queryAllByRole("status")).toHaveLength(0), { timeout: 8000 });
 }
 
+/**
+ * Waits for the booking dialog's organization rule to answer.
+ *
+ * The dialog no longer quotes the shipped 60-minute default while the academy's
+ * own rule is in flight (I15 C2), so its end time is empty until the read lands.
+ */
+async function waitForBookingPrefill(dialog: HTMLElement) {
+  await waitFor(() => {
+    const end = within(dialog).getByPlaceholderText("۱۷:۰۰") as HTMLInputElement;
+    expect(end.value).not.toBe("");
+  });
+}
+
 /** ZWNJ-insensitive comparison: the product's Persian joins words with it. */
 const flat = (text: string) => text.replace(/\u200c/g, " ");
 
@@ -438,6 +451,7 @@ describe("booking the make-up", () => {
     await openDrawer();
     fireEvent.click(screen.getByRole("button", { name: /ثبت جلسهٔ جبرانی/ }));
     const dialog = await screen.findByRole("dialog", { name: "ثبت جلسهٔ جبرانی" });
+    await waitForBookingPrefill(dialog);
 
     // The domain's own prefill is the original's slot; the make-up is deliberately
     // moved to another day, which is what the dialog is for.
@@ -484,6 +498,7 @@ describe("booking the make-up", () => {
     await openDrawer();
     fireEvent.click(screen.getByRole("button", { name: /ثبت جلسهٔ جبرانی/ }));
     const dialog = await screen.findByRole("dialog", { name: "ثبت جلسهٔ جبرانی" });
+    await waitForBookingPrefill(dialog);
     fireEvent.change(screen.getByLabelText(/تاریخ \(شمسی\)/), {
       target: { value: isoToJalaliDisplay(MAKEUP_DATE, DATE_INPUT_OPTIONS) },
     });
@@ -608,6 +623,7 @@ describe("a make-up that was cancelled", () => {
     // And the next decision is offered: booking a new make-up, not editing the old.
     fireEvent.click(screen.getByRole("button", { name: /ثبت جلسهٔ جبرانی/ }));
     const dialog = await screen.findByRole("dialog", { name: "ثبت جلسهٔ جبرانی" });
+    await waitForBookingPrefill(dialog);
     fireEvent.click(
       Array.from(dialog.querySelectorAll("button")).find((button) => button.textContent?.trim() === "ثبت جلسه")!,
     );

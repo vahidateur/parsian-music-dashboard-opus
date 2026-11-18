@@ -3,6 +3,7 @@
 namespace App\Domain\Learning;
 
 use App\Domain\Media\MediaReferenceLock;
+use App\Domain\Students\StudentAccessPolicy;
 use App\Models\Instrument;
 use App\Models\LearningContent;
 use App\Models\LearningLevel;
@@ -47,6 +48,7 @@ final class LearningService
     public function __construct(
         private readonly TenantContext $tenant,
         private readonly MediaReferenceLock $mediaReferenceLock,
+        private readonly StudentAccessPolicy $students,
     ) {}
 
     /**
@@ -504,9 +506,10 @@ final class LearningService
     /**
      * @param  array<string, mixed>  $filters  studentId, programId, levelId
      */
-    public function listPlacements(array $filters, int $page, int $perPage): LengthAwarePaginator
+    public function listPlacements(array $filters, int $page, int $perPage, User $actor): LengthAwarePaginator
     {
         return StudentPlacement::query()
+            ->whereIn('student_id', $this->students->scopeQuery(Student::query(), $actor)->select('students.id'))
             ->when(filled($filters['studentId'] ?? null), fn (Builder $q): Builder => $q->where('student_id', $filters['studentId']))
             ->when(filled($filters['programId'] ?? null), fn (Builder $q): Builder => $q->where('program_id', $filters['programId']))
             ->when(filled($filters['levelId'] ?? null), fn (Builder $q): Builder => $q->where('level_id', $filters['levelId']))
@@ -514,20 +517,30 @@ final class LearningService
             ->paginate(perPage: $perPage, page: $page);
     }
 
-    public function getStudentPlacement(string $studentId): ?StudentPlacement
+    public function getStudentPlacement(string $studentId, User $actor): ?StudentPlacement
     {
+        if ($this->scopedStudent($studentId, $actor) === null) {
+            return null;
+        }
+
         return StudentPlacement::query()->where('student_id', $studentId)->first();
     }
 
-    /** @param  array<string, mixed>  $input  validated camelCase wire input */
-    public function assignPlacement(array $input): StudentPlacement
+    /** The student, only when the actor's T-02 scope permits it. */
+    private function scopedStudent(string $studentId, User $actor): ?Student
     {
-        return DB::transaction(function () use ($input): StudentPlacement {
+        return $this->students->scopeQuery(Student::query(), $actor)->whereKey($studentId)->first();
+    }
+
+    /** @param  array<string, mixed>  $input  validated camelCase wire input */
+    public function assignPlacement(array $input, User $actor): StudentPlacement
+    {
+        return DB::transaction(function () use ($input, $actor): StudentPlacement {
             $studentId = (string) ($input['studentId'] ?? '');
             $programId = (string) ($input['programId'] ?? '');
             $levelId = (string) ($input['levelId'] ?? '');
 
-            $student = Student::query()->whereKey($studentId)->first();
+            $student = $this->scopedStudent($studentId, $actor);
             if ($student === null) {
                 throw ApiException::validation('PLACEMENT_INVALID', 'هنرجو یافت نشد.', ['studentId' => ['نامعتبر است']]);
             }
@@ -592,9 +605,9 @@ final class LearningService
         });
     }
 
-    public function removePlacement(string $studentId): void
+    public function removePlacement(string $studentId, User $actor): void
     {
-        $existing = $this->getStudentPlacement($studentId);
+        $existing = $this->getStudentPlacement($studentId, $actor);
         if ($existing === null) {
             throw ApiException::notFound('PLACEMENT_NOT_FOUND', 'سطح‌بندی هنرجو یافت نشد.');
         }
@@ -608,9 +621,9 @@ final class LearningService
      *
      * @return list<array{content: array, level_id: string, level_order: int, level_name: string, sort_order: int}>
      */
-    public function eligibleContent(string $studentId): array
+    public function eligibleContent(string $studentId, User $actor): array
     {
-        [$placement, $levels, $links, $content] = $this->derivedInputs($studentId);
+        [$placement, $levels, $links, $content] = $this->derivedInputs($studentId, $actor);
 
         return array_map(
             [self::class, 'eligibleRow'],
@@ -624,9 +637,9 @@ final class LearningService
      *
      * @return list<array{content: array, level_id: string, level_order: int, level_name: string, sort_order: int, reason: string}>
      */
-    public function lockedContent(string $studentId): array
+    public function lockedContent(string $studentId, User $actor): array
     {
-        [$placement, $levels, $links, $content] = $this->derivedInputs($studentId);
+        [$placement, $levels, $links, $content] = $this->derivedInputs($studentId, $actor);
 
         return array_map(
             [self::class, 'lockedRow'],
@@ -635,31 +648,37 @@ final class LearningService
     }
 
     /** @return list<string> */
-    public function eligibleStudentIds(string $contentId): array
+    public function eligibleStudentIds(string $contentId, User $actor): array
     {
         $this->getContent($contentId);
+
+        $studentIds = $this->students
+            ->scopeQuery(Student::query(), $actor)
+            ->select('students.id')
+            ->pluck('id')
+            ->all();
 
         return LearningEligibility::eligibleStudentIds(
             $contentId,
             $this->levelRows(),
             $this->linkRows(),
-            $this->placementRows(),
+            $this->placementRows($studentIds),
         );
     }
 
     /**
-     * The shared lookup behind every derived read: tenant-scoped, so a
-     * foreign student is invisible and the read degrades to empty rather than
-     * leaking that the id exists elsewhere.
+     * The shared lookup behind every derived read: tenant-scoped and T-02
+     * scoped, so an unassigned teacher sees no placement rather than another
+     * teacher's student.
      *
      * @return array{0: array{id: string, program_id: string, level_id: string}|null, 1: list<array>, 2: list<array>, 3: list<array>}
      */
-    private function derivedInputs(string $studentId): array
+    private function derivedInputs(string $studentId, User $actor): array
     {
-        $student = Student::query()->whereKey($studentId)->first();
+        $student = $this->scopedStudent($studentId, $actor);
         $placement = null;
         if ($student !== null) {
-            $row = $this->getStudentPlacement($studentId);
+            $row = $this->getStudentPlacement($studentId, $actor);
             if ($row !== null) {
                 $placement = ['id' => $row->id, 'program_id' => $row->program_id, 'level_id' => $row->level_id];
             }
@@ -702,14 +721,24 @@ final class LearningService
         ])->all();
     }
 
-    /** @return list<array{student_id: string, program_id: string, level_id: string}> */
-    private function placementRows(): array
+    /**
+     * @param  list<string>  $studentIds
+     * @return list<array{student_id: string, program_id: string, level_id: string}>
+     */
+    private function placementRows(array $studentIds): array
     {
-        return StudentPlacement::query()->get()->map(fn (StudentPlacement $p): array => [
-            'student_id' => $p->student_id,
-            'program_id' => $p->program_id,
-            'level_id' => $p->level_id,
-        ])->all();
+        if ($studentIds === []) {
+            return [];
+        }
+
+        return StudentPlacement::query()
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->map(fn (StudentPlacement $p): array => [
+                'student_id' => $p->student_id,
+                'program_id' => $p->program_id,
+                'level_id' => $p->level_id,
+            ])->all();
     }
 
     /** @param  array{content: array, level_id: string, level_order: int, level_name: string, sort_order: int}  $row */

@@ -3,6 +3,7 @@ import { BarChart3, CalendarClock, CalendarDays, ChevronDown, ClipboardCheck, Do
 import { navGroups, type NavGroup } from "@/lib/navigation";
 import type { ViewId } from "@/lib/viewContracts";
 import { useBranding } from "@/domains/branding/useBranding";
+import { BrandingIdentityNotice } from "@/domains/branding/BrandingIdentityNotice";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { roleLabel } from "@/domains/auth/permissions";
 import { useApp } from "@/context/AppContext";
@@ -225,7 +226,7 @@ export function SidebarContent({
     which is the one owner of the identity, instead of the demo fixture that
     used to be rendered here.
   */
-  const { branding } = useBranding();
+  const { branding, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useBranding();
   const [accountOpen, setAccountOpen] = useState(false);
   /*
     Navigation shows what the session may actually open — and, for a teacher,
@@ -247,8 +248,19 @@ export function SidebarContent({
         <BrandMark />
         {!collapsed && (
           <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-bold tracking-tight text-ink-50">{branding.academyName}</div>
-            <div className="mt-0.5 truncate text-[10.5px] tracking-wide text-gold-500/90">{branding.tagline}</div>
+            {brandingLoading || brandingError ? (
+              <BrandingIdentityNotice
+                loading={brandingLoading}
+                error={brandingError}
+                onRetry={reloadBranding}
+                className="block"
+              />
+            ) : (
+              <>
+                <div className="truncate text-[13.5px] font-bold tracking-tight text-ink-50">{branding.academyName}</div>
+                <div className="mt-0.5 truncate text-[10.5px] tracking-wide text-gold-500/90">{branding.tagline}</div>
+              </>
+            )}
           </div>
         )}
         {onClose && (

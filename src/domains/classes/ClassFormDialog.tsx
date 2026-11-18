@@ -58,7 +58,7 @@ function toDraft(cls?: AcademyClass): ClassDraft {
     time: cls?.time ?? "17:00",
     duration: cls ? String(cls.duration) : "60",
     capacity: cls ? String(cls.capacity) : "6",
-    tuition: cls ? String(cls.tuition) : "3000000",
+    tuition: cls ? String(cls.tuition ?? "") : "3000000",
   archived: cls?.status === "archived",
   };
 }
@@ -81,7 +81,8 @@ function validate(draft: ClassDraft): FieldErrors<ClassDraft> {
     errors.capacity = "ظرفیت باید بین ۱ تا ۵۰۰ باشد.";
   }
   const tuition = Number(draft.tuition);
-  if (!Number.isFinite(tuition) || tuition < 0) errors.tuition = "شهریه نمی‌تواند منفی باشد.";
+  if (draft.tuition.trim() === "") errors.tuition = "شهریه الزامی است.";
+  else if (!Number.isFinite(tuition) || tuition < 0) errors.tuition = "شهریه نمی‌تواند منفی باشد.";
   return errors;
 }
 

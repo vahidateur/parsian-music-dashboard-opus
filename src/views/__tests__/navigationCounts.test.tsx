@@ -87,6 +87,14 @@ async function renderNav() {
     </AuthProvider>,
   );
   await waitFor(() => expect(screen.getByRole("navigation", { name: "ناوبری اصلی" })).toBeTruthy());
+  /*
+    Items appear only after the session restores: permissions gate visibility,
+    and the region renders before that with no buttons. Waiting for the region
+    alone lets the first assertion run against an empty nav under load.
+  */
+  await within(screen.getByRole("navigation", { name: "ناوبری اصلی" })).findByRole("button", {
+    name: /^داشبورد/,
+  });
   return auth;
 }
 

@@ -1,5 +1,10 @@
 # Authentication, Users & RBAC
 
+> **Historical snapshot — pre-consolidation (2026-09).** The "Known limitations" section predates
+> the Phase 2 lifecycle model and the later RBAC hardening. The live ledger is
+> [OPEN_ITEMS.md](../../engineering/OPEN_ITEMS.md) and
+> [PROJECT_STATE.md](../../engineering/PROJECT_STATE.md).
+
 Status labels: **IMPLEMENTED** · **PARTIAL** · **DEMO ONLY** · **BACKEND REQUIRED** · **FUTURE**
 
 ## Security statement (read first)

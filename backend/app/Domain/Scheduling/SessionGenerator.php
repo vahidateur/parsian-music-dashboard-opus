@@ -118,7 +118,12 @@ final class SessionGenerator
      */
     private function plan(array $input, User $actor): array
     {
-        $class = AcademyClass::query()->whereKey((string) $input['classId'])->first();
+        $query = AcademyClass::query()->whereKey((string) $input['classId']);
+        $teacherId = $this->policy->teacherScope($actor);
+        if ($teacherId !== null) {
+            $query->where('teacher_id', $teacherId);
+        }
+        $class = $query->first();
         if ($class === null) {
             throw ApiException::validation(
                 'SESSION_CLASS_NOT_FOUND',

@@ -88,7 +88,7 @@ export function deriveEnrollments(source: typeof classes = classes): Enrollment[
         classId: cls.id,
         status: index < cls.capacity ? "active" : "waitlist",
         startDate: "۱۴۰۴/۰۷/۰۱",
-        pricingPlan: { label: cls.level, amount: cls.tuition },
+        pricingPlan: { label: cls.level, amount: cls.tuition ?? 0 },
       });
     });
   }

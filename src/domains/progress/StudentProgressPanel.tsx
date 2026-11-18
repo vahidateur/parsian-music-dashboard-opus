@@ -91,7 +91,7 @@ export function StudentProgressPanel({
     cannot support an exact "N more" count, and it cannot prove that nothing is
     accessible either.
   */
-  const { items: libraryItems, total: libraryTotal } = useLibraryList({ per_page: 200 });
+  const { items: libraryItems, total: libraryTotal, error: libraryError, reload: reloadLibrary } = useLibraryList({ per_page: 200 });
   const libraryTruncated = libraryTotal > libraryItems.length;
   const [recording, setRecording] = useState<{ assignment: PieceAssignment; piece?: Piece } | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -387,7 +387,9 @@ export function StudentProgressPanel({
         title="منابع در دسترس این هنرجو"
         kicker="بر پایهٔ قاعدهٔ دسترسی کتابخانه"
       >
-        {accessible.length === 0 && accessibleOverflow === 0 && !libraryTruncated ? (
+        {libraryError ? (
+          <ErrorState title="بارگذاری منابع کتابخانه ناموفق بود" error={libraryError} onRetry={reloadLibrary} />
+        ) : accessible.length === 0 && accessibleOverflow === 0 && !libraryTruncated ? (
           <EmptyState
             title="منبعی در دسترس این هنرجو نیست"
             description="دسترسی هر منبع در کتابخانه تنظیم می‌شود: همهٔ هنرجویان، یا فهرست منتخب."

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { getUserRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import type { UserRepository } from "./repository";
 import type { AuthUser, CreateUserInput, UpdateUserInput } from "./types";
@@ -69,7 +70,8 @@ export function useUsers(repository?: UserRepository): UsersState {
       })
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
-        if (!alive.current || normalized.kind === "cancelled") return;
+        if (!alive.current || controller.signal.aborted || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) setUsers([]);
         setError(normalized);
       })
       .finally(() => {

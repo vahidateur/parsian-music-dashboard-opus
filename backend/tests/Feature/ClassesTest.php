@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\ActsAsRole;
 use Tests\TestCase;
 
@@ -65,6 +66,19 @@ class ClassesTest extends TestCase
         return $student;
     }
 
+    /** Grants the teacher role `classes.write` through a saved role override. */
+    private function grantTeacherClassesWrite(): void
+    {
+        DB::table('roles')->insert([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'teacher',
+            'label' => 'مدرس',
+            'scope' => '',
+            'permissions' => json_encode([...config('permissions.defaults.teacher'), 'classes.write']),
+            'updated_at' => now(),
+        ]);
+    }
+
     public function test_unauthenticated_is_401(): void
     {
         $this->getJson('/api/v1/classes')->assertStatus(401)->assertJsonPath('error.code', 'AUTH_UNAUTHENTICATED');
@@ -86,6 +100,226 @@ class ClassesTest extends TestCase
         $this->patchJson("/api/v1/classes/$id", ['title' => 'xx'])->assertStatus(403);
         $this->postJson("/api/v1/classes/$id/archive")->assertStatus(403);
         $this->deleteJson("/api/v1/classes/$id")->assertStatus(403);
+    }
+
+    public function test_teacher_sees_only_owned_classes_and_cannot_read_another_teachers_class(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['title' => 'کلاس من', 'teacher_id' => 't1']);
+        $theirs = $this->class(['title' => 'کلاس دیگری', 'teacher_id' => 't2']);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $response = $this->getJson('/api/v1/classes')->assertOk();
+        $this->assertSame([$mine->id], array_column($response->json('data'), 'id'));
+        $this->getJson('/api/v1/classes?teacher_id=t2')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+
+        $this->getJson("/api/v1/classes/{$mine->id}")
+            ->assertOk()
+            ->assertJsonPath('data.title', 'کلاس من');
+        $this->getJson("/api/v1/classes/{$theirs->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+    }
+
+    public function test_teacher_without_teacher_id_is_pb1_on_class_reads(): void
+    {
+        $this->class();
+
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $this->getJson('/api/v1/classes')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1')
+            ->assertJsonPath('error.decision', 'PB-1');
+        $this->getJson('/api/v1/classes/cl_missing')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+    }
+
+    public function test_teacher_class_response_redacts_tuition_and_waitlist_but_keeps_active_roster(): void
+    {
+        $class = $this->class(['tuition' => 2500000]);
+        $active = $this->enroll($class->id, 'active');
+        $waiting = $this->enroll($class->id, 'waitlist');
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $response = $this->getJson("/api/v1/classes/{$class->id}")
+            ->assertOk()
+            ->assertJsonMissingPath('data.tuition')
+            ->assertJsonMissingPath('data.waitlist')
+            ->assertJsonMissingPath('data.attendanceAvg')
+            ->assertJsonMissingPath('data.termProgress')
+            ->assertJsonPath('data.enrolled', 1);
+
+        $this->assertSame([$active->id], $response->json('data.studentIds'));
+        $this->assertNotContains($waiting->id, $response->json('data.studentIds'));
+
+        // Organization-wide roles keep the full class projection.
+        $this->actingAsRole('administrator');
+        $this->getJson("/api/v1/classes/{$class->id}")
+            ->assertOk()
+            ->assertJsonPath('data.tuition', 2500000)
+            ->assertJsonPath('data.waitlist', 1)
+            ->assertJsonPath('data.attendanceAvg', 0)
+            ->assertJsonPath('data.termProgress', 0);
+    }
+
+    public function test_a_teacher_permission_override_cannot_widen_class_object_scope(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['title' => 'کلاس من', 'teacher_id' => 't1']);
+        $theirs = $this->class(['title' => 'کلاس دیگری', 'teacher_id' => 't2']);
+
+        $this->grantTeacherClassesWrite();
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        // Own class: the granted verb works.
+        $this->patchJson("/api/v1/classes/{$mine->id}", ['title' => 'کلاس ویرایش‌شده'])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'کلاس ویرایش‌شده');
+
+        // Another teacher's class: object scope still wins.
+        $this->patchJson("/api/v1/classes/{$theirs->id}", ['title' => 'هیچ'])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+
+        // A teacher cannot hand a class to another teacher or create one for them.
+        $this->patchJson("/api/v1/classes/{$mine->id}", ['teacherId' => 't2'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->postJson('/api/v1/classes', $this->payload(['teacherId' => 't2']))
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        // T-02-B write side (2026-11-16): creation requires `tuition`, and a teacher
+        // write carrying it is denied, so the granted verb cannot create a class.
+        // That is the approved policy, not a regression to work around here.
+        $this->postJson('/api/v1/classes', $this->payload(['teacherId' => 't1']))
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', ['tuition']);
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function protectedWriteFields(): array
+    {
+        return [
+            'tuition' => ['tuition'],
+            'attendanceAvg' => ['attendanceAvg'],
+            'termProgress' => ['termProgress'],
+        ];
+    }
+
+    #[DataProvider('protectedWriteFields')]
+    public function test_teacher_override_cannot_patch_a_protected_class_field(string $field): void
+    {
+        $class = $this->class(['title' => 'قبل', 'tuition' => 1000]);
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", [$field => 42])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', [$field]);
+
+        $fresh = $class->fresh();
+        $this->assertSame('قبل', $fresh->title);
+        $this->assertSame(1000, $fresh->tuition);
+    }
+
+    #[DataProvider('protectedWriteFields')]
+    public function test_teacher_override_cannot_create_a_class_with_a_protected_field(string $field): void
+    {
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $payload = $this->payload();
+        unset($payload['tuition']);
+        $payload[$field] = 42;
+
+        $before = AcademyClass::query()->count();
+
+        $this->postJson('/api/v1/classes', $payload)
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN')
+            ->assertJsonPath('error.deniedFields', [$field]);
+
+        $this->assertSame($before, AcademyClass::query()->count());
+    }
+
+    public function test_teacher_override_mixed_payload_is_rejected_without_a_partial_write(): void
+    {
+        $class = $this->class(['title' => 'قبل', 'capacity' => 2, 'tuition' => 1000]);
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", [
+            'title' => 'بعد',
+            'capacity' => 5,
+            'tuition' => 9000,
+        ])->assertStatus(403)->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $fresh = $class->fresh();
+        $this->assertSame('قبل', $fresh->title);
+        $this->assertSame(2, $fresh->capacity);
+        $this->assertSame(1000, $fresh->tuition);
+    }
+
+    public function test_teacher_override_null_protected_field_is_still_denied(): void
+    {
+        $class = $this->class();
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => null])
+            ->assertStatus(403)
+            ->assertJsonPath('error.deniedFields', ['tuition']);
+    }
+
+    public function test_teacher_override_invalid_protected_field_is_403_not_422(): void
+    {
+        $class = $this->class();
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => 'not-a-number'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+    }
+
+    public function test_manager_and_administrator_can_still_write_financial_fields(): void
+    {
+        $class = $this->class(['tuition' => 1000]);
+
+        $this->actingAsRole('manager');
+        $this->patchJson("/api/v1/classes/{$class->id}", ['tuition' => 7000, 'attendanceAvg' => 80])
+            ->assertOk()
+            ->assertJsonPath('data.tuition', 7000)
+            ->assertJsonPath('data.attendanceAvg', 80);
+
+        $this->actingAsRole('administrator');
+        $this->patchJson("/api/v1/classes/{$class->id}", ['termProgress' => 40])
+            ->assertOk()
+            ->assertJsonPath('data.termProgress', 40);
+    }
+
+    public function test_manager_class_teacher_transfer_behavior_is_unchanged_by_stage_18_1(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $class = $this->class(['teacher_id' => 't1']);
+
+        $this->actingAsRole('manager');
+
+        // G3 (effective-dated transfer/audit) is a later stage; Stage 18.1 must
+        // not change the existing organization-wide transfer path.
+        $this->patchJson("/api/v1/classes/{$class->id}", ['teacherId' => 't2'])
+            ->assertOk()
+            ->assertJsonPath('data.teacherId', 't2');
     }
 
     public function test_crud_round_trip_and_envelope(): void
@@ -241,6 +475,90 @@ class ClassesTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('error.fields.teacherId.0', 'مدرس یافت نشد.');
         $this->assertSame('active', DB::table('classes')->where('id', $foreign->id)->value('status'));
+    }
+
+    public function test_teacher_override_can_archive_only_their_own_class(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['teacher_id' => 't1']);
+        $theirs = $this->class(['teacher_id' => 't2']);
+
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->postJson("/api/v1/classes/{$mine->id}/archive")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'archived');
+        $this->assertSame('archived', DB::table('classes')->where('id', $mine->id)->value('status'));
+
+        // Object scope still wins over the granted verb, and nothing changes.
+        $this->postJson("/api/v1/classes/{$theirs->id}/archive")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+        $this->assertSame('active', DB::table('classes')->where('id', $theirs->id)->value('status'));
+
+        $this->deleteJson("/api/v1/classes/{$theirs->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'CLASS_NOT_FOUND');
+        $this->assertSame(1, DB::table('classes')->where('id', $theirs->id)->count());
+    }
+
+    public function test_teacher_override_delete_is_scoped_and_blocked_by_enrollments(): void
+    {
+        $empty = $this->class();
+        $occupied = $this->class();
+        $this->enroll($occupied->id, 'active');
+
+        $this->grantTeacherClassesWrite();
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $this->deleteJson("/api/v1/classes/{$occupied->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('error.code', 'CLASS_HAS_ENROLLMENTS');
+        $this->assertSame(1, DB::table('classes')->where('id', $occupied->id)->count());
+
+        $this->deleteJson("/api/v1/classes/{$empty->id}")->assertNoContent();
+        $this->assertSame(0, DB::table('classes')->where('id', $empty->id)->count());
+    }
+
+    public function test_teacher_without_teacher_id_is_pb1_on_class_writes(): void
+    {
+        $class = $this->class();
+
+        $this->actingAsRole('teacher', ['teacher_id' => null]);
+
+        $this->patchJson("/api/v1/classes/{$class->id}", ['title' => 'هیچ'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->postJson("/api/v1/classes/{$class->id}/archive")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+        $this->deleteJson("/api/v1/classes/{$class->id}")
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'OWNER_DECISION_REQUIRED_PB1');
+
+        $this->assertSame('active', DB::table('classes')->where('id', $class->id)->value('status'));
+        $this->assertSame(1, DB::table('classes')->where('id', $class->id)->count());
+    }
+
+    public function test_teacher_class_list_redacts_financial_and_student_derived_fields(): void
+    {
+        Teacher::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 't2', 'status' => 'active']);
+        $mine = $this->class(['tuition' => 2500000]);
+        $this->class(['teacher_id' => 't2']);
+        $this->enroll($mine->id, 'waitlist');
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+
+        $response = $this->getJson('/api/v1/classes')->assertOk();
+        $this->assertSame([$mine->id], array_column($response->json('data'), 'id'));
+        $response
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonMissingPath('data.0.tuition')
+            ->assertJsonMissingPath('data.0.waitlist')
+            ->assertJsonMissingPath('data.0.attendanceAvg')
+            ->assertJsonMissingPath('data.0.termProgress')
+            ->assertJsonPath('data.0.title', $mine->title);
     }
 
     public function test_accountant_reads_but_cannot_write(): void

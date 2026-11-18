@@ -13,11 +13,12 @@
  */
 import { demoStore, type DemoStore } from "@/services/demoStore";
 import type { Page } from "@/api/types";
+import { ApiError } from "@/api/errors";
 import {
   isPermission,
   isRoleId,
-  permissionsForRole,
   roleLabels,
+  rolePermissions,
   ROLES,
   type RoleId,
   type RolePolicyRecord,
@@ -31,6 +32,28 @@ import {
   type RoleRepository,
   type UpdateRoleInput,
 } from "./roleRepository";
+
+/** Explicit policy errors for the local role source of truth. */
+export const ROLE_POLICY_UNAVAILABLE = "ROLE_POLICY_UNAVAILABLE";
+export const ROLE_POLICY_INVALID = "ROLE_POLICY_INVALID";
+
+export function rolePolicyUnavailable(cause?: unknown): ApiError {
+  return new ApiError({
+    kind: "server",
+    code: ROLE_POLICY_UNAVAILABLE,
+    message: "قواعد دسترسی محلی خوانده نشد؛ ورود با مجوزهای نامشخص انجام نمی‌شود.",
+    cause,
+  });
+}
+
+export function rolePolicyInvalid(id: string): ApiError {
+  return new ApiError({
+    kind: "server",
+    code: ROLE_POLICY_INVALID,
+    message: `قواعد دسترسی محلی برای نقش «${id}» معتبر نیست.`,
+    fields: { role: ["قواعد دسترسی این نقش خوانده یا اعتبارسنجی نشد."] },
+  });
+}
 
 /** Demo implementation — the roles collection of the one dataset. */
 export class LocalRoleRepository implements RoleRepository {
@@ -71,15 +94,26 @@ export class LocalRoleRepository implements RoleRepository {
 
   /** One row per role, edited values where they exist, defaults elsewhere. */
   private record(id: RoleId): RolePolicyRecord {
+    if (!isRoleId(id)) throw rolePolicyInvalid(id);
+    const defaults = rolePermissions[id];
+    if (!defaults) throw rolePolicyInvalid(id);
+
     const row = this.store.roles.find(id);
     if (!row) return defaultRoleRecord(id);
-    const permissions = (row.permissions ?? permissionsForRole(id)).filter(isPermission);
+
+    const explicit = row.permissions;
+    if (explicit !== undefined) {
+      if (!Array.isArray(explicit) || explicit.some((permission) => !isPermission(permission))) {
+        throw rolePolicyInvalid(id);
+      }
+    }
+    const permissions = explicit === undefined ? [...defaults] : [...explicit];
     const record: RolePolicyRecord = {
       id,
       label: row.label?.trim() ? row.label : roleLabels[id],
       scope: row.scope?.trim() ? row.scope : DEFAULT_SCOPES[id],
       permissions,
-      customized: Boolean(row.permissions) || row.label !== roleLabels[id] || row.scope !== DEFAULT_SCOPES[id],
+      customized: Boolean(explicit) || row.label !== roleLabels[id] || row.scope !== DEFAULT_SCOPES[id],
       ...(row.updatedAt ? { updatedAt: row.updatedAt } : {}),
     };
     record.customized = !sameAsDefault(id, record);

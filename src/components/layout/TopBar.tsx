@@ -8,6 +8,7 @@ import { roleLabel } from "@/domains/auth/permissions";
 import { useAcademyNow } from "@/domains/shared/clock";
 import { useDayPulse } from "@/domains/shared/useDayPulse";
 import { useBranding } from "@/domains/branding/useBranding";
+import { BrandingIdentityNotice } from "@/domains/branding/BrandingIdentityNotice";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { Kbd } from "@/components/ds/primitives";
 import { Avatar } from "@/components/ds/patterns";
@@ -82,7 +83,7 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
   const pulse = useDayPulse(todayIso, now);
   const live = pulse.live;
   const [notified, setNotified] = useState(false);
-  const { branding } = useBranding();
+  const { branding, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useBranding();
   const { user } = useAuth();
 
   return (
@@ -96,8 +97,19 @@ export function TopBar({ onMenu }: { onMenu: () => void }) {
         <div className="flex min-w-0 items-center gap-3">
           <BrandMark className="hidden sm:flex" />
           <div className="min-w-0">
-            <div className="truncate text-[12.5px] font-bold tracking-tight text-ink-50">{branding.academyName}</div>
-            <div className="mt-0.5 hidden truncate text-[10px] tracking-wide text-gold-500/85 sm:block">{branding.tagline}</div>
+            {brandingLoading || brandingError ? (
+              <BrandingIdentityNotice
+                loading={brandingLoading}
+                error={brandingError}
+                onRetry={reloadBranding}
+                className="block"
+              />
+            ) : (
+              <>
+                <div className="truncate text-[12.5px] font-bold tracking-tight text-ink-50">{branding.academyName}</div>
+                <div className="mt-0.5 hidden truncate text-[10px] tracking-wide text-gold-500/85 sm:block">{branding.tagline}</div>
+              </>
+            )}
           </div>
         </div>
 

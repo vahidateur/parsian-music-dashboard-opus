@@ -15,7 +15,8 @@
  * scale. Production should expose a single `GET /search?q=` endpoint and this
  * hook should call that instead — the palette itself would not change.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { instrumentName } from "@/domains/instruments/catalog";
 import type { Target } from "@/lib/viewContracts";
 import {
@@ -42,6 +43,17 @@ const PER_KIND_LIMIT = 5;
 export function useDomainSearch(query: string): {
   results: DomainSearchResult[];
   loading: boolean;
+  /**
+   * The aggregate search's failure, or `null` when every domain answered.
+   *
+   * The four reads are one search: a partial list would silently omit a domain
+   * (a student who exists but whose teachers read failed is still "not found"
+   * to the operator), so the aggregate is all-or-nothing and its failure is
+   * reported rather than rendered as an empty result set.
+   */
+  error: ApiError | null;
+  /** Re-runs the current query. Used by the palette's failure state. */
+  retry: () => void;
 } {
   const dataVersion = useDataVersion();
   const trimmed = query.trim();
@@ -55,11 +67,18 @@ export function useDomainSearch(query: string): {
    * `loading` starts true whenever a query is present — it used to start false,
    * which rendered "nothing found" for a search that had not been run yet.
    */
-  const [state, setState] = useState<{ key: string; results: DomainSearchResult[]; loading: boolean }>(() => ({
+  const [state, setState] = useState<{
+    key: string;
+    results: DomainSearchResult[];
+    loading: boolean;
+    error: ApiError | null;
+  }>(() => ({
     key: trimmed,
     results: [],
     loading: trimmed.length > 0,
+    error: null,
   }));
+  const [nonce, setNonce] = useState(0);
 
   const repositories = useMemo(
     () => ({
@@ -73,15 +92,19 @@ export function useDomainSearch(query: string): {
 
   useEffect(() => {
     if (trimmed.length === 0) {
-      setState({ key: trimmed, results: [], loading: false });
+      setState({ key: trimmed, results: [], loading: false, error: null });
       return;
     }
 
     const controller = new AbortController();
     let cancelled = false;
     // Another query's results are dropped; the same query refreshing keeps them.
+    // A new attempt also clears the previous failure, so the palette shows the
+    // in-flight state rather than a stale error.
     setState((current) =>
-      current.key === trimmed ? { ...current, loading: true } : { key: trimmed, results: [], loading: true },
+      current.key === trimmed
+        ? { ...current, loading: true, error: null }
+        : { key: trimmed, results: [], loading: true, error: null },
     );
 
     // `search` is part of every list contract, so the repository (or a future
@@ -126,19 +149,25 @@ export function useDomainSearch(query: string): {
             target: { view: "settings", filter: "operations" } satisfies Target,
           })),
         ];
-        setState({ key: trimmed, results: out, loading: false });
+        setState({ key: trimmed, results: out, loading: false, error: null });
       })
-      .catch(() => {
-        // A failed search shows no results rather than a stale list; the
-        // palette's other groups (navigation, actions) still work.
-        if (!cancelled) setState((current) => ({ ...current, key: trimmed, results: [], loading: false }));
+      .catch((cause: unknown) => {
+        // The aggregate failed: report it rather than showing an empty result
+        // set. A cancelled/superseded request is not a failure and is ignored
+        // here; the newer effect owns the state.
+        if (cancelled) return;
+        const normalized = apiErrorFromThrown(cause);
+        if (normalized.kind === "cancelled") return;
+        setState({ key: trimmed, results: [], loading: false, error: normalized });
       });
 
     return () => {
       cancelled = true;
       controller.abort();
     };
-  }, [trimmed, dataVersion, repositories]);
+  }, [trimmed, dataVersion, repositories, nonce]);
+
+  const retry = useCallback(() => setNonce((n) => n + 1), []);
 
   // Derived at render, not stored in an effect: the keystroke that changes the
   // query is the same render that must stop exposing the previous results.
@@ -147,6 +176,8 @@ export function useDomainSearch(query: string): {
     return {
       results: answers ? state.results : [],
       loading: !answers || state.loading,
+      error: answers ? state.error : null,
+      retry,
     };
-  }, [state, trimmed]);
+  }, [state, trimmed, retry]);
 }

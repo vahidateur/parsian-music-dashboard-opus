@@ -7,6 +7,8 @@
  * server-side on every endpoint (see docs/architecture/security.md).
  */
 
+import type { ApiError } from "@/api/errors";
+
 /** Permission ids are `<domain>.<action>` — matching the planned API contract. */
 export const PERMISSIONS = [
   "students.read",
@@ -247,14 +249,246 @@ function emitPolicy(): void {
   });
 }
 
+/* ------------------------------------------------------------------ */
+/* Projection lifecycle                                                */
+/* ------------------------------------------------------------------ */
+
+export type RolePolicyStatus = "loading" | "fresh" | "stale" | "unavailable";
+
+export interface RolePolicySyncState {
+  status: RolePolicyStatus;
+  lastSuccessfulSyncAt: number | null;
+  error: ApiError | null;
+  /** The authenticated session this projection belongs to. */
+  sessionKey: string | null;
+  refreshing: boolean;
+}
+
+export interface RolePolicyTicket {
+  sessionGeneration: number;
+  requestGeneration: number;
+  sessionKey: string;
+}
+
+let syncState: RolePolicySyncState = {
+  status: "loading",
+  lastSuccessfulSyncAt: null,
+  error: null,
+  sessionKey: null,
+  refreshing: false,
+};
+let sessionGeneration = 0;
+let requestGeneration = 0;
+let sessionHasSnapshot = false;
+const syncListeners = new Set<() => void>();
+
+function emitSync(): void {
+  syncListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+      /* one broken subscriber must not stop the rest */
+    }
+  });
+}
+
+export function getRolePolicyState(): RolePolicySyncState {
+  return syncState;
+}
+
+export function subscribeRolePolicyState(listener: () => void): () => void {
+  syncListeners.add(listener);
+  return () => {
+    syncListeners.delete(listener);
+  };
+}
+
+/** Starts a new authenticated session; no previous projection may survive. */
+export function beginRolePolicySession(sessionKey: string, hasSnapshot: boolean): void {
+  if (syncState.sessionKey === sessionKey) {
+    sessionHasSnapshot = hasSnapshot;
+    return;
+  }
+  sessionGeneration += 1;
+  requestGeneration += 1;
+  sessionHasSnapshot = hasSnapshot;
+  if (policy.size > 0) {
+    policy = new Map();
+    emitPolicy();
+  }
+  syncState = {
+    status: "loading",
+    lastSuccessfulSyncAt: null,
+    error: null,
+    sessionKey,
+    refreshing: false,
+  };
+  emitSync();
+}
+
+/** Ends the session and invalidates every in-flight projection request. */
+export function endRolePolicySession(): void {
+  sessionGeneration += 1;
+  requestGeneration += 1;
+  sessionHasSnapshot = false;
+  if (policy.size > 0) {
+    policy = new Map();
+    emitPolicy();
+  }
+  syncState = {
+    status: "loading",
+    lastSuccessfulSyncAt: null,
+    error: null,
+    sessionKey: null,
+    refreshing: false,
+  };
+  emitSync();
+}
+
+/** Marks the current session's policy unavailable; no projection may grant access. */
+export function markRolePolicyUnavailable(error: ApiError, sessionKey: string): void {
+  if (syncState.sessionKey !== sessionKey) return;
+  requestGeneration += 1;
+  sessionHasSnapshot = false;
+  if (policy.size > 0) {
+    policy = new Map();
+    emitPolicy();
+  }
+  syncState = {
+    status: "unavailable",
+    lastSuccessfulSyncAt: null,
+    error,
+    sessionKey,
+    refreshing: false,
+  };
+  emitSync();
+}
+
+/** A successful session-level rebuild is a valid last-known-good snapshot. */
+export function markRolePolicyFreshFromSession(sessionKey: string): void {
+  if (syncState.sessionKey !== sessionKey) return;
+  requestGeneration += 1;
+  if (policy.size > 0) {
+    policy = new Map();
+    emitPolicy();
+  }
+  sessionHasSnapshot = true;
+  syncState = {
+    status: "fresh",
+    lastSuccessfulSyncAt: Date.now(),
+    error: null,
+    sessionKey,
+    refreshing: false,
+  };
+  emitSync();
+}
+
+/** A local role mutation invalidates freshness until the next successful read. */
+export function invalidateRolePolicy(): void {
+  if (syncState.sessionKey === null) return;
+  requestGeneration += 1;
+  const hasKnownGood =
+    syncState.lastSuccessfulSyncAt !== null || policy.size > 0 || sessionHasSnapshot;
+  syncState = {
+    ...syncState,
+    status: hasKnownGood ? "stale" : "unavailable",
+    error: null,
+    refreshing: false,
+  };
+  emitSync();
+}
+
+export function beginRolePolicyRequest(sessionKey: string): RolePolicyTicket | null {
+  if (syncState.sessionKey !== sessionKey) return null;
+  const ticket: RolePolicyTicket = {
+    sessionGeneration,
+    requestGeneration: ++requestGeneration,
+    sessionKey,
+  };
+  syncState = { ...syncState, refreshing: true };
+  emitSync();
+  return ticket;
+}
+
+/** True while a ticket still belongs to the current session and latest request. */
+export function isRolePolicyTicketCurrent(ticket: RolePolicyTicket): boolean {
+  return (
+    ticket.sessionGeneration === sessionGeneration &&
+    ticket.requestGeneration === requestGeneration &&
+    syncState.sessionKey === ticket.sessionKey
+  );
+}
+
+export function commitRolePolicy(
+  ticket: RolePolicyTicket,
+  records: readonly RolePolicyRecord[],
+): boolean {
+  if (!isRolePolicyTicketCurrent(ticket)) return false;
+  if (!isRolePolicyProjectionValid(records)) return false;
+  setRolePolicies(records);
+  syncState = {
+    status: "fresh",
+    lastSuccessfulSyncAt: Date.now(),
+    error: null,
+    sessionKey: ticket.sessionKey,
+    refreshing: false,
+  };
+  emitSync();
+  return true;
+}
+
+export function failRolePolicy(ticket: RolePolicyTicket, error: ApiError): boolean {
+  if (!isRolePolicyTicketCurrent(ticket)) return false;
+  const hasKnownGood =
+    syncState.lastSuccessfulSyncAt !== null || policy.size > 0 || sessionHasSnapshot;
+  syncState = {
+    ...syncState,
+    status: hasKnownGood ? "stale" : "unavailable",
+    error,
+    refreshing: false,
+  };
+  emitSync();
+  return true;
+}
+
+let refreshHandler: (() => void) | null = null;
+
+export function registerRolePolicyRefresh(handler: () => void): () => void {
+  refreshHandler = handler;
+  return () => {
+    if (refreshHandler === handler) refreshHandler = null;
+  };
+}
+
+export function requestRolePolicyRefresh(): void {
+  refreshHandler?.();
+}
+
+/**
+ * True only for a complete, session-safe projection: every role id and every
+ * permission id belongs to the product vocabulary. An empty list is not a
+ * valid policy — it would silently leave every role on the shipped defaults.
+ */
+export function isRolePolicyProjectionValid(records: readonly RolePolicyRecord[]): boolean {
+  return (
+    records.length > 0 &&
+    records.every(
+      (record) =>
+        isRoleId(record.id) &&
+        Array.isArray(record.permissions) &&
+        record.permissions.every((permission) => isPermission(permission)),
+    )
+  );
+}
+
 /**
  * Replaces the live policy with the records a repository answered.
  *
- * Called by `useRolePolicySync` (mounted once in the shell) after each read, the
- * same read-through projection the instrument catalogue uses: the repository
- * stays the only writer, and the cache holds nothing that cannot be rebuilt by
- * reading it again. An empty list clears the policy, so a failed or empty read
- * falls back to the shipped defaults instead of locking everybody out.
+ * Only `commitRolePolicy` calls this in production: the repository stays the
+ * only writer, and the lifecycle (Fresh/Stale/Unavailable) is owned by the
+ * synchronization functions above, not by a bare cache write. An empty list
+ * clears the projection; callers that require a validated matrix must reject it
+ * before committing.
  */
 export function setRolePolicies(records: readonly RolePolicyRecord[]): void {
   const next = new Map<RoleId, RolePolicyRecord>();
@@ -275,9 +509,10 @@ export function setRolePolicies(records: readonly RolePolicyRecord[]): void {
         previous.permissions.every((p, i) => p === record.permissions[i])
       );
     });
-  if (same) return;
-  policy = next;
-  emitPolicy();
+  if (!same) {
+    policy = next;
+    emitPolicy();
+  }
 }
 
 /**
@@ -289,14 +524,33 @@ export function setRolePolicies(records: readonly RolePolicyRecord[]): void {
  * repopulate it; until then AuthContext uses the current session's issued set.
  */
 export function clearRolePolicies(): void {
-  if (policy.size === 0) return;
-  policy = new Map<RoleId, RolePolicyRecord>();
-  emitPolicy();
+  if (policy.size > 0) {
+    policy = new Map<RoleId, RolePolicyRecord>();
+    emitPolicy();
+  }
+  sessionGeneration += 1;
+  requestGeneration += 1;
+  sessionHasSnapshot = false;
+  syncState = {
+    status: "loading",
+    lastSuccessfulSyncAt: null,
+    error: null,
+    sessionKey: null,
+    refreshing: false,
+  };
+  emitSync();
 }
 
 /** The edited record for a role, or undefined when it runs on defaults. */
 export function getRolePolicy(role: RoleId): RolePolicyRecord | undefined {
   return policy.get(role);
+}
+
+/** The current validated projection, in the product's role order. */
+export function getRolePolicies(): RolePolicyRecord[] {
+  return ROLES.map((id) => policy.get(id)).filter(
+    (record): record is RolePolicyRecord => record !== undefined,
+  );
 }
 
 /** Bumped on every policy change — the identity `useSyncExternalStore` watches. */

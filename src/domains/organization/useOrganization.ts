@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getOrganizationRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import type { OrganizationRepository } from "./repository";
 import {
@@ -57,7 +58,10 @@ export function useOrganization(repository?: OrganizationRepository): Organizati
       })
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
-        if (!alive.current || normalized.kind === "cancelled") return;
+        if (!alive.current || controller.signal.aborted || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) {
+          setSettings(DEFAULT_ORGANIZATION_SETTINGS);
+        }
         setError(normalized);
       })
       .finally(() => {

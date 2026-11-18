@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, apiErrorFromThrown } from "@/api/errors";
 import { emptyPage, type Page } from "@/api/types";
 import { getStudentRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import type { StudentRepository } from "./repository";
 import type { Student, StudentListParams } from "./types";
@@ -47,6 +48,9 @@ export function useStudentList(params: StudentListParams = {}, repository?: Stud
       .catch((cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         if (ticket !== latest.current || normalized.kind === "cancelled") return;
+        if (invalidatesOnAuthorization(normalized)) {
+          setPage(emptyPage<Student>());
+        }
         setError(normalized);
       })
       .finally(() => {

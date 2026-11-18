@@ -1,6 +1,6 @@
 import type { ApiClient } from "@/api/client";
 import { ApiError, isApiError } from "@/api/errors";
-import { isPermission, permissionsForRole, isRoleId, type Permission } from "./permissions";
+import { isPermission, isRoleId, type Permission } from "./permissions";
 import { defaultTokenStore, isExpired, type TokenStore } from "./tokenStore";
 import type { AuthRepository } from "./repository";
 import type { AuthUser, LoginInput, Session } from "./types";
@@ -163,7 +163,7 @@ export function toSession(raw: WireSession): Session {
   const expiresRaw = raw.expires_at ?? raw.expiresAt;
   return {
     user,
-    permissions: toPermissions(raw.permissions, user),
+    permissions: toPermissions(raw.permissions),
     token: typeof raw.token === "string" ? raw.token : "",
     expiresAt: typeof expiresRaw === "string" ? expiresRaw : new Date(Date.now() + 3_600_000).toISOString(),
   };
@@ -191,10 +191,21 @@ function toUser(value: unknown): AuthUser {
   };
 }
 
-/** Server-provided permissions win; fall back to the local matrix if absent. */
-function toPermissions(value: unknown, user: AuthUser): Permission[] {
-  if (Array.isArray(value)) {
-    return value.filter((p): p is Permission => typeof p === "string" && isPermission(p));
+/**
+ * The server's permission array is the only accepted source.
+ *
+ * A missing or non-array value is a broken contract, not a licence to grant the
+ * shipped defaults — it fails closed as `AUTH_BAD_PAYLOAD` so no session with
+ * invented permissions can exist. An explicit empty array is a valid answer
+ * ("this user holds nothing"). Unknown ids are dropped, never granted.
+ */
+function toPermissions(value: unknown): Permission[] {
+  if (!Array.isArray(value)) {
+    throw new ApiError({
+      kind: "server",
+      code: "AUTH_BAD_PAYLOAD",
+      message: "پاسخ سرور برای دسترسی‌ها معتبر نیست.",
+    });
   }
-  return permissionsForRole(user.role);
+  return value.filter((p): p is Permission => typeof p === "string" && isPermission(p));
 }

@@ -118,7 +118,7 @@ export function CommandPalette() {
   // `searching` is read, not ignored: the query changes on every keystroke, and
   // every result carries a navigation target, so a previous query's results
   // presented as this one's would navigate to the wrong record (I13).
-  const { results: records, loading: searching } = useDomainSearch(query);
+  const { results: records, loading: searching, error: searchError, retry: retrySearch } = useDomainSearch(query);
 
   const groups = useMemo<Group[]>(() => {
     const q = normalize(query);
@@ -266,6 +266,20 @@ export function CommandPalette() {
         </div>
 
         {/* body */}
+        {!result && query.trim() && searchError && (
+          <div
+            role="alert"
+            className="mx-2 mt-2 rounded-xl border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-[11.5px] leading-relaxed text-warn-200"
+          >
+            <p className="font-medium">جستجوی رکوردها انجام نشد</p>
+            <p className="mt-0.5 text-warn-300/90">
+              خواندن نتایج از سرویس ناموفق بود؛ «چیزی پیدا نشد» به معنای نبود نتیجه نیست.
+            </p>
+            <button type="button" className="mt-1.5 underline" onClick={retrySearch}>
+              تلاش دوباره
+            </button>
+          </div>
+        )}
         <div ref={listRef} className="max-h-[62vh] overflow-y-auto p-2 sm:max-h-[56vh]" role={result ? undefined : "listbox"} aria-label="نتایج">
           {result ? (
             <ResultView cmd={result} onOpen={() => navigate(result.target)} onBack={() => { setResult(null); setQuery(""); inputRef.current?.focus(); }} />
@@ -281,7 +295,7 @@ export function CommandPalette() {
               <div className="px-4 py-10 text-center">
                 <p className="text-sm text-ink-200">در حال جستجو…</p>
               </div>
-            ) : (
+            ) : searchError ? null : (
               <div className="px-4 py-10 text-center">
                 <p className="text-sm text-ink-200">چیزی پیدا نشد</p>
                 <p className="mt-1.5 text-xs text-ink-400">می‌توانید فرمان بنویسید؛ مثلاً «کلاس‌های خالی سه‌شنبه را پیدا کن»</p>

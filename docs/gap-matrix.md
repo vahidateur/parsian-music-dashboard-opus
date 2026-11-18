@@ -1,5 +1,9 @@
 # Arena gap matrix — Phase 0 audit
 
+> **Historical snapshot — pre-consolidation (2026-09).** The statuses below are the Phase 0 audit
+> at commit `082a3be`, not the current tree. The live ledger is
+> [OPEN_ITEMS.md](../engineering/OPEN_ITEMS.md) and [PROJECT_STATE.md](../engineering/PROJECT_STATE.md).
+
 Verified against the source at commit `082a3be` by reading code and executing it.
 Prior completion reports were **not** trusted.
 

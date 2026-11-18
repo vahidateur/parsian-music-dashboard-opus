@@ -136,6 +136,15 @@ describe("ApiClient error normalization", () => {
     expect(onUnauthenticated).toHaveBeenCalledTimes(1);
   });
 
+  it("does not treat 403, 404, or 5xx as session invalidation", async () => {
+    for (const status of [403, 404, 500]) {
+      const onUnauthenticated = vi.fn();
+      const mock = createFetchMock(() => jsonResponse({ error: { message: "no" } }, status));
+      await makeClient(mock, { onUnauthenticated }).get("students").catch(() => undefined);
+      expect(onUnauthenticated, `status ${status}`).not.toHaveBeenCalled();
+    }
+  });
+
   it("tells onUnauthenticated which Authorization the rejected request carried", async () => {
     const mock = createFetchMock(() => jsonResponse({ error: { message: "no" } }, 401));
     const withToken = vi.fn();

@@ -760,4 +760,112 @@ class MediaTest extends TestCase
         $this->getJson(self::BASE.'/md_theirs')->assertStatus(404);
         $this->get(self::BASE.'/md_theirs/bytes')->assertStatus(404);
     }
+
+    public function test_an_unauthorized_upload_is_403_before_validation(): void
+    {
+        $this->actingAsRole('accountant');
+
+        $this->post(self::BASE, [], ['Accept' => 'application/json'])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_an_unauthorized_valid_upload_does_not_create_records_or_bytes(): void
+    {
+        $this->actingAsRole('accountant');
+
+        $this->upload()
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+
+        $this->assertDatabaseCount('media_assets', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_same_tenant_unauthorized_metadata_and_bytes_are_403_but_missing_is_404(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $other = $this->makeUser('accountant');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_private',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+
+        $this->useToken($this->tokenFor($other));
+        $this->getJson(self::BASE.'/md_private')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->get(self::BASE.'/md_private/bytes')
+            ->assertStatus(403)
+            ->assertDontSee($this->pngBytes());
+
+        $this->getJson(self::BASE.'/md_missing')->assertStatus(404);
+        $this->get(self::BASE.'/md_missing/bytes')->assertStatus(404);
+    }
+
+    public function test_same_tenant_unauthorized_delete_is_403_and_does_not_delete(): void
+    {
+        $uploader = $this->makeUser('staff');
+        $other = $this->makeUser('accountant');
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_delete_private',
+            'organization_id' => $uploader->organization_id,
+            'uploaded_by' => $uploader->id,
+        ]);
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+
+        $this->useToken($this->tokenFor($other));
+        $this->deleteJson(self::BASE.'/md_delete_private')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', 'FORBIDDEN');
+        $this->deleteJson(self::BASE.'/md_missing')->assertStatus(404);
+
+        $this->assertNotNull(MediaAsset::query()->whereKey($asset->id)->first());
+        Storage::disk('local')->assertExists($asset->storage_path);
+    }
+
+    public function test_another_organizations_asset_cannot_be_deleted(): void
+    {
+        $mine = $this->makeUser('administrator');
+        $theirs = $this->makeUser('administrator', [], $this->makeOrganization());
+        $asset = MediaAsset::factory()->create([
+            'id' => 'md_theirs_delete',
+            'organization_id' => $theirs->organization_id,
+            'uploaded_by' => $theirs->id,
+        ]);
+        Storage::disk('local')->put($asset->storage_path, $this->pngBytes());
+
+        $this->useToken($this->tokenFor($mine));
+        $this->deleteJson(self::BASE.'/md_theirs_delete')->assertStatus(404);
+
+        $this->assertNotNull(
+            MediaAsset::withoutGlobalScopes()->whereKey($asset->id)->first()
+        );
+        Storage::disk('local')->assertExists($asset->storage_path);
+    }
+
+    public function test_invalid_list_filters_are_validation_and_do_not_expose_assets(): void
+    {
+        $accountant = $this->makeUser('accountant');
+
+        $this->useToken($this->tokenFor($accountant));
+        $this->getJson(self::BASE.'?kind=not-a-kind')->assertStatus(422);
+        $this->getJson(self::BASE)->assertOk()->assertJsonPath('data', []);
+    }
+
+    public function test_the_storage_path_is_derived_from_the_tenant_and_asset_id(): void
+    {
+        $uploader = $this->actingAsRole('staff');
+        $id = $this->upload()->assertCreated()->json('data.id');
+        $asset = MediaAsset::query()->whereKey($id)->firstOrFail();
+
+        $this->assertStringStartsWith('media/'.$uploader->organization_id.'/', $asset->storage_path);
+        $this->assertStringEndsWith('/'.$id, $asset->storage_path);
+        $this->assertStringNotContainsString($uploader->id, $asset->storage_path);
+    }
 }

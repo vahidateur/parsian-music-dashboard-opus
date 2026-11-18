@@ -61,7 +61,6 @@ final class MediaController extends Controller
     public function store(StoreMediaRequest $request): JsonResponse
     {
         $actor = $request->user();
-        $this->policy->authorizeUpload($actor);
 
         $asset = $this->media->create($actor, [
             'kind' => (string) $request->input('kind'),

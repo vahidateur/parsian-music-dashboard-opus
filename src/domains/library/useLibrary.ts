@@ -27,6 +27,7 @@ const REASON_NO_FILE = "این منبع فایل ذخیره‌شده ندارد�
 const REASON_NO_METADATA = "فایل این منبع در فضای ذخیره‌سازی یافت نشد.";
 const REASON_NO_BYTES =
   "فایل این منبع در این مرورگر موجود نیست — برای مثال پس از بازگردانی پشتیبان، که فقط فراداده را بازمی‌گرداند.";
+const REASON_DENIED = "دسترسی به فایل این منبع برای این حساب مجاز نیست.";
 
 /**
  * Resolves one record's file to a downloadable state.
@@ -53,6 +54,7 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
   const [blobFor, setBlobFor] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(Boolean(mediaId));
   const [error, setError] = useState<ApiError | null>(null);
+  const [denied, setDenied] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
@@ -61,6 +63,7 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
       setBlob(undefined);
       setAssetFor(undefined);
       setBlobFor(undefined);
+      setDenied(false);
       setLoading(false);
       return;
     }
@@ -70,21 +73,27 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
     setBlob(undefined);
     setAssetFor(undefined);
     setBlobFor(undefined);
+    setDenied(false);
     setLoading(true);
 
     let cancelled = false;
     const media = getMediaRepository();
+    const readFailure = (cause: unknown): undefined => {
+      const normalized = apiErrorFromThrown(cause);
+      if (normalized.kind === "authorization") setDenied(true);
+      return undefined;
+    };
 
     void Promise.all([
       // A record can outlive its asset (a deleted upload, a partial restore),
       // so a not-found here is a state to report, not a crash to propagate.
       media.get(mediaId).then(
         (found) => found,
-        () => undefined,
+        readFailure,
       ),
       media.getBlob(mediaId).then(
         (found) => found,
-        () => undefined,
+        readFailure,
       ),
     ]).then(([metadata, bytes]) => {
       if (cancelled) return;
@@ -106,6 +115,7 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
 
   const status = useMemo<LibraryFileState["status"]>(() => {
     if (!mediaId) return "none";
+    if (denied) return "missing";
     // If mediaId changed but asset/blob not yet for this id, it's loading
     if (assetFor !== mediaId || blobFor !== mediaId) {
       // If we have no asset/blob for current id and loading true, show loading
@@ -115,13 +125,14 @@ export function useLibraryFile(item: Pick<LibraryItem, "mediaId"> | null | undef
     }
     if (loading) return "loading";
     return currentBlob ? "ready" : "missing";
-  }, [mediaId, loading, currentBlob, assetFor, blobFor]);
+  }, [mediaId, loading, currentBlob, assetFor, blobFor, denied]);
 
   const reason = useMemo(() => {
     if (status === "none") return REASON_NO_FILE;
     if (status !== "missing") return undefined;
+    if (denied) return REASON_DENIED;
     return currentAsset ? REASON_NO_BYTES : REASON_NO_METADATA;
-  }, [status, currentAsset]);
+  }, [status, currentAsset, denied]);
 
   /** Kept in a ref so the callback identity does not churn the drawer. */
   const latest = useRef({ blob: currentBlob, asset: currentAsset });

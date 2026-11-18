@@ -21,6 +21,7 @@ name: backend-tests
 
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths:
       - 'backend/**'
@@ -37,7 +38,7 @@ permissions:
   checks: write
 
 concurrency:
-  group: backend-tests-${{ github.ref }}
+  group: backend-tests-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

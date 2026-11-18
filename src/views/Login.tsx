@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Eye, EyeOff, Lock, ShieldAlert, TriangleAlert, User } from "lucide-react";
 import { useBranding } from "@/domains/branding/useBranding";
+import { BrandingIdentityNotice } from "@/domains/branding/BrandingIdentityNotice";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { LoginAssist, LoginSourceNotice } from "@/targets/targetFeatures";
 import portalBg from "@/assets/login-portal.webp";
@@ -72,7 +73,7 @@ export function LoginView() {
     surface a visitor sees, so it renders the persisted identity — the branding
     domain's record — and not the demo fixture it used to read.
   */
-  const { branding } = useBranding();
+  const { branding, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useBranding();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [reveal, setReveal] = useState(false);
@@ -210,12 +211,23 @@ export function LoginView() {
                   </span>
                 </p>
                 <OrnamentDivider className="mx-auto mt-[calc(var(--form-u)*12)] max-w-[calc(var(--form-u)*250)]" />
-                <h1
-                  className="mt-[calc(var(--form-u)*10)] text-[length:var(--p-tag-f)] font-semibold text-gold-200"
-                  style={{ textShadow: "0 1px 2px rgb(0 0 0 / 0.7)" }}
-                >
-                  {branding.tagline}
-                </h1>
+                {brandingLoading || brandingError ? (
+                  <div className="mt-[calc(var(--form-u)*10)]">
+                    <BrandingIdentityNotice
+                      loading={brandingLoading}
+                      error={brandingError}
+                      onRetry={reloadBranding}
+                      className="block text-[length:var(--p-text-sm)]"
+                    />
+                  </div>
+                ) : (
+                  <h1
+                    className="mt-[calc(var(--form-u)*10)] text-[length:var(--p-tag-f)] font-semibold text-gold-200"
+                    style={{ textShadow: "0 1px 2px rgb(0 0 0 / 0.7)" }}
+                  >
+                    {branding.tagline}
+                  </h1>
+                )}
                 <p className="mt-[calc(var(--form-u)*5)] text-[length:var(--p-text-sm)] leading-relaxed text-ink-300">
                   برای ورود به پنل مدیریت، اطلاعات حساب خود را وارد کنید.
                 </p>
@@ -415,7 +427,7 @@ export function LoginView() {
           </div>
         </div>
 
-        <PortalFooter academyName={branding.academyName} />
+        <PortalFooter academyName={brandingLoading || brandingError ? undefined : branding.academyName} />
       </div>
 
     </main>
@@ -611,7 +623,7 @@ function PortalMotto({ side }: { side: "left" | "right" }) {
  * motto. The scroll column carries matching bottom padding so content never
  * hides behind it.
  */
-function PortalFooter({ academyName }: { academyName: string }) {
+function PortalFooter({ academyName }: { academyName?: string }) {
   return (
     <footer className="absolute inset-x-0 bottom-0 z-20 text-[10.5px] text-ink-300/80">
       {/* Scrim: content that scrolls beneath the anchored footer fades into the water, it never collides with the type. */}
@@ -621,7 +633,7 @@ function PortalFooter({ academyName }: { academyName: string }) {
         style={{ background: "linear-gradient(to top, rgba(6,7,10,0.92) 12%, rgba(6,7,10,0.55) 55%, transparent)" }}
       />
       <div className="relative mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 pb-[max(0.9rem,env(safe-area-inset-bottom))] pt-3 [@media(max-height:700px)]:pb-[max(0.55rem,env(safe-area-inset-bottom))] [@media(max-height:700px)]:pt-1.5">
-        <p className="nums">© {new Date().getFullYear()} {academyName}</p>
+        <p className="nums">© {new Date().getFullYear()}{academyName ? ` ${academyName}` : ""}</p>
         <p
           aria-hidden
           className="font-display text-[9px] text-ink-400/70"

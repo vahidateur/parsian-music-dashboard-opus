@@ -6,6 +6,7 @@ import { useAcademyNow } from "@/domains/shared/clock";
 import type { DayPulse } from "@/domains/shared/useDayPulse";
 import { useAuth } from "@/domains/auth/AuthContext";
 import { useBranding } from "@/domains/branding/useBranding";
+import { BrandingIdentityNotice } from "@/domains/branding/BrandingIdentityNotice";
 import { academyIsoDate } from "@/views/relations/academyDay";
 import { faNum, faTime, faToday, greetingFor, minutesToFaTime, NO_DATA } from "@/lib/format";
 import { useApp } from "@/context/AppContext";
@@ -79,7 +80,8 @@ export function Hero({
   const todayIso = academyIsoDate();
   // Identity (M10/D3): the academy name/tagline come from the M8 branding
   // read; the greeting is the signed-in operator, not a fixture manager.
-  const { branding } = useBranding();
+  const { branding, loading: brandingLoading, error: brandingError, reload: reloadBranding } = useBranding();
+  const identityReady = !brandingLoading && brandingError === null;
   const { user } = useAuth();
   const firstName = user?.name.trim().split(/\s+/)[0] ?? null;
   // The wave is a picture of THESE rows — the same read the live count and the
@@ -143,7 +145,7 @@ export function Hero({
           <span className="text-ink-500">·</span>
           <span>{faToday(todayIso)}</span>
           <span className="hidden text-ink-500 sm:inline">·</span>
-          <span className="hidden sm:inline">{branding.academyName}</span>
+          <span className="hidden sm:inline">{identityReady ? branding.academyName : null}</span>
         </div>
 
         {/* greeting — the largest thing on the plate, as in the reference */}
@@ -162,9 +164,19 @@ export function Hero({
               </>
             )}
           </h1>
-          <p className={cn("flex flex-wrap items-center justify-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
-            {subline ?? branding.tagline}
-          </p>
+          {(subline !== undefined || identityReady) && (
+            <p className={cn("flex flex-wrap items-center justify-center gap-2 text-ink-200", compact ? "mt-2 text-sm" : "mt-3 text-sm sm:text-[15px]")}>
+              {subline ?? branding.tagline}
+            </p>
+          )}
+          {(brandingLoading || brandingError) && (
+            <BrandingIdentityNotice
+              loading={brandingLoading}
+              error={brandingError}
+              onRetry={reloadBranding}
+              className="mt-2 block text-center"
+            />
+          )}
         </div>
 
         {!compact && (
@@ -208,13 +220,15 @@ export function Hero({
                   <span className="text-ink-200">ریتم امروز</span>
                   <span className="text-ink-500">·</span>
                   <span>
-                    {pulse.loading
-                      ? "در حال خواندن تقویم…"
-                      : scheduledToday === 0
-                        ? "جلسه‌ای روی تقویم نیست"
-                        : `${faNum(scheduledToday)} جلسه — ${
-                            pulse.live > 0 ? `${faNum(pulse.live)} در حال برگزاری` : "اکنون کلاسی در جریان نیست"
-                          }`}
+                    {pulse.error
+                      ? "تقویم امروز خوانده نشد"
+                      : pulse.loading
+                        ? "در حال خواندن تقویم…"
+                        : scheduledToday === 0
+                          ? "جلسه‌ای روی تقویم نیست"
+                          : `${faNum(scheduledToday)} جلسه — ${
+                              pulse.live > 0 ? `${faNum(pulse.live)} در حال برگزاری` : "اکنون کلاسی در جریان نیست"
+                            }`}
                   </span>
                   {pulse.conflicts > 0 && pulse.firstConflictStart && (
                     <>
@@ -248,8 +262,14 @@ export function Hero({
                 riding just above that axis, at the same fraction of the day.
               */}
               <div className="relative">
-                <PulseWaveform height={104} accent={accent} sessions={waveSessions} now={now} loading={pulse.loading} />
-                {now >= DAY_START && now <= DAY_END && !pulse.loading && (
+                {pulse.error ? (
+                  <p className="flex h-[104px] items-center justify-center rounded-xl border border-dashed border-white/[0.08] bg-white/[0.015] px-4 text-center text-[11.5px] leading-relaxed text-ink-400">
+                    تقویم امروز خوانده نشد — موجی برای رسم وجود ندارد.
+                  </p>
+                ) : (
+                  <PulseWaveform height={104} accent={accent} sessions={waveSessions} now={now} loading={pulse.loading} />
+                )}
+                {now >= DAY_START && now <= DAY_END && !pulse.loading && !pulse.error && (
                   <span
                     className="numeral pointer-events-none absolute bottom-[22px] -translate-x-1/2 rounded-md border border-gold-500/30 bg-ink-950/90 px-1.5 py-0.5 text-[10px] font-medium text-gold-300"
                     style={{ left: `${nowPct}%` }}

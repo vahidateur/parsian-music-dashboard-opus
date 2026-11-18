@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiErrorFromThrown, type ApiError } from "@/api/errors";
 import { getBrandingRepository, getOrganizationRepository } from "@/domains/registry";
+import { invalidatesOnAuthorization } from "@/domains/shared/authorizationInvalidation";
 import type { OrganizationSettings } from "@/domains/organization/types";
 import { useDataVersion } from "@/domains/shared/dataVersion";
 import { DEFAULT_BRANDING, isHexColor, isPersianFont, type BrandingSettings } from "./types";
@@ -70,6 +71,16 @@ export function useBranding(): BrandingState {
       .catch(async (cause: unknown) => {
         const normalized = apiErrorFromThrown(cause);
         if (ticket !== latest.current || normalized.kind === "cancelled") return;
+        /*
+         * A denied branding read is not "the academy has no branding". Drop
+         * the previous identity rather than keep rendering an org-scoped value
+         * the server just refused; the shell's notice explains the failure.
+         */
+        if (invalidatesOnAuthorization(normalized)) {
+          setBranding(DEFAULT_BRANDING);
+          setError(normalized);
+          return;
+        }
         if (normalized.code === "DOMAIN_UNAVAILABLE") {
           // No branding server: the academy's name and tagline still exist, in the organization record.
           try {

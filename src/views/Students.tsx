@@ -859,7 +859,7 @@ function StudentDetail({
                     {activeEnrollments.map((enrollment) => (
                       <li key={enrollment.id} className="flex items-baseline justify-between gap-2 text-[11.5px]">
                         <span className="truncate text-ink-300">{classIndex.get(enrollment.classId)?.title ?? NO_DATA}</span>
-                        <span className="nums shrink-0 font-semibold text-ink-50">{faToman(enrollment.pricingPlan.amount, true)}</span>
+                        <span className="nums shrink-0 font-semibold text-ink-50">{enrollment.pricingPlan ? faToman(enrollment.pricingPlan.amount, true) : NO_DATA}</span>
                       </li>
                     ))}
                   </ul>
@@ -935,10 +935,11 @@ export function StudentsView() {
   const demoEnvironment = useIsDemoEnvironment();
   /*
     API mode: the server already applied T-02 in SQL to the student list and to
-    every `get(id)` (`StudentAccessPolicy::scopeQuery`), so the two capped scope
-    reads below must not narrow that answer — they can only hide students the
-    server authorized. Local mode has no server scope, so the client filter is
-    its only enforcement and stays.
+    every `get(id)` (`StudentAccessPolicy::scopeQuery`), and (Stage 18.1) to the
+    class/enrollment reads below (`ClassPolicy`/`EnrollmentPolicy`). The two
+    capped scope reads must not narrow that answer — they can only hide students
+    the server authorized. Local mode has no server scope, so the client filter
+    is its only enforcement and stays.
   */
   const serverScopedStudents = studentScopeIsServerEnforced();
   // For T-02 assigned-only filtering (teacher sees assigned students only as smallest model)

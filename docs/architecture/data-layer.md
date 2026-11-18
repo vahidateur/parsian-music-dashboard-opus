@@ -1,5 +1,10 @@
 # Data layer
 
+> **Historical snapshot — pre-consolidation (2026-09).** The migration status sentences in this
+> document predate the F0–F10 and M-phase work; several domains have since been wired. The live
+> ledger is [OPEN_ITEMS.md](../engineering/OPEN_ITEMS.md) and
+> [PROJECT_STATE.md](../engineering/PROJECT_STATE.md).
+
 Arena React is the primary product. This document describes the boundary that lets the
 existing UI migrate from demo persistence to a real REST backend **without being redesigned**.
 
