@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Students;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Http\Requests\TenantRules;
 use App\Models\Student;
 use App\Support\NationalId;
@@ -34,7 +35,7 @@ final class StudentRules
             // Deferred fields: type-only (plan section 7), except the photo,
             // whose asset must exist in this organization — a row that names a
             // missing file would render "no image" forever.
-            'photoMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'photoMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'sessionsUsed' => ['integer'],
             'sessionsTotal' => ['integer'],
             'attendance' => ['integer'],

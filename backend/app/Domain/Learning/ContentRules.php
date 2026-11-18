@@ -2,6 +2,7 @@
 
 namespace App\Domain\Learning;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Http\Requests\TenantRules;
 
 /**
@@ -20,7 +21,7 @@ final class ContentRules
             'title' => ['string', 'min:2', 'max:200'],
             'description' => ['nullable', 'string', 'max:2000'],
             'type' => ['string', 'in:'.implode(',', self::TYPES)],
-            'mediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'mediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'author' => ['nullable', 'string', 'max:120'],
             'teacherId' => ['nullable', 'string', 'max:64'],
             'instrumentId' => ['nullable', 'string', 'max:64'],

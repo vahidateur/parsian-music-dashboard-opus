@@ -2,6 +2,7 @@
 
 namespace App\Domain\Instruments;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Media\MediaRules;
 use App\Http\Requests\TenantRules;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ final class InstrumentRules
             'name' => ['string', 'min:2', 'max:120'],
             'slug' => ['string', 'min:2', 'max:32', 'regex:'.self::SLUG_PATTERN],
             'description' => ['nullable', 'string', 'max:1000'],
-            'imageId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'imageId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'active' => ['boolean'],
             'sortOrder' => ['integer', 'min:1', 'max:10000'],
         ];

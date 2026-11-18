@@ -297,7 +297,7 @@ class InstrumentsTest extends TestCase
             ->assertJsonPath('error.code', 'INSTRUMENT_INVALID');
 
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $this->defaultOrganization()->id]);
+        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $this->defaultOrganization()->id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'instrument-image-bytes');
         $this->patchJson(self::BASE.'/piano', ['imageId' => 'md_1'])
             ->assertOk()
