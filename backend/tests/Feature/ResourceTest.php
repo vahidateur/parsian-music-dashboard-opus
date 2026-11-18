@@ -210,7 +210,7 @@ class ResourceTest extends TestCase
 
     public function test_create_returns_the_exact_contract_shape(): void
     {
-        $this->actingAsRole('manager');
+        $actor = $this->actingAsRole('manager');
 
         $teacher = Teacher::factory()->create([
             'organization_id' => $this->defaultOrganization()->id,
@@ -221,7 +221,7 @@ class ResourceTest extends TestCase
         // The media table is served now, so the reference must be backed by a
         // real asset in this organization.
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['id' => 'md_demo_res1', 'organization_id' => $this->defaultOrganization()->id]);
+        $asset = MediaAsset::factory()->create(['id' => 'md_demo_res1', 'organization_id' => $this->defaultOrganization()->id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'resource-media-bytes');
 
         $response = $this->postJson(self::BASE, $this->payload([
@@ -281,9 +281,9 @@ class ResourceTest extends TestCase
 
     public function test_an_empty_media_id_clears_the_reference(): void
     {
-        $this->actingAsRole('manager');
+        $actor = $this->actingAsRole('manager');
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['organization_id' => $this->defaultOrganization()->id]);
+        $asset = MediaAsset::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'resource-media-bytes');
         $id = $this->postJson(self::BASE, $this->payload(['mediaId' => $asset->id]))
             ->assertCreated()

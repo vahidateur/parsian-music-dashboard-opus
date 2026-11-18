@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Library;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Library\ResourcePolicy;
 use App\Domain\Library\ResourceRules;
 use App\Http\Requests\ApiFormRequest;
@@ -37,7 +38,7 @@ final class UpdateResourceRequest extends ApiFormRequest
             'kind' => ['sometimes', Rule::in(ResourceRules::KINDS)],
             'instrument' => ['sometimes', 'string', 'min:1', 'max:'.ResourceRules::MAX_INSTRUMENT],
             'level' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_LEVEL],
-            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID, TenantRules::mediaAssetExists()],
+            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID, TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'pages' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_PAGES],
             'durationSeconds' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_DURATION_SECONDS],
             'peaks' => ['sometimes', 'nullable', 'array', 'max:'.ResourceRules::MAX_PEAKS],

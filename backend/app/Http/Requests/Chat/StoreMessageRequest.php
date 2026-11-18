@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Chat;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Chat\ChatPolicy;
 use App\Domain\Chat\ChatService;
 use App\Http\Requests\ApiFormRequest;
@@ -25,7 +26,7 @@ final class StoreMessageRequest extends ApiFormRequest
         return [
             'body' => ['required', 'string', 'max:'.ChatService::MAX_BODY_LENGTH],
             'provider' => ['sometimes', 'string', 'in:'.implode(',', ChatService::PROVIDERS)],
-            'mediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'mediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
         ];
     }
 }
