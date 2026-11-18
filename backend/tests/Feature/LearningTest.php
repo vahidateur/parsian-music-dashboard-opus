@@ -335,7 +335,7 @@ class LearningTest extends TestCase
             ->assertJsonPath('error.code', 'CONTENT_INVALID');
 
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $actor->organization_id]);
+        $asset = MediaAsset::factory()->create(['id' => 'md_1', 'organization_id' => $actor->organization_id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'learning-media-bytes');
         $this->patchJson(self::BASE."/content/{$created['id']}", ['mediaId' => 'md_1'])
             ->assertOk()

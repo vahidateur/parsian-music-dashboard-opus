@@ -88,7 +88,7 @@ class StudentsTest extends TestCase
 
     public function test_staff_crud_round_trip_with_deferred_fields(): void
     {
-        $this->actingAsRole('staff');
+        $actor = $this->actingAsRole('staff');
 
         $created = $this->postJson('/api/v1/students', $this->payload())->assertCreated();
         $id = $created->json('data.id');
@@ -147,7 +147,7 @@ class StudentsTest extends TestCase
         // A photo reference must name an asset THAT EXISTS in this
         // organization (see TeachersTest for the same rule on the teacher).
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['id' => 'med_9', 'organization_id' => $this->defaultOrganization()->id]);
+        $asset = MediaAsset::factory()->create(['id' => 'med_9', 'organization_id' => $this->defaultOrganization()->id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'student-photo-bytes');
         $this->patchJson("/api/v1/students/$id", ['photoMediaId' => 'med_9'])
             ->assertOk()
