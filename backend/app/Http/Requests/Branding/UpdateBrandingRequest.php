@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Branding;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Branding\BrandingPolicy;
 use App\Domain\Branding\BrandingRules;
 use App\Http\Requests\ApiFormRequest;
@@ -38,8 +39,8 @@ final class UpdateBrandingRequest extends ApiFormRequest
         return [
             'academyName' => ['sometimes', 'string', 'min:2', 'max:80'],
             'tagline' => ['sometimes', 'string', 'max:120'],
-            'logoMediaId' => ['sometimes', 'nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
-            'faviconMediaId' => ['sometimes', 'nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'logoMediaId' => ['sometimes', 'nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
+            'faviconMediaId' => ['sometimes', 'nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'primaryColor' => ['sometimes', 'string', 'regex:'.BrandingRules::HEX_PATTERN],
             'accentColor' => ['sometimes', 'string', 'regex:'.BrandingRules::HEX_PATTERN],
             'textColor' => ['sometimes', 'string', 'regex:'.BrandingRules::HEX_PATTERN],

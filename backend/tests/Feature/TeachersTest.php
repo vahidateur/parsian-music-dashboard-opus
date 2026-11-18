@@ -74,7 +74,7 @@ class TeachersTest extends TestCase
 
     public function test_admin_crud_round_trip(): void
     {
-        $this->actingAsRole('administrator');
+        $actor = $this->actingAsRole('administrator');
 
         $created = $this->postJson('/api/v1/teachers', $this->payload())->assertCreated();
         $id = $created->json('data.id');
@@ -108,7 +108,7 @@ class TeachersTest extends TestCase
      */
     public function test_a_photo_must_reference_an_existing_asset(): void
     {
-        $this->actingAsRole('administrator');
+        $actor = $this->actingAsRole('administrator');
 
         $created = $this->postJson('/api/v1/teachers', $this->payload())->assertCreated();
         $id = $created->json('data.id');
@@ -123,7 +123,7 @@ class TeachersTest extends TestCase
 
         // The same id, backed by an asset in this organization, is accepted.
         Storage::fake('local');
-        $asset = MediaAsset::factory()->create(['id' => 'med_1', 'organization_id' => $this->defaultOrganization()->id]);
+        $asset = MediaAsset::factory()->create(['id' => 'med_1', 'organization_id' => $this->defaultOrganization()->id, 'uploaded_by' => $actor->id]);
         Storage::disk('local')->put($asset->storage_path, 'teacher-photo-bytes');
         $this->patchJson("/api/v1/teachers/$id", ['photoMediaId' => 'med_1'])
             ->assertOk()

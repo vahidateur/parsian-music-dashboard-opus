@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Gallery;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Gallery\GalleryPolicy;
 use App\Http\Requests\ApiFormRequest;
 use App\Http\Requests\TenantRules;
@@ -24,7 +25,7 @@ final class StoreAlbumRequest extends ApiFormRequest
         return [
             'title' => ['required', 'string', 'min:2', 'max:120'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'coverMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists()],
+            'coverMediaId' => ['nullable', 'string', 'max:64', TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'sortOrder' => ['sometimes', 'integer', 'min:0', 'max:10000'],
         ];
     }

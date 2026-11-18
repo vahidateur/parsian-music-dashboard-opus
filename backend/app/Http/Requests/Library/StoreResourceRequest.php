@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Library;
 
+use App\Http\Requests\Rules\SourceAuthorizedMedia;
 use App\Domain\Library\ResourcePolicy;
 use App\Domain\Library\ResourceRules;
 use App\Http\Requests\ApiFormRequest;
@@ -46,7 +47,7 @@ final class StoreResourceRequest extends ApiFormRequest
             // served now, so the asset must exist in this organization — a row
             // naming a missing (or deleted, or cross-tenant) file would render
             // "no file" forever and nothing would tell the operator why.
-            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID, TenantRules::mediaAssetExists()],
+            'mediaId' => ['sometimes', 'nullable', 'string', 'max:'.ResourceRules::MAX_MEDIA_ID, TenantRules::mediaAssetExists(), new SourceAuthorizedMedia()],
             'pages' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_PAGES],
             'durationSeconds' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.ResourceRules::MAX_DURATION_SECONDS],
             'peaks' => ['sometimes', 'nullable', 'array', 'max:'.ResourceRules::MAX_PEAKS],
