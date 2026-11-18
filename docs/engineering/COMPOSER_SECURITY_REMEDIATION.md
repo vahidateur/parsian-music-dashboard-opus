@@ -7,7 +7,9 @@ phases and states the final version and evidence unambiguously.
 ## 1. Scope and protected PR boundaries
 
 - Repository: `vahidateur/parsian-music-dashboard-opus`.
-- Base: `origin/main` = `233c620253c21be9dd8be46521e815df56f61c44` (unchanged throughout).
+- Original base: `233c620253c21be9dd8be46521e815df56f61c44`. `main` later advanced to
+  `442bb276ae816a4f39fcdc492d00eb57cd927b8e` with the R1 media-authorization fix; that
+  update was merged into this branch before this PR's integration so the fix is preserved.
 - Authorized branch: `feat/composer-security-20261117` / PR #26.
 - Protected branch: `feat/phase16-18-consolidation-20261116` / PR #25,
   head `f322437a62c3064f7ef3f789a33448ffe72f0422`. PR #25 was not modified.
