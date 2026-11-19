@@ -630,4 +630,71 @@ class EnrollmentsTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', 'enr_s2');
     }
+
+    private function capturedQueries(callable $request): array
+    {
+        $queries = [];
+        DB::listen(static function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+        $request();
+
+        return $queries;
+    }
+
+    private function firstQueryOn(array $queries, string $table): ?string
+    {
+        foreach ($queries as $sql) {
+            if (str_contains($sql, 'from "'.$table.'"') || str_contains($sql, 'from `'.$table.'`')) {
+                return $sql;
+            }
+        }
+
+        return null;
+    }
+
+    public function test_enroll_locks_the_class_before_the_first_consistent_read(): void
+    {
+        $this->actingAsRole('manager');
+
+        $queries = $this->capturedQueries(fn () => $this
+            ->postJson('/api/v1/enrollments', ['studentId' => 's1', 'classId' => 'c1'])
+            ->assertCreated());
+
+        $classSql = $this->firstQueryOn($queries, 'classes');
+        $studentSql = $this->firstQueryOn($queries, 'students');
+        $this->assertNotNull($classSql, 'the class row must be read inside the transaction');
+        $this->assertNotNull($studentSql, 'the student existence guard must run');
+        $classIndex = array_search($classSql, $queries, true);
+        $studentIndex = array_search($studentSql, $queries, true);
+        $this->assertLessThan($studentIndex, $classIndex, 'the class lock must precede the first consistent read');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->assertStringContainsString('for update', $classSql);
+        }
+    }
+
+    public function test_update_locks_the_enrollment_before_reading_guards(): void
+    {
+        $this->actingAsRole('manager');
+        $id = $this->postJson('/api/v1/enrollments', ['studentId' => 's1', 'classId' => 'c1'])->assertCreated()->json('data.id');
+        $this->patchJson("/api/v1/enrollments/$id", ['status' => 'completed'])->assertOk();
+
+        // Re-opening a completed row runs both guards (duplicate + seat), so
+        // the captured reads are the ones that must follow the locks.
+        $queries = $this->capturedQueries(fn () => $this
+            ->patchJson("/api/v1/enrollments/$id", ['status' => 'active'])
+            ->assertOk());
+
+        $enrollmentSql = $this->firstQueryOn($queries, 'enrollments');
+        $classSql = $this->firstQueryOn($queries, 'classes');
+        $this->assertNotNull($enrollmentSql, 'the enrollment must be read inside the transaction');
+        $this->assertNotNull($classSql, 'the class must be locked inside the transaction');
+        $enrollmentIndex = array_search($enrollmentSql, $queries, true);
+        $classIndex = array_search($classSql, $queries, true);
+        $this->assertLessThan($classIndex, $enrollmentIndex, 'the enrollment locking read must come first');
+        if (DB::connection()->getDriverName() === 'mysql') {
+            $this->assertStringContainsString('for update', $enrollmentSql);
+            $this->assertStringContainsString('for update', $classSql);
+        }
+    }
 }
