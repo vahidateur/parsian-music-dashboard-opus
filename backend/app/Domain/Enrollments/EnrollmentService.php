@@ -92,8 +92,12 @@ final class EnrollmentService
         $status = (string) ($input['status'] ?? 'active');
 
         return $this->guardDuplicate(fn (): Enrollment => DB::transaction(function () use ($input, $status): Enrollment {
-            $studentExists = Student::query()->whereKey($input['studentId'])->exists();
+            // Lock the class BEFORE the first consistent read. On MySQL/InnoDB
+            // REPEATABLE READ an earlier plain SELECT fixes the transaction
+            // snapshot; the duplicate/seat guards below would then reuse a
+            // stale view and miss a competitor committed under this lock.
             $class = AcademyClass::query()->whereKey($input['classId'])->lockForUpdate()->first();
+            $studentExists = Student::query()->whereKey($input['studentId'])->exists();
 
             $fields = [];
             if (! $studentExists) {
@@ -140,7 +144,9 @@ final class EnrollmentService
         $this->policy->authorizeWrite($actor);
 
         return $this->guardDuplicate(fn (): Enrollment => DB::transaction(function () use ($id, $input, $actor): Enrollment {
-            $enrollment = $this->find($id, $actor);
+            // A locking read does not establish a REPEATABLE READ snapshot, so
+            // the duplicate/seat guards below see current rows.
+            $enrollment = $this->find($id, $actor, lock: true);
             $class = AcademyClass::query()->whereKey($enrollment->class_id)->lockForUpdate()->firstOrFail();
 
             if (array_key_exists('status', $input)) {
@@ -190,9 +196,12 @@ final class EnrollmentService
         $this->find($id, $actor)->delete();
     }
 
-    private function find(string $id, User $actor): Enrollment
+    private function find(string $id, User $actor, bool $lock = false): Enrollment
     {
-        $enrollment = $this->policy->scopeQuery(Enrollment::query(), $actor)->whereKey($id)->first();
+        $enrollment = $this->policy->scopeQuery(Enrollment::query(), $actor)
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->whereKey($id)
+            ->first();
         if ($enrollment === null) {
             throw ApiException::notFound('ENROLLMENT_NOT_FOUND', "ثبت‌نام با شناسهٔ {$id} یافت نشد.");
         }
@@ -226,8 +235,10 @@ final class EnrollmentService
     }
 
     /**
-     * A concurrent writer that slipped past the in-transaction check hits the
-     * partial unique index; report it as the same domain conflict.
+     * On sqlite/pgsql a writer that slipped past the in-transaction check hits
+     * the partial unique index. MySQL has no such index: there the class row
+     * lock (taken before the first consistent read) is the only guard, so all
+     * writers must go through this service. Report either conflict the same way.
      *
      * @param  callable(): Enrollment  $write
      */
