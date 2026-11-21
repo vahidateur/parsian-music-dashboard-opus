@@ -52,4 +52,46 @@ final class ConflictReport
     {
         return ['kind' => $kind, 'severity' => $severity, 'message' => $message, ...$extra];
     }
+
+    /**
+     * Teacher disclosure (owner decision R5 / Option B).
+     *
+     * Detection stays organization-wide; only the serialized answer is narrowed.
+     * A teacher receives the conflict kind/severity/message and the id of the
+     * session sharing the resource they selected. Any student ids must already
+     * be inside that teacher's authorized student scope — foreign identities,
+     * foreign class metadata and any future extra keys are dropped here.
+     *
+     * @param  list<string>  $visibleStudentIds
+     * @return array{hard: list<array<string, mixed>>, warnings: list<array<string, mixed>>, ok: bool}
+     */
+    public function toWireForTeacher(array $visibleStudentIds = []): array
+    {
+        $redact = static function (array $items) use ($visibleStudentIds): array {
+            return array_values(array_map(static function (array $item) use ($visibleStudentIds): array {
+                $wire = [
+                    'kind' => $item['kind'],
+                    'severity' => $item['severity'],
+                    'message' => $item['message'],
+                ];
+                if (array_key_exists('conflictingSessionId', $item)) {
+                    $wire['conflictingSessionId'] = $item['conflictingSessionId'];
+                }
+                if (array_key_exists('studentIds', $item)) {
+                    $ids = array_values(array_intersect((array) $item['studentIds'], $visibleStudentIds));
+                    if ($ids !== []) {
+                        $wire['studentIds'] = $ids;
+                    }
+                }
+
+                return $wire;
+            }, $items));
+        };
+
+        return [
+            'hard' => $redact($this->hard),
+            'warnings' => $redact($this->warnings),
+            'ok' => $this->ok(),
+        ];
+    }
 }

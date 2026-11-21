@@ -5,6 +5,7 @@ namespace App\Domain\Scheduling;
 use App\Models\AcademyClass;
 use App\Models\ClassSession;
 use App\Models\Enrollment;
+use App\Domain\Students\StudentAccessPolicy;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\Api\ApiException;
@@ -39,6 +40,7 @@ final class SessionService
         private readonly SessionPolicy $policy,
         private readonly ConflictDetector $conflicts,
         private readonly TenantContext $tenant,
+        private readonly StudentAccessPolicy $students,
     ) {}
 
     /**
@@ -92,7 +94,7 @@ final class SessionService
 
         $class = $this->requireClass((string) $input['classId'], $actor);
 
-        return DB::transaction(function () use ($class, $input): ClassSession {
+        return DB::transaction(function () use ($class, $input, $actor): ClassSession {
             $candidate = [
                 'classId' => $class->id,
                 'date' => (string) $input['date'],
@@ -105,8 +107,8 @@ final class SessionService
             // Rechecked inside the transaction: a client-side check cannot stop
             // two operators booking the same room at the same moment.
             $report = $this->conflicts->check($candidate);
-            $this->assertNoHardConflicts($report);
-            $this->assertWarningsAcknowledged($report, $input);
+            $this->assertNoHardConflicts($report, $actor);
+            $this->assertWarningsAcknowledged($report, $input, $actor);
 
             $session = new ClassSession;
             $session->id = 'ses_'.strtolower((string) Str::ulid());
@@ -151,8 +153,8 @@ final class SessionService
             ];
 
             $report = $this->conflicts->check($candidate);
-            $this->assertNoHardConflicts($report);
-            $this->assertWarningsAcknowledged($report, $input);
+            $this->assertNoHardConflicts($report, $actor);
+            $this->assertWarningsAcknowledged($report, $input, $actor);
 
             foreach (self::FIELDS as $wire => $column) {
                 if (array_key_exists($wire, $input)) {
@@ -249,8 +251,8 @@ final class SessionService
             ];
 
             $report = $this->conflicts->check($candidate);
-            $this->assertNoHardConflicts($report);
-            $this->assertWarningsAcknowledged($report, $input);
+            $this->assertNoHardConflicts($report, $actor);
+            $this->assertWarningsAcknowledged($report, $input, $actor);
 
             $moved = new ClassSession;
             $moved->id = 'ses_'.strtolower((string) Str::ulid());
@@ -404,7 +406,25 @@ final class SessionService
         return $class;
     }
 
-    private function assertNoHardConflicts(ConflictReport $report): void
+    /**
+     * Detection is organization-wide; disclosure is caller-specific.
+     * Managers and administrators keep their existing detail; a teacher gets
+     * the R5 allow-list and only student ids inside their own scope.
+     *
+     * @return array{hard: list<array<string, mixed>>, warnings: list<array<string, mixed>>, ok: bool}
+     */
+    public function conflictWire(User $actor, ConflictReport $report): array
+    {
+        if ($actor->role !== 'teacher') {
+            return $report->toWire();
+        }
+
+        $visible = $this->students->scopeQuery(Student::query(), $actor)->pluck('students.id')->all();
+
+        return $report->toWireForTeacher($visible);
+    }
+
+    private function assertNoHardConflicts(ConflictReport $report, User $actor): void
     {
         if (! $report->ok()) {
             throw new ApiException(
@@ -412,13 +432,13 @@ final class SessionService
                 'SESSION_CONFLICT',
                 'این جلسه با برنامهٔ موجود تداخل دارد.',
                 [],
-                ['conflicts' => $report->toWire()],
+                ['conflicts' => $this->conflictWire($actor, $report)],
             );
         }
     }
 
     /** @param  array<string, mixed>  $input */
-    private function assertWarningsAcknowledged(ConflictReport $report, array $input): void
+    private function assertWarningsAcknowledged(ConflictReport $report, array $input, User $actor): void
     {
         if (! $report->needsAcknowledgement()) {
             return;
@@ -431,7 +451,7 @@ final class SessionService
             'SESSION_WARNINGS_UNACKNOWLEDGED',
             'برای ادامه باید هشدارها را تأیید کنید.',
             [],
-            ['conflicts' => $report->toWire()],
+            ['conflicts' => $this->conflictWire($actor, $report)],
         );
     }
 }

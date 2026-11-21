@@ -95,10 +95,13 @@ final class SessionController extends Controller
         ]);
     }
 
-    /** Conflicts are derived, never stored. */
+    /** Conflicts are derived, never stored; disclosure is caller-specific (R5). */
     public function checkConflicts(CheckConflictsRequest $request): JsonResponse
     {
-        return ApiResponse::item($this->sessions->checkConflicts($request->user(), $request->validated())->toWire());
+        $actor = $request->user();
+        $report = $this->sessions->checkConflicts($actor, $request->validated());
+
+        return ApiResponse::item($this->sessions->conflictWire($actor, $report));
     }
 
     /** Who is expected: derived from active enrollment, never stored. */
