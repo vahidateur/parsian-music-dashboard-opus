@@ -2,8 +2,10 @@
 
 namespace App\Domain\Scheduling;
 
+use App\Domain\Students\StudentAccessPolicy;
 use App\Models\AcademyClass;
 use App\Models\ClassSession;
+use App\Models\Student;
 use App\Models\User;
 use App\Support\Api\ApiException;
 use Illuminate\Support\Carbon;
@@ -34,6 +36,7 @@ final class SessionGenerator
     public function __construct(
         private readonly SessionPolicy $policy,
         private readonly ConflictDetector $conflicts,
+        private readonly StudentAccessPolicy $students,
     ) {}
 
     /** Read-only. @return array<string, mixed> the TS `GenerationPlan`. */
@@ -279,8 +282,20 @@ final class SessionGenerator
             'updates' => $updates,
             'skips' => $skips,
             'orphans' => $orphans,
-            'conflicts' => $conflicts->toWire(),
+            'conflicts' => $this->conflictWire($actor, $conflicts),
         ];
+    }
+
+    /** R5 Option B: redact the derived report for teachers, keep existing detail for managers/admins. */
+    private function conflictWire(User $actor, ConflictReport $report): array
+    {
+        if ($actor->role !== 'teacher') {
+            return $report->toWire();
+        }
+
+        $visible = $this->students->scopeQuery(Student::query(), $actor)->pluck('students.id')->all();
+
+        return $report->toWireForTeacher($visible);
     }
 
     /**

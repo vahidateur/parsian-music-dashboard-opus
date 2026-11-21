@@ -3251,6 +3251,26 @@ says «ذخیره‌نشده» while the page makes no global claim.
 **Status.** ✅ In force — 2026-11-05. Owner-authorized (narrow M-6 reopening: remove the
 false page-level claim only; no feature, backend, API or pagination change).
 
+## 45. R5 — Organization-wide scheduling conflict detection with redacted teacher disclosure
+
+**Decision.** The Product Owner explicitly chose **Option B** in this conversation (2026-11-21). Conflict detection continues across the whole organization whenever a candidate session shares the selected teacher or room; restricting detection to the caller's class would hide real double-bookings. Disclosure is caller-specific: an authorized teacher may receive only the conflicting session ID, its time window, and the minimum text needed to understand that the chosen resource is unavailable. Teachers must not receive a foreign class name or ID, foreign teacher identity, foreign room identity, foreign student names or IDs, financial data, or any other foreign-class metadata. Any `studentIds` extra must remain restricted to students already inside the caller's authorized class scope. Managers and administrators keep their existing authorized detail. The permitted conflicting session ID must not open a route to dereferencing an out-of-scope session.
+
+**Why.** Scheduling integrity requires organization-wide shared-resource detection, but an academy panel must not turn a conflict check into a directory of another class's students, staff, and schedule. Detection and disclosure are separate security boundaries.
+
+**Enforced by.** `backend/app/Domain/Scheduling/ConflictDetector.php` (shared-resource detection), `backend/app/Domain/Scheduling/ConflictReport.php` (caller-specific serialization), `backend/app/Domain/Scheduling/SessionService.php` (teacher class scope via `requireClass`), and the scheduling feature tests added with this decision.
+
+**Status.** ✅ In force — 2026-11-21. Product-owner decision recorded explicitly in this conversation; no approval ID, external signature, or human reviewer is claimed.
+
+## 46. R7 — User and Academy scoped palette recents
+
+**Decision.** The Product Owner explicitly chose **Option B** in this conversation (2026-11-21). Command-palette recents are partitioned by stable authenticated user ID and active organization ID in a versioned namespace; the unscoped legacy key `ava:palette-recents` is removed and its unowned entries are dropped, not migrated. The same user in the same Academy retains recents across logout/re-login; a different user or a different Academy sees separate entries. Logout, account switching, and Academy switching clear in-memory recents immediately, and scoped entries load only after the new identity and organization are established. Missing, null, or anonymous identity cannot read or write a shared unscoped key. The five-entry ceiling and entry schema are preserved.
+
+**Why.** Recents contain student/teacher/class names and record identifiers. On a shared academy workstation, an unscoped localStorage key exposes one user's activity to the next user. Backend authorization stays intact, so this is a privacy boundary, not an authorization bypass; partitioning preserves convenience without cross-principal disclosure.
+
+**Enforced by.** `src/domains/shared/recentTargets.ts` (scoped key and validation), `src/components/overlays/CommandPalette.tsx` (identity-aware load/reset), `src/domains/auth/AuthContext.tsx` (session transitions), and the palette recents tests added with this decision.
+
+**Status.** ✅ In force — 2026-11-21. Product-owner decision recorded explicitly in this conversation; no approval ID, external signature, or human reviewer is claimed.
+
 ### Adding a decision
 
 Append a numbered entry with the same four fields, name the file or test that enforces it, and

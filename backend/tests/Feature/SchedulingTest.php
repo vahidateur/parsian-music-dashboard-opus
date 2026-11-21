@@ -639,4 +639,155 @@ class SchedulingTest extends TestCase
         $this->getJson("/api/v1/sessions/$foreign")->assertStatus(404);
         $this->patchJson("/api/v1/sessions/$foreign", ['notes' => 'x'])->assertStatus(404);
     }
+
+
+    /* ------------------------------------------------------------------ */
+    /* R5 — organization-wide detection, redacted teacher disclosure       */
+    /* ------------------------------------------------------------------ */
+
+    public function test_teacher_conflict_disclosure_is_redacted(): void
+    {
+        $mine = $this->klass(['id' => 'c_mine', 'teacher_id' => 't1']);
+        $foreign = $this->klass(['id' => 'c_foreign', 'teacher_id' => 't9', 'title' => 'کلاس محرمانه']);
+        $date = Carbon::today()->addDays(3)->toDateString();
+        $other = $this->makeSession([
+            'id' => 'ses_foreign', 'class_id' => $foreign->id,
+            'teacher_id' => 't9', 'room_id' => 'r1', 'date' => $date,
+            'start_time' => '14:00', 'end_time' => '15:00',
+        ]);
+        $otherStudent = Student::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'st_foreign_only',
+        ]);
+        $sharedStudent = Student::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'id' => 'st_mine',
+        ]);
+        Enrollment::factory()->create([
+            'organization_id' => $this->defaultOrganization()->id,
+            'student_id' => $otherStudent->id, 'class_id' => $foreign->id, 'status' => 'active',
+        ]);
+        foreach ([$mine->id, $foreign->id] as $classId) {
+            Enrollment::factory()->create([
+                'organization_id' => $this->defaultOrganization()->id,
+                'student_id' => $sharedStudent->id, 'class_id' => $classId, 'status' => 'active',
+            ]);
+        }
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+        $response = $this->postJson('/api/v1/sessions/check-conflicts', $this->payload([
+            'classId' => $mine->id, 'date' => $date, 'teacherId' => 't1', 'roomId' => 'r1',
+        ]))->assertOk();
+
+        $response->assertJsonPath('data.hard.0.kind', 'SESSION_ROOM_CONFLICT')
+            ->assertJsonPath('data.hard.0.conflictingSessionId', $other->id);
+
+        $body = json_encode($response->json('data'));
+        foreach (['c_foreign', 'کلاس محرمانه', 'st_foreign_only', 't9'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, (string) $body);
+        }
+
+        foreach (['hard', 'warnings'] as $group) {
+            foreach ($response->json("data.$group") as $item) {
+                $keys = array_keys($item);
+                sort($keys);
+                $this->assertContains('kind', $keys);
+                $this->assertContains('message', $keys);
+                foreach ($keys as $key) {
+                    $this->assertContains($key, ['kind', 'severity', 'message', 'conflictingSessionId', 'studentIds']);
+                }
+            }
+        }
+        $this->assertNull($response->json('data.hard.0.studentIds'));
+        $overlap = collect($response->json('data.warnings'))->firstWhere('kind', 'SESSION_STUDENT_OVERLAP');
+        $this->assertNotNull($overlap);
+        $this->assertSame(['st_mine'], $overlap['studentIds']);
+    }
+
+    public function test_conflicting_session_id_cannot_be_dereferenced_by_teacher(): void
+    {
+        $mine = $this->klass(['id' => 'c_mine', 'teacher_id' => 't1']);
+        $foreign = $this->klass(['id' => 'c_foreign', 'teacher_id' => 't9']);
+        $date = Carbon::today()->addDays(3)->toDateString();
+        $other = $this->makeSession([
+            'id' => 'ses_foreign', 'class_id' => $foreign->id,
+            'teacher_id' => 't9', 'room_id' => 'r1', 'date' => $date,
+            'start_time' => '14:00', 'end_time' => '15:00',
+        ]);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+        $this->getJson("/api/v1/sessions/{$other->id}")
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', 'SESSION_NOT_FOUND');
+    }
+
+    public function test_manager_keeps_existing_conflict_detail(): void
+    {
+        $mine = $this->klass(['id' => 'c_mine', 'teacher_id' => 't1']);
+        $foreign = $this->klass(['id' => 'c_foreign', 'teacher_id' => 't9']);
+        $date = Carbon::today()->addDays(3)->toDateString();
+        $other = $this->makeSession([
+            'id' => 'ses_foreign', 'class_id' => $foreign->id,
+            'teacher_id' => 't9', 'room_id' => 'r1', 'date' => $date,
+            'start_time' => '14:00', 'end_time' => '15:00',
+        ]);
+        $student = Student::factory()->create(['organization_id' => $this->defaultOrganization()->id, 'id' => 'st_shared']);
+        foreach ([$mine->id, $foreign->id] as $classId) {
+            Enrollment::factory()->create([
+                'organization_id' => $this->defaultOrganization()->id,
+                'student_id' => $student->id, 'class_id' => $classId, 'status' => 'active',
+            ]);
+        }
+
+        $this->actingAsRole('manager');
+        $response = $this->postJson('/api/v1/sessions/check-conflicts', $this->payload([
+            'classId' => $mine->id, 'date' => $date, 'teacherId' => 't1', 'roomId' => 'r1',
+        ]))->assertOk();
+        $response->assertJsonPath('data.hard.0.conflictingSessionId', $other->id)
+            ->assertJsonPath('data.warnings.0.kind', 'SESSION_STUDENT_OVERLAP')
+            ->assertJsonPath('data.warnings.0.studentIds.0', $student->id);
+    }
+
+    public function test_cross_tenant_conflict_is_not_disclosed(): void
+    {
+        $mine = $this->klass(['id' => 'c_mine', 'teacher_id' => 't1']);
+        $foreignOrg = $this->makeOrganization();
+        $date = Carbon::today()->addDays(3)->toDateString();
+        ClassSession::factory()->create([
+            'organization_id' => $foreignOrg->id, 'id' => 'ses_tenant_other',
+            'teacher_id' => 't9', 'room_id' => 'r1', 'date' => $date,
+            'start_time' => '14:00', 'end_time' => '15:00',
+        ]);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+        $response = $this->postJson('/api/v1/sessions/check-conflicts', $this->payload([
+            'classId' => $mine->id, 'date' => $date, 'teacherId' => 't1', 'roomId' => 'r1',
+        ]))->assertOk();
+        $this->assertStringNotContainsString('ses_tenant_other', (string) json_encode($response->json('data')));
+    }
+
+
+    public function test_generate_preview_redacts_conflicts_for_teacher(): void
+    {
+        $mine = $this->klass(['id' => 'c_mine', 'teacher_id' => 't1', 'time' => '14:00']);
+        $foreign = $this->klass(['id' => 'c_foreign', 'teacher_id' => 't9', 'title' => 'کلاس محرمانه']);
+        $date = Carbon::today()->addDay()->toDateString();
+        $other = $this->makeSession([
+            'id' => 'ses_foreign', 'class_id' => $foreign->id,
+            'teacher_id' => 't9', 'room_id' => 'r1', 'date' => $date,
+            'start_time' => '14:00', 'end_time' => '15:00',
+        ]);
+
+        $this->actingAsRole('teacher', ['teacher_id' => 't1']);
+        $response = $this->postJson('/api/v1/sessions/generate?preview=1', [
+            'classId' => $mine->id, 'from' => $date, 'to' => $date,
+        ])->assertOk();
+
+        $response->assertJsonPath('data.conflicts.hard.0.kind', 'SESSION_ROOM_CONFLICT')
+            ->assertJsonPath('data.conflicts.hard.0.conflictingSessionId', $other->id);
+        $body = (string) json_encode($response->json('data.conflicts'));
+        $this->assertStringNotContainsString('c_foreign', $body);
+        $this->assertStringNotContainsString('کلاس محرمانه', $body);
+        $this->assertDatabaseCount('class_sessions', 1); // preview writes nothing
+    }
 }
